@@ -18,21 +18,99 @@ package validation
 
 import (
 	"context"
+	"fmt"
+	"net/http"
 
 	"github.com/go-logr/logr"
+	v1 "k8s.io/api/admission/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
+
+	"github.com/NVIDIA/grove/operator/api/podgangset/v1alpha1"
 )
 
 //const handlerName = "podgangset-validation-webhook"
 
 // Handler is a handler for validating PodGangSet resources.
 type Handler struct {
-	client client.Client
-	logger logr.Logger
+	client  client.Client
+	decoder admission.Decoder
+	logger  logr.Logger
+}
+
+// NewHandler creates a new handler for PodGangSet Webhook.
+func NewHandler(mgr manager.Manager) (*Handler, error) {
+	return &Handler{
+		client:  mgr.GetClient(),
+		decoder: admission.NewDecoder(mgr.GetScheme()),
+		logger:  mgr.GetLogger(),
+	}, nil
 }
 
 // Handle validates operations done on PodGangSet and PodGang resources.
 func (h *Handler) Handle(ctx context.Context, req admission.Request) admission.Response {
-	panic("implement me")
+	log := h.logger.WithValues("name", req.Name, "namespace", req.Namespace, "resource", fmt.Sprintf("%s/%s", req.Kind.Group, req.Kind.Kind), "operation", req.Operation, "user", req.UserInfo.Username)
+	log.V(1).Info("Grove validation webhook invoked")
+
+	// TODO: check that req.UserInfo.Username can do validation
+	return h.validate(req)
+}
+
+func (h *Handler) validate(req admission.Request) admission.Response {
+	switch req.Operation {
+	case v1.Connect:
+		// No validation for connect requests.
+		return admission.Allowed(fmt.Sprintf("operation %q on PodGangSet is allowed", v1.Connect))
+
+	case v1.Create:
+		pgs := &v1alpha1.PodGangSet{}
+		if err := h.decoder.Decode(req, pgs); err != nil {
+			return admission.Errored(http.StatusBadRequest, err)
+		}
+		return h.validateCreate(pgs)
+
+	case v1.Update:
+		newPgs := &v1alpha1.PodGangSet{}
+		if err := h.decoder.DecodeRaw(req.Object, newPgs); err != nil {
+			return admission.Errored(http.StatusBadRequest, err)
+		}
+
+		oldPgs := &v1alpha1.PodGangSet{}
+		if err := h.decoder.DecodeRaw(req.OldObject, oldPgs); err != nil {
+			return admission.Errored(http.StatusBadRequest, err)
+		}
+		return h.validateUpdate(newPgs, oldPgs)
+
+	case v1.Delete:
+		// In reference to PR: https://github.com/kubernetes/kubernetes/pull/76346
+		// OldObject contains the object being deleted
+
+		pgs := &v1alpha1.PodGangSet{}
+		if err := h.decoder.DecodeRaw(req.OldObject, pgs); err != nil {
+			return admission.Errored(http.StatusBadRequest, err)
+		}
+		return h.validateDelete(pgs)
+
+	default:
+		return admission.Errored(http.StatusBadRequest, fmt.Errorf("unknown operation %q", req.Operation))
+	}
+}
+
+func (h *Handler) validateCreate(pgs *v1alpha1.PodGangSet) admission.Response {
+	if err := validatePodGangSet(pgs); err != nil {
+		return admission.Denied(err.Error())
+	}
+
+	return admission.Allowed("PodGangSet is valid")
+}
+
+func (h *Handler) validateUpdate(newPgs, oldPgs *v1alpha1.PodGangSet) admission.Response {
+	// TODO: implement
+	return admission.Denied("not implemented")
+}
+
+func (h *Handler) validateDelete(pgs *v1alpha1.PodGangSet) admission.Response {
+	// TODO: implement
+	return admission.Denied("not implemented")
 }

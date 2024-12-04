@@ -99,9 +99,8 @@ const (
 
 // PodClique defines a set of pods that share the same PodSpec and serve as a single functional unit.
 type PodClique struct {
-	//NamePrefix is the prefix that will be used to name the pods in the clique.
-	// +optional
-	NamePrefix *string `json:"namePrefix,omitempty"`
+	//Name is a unique clique name.
+	Name string `json:"name"`
 	// Template is the template of the pods in the clique.
 	Template corev1.PodTemplateSpec `json:"template"`
 	// Size is the number of pods in the clique. Once set this cannot be changed.
@@ -116,7 +115,7 @@ type PodClique struct {
 	// 1. If a StarsAfter has been defined and one or more cycles are detected in DAG's then it will be flagged as validation error.
 	// 2. If StartsAfter is defined and does not identify any PodClique then it will be flagged as a validation error.
 	// +optional
-	StartsAfter *metav1.LabelSelector `json:"startsAfter,omitempty"`
+	StartsAfter []string `json:"startsAfter,omitempty"`
 }
 
 // CliqueStatus defines the status of a clique.
