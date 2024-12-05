@@ -14,9 +14,11 @@
 # limitations under the License.
 # */
 
+
+SYSTEM_NAME         := $(shell uname -s | tr '[:upper:]' '[:lower:]')
+SYSTEM_ARCH         := $(shell uname -m | sed 's/x86_64/amd64/;s/aarch64/arm64/')
 TOOLS_DIR 			:= $(HACK_DIR)/tools
 TOOLS_BIN_DIR       := $(TOOLS_DIR)/bin
-
 CONTROLLER_GEN      := $(TOOLS_BIN_DIR)/controller-gen
 SETUP_ENVTEST       := $(TOOLS_BIN_DIR)/setup-envtest
 KIND                := $(TOOLS_BIN_DIR)/kind
@@ -25,6 +27,7 @@ GOIMPORTS_REVISER   := $(TOOLS_BIN_DIR)/goimports-reviser
 CODE_GENERATOR	    := $(TOOLS_BIN_DIR)/code-generator
 YQ					:= $(TOOLS_BIN_DIR)/yq
 GO_ADD_LICENSE      := $(TOOLS_BIN_DIR)/addlicense
+SKAFFOLD            := $(TOOLS_BIN_DIR)/skaffold
 
 # default tool versions
 # -------------------------------------------------------------------------
@@ -35,6 +38,7 @@ GOIMPORTS_REVISER_VERSION ?= v3.6.5
 CODE_GENERATOR_VERSION ?= $(call version_gomod,k8s.io/api)
 YQ_VERSION ?= v4.44.3
 GO_ADD_LICENSE_VERSION ?= v1.1.1
+SKAFFOLD_VERSION ?= v2.13.2
 
 export PATH := $(abspath $(TOOLS_BIN_DIR)):$(PATH)
 
@@ -45,7 +49,7 @@ version_gomod = $(shell go list -mod=mod -f '{{ .Version }}' -m $(1))
 
 .PHONY: clean-tools-bin
 clean-tools-bin:
-	rm -rf $(TOOLS_BIN_DIR)/*
+	@rm -rf $(TOOLS_BIN_DIR)/*
 
 # Tools
 # -------------------------------------------------------------------------
@@ -79,3 +83,7 @@ $(YQ):
 
 $(GO_ADD_LICENSE):
 	GOBIN=$(abspath $(TOOLS_BIN_DIR)) go install github.com/google/addlicense@$(GO_ADD_LICENSE_VERSION)
+
+$(SKAFFOLD):
+	curl -Lo $(SKAFFOLD) https://storage.googleapis.com/skaffold/releases/$(SKAFFOLD_VERSION)/skaffold-$(SYSTEM_NAME)-$(SYSTEM_ARCH)
+	chmod +x $(SKAFFOLD)

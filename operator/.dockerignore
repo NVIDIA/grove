@@ -1,0 +1,14 @@
+# Ignore everyting
+**
+
+# Exclude folders/files that are relevant for build
+!.git
+!operator/.dockerignore
+!operator/cmd/
+!operator/internal/
+!operator/client/
+!operator/hack/
+!operator/go.mod
+!operator/go.sum
+!operator/Makefile
+!operator/VERSION

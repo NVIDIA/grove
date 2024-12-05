@@ -23,7 +23,7 @@ import (
 )
 
 // GroupName is the name of the group for all resources defined in this package.
-const GroupName = "core.grove.k8s.io"
+const GroupName = "grove.io"
 
 var (
 	// SchemeGroupVersion is group version used to register these objects

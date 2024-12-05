@@ -61,13 +61,13 @@ func NewFilteredPodGangInformer(client versioned.Interface, namespace string, re
 				if tweakListOptions != nil {
 					tweakListOptions(&options)
 				}
-				return client.CoreV1alpha1().PodGangs(namespace).List(context.TODO(), options)
+				return client.GroveV1alpha1().PodGangs(namespace).List(context.TODO(), options)
 			},
 			WatchFunc: func(options v1.ListOptions) (watch.Interface, error) {
 				if tweakListOptions != nil {
 					tweakListOptions(&options)
 				}
-				return client.CoreV1alpha1().PodGangs(namespace).Watch(context.TODO(), options)
+				return client.GroveV1alpha1().PodGangs(namespace).Watch(context.TODO(), options)
 			},
 		},
 		&podgangsetv1alpha1.PodGang{},

@@ -253,9 +253,9 @@ type SharedInformerFactory interface {
 	// client.
 	InformerFor(obj runtime.Object, newFunc internalinterfaces.NewInformerFunc) cache.SharedIndexInformer
 
-	Core() podgangset.Interface
+	Grove() podgangset.Interface
 }
 
-func (f *sharedInformerFactory) Core() podgangset.Interface {
+func (f *sharedInformerFactory) Grove() podgangset.Interface {
 	return podgangset.New(f, f.namespace, f.tweakListOptions)
 }

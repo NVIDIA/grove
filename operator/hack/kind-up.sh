@@ -26,7 +26,6 @@ OPERATOR_GO_MODULE_ROOT="$(dirname "$SCRIPT_DIR")"
 KIND_CONFIG_DIR="${SCRIPT_DIR}/kind"
 CLUSTER_NAME="grove-test-cluster"
 DEPLOY_REGISTRY=true
-DELETE_CLUSTER=false
 RECREATE_CLUSTER=false
 FEATURE_GATES=()
 USAGE=""
@@ -39,7 +38,6 @@ function kind::create_usage() {
     -s | --skip-registry                  Skip creating a local docker registry. Default value is false.
     -r | --recreate                       If this flag is specified then it will recreate the cluster if it already exists.
     -g | --feature-gates <feature-gates>  Comma separated list of feature gates to enable on the cluster.
-    -d | --delete                         Deletes a kind cluster. If cluster name is specified via `-n | --cluster-name` then it will delete that cluster else it will delete the default cluster with name 'grove-test-cluster'. If this option is not used then it will by default create a kind cluster.
   ")
   echo "${usage}"
 }
@@ -79,10 +77,6 @@ function kind::parse_flags() {
         IFS=',' read -r -a FEATURE_GATES <<< "$1"
         unset IFS
         ;;
-      -d | --delete)
-        DELETE_CLUSTER=true
-        shift
-        ;;
       -h | --help)
         shift
         echo "${USAGE}"
@@ -112,7 +106,8 @@ kind: Cluster
 apiVersion: kind.x-k8s.io/v1alpha4
 nodes:
 - role: control-plane
-  image: kindest/node:v1.31.1:
+  image: kindest/node:v1.31.1
+  extraPortMappings:
   - containerPort: 4566
     hostPort: 4566
     protocol: TCP
@@ -121,10 +116,12 @@ nodes:
     protocol: TCP
 EOF
   if [ "${DEPLOY_REGISTRY}" = true ]; then
+    echo "Adding registry config to the kind cluster config..."
     printf -v reg '[plugins."io.containerd.grpc.v1.cri".registry]
       config_path = "/etc/containerd/certs.d"'; reg="$reg" yq -i '.containerdConfigPatches[0] = strenv(reg)' "${KIND_CONFIG_DIR}/cluster-config.yaml"
   fi
   if [ ${#FEATURE_GATES[@]} -gt 0 ]; then
+    echo "Adding feature gates to the kind cluster config..."
     for key in "${FEATURE_GATES[@]}"; do
       feature_key="$key" yq -i 'with(.featureGates.[strenv(feature_key)]; . = true | key style="double")' "${KIND_CONFIG_DIR}/cluster-config.yaml"
     done
@@ -132,22 +129,22 @@ EOF
 }
 
 function kind::create_cluster() {
-  if [[ "${FORCE_CREATE_KIND_CLUSTER}" == true ]]; then
+  if [ "${DEPLOY_REGISTRY}" = true ]; then
+    kind::create_local_docker_registry_container
+  fi
+  if [[ "${RECREATE_CLUSTER}" == true ]]; then
     cluster_exists=$(kind::does_cluster_exist)
     if [[ "${cluster_exists}" == "true" ]]; then
-      echo "Deleting the existing cluster as you have chosen recreate"
+      echo "Deleting the existing cluster as you have chosen to recreate"
       kind::delete_cluster
     fi
-  fi
-  if [ "${DEPLOY_REGISTRY}" = true ]; then
-    create_local_docker_registry_container
   fi
   echo "Creating kind cluster ${CLUSTER_NAME}..."
   kind::generate_config
   kind create cluster --name "${CLUSTER_NAME}" --config "${KIND_CONFIG_DIR}/cluster-config.yaml"
   if [ "${DEPLOY_REGISTRY}" = true ]; then
-    initialize_registry
-    create_local_container_reg_configmap
+    kind::initialize_registry
+    kind::create_local_container_reg_configmap
   fi
 }
 
@@ -237,19 +234,13 @@ function kind::delete_container_registry() {
 }
 
 function main() {
-  check_prerequisites
-  parse_flags "$@"
-  clamp_mss_to_pmtu
-  if [ "${DEPLOY_REGISTRY}" = true ]; then
-    create_local_docker_registry_container
-  fi
-  generate_kind_config
-  create_kind_cluster
-  if [ "${DEPLOY_REGISTRY}" = true ]; then
-    initialize_registry
-    create_local_container_reg_configmap
-  fi
+  kind::check_prerequisites
+  kind::parse_flags "$@"
+  kind::clamp_mss_to_pmtu
+  export KUBECONFIG="${SCRIPT_DIR}/kind/kubeconfig"
+  kind::create_cluster
+  printf "\n\033[0;33m📌 NOTE: To target the newly created KinD cluster, please run the following command:\n\n export KUBECONFIG=${KUBECONFIG}\n\033[0m\n"
 }
 
-USAGE=$(create_usage)
+USAGE=$(kind::create_usage)
 main "$@"

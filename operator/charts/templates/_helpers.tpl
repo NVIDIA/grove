@@ -1,0 +1,101 @@
+{{- define "operator.config.data" -}}
+config.yaml: |
+  ---
+  apiVersion: operator.config.grove.io/v1alpha1
+  kind: OperatorConfiguration
+  runtimeClientConnection:
+    qps: {{ .Values.config.runtimeClientConnection.qps }}
+    burst: {{ .Values.config.runtimeClientConnection.burst }}
+  leaderElection:
+    enabled: {{ .Values.config.leaderElection.enabled }}
+    leaseDuration: {{ .Values.config.leaderElection.leaseDuration }}
+    renewDeadline: {{ .Values.config.leaderElection.renewDeadline }}
+    retryPeriod: {{ .Values.config.leaderElection.retryPeriod }}
+    resourceLock: {{ .Values.config.leaderElection.resourceLock }}
+    resourceName: {{ .Values.config.leaderElection.resourceName }}
+    resourceNamespace: {{ .Release.Namespace }}
+  server:
+    webhooks:
+      port: {{ .Values.config.server.webhooks.port }}
+    healthProbes:
+      port: {{ .Values.config.server.healthProbes.port }}
+    metrics:
+      port: {{ .Values.config.server.metrics.port }}
+  controllers:
+    podGangSet:
+      concurrentSyncs: {{ .Values.config.controllers.podGangSet.concurrentSyncs }}
+  {{- if .Values.config.debugging }}
+  debugging:
+    enableProfiling: {{ .Values.config.debugging.enableProfiling }}
+  {{- end }}
+  logLevel: {{ .Values.config.logLevel | default "info" }}
+  logFormat: {{ .Values.config.logFormat | default "json" }}
+
+
+{{- end -}}
+
+{{- define "operator.config.name" -}}
+grove-operator-cm-{{ include "operator.config.data" . | sha256sum | trunc 8 }}
+{{- end -}}
+
+{{- define "common.chart.labels" -}}
+chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
+release: "{{ .Release.Name }}"
+{{- end -}}
+
+{{- define "operator.config.lables" -}}
+{{- include "common.chart.labels" . }}
+{{- range $key, $val := .Values.configMap.labels }}
+{{ $key }}: {{ $val }}
+{{- end }}
+{{- end -}}
+
+{{- define "operator.deployment.matchLabels" -}}
+{{- range $key, $val := .Values.deployment.labels }}
+{{ $key }}: {{ $val }}
+{{- end }}
+{{- end -}}
+
+{{- define "operator.deployment.labels" -}}
+{{- include "common.chart.labels" . }}
+{{- include "operator.deployment.matchLabels" . }}
+{{- end -}}
+
+{{- define "operator.serviceaccount.labels" -}}
+{{- include "common.chart.labels" . }}
+{{- range $key, $val := .Values.serviceAccount.labels }}
+{{ $key }}: {{ $val }}
+{{- end }}
+{{- end -}}
+
+{{- define "operator.service.labels" -}}
+{{- include "common.chart.labels" . }}
+{{- range $key, $val := .Values.service.labels }}
+{{ $key }}: {{ $val }}
+{{- end }}
+{{- end -}}
+
+{{- define "operator.clusterrole.labels" -}}
+{{- include "common.chart.labels" . }}
+{{- range $key, $val := .Values.clusterRole.labels }}
+{{ $key }}: {{ $val }}
+{{- end }}
+{{- end -}}
+
+{{- define "operator.clusterrolebinding.labels" -}}
+{{- include "common.chart.labels" . }}
+{{- range $key, $val := .Values.clusterRoleBinding.labels }}
+{{ $key }}: {{ $val }}
+{{- end }}
+{{- end -}}
+
+{{- define "operator.imagevector-overwrite-charts.name" -}}
+{{- end -}}
+
+{{- define "image" -}}
+{{- if hasPrefix "sha256:" (required "$.tag is required" $.tag) -}}
+{{ required "$.repository is required" $.repository }}@{{ required "$.tag" $.tag }}
+{{- else -}}
+{{ required "$.repository is required" $.repository }}:{{ required "$.tag" $.tag }}
+{{- end -}}
+{{- end -}}

@@ -4,9 +4,9 @@ kind: CustomResourceDefinition
 metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.16.3
-  name: podgangsets.core.grove.k8s.io
+  name: podgangsets.grove.io
 spec:
-  group: core.grove.k8s.io
+  group: grove.io
   names:
     kind: PodGangSet
     listKind: PodGangSetList

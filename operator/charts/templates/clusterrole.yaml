@@ -1,0 +1,32 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: {{ required ".Values.clusterRole.name is required" .Values.clusterRole.name }}
+  labels:
+{{- include "operator.clusterrole.labels" . | nindent 4 }}
+rules:
+- apiGroups:
+  - grove.io
+  resources:
+  - podgangsets
+  - podgangsets/status
+  - podgangs
+  - podgangs/status
+  verbs:
+  - create
+  - get
+  - list
+  - watch
+  - delete
+  - deletecollection
+  - patch
+  - update
+- apiGroups:
+  - ""
+  resources:
+  - pods
+  - nodes
+  verbs:
+  - get
+  - list
+  - watch

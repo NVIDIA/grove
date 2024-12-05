@@ -22,11 +22,11 @@ import (
 )
 
 // GroupName is the group name used in this package
-const GroupName = "operator.config.grove.k8s.io"
+const GroupName = "operator.config.grove.io"
 
 var (
 	// SchemeGroupVersion is group version used to register these objects
-	SchemeGroupVersion = schema.GroupVersion{Group: GroupName, Version: runtime.APIVersionInternal}
+	SchemeGroupVersion = schema.GroupVersion{Group: GroupName, Version: "v1alpha1"}
 	// SchemeBuilder is used to add go types to the GroupVersionKind scheme
 	SchemeBuilder      = runtime.NewSchemeBuilder(addKnownTypes)
 	localSchemeBuilder = &SchemeBuilder

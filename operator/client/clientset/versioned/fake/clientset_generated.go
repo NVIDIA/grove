@@ -19,8 +19,8 @@ package fake
 
 import (
 	clientset "github.com/NVIDIA/grove/operator/client/clientset/versioned"
-	corev1alpha1 "github.com/NVIDIA/grove/operator/client/clientset/versioned/typed/podgangset/v1alpha1"
-	fakecorev1alpha1 "github.com/NVIDIA/grove/operator/client/clientset/versioned/typed/podgangset/v1alpha1/fake"
+	grovev1alpha1 "github.com/NVIDIA/grove/operator/client/clientset/versioned/typed/podgangset/v1alpha1"
+	fakegrovev1alpha1 "github.com/NVIDIA/grove/operator/client/clientset/versioned/typed/podgangset/v1alpha1/fake"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/discovery"
@@ -82,7 +82,7 @@ var (
 	_ testing.FakeClient  = &Clientset{}
 )
 
-// CoreV1alpha1 retrieves the CoreV1alpha1Client
-func (c *Clientset) CoreV1alpha1() corev1alpha1.CoreV1alpha1Interface {
-	return &fakecorev1alpha1.FakeCoreV1alpha1{Fake: &c.Fake}
+// GroveV1alpha1 retrieves the GroveV1alpha1Client
+func (c *Clientset) GroveV1alpha1() grovev1alpha1.GroveV1alpha1Interface {
+	return &fakegrovev1alpha1.FakeGroveV1alpha1{Fake: &c.Fake}
 }

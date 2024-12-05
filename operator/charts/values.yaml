@@ -1,0 +1,104 @@
+# This will set the replicaset count more information can be found here: https://kubernetes.io/docs/concepts/workloads/controllers/replicaset/
+replicaCount: 1
+
+# This sets the container image more information can be found here: https://kubernetes.io/docs/concepts/containers/images/
+image:
+  repository: grove-operator
+  # This sets the pull policy for images.
+  pullPolicy: IfNotPresent
+  # Overrides the image tag whose default is the chart appVersion.
+  tag: latest
+
+resources:
+  limits:
+    cpu: 300m
+    memory: 512Mi
+  requests:
+    cpu: 50m
+    memory: 128Mi
+
+# This section builds out the service account more information can be found here: https://kubernetes.io/docs/concepts/security/service-accounts/
+serviceAccount:
+  # Automatically mount a ServiceAccount's API credentials?
+  automount: false
+  # The name of the service account to use.
+  # If not set and create is true, a name is generated using the fullname template
+  name: "grove-operator"
+  labels:
+    app.kubernetes.io/component: operator-serviceaccount
+    app.kubernetes.io/name: grove-operator-service-account
+    app.kubernetes.io/part-of: grove
+
+config:
+  runtimeClientConnection:
+    qps: 100
+    burst: 150
+  leaderElection:
+    enabled: true
+    leaseDuration: 15s
+    renewDeadline: 10s
+    retryPeriod: 2s
+    resourceLock: leases
+    resourceName: grove-operator-leader-election
+  server:
+    webhooks:
+      port: 9443
+    healthProbes:
+      enable: false
+      port: 9444
+    metrics:
+      port: 9445
+  debugging:
+    enableProfiling: false
+  controllers:
+    podGangSet:
+      concurrentSyncs: 3
+  logLevel: info
+  logFormat: json
+
+configMap:
+  labels:
+    app.kubernetes.io/component: operator-configmap
+    app.kubernetes.io/name: grove-operator-config
+    app.kubernetes.io/part-of: grove
+
+deployment:
+  labels:
+    app.kubernetes.io/component: operator-deployment
+    app.kubernetes.io/name: grove-operator
+    app.kubernetes.io/part-of: grove
+
+# This is for setting up a service more information can be found here: https://kubernetes.io/docs/concepts/services-networking/service/
+service:
+  name: grove-operator
+  # This sets the service type more information can be found here: https://kubernetes.io/docs/concepts/services-networking/service/#publishing-services-service-types
+  type: ClusterIP
+  # This sets the ports more information can be found here: https://kubernetes.io/docs/concepts/services-networking/service/#field-spec-ports
+  port: 80
+  labels:
+    app.kubernetes.io/component: operator-service
+    app.kubernetes.io/name: grove-operator
+    app.kubernetes.io/part-of: grove
+
+clusterRole:
+  name: grove:system:grove-operator
+  labels:
+    app.kubernetes.io/component: operator-clusterrole
+    app.kubernetes.io/name: grove-operator
+    app.kubernetes.io/part-of: grove
+
+clusterRoleBinding:
+    name: grove:system:grove-operator
+    labels:
+        app.kubernetes.io/component: operator-clusterrolebinding
+        app.kubernetes.io/name: grove-operator
+        app.kubernetes.io/part-of: grove
+
+webhook:
+  isEnabled: false
+  port: 9443
+
+priorityClass:
+  enabled: false
+  name: grove-operator-priority-critical
+  value: 999999550

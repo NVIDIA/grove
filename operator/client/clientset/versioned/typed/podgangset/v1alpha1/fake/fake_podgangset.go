@@ -30,7 +30,7 @@ import (
 
 // FakePodGangSets implements PodGangSetInterface
 type FakePodGangSets struct {
-	Fake *FakeCoreV1alpha1
+	Fake *FakeGroveV1alpha1
 	ns   string
 }
 

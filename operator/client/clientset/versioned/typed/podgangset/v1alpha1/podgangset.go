@@ -55,7 +55,7 @@ type podGangSets struct {
 }
 
 // newPodGangSets returns a PodGangSets
-func newPodGangSets(c *CoreV1alpha1Client, namespace string) *podGangSets {
+func newPodGangSets(c *GroveV1alpha1Client, namespace string) *podGangSets {
 	return &podGangSets{
 		gentype.NewClientWithList[*v1alpha1.PodGangSet, *v1alpha1.PodGangSetList](
 			"podgangsets",
