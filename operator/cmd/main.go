@@ -18,12 +18,12 @@ package main
 
 import (
 	"flag"
+	grovectrl "github.com/NVIDIA/grove/operator/internal/controller"
 	"os"
 
 	configv1alpha1 "github.com/NVIDIA/grove/operator/api/config/v1alpha1"
 	groveopts "github.com/NVIDIA/grove/operator/cmd/opts"
 	grovelogger "github.com/NVIDIA/grove/operator/internal/logger"
-	grovemgr "github.com/NVIDIA/grove/operator/internal/manager"
 	groveversion "github.com/NVIDIA/grove/operator/internal/version"
 
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -54,7 +54,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	mgr, err := grovemgr.CreateAndInitializeManager(operatorCfg)
+	mgr, err := grovectrl.CreateAndInitializeManager(operatorCfg)
 	if err != nil {
 		logger.Error(err, "failed to create grove controller manager")
 		os.Exit(1)

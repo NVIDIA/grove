@@ -65,7 +65,8 @@ type NetworkPackStrategy string
 const (
 	// BestEffort pack strategy makes the best effort for optimal placement of pods but does not guarantee it.
 	BestEffort NetworkPackStrategy = "BestEffort"
-	// Strict pack strategy guarantees that pods will be packed optimally. If optimal placement cannot be achieved then pods will remain pending.
+	// Strict pack strategy strives for the most optimal placement for pods assuming sufficient capacity.
+	// If optimal placement cannot be achieved then pods will remain pending.
 	Strict NetworkPackStrategy = "Strict"
 )
 
@@ -107,72 +108,35 @@ type PodClique struct {
 	// If not specified then it will be defaulted to 1.
 	// +optional
 	Size *int32 `json:"size,omitempty"`
-	// StartsAfter provides you a way to explicitly define the startup dependencies
-	// amongst cliques. It must be specified if PodGang.StartupType is Explicit,
-	// else it will be ignored.
+	// StartsAfter provides you a way to explicitly define the startup dependencies amongst cliques.
+	// If CliqueStartupType in PodGang has been set to 'Explicit', then to create an ordered start amongst PorClique's StartsAfter can be used.
+	// A forest of DAG's can be defined to model any start order dependencies. If there are more than one PodClique's defined and StartsAfter is not set for any of them,
+	// then their startup order is random at best and must not be relied upon.
+	// Validations:
+	// 1. If a StarsAfter has been defined and one or more cycles are detected in DAG's then it will be flagged as validation error.
+	// 2. If StartsAfter is defined and does not identify any PodClique then it will be flagged as a validation error.
 	// +optional
 	StartsAfter *metav1.LabelSelector `json:"startsAfter,omitempty"`
 }
 
-// PodGangSpec defines the specification of a PodGang.
-type PodGangSpec struct {
-	// Cliques is a slice of cliques that make up the PodGang. There should be at least one PodClique.
-	Cliques []PodClique `json:"cliques"`
-	// StartupType defines the type of startup dependency amongst the cliques within a PodGang.
-	// +optional
-	StartupType CliqueStartupType `json:"cliqueStartupType,omitempty"`
-	// RestartPolicy defines the restart policy for the PodGang.
-	// +optional
-	RestartPolicy PodGangRestartPolicy `json:"restartPolicy,omitempty"`
-	// NetworkPackStrategy defines the strategy for packing pods on nodes while minimizing network switch hops.
-	// +optional
-	NetworkPackStrategy *NetworkPackStrategy `json:"networkPackStrategy,omitempty"`
-}
-
 // CliqueStatus defines the status of a clique.
 type CliqueStatus struct {
+	// Name is the name of the clique.
+	Name string `json:"name"`
 	// Conditions represents the latest available observations of the clique by its controller.
 	Conditions []metav1.Condition `json:"conditions,omitempty"`
 }
 
 // PodGangStatus defines the status of a PodGang.
 type PodGangStatus struct {
-	// ObservedGeneration is the most recent generation observed by the controller.
-	ObservedGeneration *int64 `json:"observedGeneration,omitempty"`
+	// Name is the name of the PodGang.
+	Name string `json:"name"`
 	// Phase is the current phase of the PodGang.
 	Phase PodGangPhase `json:"phase"`
 	// Conditions represents the latest available observations of the PodGang by its controller.
 	Conditions []metav1.Condition `json:"conditions,omitempty"`
 	// CliqueStatutes represents the status of each clique in the PodGang.
 	CliqueStatutes []CliqueStatus `json:"cliqueStatuses,omitempty"`
-}
-
-// +genclient
-// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
-// +kubebuilder:object:root=true
-// +kubebuilder:subresource:status
-// +kubebuilder:resource:shortName={pg}
-
-// PodGang is a unit of deployment, update and scale.
-// It represents a collection of pods defined by their respective PodClique's that are scheduled as a single unit.
-type PodGang struct {
-	metav1.TypeMeta   `json:",inline"`
-	metav1.ObjectMeta `json:",inline"`
-	// Spec defines the specification of the PodGang.
-	Spec PodGangSpec `json:"spec"`
-	// Status defines the status of the PodGang.
-	Status PodGangStatus `json:"status"`
-}
-
-// +kubebuilder:object:root=true
-// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
-
-// PodGangList is a list of PodGangs.
-type PodGangList struct {
-	metav1.TypeMeta `json:",inline"`
-	metav1.ListMeta `json:"metadata,omitempty"`
-	// Items is a slice of PodGangs.
-	Items []PodGang `json:"items"`
 }
 
 // RollingUpdateConfiguration is the configuration to control the desired behavior of a rolling update of a PodGang.
@@ -215,9 +179,17 @@ type GangUpdateStrategy struct {
 
 // PodGangTemplateSpec defines a template spec for a PodGang.
 type PodGangTemplateSpec struct {
-	metav1.ObjectMeta `json:",inline"`
-	// Spec defines the specification of the PodGang.
-	Spec PodGangSpec `json:"spec"`
+	// Cliques is a slice of cliques that make up the PodGang. There should be at least one PodClique.
+	Cliques []PodClique `json:"cliques"`
+	// StartupType defines the type of startup dependency amongst the cliques within a PodGang.
+	// +optional
+	StartupType CliqueStartupType `json:"cliqueStartupType,omitempty"`
+	// RestartPolicy defines the restart policy for the PodGang.
+	// +optional
+	RestartPolicy PodGangRestartPolicy `json:"restartPolicy,omitempty"`
+	// NetworkPackStrategy defines the strategy for packing pods on nodes while minimizing network switch hops.
+	// +optional
+	NetworkPackStrategy *NetworkPackStrategy `json:"networkPackStrategy,omitempty"`
 }
 
 // PodGangSetSpec defines the specification of a PodGangSet.
@@ -230,30 +202,10 @@ type PodGangSetSpec struct {
 	Replicas *int32 `json:"replicas,omitempty"`
 	// UpdateStrategy defines the strategy to be used when updating the PodGangs.
 	// +optional
-	UpdateStrategy     GangUpdateStrategy  `json:"updateStrategy,omitempty"`
-	GangSpreadStrategy *GangSpreadStrategy `json:"gangSpreadStrategy,omitempty"`
-}
-
-// NetworkSpreadStrategy defines the strategy for spreading pods across nodes while minimizing network switch hops.
-// An attempt will always be made to ensure that the pods are spread across the cluster among failure-domains.
-// Spread strategy only describes if this is a strict requirement or a best-effort.
-// +kubebuilder:validation:Enum={BestEffort,Strict}
-type NetworkSpreadStrategy string
-
-const (
-	// BestEffortSpread pack strategy makes the best effort for optimal placement of pods but does not guarantee it.
-	BestEffortSpread NetworkSpreadStrategy = "BestEffort"
-	// StrictSpread pack strategy guarantees that pods will be packed optimally. If optimal placement cannot be achieved then pods will remain pending.
-	StrictSpread NetworkSpreadStrategy = "Strict"
-)
-
-// GangSpreadStrategy defines the strategy for spreading the PodGangs across nodes grouped by the topologyKey.
-type GangSpreadStrategy struct {
-	// NetworkSpreadStrategy defines the strategy for spreading pods across nodes while minimizing network switch hops.
-	SpreadStrategy NetworkSpreadStrategy `json:"spreadStrategy"`
-	// TopologyKey is the key of node labels. Nodes that have a label with this key
-	// and identical values are considered to be in the same topology.
-	TopologyKey *string `json:"topologyKey,omitempty"`
+	UpdateStrategy GangUpdateStrategy `json:"updateStrategy,omitempty"`
+	// GangSpreadConstraints defines the constraints for spreading PodGang's across domains identified by a topology.
+	// +optional
+	GangSpreadConstraints []corev1.TopologySpreadConstraint `json:"gangSpreadConstraints,omitempty"`
 }
 
 // PodGangSetStatus defines the status of a PodGangSet.
@@ -269,6 +221,8 @@ type PodGangSetStatus struct {
 	// Selector is the label selector that determines which pods are part of the PodGang.
 	// PodGang is a unit of scale and this selector is used by HPA to scale the PodGang based on metrics captured for the pods that match this selector.
 	Selector *string `json:"hpaPodSelector,omitempty"`
+	// PodGangStatuses captures the status for all the PodGang's that are part of the PodGangSet.
+	PodGangStatutes []PodGangStatus `json:"podGangStatuses,omitempty"`
 }
 
 // +genclient

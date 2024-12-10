@@ -30,7 +30,7 @@ function check_prereq() {
 }
 
 function copy_crds() {
-  declare -a crds=("grove.io_podgangs.yaml" "grove.io_podgangsets.yaml")
+  declare -a crds=("grove.io_podgangsets.yaml")
   targetPath="${OPERATOR_GO_MODULE_ROOT}/charts/crds"
   for crd in "${crds[@]}"; do
     local crdPath="${OPERATOR_GO_MODULE_ROOT}/config/crd/bases/${crd}"

@@ -44,8 +44,6 @@ func addKnownTypes(scheme *runtime.Scheme) error {
 	scheme.AddKnownTypes(SchemeGroupVersion,
 		&PodGangSet{},
 		&PodGangSetList{},
-		&PodGang{},
-		&PodGangList{},
 	)
 	metav1.AddToGroupVersion(scheme, SchemeGroupVersion)
 	return nil

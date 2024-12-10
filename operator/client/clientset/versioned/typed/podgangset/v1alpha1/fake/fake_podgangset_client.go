@@ -27,10 +27,6 @@ type FakeGroveV1alpha1 struct {
 	*testing.Fake
 }
 
-func (c *FakeGroveV1alpha1) PodGangs(namespace string) v1alpha1.PodGangInterface {
-	return &FakePodGangs{c, namespace}
-}
-
 func (c *FakeGroveV1alpha1) PodGangSets(namespace string) v1alpha1.PodGangSetInterface {
 	return &FakePodGangSets{c, namespace}
 }

@@ -40,25 +40,183 @@ spec:
           spec:
             description: Spec defines the specification of the PodGangSet.
             properties:
-              gangSpreadStrategy:
-                description: GangSpreadStrategy defines the strategy for spreading
-                  the PodGangs across nodes grouped by the topologyKey.
-                properties:
-                  spreadStrategy:
-                    description: NetworkSpreadStrategy defines the strategy for spreading
-                      pods across nodes while minimizing network switch hops.
-                    enum:
-                    - BestEffort
-                    - Strict
-                    type: string
-                  topologyKey:
-                    description: |-
-                      TopologyKey is the key of node labels. Nodes that have a label with this key
-                      and identical values are considered to be in the same topology.
-                    type: string
-                required:
-                - spreadStrategy
-                type: object
+              gangSpreadConstraints:
+                description: GangSpreadConstraints defines the constraints for spreading
+                  PodGang's across domains identified by a topology.
+                items:
+                  description: TopologySpreadConstraint specifies how to spread matching
+                    pods among the given topology.
+                  properties:
+                    labelSelector:
+                      description: |-
+                        LabelSelector is used to find matching pods.
+                        Pods that match this label selector are counted to determine the number of pods
+                        in their corresponding topology domain.
+                      properties:
+                        matchExpressions:
+                          description: matchExpressions is a list of label selector
+                            requirements. The requirements are ANDed.
+                          items:
+                            description: |-
+                              A label selector requirement is a selector that contains values, a key, and an operator that
+                              relates the key and values.
+                            properties:
+                              key:
+                                description: key is the label key that the selector
+                                  applies to.
+                                type: string
+                              operator:
+                                description: |-
+                                  operator represents a key's relationship to a set of values.
+                                  Valid operators are In, NotIn, Exists and DoesNotExist.
+                                type: string
+                              values:
+                                description: |-
+                                  values is an array of string values. If the operator is In or NotIn,
+                                  the values array must be non-empty. If the operator is Exists or DoesNotExist,
+                                  the values array must be empty. This array is replaced during a strategic
+                                  merge patch.
+                                items:
+                                  type: string
+                                type: array
+                                x-kubernetes-list-type: atomic
+                            required:
+                            - key
+                            - operator
+                            type: object
+                          type: array
+                          x-kubernetes-list-type: atomic
+                        matchLabels:
+                          additionalProperties:
+                            type: string
+                          description: |-
+                            matchLabels is a map of {key,value} pairs. A single {key,value} in the matchLabels
+                            map is equivalent to an element of matchExpressions, whose key field is "key", the
+                            operator is "In", and the values array contains only "value". The requirements are ANDed.
+                          type: object
+                      type: object
+                      x-kubernetes-map-type: atomic
+                    matchLabelKeys:
+                      description: |-
+                        MatchLabelKeys is a set of pod label keys to select the pods over which
+                        spreading will be calculated. The keys are used to lookup values from the
+                        incoming pod labels, those key-value labels are ANDed with labelSelector
+                        to select the group of existing pods over which spreading will be calculated
+                        for the incoming pod. The same key is forbidden to exist in both MatchLabelKeys and LabelSelector.
+                        MatchLabelKeys cannot be set when LabelSelector isn't set.
+                        Keys that don't exist in the incoming pod labels will
+                        be ignored. A null or empty list means only match against labelSelector.
+
+                        This is a beta field and requires the MatchLabelKeysInPodTopologySpread feature gate to be enabled (enabled by default).
+                      items:
+                        type: string
+                      type: array
+                      x-kubernetes-list-type: atomic
+                    maxSkew:
+                      description: |-
+                        MaxSkew describes the degree to which pods may be unevenly distributed.
+                        When `whenUnsatisfiable=DoNotSchedule`, it is the maximum permitted difference
+                        between the number of matching pods in the target topology and the global minimum.
+                        The global minimum is the minimum number of matching pods in an eligible domain
+                        or zero if the number of eligible domains is less than MinDomains.
+                        For example, in a 3-zone cluster, MaxSkew is set to 1, and pods with the same
+                        labelSelector spread as 2/2/1:
+                        In this case, the global minimum is 1.
+                        | zone1 | zone2 | zone3 |
+                        |  P P  |  P P  |   P   |
+                        - if MaxSkew is 1, incoming pod can only be scheduled to zone3 to become 2/2/2;
+                        scheduling it onto zone1(zone2) would make the ActualSkew(3-1) on zone1(zone2)
+                        violate MaxSkew(1).
+                        - if MaxSkew is 2, incoming pod can be scheduled onto any zone.
+                        When `whenUnsatisfiable=ScheduleAnyway`, it is used to give higher precedence
+                        to topologies that satisfy it.
+                        It's a required field. Default value is 1 and 0 is not allowed.
+                      format: int32
+                      type: integer
+                    minDomains:
+                      description: |-
+                        MinDomains indicates a minimum number of eligible domains.
+                        When the number of eligible domains with matching topology keys is less than minDomains,
+                        Pod Topology Spread treats "global minimum" as 0, and then the calculation of Skew is performed.
+                        And when the number of eligible domains with matching topology keys equals or greater than minDomains,
+                        this value has no effect on scheduling.
+                        As a result, when the number of eligible domains is less than minDomains,
+                        scheduler won't schedule more than maxSkew Pods to those domains.
+                        If value is nil, the constraint behaves as if MinDomains is equal to 1.
+                        Valid values are integers greater than 0.
+                        When value is not nil, WhenUnsatisfiable must be DoNotSchedule.
+
+                        For example, in a 3-zone cluster, MaxSkew is set to 2, MinDomains is set to 5 and pods with the same
+                        labelSelector spread as 2/2/2:
+                        | zone1 | zone2 | zone3 |
+                        |  P P  |  P P  |  P P  |
+                        The number of domains is less than 5(MinDomains), so "global minimum" is treated as 0.
+                        In this situation, new pod with the same labelSelector cannot be scheduled,
+                        because computed skew will be 3(3 - 0) if new Pod is scheduled to any of the three zones,
+                        it will violate MaxSkew.
+                      format: int32
+                      type: integer
+                    nodeAffinityPolicy:
+                      description: |-
+                        NodeAffinityPolicy indicates how we will treat Pod's nodeAffinity/nodeSelector
+                        when calculating pod topology spread skew. Options are:
+                        - Honor: only nodes matching nodeAffinity/nodeSelector are included in the calculations.
+                        - Ignore: nodeAffinity/nodeSelector are ignored. All nodes are included in the calculations.
+
+                        If this value is nil, the behavior is equivalent to the Honor policy.
+                        This is a beta-level feature default enabled by the NodeInclusionPolicyInPodTopologySpread feature flag.
+                      type: string
+                    nodeTaintsPolicy:
+                      description: |-
+                        NodeTaintsPolicy indicates how we will treat node taints when calculating
+                        pod topology spread skew. Options are:
+                        - Honor: nodes without taints, along with tainted nodes for which the incoming pod
+                        has a toleration, are included.
+                        - Ignore: node taints are ignored. All nodes are included.
+
+                        If this value is nil, the behavior is equivalent to the Ignore policy.
+                        This is a beta-level feature default enabled by the NodeInclusionPolicyInPodTopologySpread feature flag.
+                      type: string
+                    topologyKey:
+                      description: |-
+                        TopologyKey is the key of node labels. Nodes that have a label with this key
+                        and identical values are considered to be in the same topology.
+                        We consider each <key, value> as a "bucket", and try to put balanced number
+                        of pods into each bucket.
+                        We define a domain as a particular instance of a topology.
+                        Also, we define an eligible domain as a domain whose nodes meet the requirements of
+                        nodeAffinityPolicy and nodeTaintsPolicy.
+                        e.g. If TopologyKey is "kubernetes.io/hostname", each Node is a domain of that topology.
+                        And, if TopologyKey is "topology.kubernetes.io/zone", each zone is a domain of that topology.
+                        It's a required field.
+                      type: string
+                    whenUnsatisfiable:
+                      description: |-
+                        WhenUnsatisfiable indicates how to deal with a pod if it doesn't satisfy
+                        the spread constraint.
+                        - DoNotSchedule (default) tells the scheduler not to schedule it.
+                        - ScheduleAnyway tells the scheduler to schedule the pod in any location,
+                          but giving higher precedence to topologies that would help reduce the
+                          skew.
+                        A constraint is considered "Unsatisfiable" for an incoming pod
+                        if and only if every possible node assignment for that pod would violate
+                        "MaxSkew" on some topology.
+                        For example, in a 3-zone cluster, MaxSkew is set to 1, and pods with the same
+                        labelSelector spread as 3/1/1:
+                        | zone1 | zone2 | zone3 |
+                        | P P P |   P   |   P   |
+                        If WhenUnsatisfiable is set to DoNotSchedule, incoming pod can only be scheduled
+                        to zone2(zone3) to become 3/2/1(3/1/2) as ActualSkew(2-1) on zone2(zone3) satisfies
+                        MaxSkew(1). In other words, the cluster can still be imbalanced, but scheduler
+                        won't make it *more* imbalanced.
+                        It's a required field.
+                      type: string
+                  required:
+                  - maxSkew
+                  - topologyKey
+                  - whenUnsatisfiable
+                  type: object
+                type: array
               replicas:
                 default: 1
                 description: Replicas is the number of desired replicas of the PodGang.
@@ -68,36 +226,96 @@ spec:
                 description: Template describes the template spec for PodGangs that
                   will be created in the PodGangSet.
                 properties:
-                  spec:
-                    description: Spec defines the specification of the PodGang.
-                    properties:
-                      cliqueStartupType:
-                        description: StartupType defines the type of startup dependency
-                          amongst the cliques within a PodGang.
-                        enum:
-                        - InOrder
-                        - Explicit
-                        type: string
-                      cliques:
-                        description: Cliques is a slice of cliques that make up the
-                          PodGang. There should be at least one PodClique.
-                        items:
-                          description: PodClique defines a set of pods that share
-                            the same PodSpec and serve as a single functional unit.
+                  cliqueStartupType:
+                    description: StartupType defines the type of startup dependency
+                      amongst the cliques within a PodGang.
+                    enum:
+                    - InOrder
+                    - Explicit
+                    type: string
+                  cliques:
+                    description: Cliques is a slice of cliques that make up the PodGang.
+                      There should be at least one PodClique.
+                    items:
+                      description: PodClique defines a set of pods that share the
+                        same PodSpec and serve as a single functional unit.
+                      properties:
+                        namePrefix:
+                          description: NamePrefix is the prefix that will be used
+                            to name the pods in the clique.
+                          type: string
+                        size:
+                          description: |-
+                            Size is the number of pods in the clique. Once set this cannot be changed.
+                            If not specified then it will be defaulted to 1.
+                          format: int32
+                          type: integer
+                        startsAfter:
+                          description: |-
+                            StartsAfter provides you a way to explicitly define the startup dependencies amongst cliques.
+                            If CliqueStartupType in PodGang has been set to 'Explicit', then to create an ordered start amongst PorClique's StartsAfter can be used.
+                            A forest of DAG's can be defined to model any start order dependencies. If there are more than one PodClique's defined and StartsAfter is not set for any of them,
+                            then their startup order is random at best and must not be relied upon.
+                            Validations:
+                            1. If a StarsAfter has been defined and one or more cycles are detected in DAG's then it will be flagged as validation error.
+                            2. If StartsAfter is defined and does not identify any PodClique then it will be flagged as a validation error.
                           properties:
-                            namePrefix:
-                              description: NamePrefix is the prefix that will be used
-                                to name the pods in the clique.
-                              type: string
-                            size:
+                            matchExpressions:
+                              description: matchExpressions is a list of label selector
+                                requirements. The requirements are ANDed.
+                              items:
+                                description: |-
+                                  A label selector requirement is a selector that contains values, a key, and an operator that
+                                  relates the key and values.
+                                properties:
+                                  key:
+                                    description: key is the label key that the selector
+                                      applies to.
+                                    type: string
+                                  operator:
+                                    description: |-
+                                      operator represents a key's relationship to a set of values.
+                                      Valid operators are In, NotIn, Exists and DoesNotExist.
+                                    type: string
+                                  values:
+                                    description: |-
+                                      values is an array of string values. If the operator is In or NotIn,
+                                      the values array must be non-empty. If the operator is Exists or DoesNotExist,
+                                      the values array must be empty. This array is replaced during a strategic
+                                      merge patch.
+                                    items:
+                                      type: string
+                                    type: array
+                                    x-kubernetes-list-type: atomic
+                                required:
+                                - key
+                                - operator
+                                type: object
+                              type: array
+                              x-kubernetes-list-type: atomic
+                            matchLabels:
+                              additionalProperties:
+                                type: string
                               description: |-
-                                Size is the number of pods in the clique. Once set this cannot be changed.
-                                If not specified then it will be defaulted to 1.
-                              format: int32
-                              type: integer
+                                matchLabels is a map of {key,value} pairs. A single {key,value} in the matchLabels
+                                map is equivalent to an element of matchExpressions, whose key field is "key", the
+                                operator is "In", and the values array contains only "value". The requirements are ANDed.
+                              type: object
+                          type: object
+                          x-kubernetes-map-type: atomic
+                        template:
+                          description: Template is the template of the pods in the
+                            clique.
+                          properties:
+                            metadata:
+                              description: |-
+                                Standard object's metadata.
+                                More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#metadata
+                              type: object
                             spec:
-                              description: Spec is the specification of the pods in
-                                the clique.
+                              description: |-
+                                Specification of the desired behavior of the pod.
+                                More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#spec-and-status
                               properties:
                                 activeDeadlineSeconds:
                                   description: |-
@@ -8207,79 +8425,28 @@ spec:
                               required:
                               - containers
                               type: object
-                            startsAfter:
-                              description: |-
-                                StartsAfter provides you a way to explicitly define the startup dependencies
-                                amongst cliques. It must be specified if PodGang.StartupType is Explicit,
-                                else it will be ignored.
-                              properties:
-                                matchExpressions:
-                                  description: matchExpressions is a list of label
-                                    selector requirements. The requirements are ANDed.
-                                  items:
-                                    description: |-
-                                      A label selector requirement is a selector that contains values, a key, and an operator that
-                                      relates the key and values.
-                                    properties:
-                                      key:
-                                        description: key is the label key that the
-                                          selector applies to.
-                                        type: string
-                                      operator:
-                                        description: |-
-                                          operator represents a key's relationship to a set of values.
-                                          Valid operators are In, NotIn, Exists and DoesNotExist.
-                                        type: string
-                                      values:
-                                        description: |-
-                                          values is an array of string values. If the operator is In or NotIn,
-                                          the values array must be non-empty. If the operator is Exists or DoesNotExist,
-                                          the values array must be empty. This array is replaced during a strategic
-                                          merge patch.
-                                        items:
-                                          type: string
-                                        type: array
-                                        x-kubernetes-list-type: atomic
-                                    required:
-                                    - key
-                                    - operator
-                                    type: object
-                                  type: array
-                                  x-kubernetes-list-type: atomic
-                                matchLabels:
-                                  additionalProperties:
-                                    type: string
-                                  description: |-
-                                    matchLabels is a map of {key,value} pairs. A single {key,value} in the matchLabels
-                                    map is equivalent to an element of matchExpressions, whose key field is "key", the
-                                    operator is "In", and the values array contains only "value". The requirements are ANDed.
-                                  type: object
-                              type: object
-                              x-kubernetes-map-type: atomic
-                          required:
-                          - spec
                           type: object
-                        type: array
-                      networkPackStrategy:
-                        description: NetworkPackStrategy defines the strategy for
-                          packing pods on nodes while minimizing network switch hops.
-                        enum:
-                        - BestEffort
-                        - Strict
-                        type: string
-                      restartPolicy:
-                        description: RestartPolicy defines the restart policy for
-                          the PodGang.
-                        enum:
-                        - Never
-                        - OnFailure
-                        - Always
-                        type: string
-                    required:
-                    - cliques
-                    type: object
+                      required:
+                      - template
+                      type: object
+                    type: array
+                  networkPackStrategy:
+                    description: NetworkPackStrategy defines the strategy for packing
+                      pods on nodes while minimizing network switch hops.
+                    enum:
+                    - BestEffort
+                    - Strict
+                    type: string
+                  restartPolicy:
+                    description: RestartPolicy defines the restart policy for the
+                      PodGang.
+                    enum:
+                    - Never
+                    - OnFailure
+                    - Always
+                    type: string
                 required:
-                - spec
+                - cliques
                 type: object
               updateStrategy:
                 description: UpdateStrategy defines the strategy to be used when updating
@@ -8294,31 +8461,31 @@ spec:
                         - type: integer
                         - type: string
                         description: |-
-                          The maximum number of pods that can be scheduled above the original number of
-                          pods.
-                          Value can be an absolute number (ex: 5) or a percentage of total pods at
+                          The maximum number of podgangs that can be scheduled above the original number of
+                          podgangs.
+                          Value can be an absolute number (ex: 5) or a percentage of total podgangs at
                           the start of the update (ex: 10%). This can not be 0 if MaxUnavailable is 0.
                           Absolute number is calculated from percentage by rounding up.
                           By default, a value of 1 is used.
                           Example: when this is set to 30%, the new RC can be scaled up by 30%
-                          immediately when the rolling update starts. Once old pods have been killed,
-                          new RC can be scaled up further, ensuring that total number of pods running
-                          at any time during the update is at most 130% of original pods.
+                          immediately when the rolling update starts. Once old podgangs have been killed,
+                          new RC can be scaled up further, ensuring that total number of podgangs running
+                          at any time during the update is at most 130% of original podgangs.
                         x-kubernetes-int-or-string: true
                       maxUnavailable:
                         anyOf:
                         - type: integer
                         - type: string
                         description: |-
-                          The maximum number of pods that can be unavailable during the update.
-                          Value can be an absolute number (ex: 5) or a percentage of total pods at the start of update (ex: 10%).
+                          The maximum number of podgangs that can be unavailable during the update.
+                          Value can be an absolute number (ex: 5) or a percentage of total podgangs at the start of update (ex: 10%).
                           Absolute number is calculated from percentage by rounding down.
                           This can not be 0 if MaxSurge is 0.
                           By default, a fixed value of 1 is used.
                           Example: when this is set to 30%, the old RC can be scaled down by 30%
-                          immediately when the rolling update starts. Once new pods are ready, old RC
+                          immediately when the rolling update starts. Once new podgangs are ready, old RC
                           can be scaled down further, followed by scaling up the new RC, ensuring
-                          that at least 70% of original number of pods are available at all times
+                          that at least 70% of original number of podgangs are available at all times
                           during the update.
                         x-kubernetes-int-or-string: true
                     type: object
@@ -8347,6 +8514,161 @@ spec:
                   by the controller.
                 format: int64
                 type: integer
+              podGangStatuses:
+                description: PodGangStatuses captures the status for all the PodGang's
+                  that are part of the PodGangSet.
+                items:
+                  description: PodGangStatus defines the status of a PodGang.
+                  properties:
+                    cliqueStatuses:
+                      description: CliqueStatutes represents the status of each clique
+                        in the PodGang.
+                      items:
+                        description: CliqueStatus defines the status of a clique.
+                        properties:
+                          conditions:
+                            description: Conditions represents the latest available
+                              observations of the clique by its controller.
+                            items:
+                              description: Condition contains details for one aspect
+                                of the current state of this API Resource.
+                              properties:
+                                lastTransitionTime:
+                                  description: |-
+                                    lastTransitionTime is the last time the condition transitioned from one status to another.
+                                    This should be when the underlying condition changed.  If that is not known, then using the time when the API field changed is acceptable.
+                                  format: date-time
+                                  type: string
+                                message:
+                                  description: |-
+                                    message is a human readable message indicating details about the transition.
+                                    This may be an empty string.
+                                  maxLength: 32768
+                                  type: string
+                                observedGeneration:
+                                  description: |-
+                                    observedGeneration represents the .metadata.generation that the condition was set based upon.
+                                    For instance, if .metadata.generation is currently 12, but the .status.conditions[x].observedGeneration is 9, the condition is out of date
+                                    with respect to the current state of the instance.
+                                  format: int64
+                                  minimum: 0
+                                  type: integer
+                                reason:
+                                  description: |-
+                                    reason contains a programmatic identifier indicating the reason for the condition's last transition.
+                                    Producers of specific condition types may define expected values and meanings for this field,
+                                    and whether the values are considered a guaranteed API.
+                                    The value should be a CamelCase string.
+                                    This field may not be empty.
+                                  maxLength: 1024
+                                  minLength: 1
+                                  pattern: ^[A-Za-z]([A-Za-z0-9_,:]*[A-Za-z0-9_])?$
+                                  type: string
+                                status:
+                                  description: status of the condition, one of True,
+                                    False, Unknown.
+                                  enum:
+                                  - "True"
+                                  - "False"
+                                  - Unknown
+                                  type: string
+                                type:
+                                  description: type of condition in CamelCase or in
+                                    foo.example.com/CamelCase.
+                                  maxLength: 316
+                                  pattern: ^([a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*/)?(([A-Za-z0-9][-A-Za-z0-9_.]*)?[A-Za-z0-9])$
+                                  type: string
+                              required:
+                              - lastTransitionTime
+                              - message
+                              - reason
+                              - status
+                              - type
+                              type: object
+                            type: array
+                          name:
+                            description: Name is the name of the clique.
+                            type: string
+                        required:
+                        - name
+                        type: object
+                      type: array
+                    conditions:
+                      description: Conditions represents the latest available observations
+                        of the PodGang by its controller.
+                      items:
+                        description: Condition contains details for one aspect of
+                          the current state of this API Resource.
+                        properties:
+                          lastTransitionTime:
+                            description: |-
+                              lastTransitionTime is the last time the condition transitioned from one status to another.
+                              This should be when the underlying condition changed.  If that is not known, then using the time when the API field changed is acceptable.
+                            format: date-time
+                            type: string
+                          message:
+                            description: |-
+                              message is a human readable message indicating details about the transition.
+                              This may be an empty string.
+                            maxLength: 32768
+                            type: string
+                          observedGeneration:
+                            description: |-
+                              observedGeneration represents the .metadata.generation that the condition was set based upon.
+                              For instance, if .metadata.generation is currently 12, but the .status.conditions[x].observedGeneration is 9, the condition is out of date
+                              with respect to the current state of the instance.
+                            format: int64
+                            minimum: 0
+                            type: integer
+                          reason:
+                            description: |-
+                              reason contains a programmatic identifier indicating the reason for the condition's last transition.
+                              Producers of specific condition types may define expected values and meanings for this field,
+                              and whether the values are considered a guaranteed API.
+                              The value should be a CamelCase string.
+                              This field may not be empty.
+                            maxLength: 1024
+                            minLength: 1
+                            pattern: ^[A-Za-z]([A-Za-z0-9_,:]*[A-Za-z0-9_])?$
+                            type: string
+                          status:
+                            description: status of the condition, one of True, False,
+                              Unknown.
+                            enum:
+                            - "True"
+                            - "False"
+                            - Unknown
+                            type: string
+                          type:
+                            description: type of condition in CamelCase or in foo.example.com/CamelCase.
+                            maxLength: 316
+                            pattern: ^([a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*/)?(([A-Za-z0-9][-A-Za-z0-9_.]*)?[A-Za-z0-9])$
+                            type: string
+                        required:
+                        - lastTransitionTime
+                        - message
+                        - reason
+                        - status
+                        - type
+                        type: object
+                      type: array
+                    name:
+                      description: Name is the name of the PodGang.
+                      type: string
+                    phase:
+                      description: Phase is the current phase of the PodGang.
+                      enum:
+                      - Pending
+                      - Starting
+                      - Running
+                      - Failed
+                      - Succeeded
+                      type: string
+                  required:
+                  - name
+                  - phase
+                  type: object
+                type: array
               readyReplicas:
                 description: ReadyReplicas is the number of ready PodGangs targeted
                   by this PodGangSet.

@@ -31,6 +31,8 @@ go.work.sum
 
 # hack tools binaries
 operator/hack/tools/*
+operator/hack/kind/*
+operator/charts/crds/*
 scheduler-plugins/hack/tools/*
 
 # binary directory for locally produced dev scheduler binaries

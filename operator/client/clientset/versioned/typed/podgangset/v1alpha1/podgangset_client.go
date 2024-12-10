@@ -27,17 +27,12 @@ import (
 
 type GroveV1alpha1Interface interface {
 	RESTClient() rest.Interface
-	PodGangsGetter
 	PodGangSetsGetter
 }
 
 // GroveV1alpha1Client is used to interact with features provided by the grove.io group.
 type GroveV1alpha1Client struct {
 	restClient rest.Interface
-}
-
-func (c *GroveV1alpha1Client) PodGangs(namespace string) PodGangInterface {
-	return newPodGangs(c, namespace)
 }
 
 func (c *GroveV1alpha1Client) PodGangSets(namespace string) PodGangSetInterface {

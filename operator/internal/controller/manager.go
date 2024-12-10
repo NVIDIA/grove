@@ -14,7 +14,7 @@
 // limitations under the License.
 // */
 
-package manager
+package controller
 
 import (
 	"net"
@@ -23,8 +23,6 @@ import (
 
 	configv1alpha1 "github.com/NVIDIA/grove/operator/api/config/v1alpha1"
 	"github.com/NVIDIA/grove/operator/internal/client"
-	"github.com/NVIDIA/grove/operator/internal/controller"
-
 	"k8s.io/client-go/rest"
 	"k8s.io/utils/ptr"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -41,7 +39,7 @@ func CreateAndInitializeManager(operatorCfg *configv1alpha1.OperatorConfiguratio
 	if err != nil {
 		return nil, err
 	}
-	if err = controller.RegisterControllers(mgr, operatorCfg.Controllers); err != nil {
+	if err = RegisterControllers(mgr, operatorCfg.Controllers); err != nil {
 		return nil, err
 	}
 	// TODO register controller, webhooks, readyz, healthz endpoints

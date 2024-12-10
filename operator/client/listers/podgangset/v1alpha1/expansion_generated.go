@@ -17,14 +17,6 @@ limitations under the License.
 
 package v1alpha1
 
-// PodGangListerExpansion allows custom methods to be added to
-// PodGangLister.
-type PodGangListerExpansion interface{}
-
-// PodGangNamespaceListerExpansion allows custom methods to be added to
-// PodGangNamespaceLister.
-type PodGangNamespaceListerExpansion interface{}
-
 // PodGangSetListerExpansion allows custom methods to be added to
 // PodGangSetLister.
 type PodGangSetListerExpansion interface{}
