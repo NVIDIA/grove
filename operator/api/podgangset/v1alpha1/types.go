@@ -101,7 +101,7 @@ const (
 type PodClique struct {
 	//NamePrefix is the prefix that will be used to name the pods in the clique.
 	// +optional
-	NamePrefix string `json:"namePrefix,omitempty"`
+	NamePrefix *string `json:"namePrefix,omitempty"`
 	// Template is the template of the pods in the clique.
 	Template corev1.PodTemplateSpec `json:"template"`
 	// Size is the number of pods in the clique. Once set this cannot be changed.
@@ -152,7 +152,7 @@ type RollingUpdateConfiguration struct {
 	// that at least 70% of original number of podgangs are available at all times
 	// during the update.
 	// +optional
-	MaxUnavailable intstr.IntOrString `json:"maxUnavailable,omitempty"`
+	MaxUnavailable *intstr.IntOrString `json:"maxUnavailable,omitempty"`
 
 	// The maximum number of podgangs that can be scheduled above the original number of
 	// podgangs.
@@ -165,7 +165,7 @@ type RollingUpdateConfiguration struct {
 	// new RC can be scaled up further, ensuring that total number of podgangs running
 	// at any time during the update is at most 130% of original podgangs.
 	// +optional
-	MaxSurge intstr.IntOrString `json:"maxSurge,omitempty"`
+	MaxSurge *intstr.IntOrString `json:"maxSurge,omitempty"`
 }
 
 // GangUpdateStrategy defines the strategy to be used when updating a PodGang.
@@ -183,10 +183,10 @@ type PodGangTemplateSpec struct {
 	Cliques []PodClique `json:"cliques"`
 	// StartupType defines the type of startup dependency amongst the cliques within a PodGang.
 	// +optional
-	StartupType CliqueStartupType `json:"cliqueStartupType,omitempty"`
+	StartupType *CliqueStartupType `json:"cliqueStartupType,omitempty"`
 	// RestartPolicy defines the restart policy for the PodGang.
 	// +optional
-	RestartPolicy PodGangRestartPolicy `json:"restartPolicy,omitempty"`
+	RestartPolicy *PodGangRestartPolicy `json:"restartPolicy,omitempty"`
 	// NetworkPackStrategy defines the strategy for packing pods on nodes while minimizing network switch hops.
 	// +optional
 	NetworkPackStrategy *NetworkPackStrategy `json:"networkPackStrategy,omitempty"`
@@ -202,7 +202,7 @@ type PodGangSetSpec struct {
 	Replicas *int32 `json:"replicas,omitempty"`
 	// UpdateStrategy defines the strategy to be used when updating the PodGangs.
 	// +optional
-	UpdateStrategy GangUpdateStrategy `json:"updateStrategy,omitempty"`
+	UpdateStrategy *GangUpdateStrategy `json:"updateStrategy,omitempty"`
 	// GangSpreadConstraints defines the constraints for spreading PodGang's across domains identified by a topology.
 	// +optional
 	GangSpreadConstraints []corev1.TopologySpreadConstraint `json:"gangSpreadConstraints,omitempty"`
