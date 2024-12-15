@@ -22,12 +22,16 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 )
 
-const webhookPath = "/webhooks/validate-podgangset"
+const (
+	// HandlerName is the name of the validating webhook handler for PodGangSet.
+	HandlerName = "podgangset-validation-webhook"
+	webhookPath = "/webhooks/validate-podgangset"
+)
 
 // RegisterWithManager registers the webhook with the manager.
-func (h *Handler) RegisterWithManager(mgr manager.Manager) error {
+func RegisterWithManager(mgr manager.Manager) error {
 	webhook := &admission.Webhook{
-		Handler:      h,
+		Handler:      NewHandler(mgr),
 		RecoverPanic: ptr.To(true),
 	}
 	mgr.GetWebhookServer().Register(webhookPath, webhook)

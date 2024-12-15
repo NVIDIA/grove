@@ -86,15 +86,16 @@ const (
 )
 
 // CliqueStartupType defines the order in which each PodClique is started.
-// +kubebuilder:validation:Enum={InOrder,Explicit}
-// +kubebuilder:default=InOrder
+// +kubebuilder:validation:Enum={CliqueStartupTypeInOrder,CliqueStartupTypeExplicit}
+// +kubebuilder:default=CliqueStartupTypeInOrder
 type CliqueStartupType string
 
 const (
-	// InOrder defines that the cliques should be started in the order they are defined in the PodGang Cliques slice.
-	InOrder CliqueStartupType = "InOrder"
-	// Explicit defines that the cliques should be started after the cliques defined in PodClique.StartsAfter have started.
-	Explicit CliqueStartupType = "Explicit"
+	// CliqueStartupTypeInOrder defines that the cliques should be started in the order they are defined in the PodGang Cliques slice.
+	// This is the default CliqueStartupType.
+	CliqueStartupTypeInOrder CliqueStartupType = "CliqueStartupTypeInOrder"
+	// CliqueStartupTypeExplicit defines that the cliques should be started after the cliques defined in PodClique.StartsAfter have started.
+	CliqueStartupTypeExplicit CliqueStartupType = "CliqueStartupTypeExplicit"
 )
 
 // PodClique defines a set of pods that share the same PodSpec and serve as a single functional unit.
@@ -108,7 +109,7 @@ type PodClique struct {
 	// +optional
 	Size *int32 `json:"size,omitempty"`
 	// StartsAfter provides you a way to explicitly define the startup dependencies amongst cliques.
-	// If CliqueStartupType in PodGang has been set to 'Explicit', then to create an ordered start amongst PorClique's StartsAfter can be used.
+	// If CliqueStartupType in PodGang has been set to 'CliqueStartupTypeExplicit', then to create an ordered start amongst PorClique's StartsAfter can be used.
 	// A forest of DAG's can be defined to model any start order dependencies. If there are more than one PodClique's defined and StartsAfter is not set for any of them,
 	// then their startup order is random at best and must not be relied upon.
 	// Validations:
@@ -198,7 +199,7 @@ type PodGangSetSpec struct {
 	// Replicas is the number of desired replicas of the PodGang.
 	// +kubebuilder:default=1
 	// +optional
-	Replicas *int32 `json:"replicas,omitempty"`
+	Replicas int32 `json:"replicas,omitempty"`
 	// UpdateStrategy defines the strategy to be used when updating the PodGangs.
 	// +optional
 	UpdateStrategy *GangUpdateStrategy `json:"updateStrategy,omitempty"`
@@ -212,11 +213,11 @@ type PodGangSetStatus struct {
 	// ObservedGeneration is the most recent generation observed by the controller.
 	ObservedGeneration *int64 `json:"observedGeneration,omitempty"`
 	// Replicas is the total number of non-terminated PodGangs targeted by this PodGangSet.
-	Replicas *int32 `json:"replicas,omitempty"`
+	Replicas int32 `json:"replicas,omitempty"`
 	// ReadyReplicas is the number of ready PodGangs targeted by this PodGangSet.
-	ReadyReplicas *int32 `json:"readyReplicas,omitempty"`
+	ReadyReplicas int32 `json:"readyReplicas,omitempty"`
 	// UpdatedReplicas is the number of PodGangs that have been updated and are at the desired revision of the PodGangSet.
-	UpdatedReplicas *int32 `json:"updatedReplicas,omitempty"`
+	UpdatedReplicas int32 `json:"updatedReplicas,omitempty"`
 	// Selector is the label selector that determines which pods are part of the PodGang.
 	// PodGang is a unit of scale and this selector is used by HPA to scale the PodGang based on metrics captured for the pods that match this selector.
 	Selector *string `json:"hpaPodSelector,omitempty"`

@@ -14,4 +14,18 @@
 // limitations under the License.
 // */
 
-package pgs
+package webhook
+
+import (
+	"fmt"
+	"github.com/NVIDIA/grove/operator/internal/webhook/pgs/validation"
+	"sigs.k8s.io/controller-runtime/pkg/manager"
+)
+
+func RegisterWebhooks(mgr manager.Manager) error {
+	if err := validation.RegisterWithManager(mgr); err != nil {
+		return fmt.Errorf("failed adding %s webhook handler: %v", validation.HandlerName, err)
+	}
+	// Add default webhook handler here.
+	return nil
+}

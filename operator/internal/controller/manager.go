@@ -17,6 +17,7 @@
 package controller
 
 import (
+	"github.com/NVIDIA/grove/operator/internal/webhook"
 	"net"
 	"strconv"
 	"time"
@@ -42,7 +43,11 @@ func CreateAndInitializeManager(operatorCfg *configv1alpha1.OperatorConfiguratio
 	if err = RegisterControllers(mgr, operatorCfg.Controllers); err != nil {
 		return nil, err
 	}
-	// TODO register controller, webhooks, readyz, healthz endpoints
+	if err = webhook.RegisterWebhooks(mgr); err != nil {
+		return nil, err
+	}
+	// TODO register readyz, healthz endpoints
+
 	return mgr, nil
 }
 

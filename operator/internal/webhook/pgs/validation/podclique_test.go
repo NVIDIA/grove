@@ -146,7 +146,7 @@ func TestValidateCliqueDependencies(t *testing.T) {
 	fldPath := field.NewPath("spec").Child("template", "spec", "cliques")
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			list := validateCliques(tc.cliques, fldPath, tc.inOrder)
+			list := validatePodCliques(tc.cliques, fldPath, tc.inOrder)
 			errs := make([]string, len(list))
 			for i, err := range list {
 				errs[i] = err.Error()

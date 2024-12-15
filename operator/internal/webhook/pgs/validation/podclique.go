@@ -17,61 +17,102 @@
 package validation
 
 import (
+	"github.com/NVIDIA/grove/operator/internal/utils"
+	"github.com/samber/lo"
+	corev1 "k8s.io/api/core/v1"
+	apivalidation "k8s.io/apimachinery/pkg/api/validation"
 	"k8s.io/apimachinery/pkg/util/validation/field"
 
 	"github.com/NVIDIA/grove/operator/api/podgangset/v1alpha1"
+	admissionv1 "k8s.io/api/admission/v1"
 )
 
-func validateCliques(cliques []v1alpha1.PodClique, fldPath *field.Path, isInOrder bool) field.ErrorList {
-	allErrs := field.ErrorList{}
+func (v *validator) validatePodCliques(fldPath *field.Path) (warnings []string, errs field.ErrorList) {
+	errs = field.ErrorList{}
+
+	cliques := v.pgs.Spec.Template.Cliques
+	startupType := v.pgs.Spec.Template.StartupType
 
 	if len(cliques) == 0 {
-		allErrs = append(allErrs, field.Required(fldPath, "field is required"))
+		errs = append(errs, field.Required(fldPath, "at least on PodClique must be defined"))
 	}
-	var noStartsAfterCount int
-	nameMap := make(map[string]struct{})
-
+	var podCliqueErrs field.ErrorList
+	cliqueNames := make([]string, 0, len(cliques))
 	for _, clique := range cliques {
-		if len(clique.Name) == 0 {
-			allErrs = append(allErrs, field.Required(fldPath.Child("name"), "field is required"))
-		} else if _, ok := nameMap[clique.Name]; ok {
-			allErrs = append(allErrs, field.Invalid(fldPath.Child("name"), clique.Name, "duplicate name"))
-		} else {
-			nameMap[clique.Name] = struct{}{}
+		cliqueNames = append(cliqueNames, clique.Name)
+		warnings, podCliqueErrs = v.validatePodClique(clique, fldPath)
+		if podCliqueErrs != nil {
+			errs = append(errs, podCliqueErrs...)
 		}
+	}
 
-		// TODO: validate PodTemplateSpec
-		//corevalidation.ValidatePodTemplateSpec(&clique.Template, fldPath.Child("template"), corevalidation.PodValidationOptions{})
+	duplicateCliqueNames := lo.FindDuplicates(cliqueNames)
+	if len(duplicateCliqueNames) > 0 {
+		errs = append(errs, field.Invalid(fldPath.Child("name"), duplicateCliqueNames, "clique names must be unique"))
+	}
 
-		// validate Size
-		if clique.Size == nil {
-			allErrs = append(allErrs, field.Required(fldPath.Child("size"), "field is required"))
-		} else if *clique.Size <= 0 {
-			allErrs = append(allErrs, field.Invalid(fldPath.Child("size"), *clique.Size, "must be greater than 0"))
-		}
+	if v1alpha1.CliqueStartupTypeExplicit == *startupType {
+		errs = append(errs, validateCliqueDependencies(cliques, fldPath)...)
+	}
 
-		// validate StartsAfter
-		if isInOrder {
-			if len(clique.StartsAfter) == 0 {
-				noStartsAfterCount++
-			} else {
-				for _, parent := range clique.StartsAfter {
-					if len(parent) == 0 {
-						allErrs = append(allErrs, field.Required(fldPath.Child("startsAfter"), "must not contain empty clique name"))
-					}
-				}
+	return
+}
+
+func (v *validator) validatePodClique(clique v1alpha1.PodClique, fldPath *field.Path) (warnings []string, errs field.ErrorList) {
+	errs = field.ErrorList{}
+
+	errs = append(errs, validateNonEmptyStringField(clique.Name, fldPath.Child("name"))...)
+	errs = append(errs, validateNonNilField(clique.Size, fldPath.Child("size"))...)
+	if clique.Size != nil && *clique.Size <= 0 {
+		errs = append(errs, field.Invalid(fldPath.Child("size"), *clique.Size, "must be greater than 0"))
+	}
+
+	// validate that the StartsAfter values are not empty strings
+	if v1alpha1.CliqueStartupTypeExplicit == *v.pgs.Spec.Template.StartupType {
+		for _, dep := range clique.StartsAfter {
+			if utils.IsEmptyStringType(dep) {
+				errs = append(errs, field.Required(fldPath.Child("startsAfter"), "clique dependency must not be empty"))
+			}
+			if dep == clique.Name {
+				errs = append(errs, field.Invalid(fldPath.Child("startsAfter"), dep, "clique dependency cannot be self, cycles are not permitted"))
+			}
+			duplicateStartAfterDeps := lo.FindDuplicates(clique.StartsAfter)
+			if len(duplicateStartAfterDeps) > 0 {
+				errs = append(errs, field.Invalid(fldPath.Child("startsAfter"), duplicateStartAfterDeps, "clique dependencies must be unique"))
 			}
 		}
 	}
 
-	if isInOrder {
-		if noStartsAfterCount == 0 {
-			allErrs = append(allErrs, field.Forbidden(fldPath, "must contain at least one clique without startsAfter"))
-		}
-		allErrs = append(allErrs, validateCliqueDependencies(cliques, fldPath)...)
+	warnings, cliquePodTemplateSpecErrs := v.validateCliquePodTemplateSpec(clique.Template, fldPath.Child("template"))
+	if cliquePodTemplateSpecErrs != nil {
+		errs = append(errs, cliquePodTemplateSpecErrs...)
 	}
 
-	return allErrs
+	return
+}
+
+func (v *validator) validateCliquePodTemplateSpec(template corev1.PodTemplateSpec, fldPath *field.Path) (warnings []string, errs field.ErrorList) {
+	errs = field.ErrorList{}
+
+	errs = append(errs, apivalidation.ValidateObjectMeta(&template.ObjectMeta, false, apivalidation.NameIsDNSSubdomain, fldPath.Child("metadata"))...)
+	if !utils.IsEmptyStringType(template.Spec.RestartPolicy) {
+		warnings = append(warnings, "restartPolicy will be ignored, it will be set to Never")
+	}
+
+	specFldPath := fldPath.Child("spec")
+	if v.operation == admissionv1.Create {
+		if template.Spec.TopologySpreadConstraints != nil {
+			errs = append(errs, field.Invalid(specFldPath.Child("topologySpreadConstraints"), template.Spec.TopologySpreadConstraints, "must not be set"))
+		}
+		if !utils.IsEmptyStringType(template.Spec.NodeName) {
+			errs = append(errs, field.Invalid(specFldPath.Child("nodeName"), template.Spec.NodeName, "must not be set"))
+		}
+	}
+	if template.Spec.NodeSelector != nil {
+		errs = append(errs, field.Invalid(specFldPath.Child("nodeSelector"), template.Spec.NodeSelector, "must not be set"))
+	}
+
+	return
 }
 
 func validateCliqueDependencies(cliques []v1alpha1.PodClique, fldPath *field.Path) field.ErrorList {
@@ -86,17 +127,13 @@ func validateCliqueDependencies(cliques []v1alpha1.PodClique, fldPath *field.Pat
 		cliqueIndx int    // index of the clique in []cliques
 		match      bool   // has a matching parent clique
 	}
-	parents := []*parent{}
+	var parents []*parent
 
 	// initialize adjacency matrix that describes "startsAfter" dependencies between cliques
 	for i, clique := range cliques {
 		adjMatrix[i] = make([]int, n)
 		for j, startsAfter := range clique.StartsAfter {
-			if startsAfter == clique.Name {
-				allErrs = append(allErrs, field.Invalid(fldPath.Child("startsAfter"), startsAfter, "cannot match its own clique"))
-			} else {
-				parents = append(parents, &parent{name: startsAfter, cliqueIndx: i, indx: j})
-			}
+			parents = append(parents, &parent{name: startsAfter, cliqueIndx: i, indx: j})
 		}
 	}
 
