@@ -163,11 +163,6 @@ func (in *PodGangSetList) DeepCopyObject() runtime.Object {
 func (in *PodGangSetSpec) DeepCopyInto(out *PodGangSetSpec) {
 	*out = *in
 	in.Template.DeepCopyInto(&out.Template)
-	if in.Replicas != nil {
-		in, out := &in.Replicas, &out.Replicas
-		*out = new(int32)
-		**out = **in
-	}
 	if in.UpdateStrategy != nil {
 		in, out := &in.UpdateStrategy, &out.UpdateStrategy
 		*out = new(GangUpdateStrategy)
@@ -199,21 +194,6 @@ func (in *PodGangSetStatus) DeepCopyInto(out *PodGangSetStatus) {
 	if in.ObservedGeneration != nil {
 		in, out := &in.ObservedGeneration, &out.ObservedGeneration
 		*out = new(int64)
-		**out = **in
-	}
-	if in.Replicas != nil {
-		in, out := &in.Replicas, &out.Replicas
-		*out = new(int32)
-		**out = **in
-	}
-	if in.ReadyReplicas != nil {
-		in, out := &in.ReadyReplicas, &out.ReadyReplicas
-		*out = new(int32)
-		**out = **in
-	}
-	if in.UpdatedReplicas != nil {
-		in, out := &in.UpdatedReplicas, &out.UpdatedReplicas
-		*out = new(int32)
 		**out = **in
 	}
 	if in.Selector != nil {

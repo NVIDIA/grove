@@ -218,7 +218,7 @@ spec:
                   type: object
                 type: array
               replicas:
-                default: 1
+                default: 0
                 description: Replicas is the number of desired replicas of the PodGang.
                 format: int32
                 type: integer
@@ -230,8 +230,8 @@ spec:
                     description: StartupType defines the type of startup dependency
                       amongst the cliques within a PodGang.
                     enum:
-                    - InOrder
-                    - Explicit
+                    - CliqueStartupTypeInOrder
+                    - CliqueStartupTypeExplicit
                     type: string
                   cliques:
                     description: Cliques is a slice of cliques that make up the PodGang.
@@ -252,7 +252,7 @@ spec:
                         startsAfter:
                           description: |-
                             StartsAfter provides you a way to explicitly define the startup dependencies amongst cliques.
-                            If CliqueStartupType in PodGang has been set to 'Explicit', then to create an ordered start amongst PorClique's StartsAfter can be used.
+                            If CliqueStartupType in PodGang has been set to 'CliqueStartupTypeExplicit', then to create an ordered start amongst PorClique's StartsAfter can be used.
                             A forest of DAG's can be defined to model any start order dependencies. If there are more than one PodClique's defined and StartsAfter is not set for any of them,
                             then their startup order is random at best and must not be relied upon.
                             Validations:

@@ -45,94 +45,92 @@ func newValidator(op admissionv1.Operation, pgs *v1alpha1.PodGangSet) *validator
 	}
 }
 
-func (v *validator) validate() (warnings []string, err error) {
+func (v *validator) validate() ([]string, error) {
 	allErrs := field.ErrorList{}
+
 	allErrs = append(allErrs, apivalidation.ValidateObjectMeta(&v.pgs.ObjectMeta, true, apivalidation.NameIsDNSSubdomain, field.NewPath("metadata"))...)
-	warnings, pgsSpecErrs := v.validatePodGangSetSpec()
-	if pgsSpecErrs != nil {
-		allErrs = append(allErrs, pgsSpecErrs...)
+	warnings, errs := v.validatePodGangSetSpec()
+	if len(errs) != 0 {
+		allErrs = append(allErrs, errs...)
 	}
-	err = allErrs.ToAggregate()
-	return
+
+	return warnings, allErrs.ToAggregate()
 }
 
 // validatePodGangSetSpec validates the specification of a PodGangSet object.
-func (v *validator) validatePodGangSetSpec() (warnings []string, errs field.ErrorList) {
+func (v *validator) validatePodGangSetSpec() ([]string, field.ErrorList) {
 	allErrs := field.ErrorList{}
 	fldPath := field.NewPath("spec")
 
 	allErrs = append(allErrs, apivalidation.ValidateNonnegativeField(int64(v.pgs.Spec.Replicas), fldPath.Child("replicas"))...)
 	allErrs = append(allErrs, v.validateUpdateStrategy(fldPath.Child("updateStrategy"))...)
-	warnings, pgTemplateSpecErrs := v.validatePodGangTemplateSpec(fldPath.Child("template"))
-	if pgTemplateSpecErrs != nil {
-		allErrs = append(allErrs, pgTemplateSpecErrs...)
+	warnings, errs := v.validatePodGangTemplateSpec(fldPath.Child("template"))
+	if len(errs) != 0 {
+		allErrs = append(allErrs, errs...)
 	}
 
-	return
+	return warnings, allErrs
 }
 
-func (v *validator) validatePodGangTemplateSpec(fldPath *field.Path) (warnings []string, errs field.ErrorList) {
-	errs = field.ErrorList{}
+func (v *validator) validatePodGangTemplateSpec(fldPath *field.Path) ([]string, field.ErrorList) {
+	allErrs := field.ErrorList{}
 
-	errs = append(errs, validateEnumType(v.pgs.Spec.Template.StartupType, allowedStartupTypes, fldPath.Child("cliqueStartupType"))...)
-	errs = append(errs, validateEnumType(v.pgs.Spec.Template.RestartPolicy, allowedRestartPolicies, fldPath.Child("restartPolicy"))...)
-	errs = append(errs, validateEnumType(v.pgs.Spec.Template.NetworkPackStrategy, allowedNetworkPackStrategies, fldPath.Child("networkPackStrategy"))...)
+	allErrs = append(allErrs, validateEnumType(v.pgs.Spec.Template.StartupType, allowedStartupTypes, fldPath.Child("cliqueStartupType"))...)
+	allErrs = append(allErrs, validateEnumType(v.pgs.Spec.Template.RestartPolicy, allowedRestartPolicies, fldPath.Child("restartPolicy"))...)
+	allErrs = append(allErrs, validateEnumType(v.pgs.Spec.Template.NetworkPackStrategy, allowedNetworkPackStrategies, fldPath.Child("networkPackStrategy"))...)
 
 	// validate cliques
-	warnings, cliqueErrs := v.validatePodCliques(fldPath.Child("cliques"))
-	if cliqueErrs != nil {
-		errs = append(errs, cliqueErrs...)
+	warnings, errs := v.validatePodCliques(fldPath.Child("cliques"))
+	if len(errs) != 0 {
+		allErrs = append(allErrs, errs...)
 	}
-	return
+	return warnings, allErrs
 }
 
 func (v *validator) validateUpdateStrategy(fldPath *field.Path) field.ErrorList {
-	allErrs := field.ErrorList{}
+	errs := field.ErrorList{}
 	updateStrategy := v.pgs.Spec.UpdateStrategy
 	if updateStrategy == nil {
-		return append(allErrs, field.Required(fldPath, "field is required"))
+		return append(errs, field.Required(fldPath, "field is required"))
 	}
-	allErrs = append(allErrs, validateEnumType(&updateStrategy.Type, allowedUpdateStrategyTypes, fldPath.Child("type"))...)
+	errs = append(errs, validateEnumType(&updateStrategy.Type, allowedUpdateStrategyTypes, fldPath.Child("type"))...)
 	if updateStrategy.Type == v1alpha1.GangUpdateStrategyRolling {
-		allErrs = append(allErrs, v.validateRollingUpdateConfig(fldPath.Child("rollingUpdateConfig"))...)
+		errs = append(errs, v.validateRollingUpdateConfig(fldPath.Child("rollingUpdateConfig"))...)
 	}
 
-	return allErrs
+	return errs
 }
 
 func (v *validator) validateRollingUpdateConfig(fldPath *field.Path) field.ErrorList {
-	allErrs := field.ErrorList{}
+	errs := field.ErrorList{}
 
 	rollingUpdateConfig := v.pgs.Spec.UpdateStrategy.RollingUpdateConfig
-	replicas := v.pgs.Spec.Replicas
+	replicas := int(v.pgs.Spec.Replicas)
 
 	if rollingUpdateConfig == nil {
-		return append(allErrs, field.Required(fldPath, "field is required"))
-	}
-	var (
-		maxUnavailable int
-		maxSurge       int
-		err            error
-	)
-	if maxUnavailable, err = intstr.GetScaledValueFromIntOrPercent(rollingUpdateConfig.MaxUnavailable, int(replicas), false); err != nil {
-		allErrs = append(allErrs, field.Invalid(fldPath.Child("maxUnavailable"), rollingUpdateConfig.MaxUnavailable, err.Error()))
-	}
-	if maxSurge, err = intstr.GetScaledValueFromIntOrPercent(rollingUpdateConfig.MaxSurge, int(replicas), false); err != nil {
-		allErrs = append(allErrs, field.Invalid(fldPath.Child("maxSurge"), rollingUpdateConfig.MaxSurge, err.Error()))
-	}
+		return append(errs, field.Required(fldPath, "field is required"))
+	} else {
+		maxUnavailable, err := intstr.GetScaledValueFromIntOrPercent(rollingUpdateConfig.MaxUnavailable, replicas, false)
+		if err != nil {
+			errs = append(errs, field.Invalid(fldPath.Child("maxUnavailable"), rollingUpdateConfig.MaxUnavailable, err.Error()))
+		}
+		maxSurge, err := intstr.GetScaledValueFromIntOrPercent(rollingUpdateConfig.MaxSurge, replicas, false)
+		if err != nil {
+			errs = append(errs, field.Invalid(fldPath.Child("maxSurge"), rollingUpdateConfig.MaxSurge, err.Error()))
+		}
 
-	// Ensure that MaxUnavailable and MaxSurge are non-negative.
-	allErrs = append(allErrs, apivalidation.ValidateNonnegativeField(int64(maxUnavailable), fldPath.Child("maxUnavailable"))...)
-	allErrs = append(allErrs, apivalidation.ValidateNonnegativeField(int64(maxSurge), fldPath.Child("maxSurge"))...)
+		// Ensure that MaxUnavailable and MaxSurge are non-negative.
+		errs = append(errs, apivalidation.ValidateNonnegativeField(int64(maxUnavailable), fldPath.Child("maxUnavailable"))...)
+		errs = append(errs, apivalidation.ValidateNonnegativeField(int64(maxSurge), fldPath.Child("maxSurge"))...)
 
-	// Ensure that MaxUnavailable is not more than the replicas for the PodGangSet.
-	if maxUnavailable > int(replicas) {
-		allErrs = append(allErrs, field.Invalid(fldPath.Child("maxUnavailable"), rollingUpdateConfig.MaxUnavailable, "cannot be greater than replicas"))
+		// Ensure that MaxUnavailable is not more than the replicas for the PodGangSet.
+		if maxUnavailable > replicas {
+			errs = append(errs, field.Invalid(fldPath.Child("maxUnavailable"), rollingUpdateConfig.MaxUnavailable, "cannot be greater than replicas"))
+		}
+		// Ensure that both MaxSurge and MaxUnavailable are not zero.
+		if maxSurge == 0 && maxUnavailable == 0 {
+			errs = append(errs, field.Invalid(fldPath.Child("maxUnavailable"), rollingUpdateConfig.MaxUnavailable, "cannot be 0 when maxSurge is 0"))
+		}
 	}
-	// Ensure that both MaxSurge and MaxUnavailable are not zero.
-	if maxSurge == 0 && maxUnavailable == 0 {
-		allErrs = append(allErrs, field.Invalid(fldPath.Child("maxUnavailable"), rollingUpdateConfig.MaxUnavailable, "cannot be 0 when maxSurge is 0"))
-	}
-
-	return allErrs
+	return errs
 }

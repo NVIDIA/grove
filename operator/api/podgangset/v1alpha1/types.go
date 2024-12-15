@@ -197,8 +197,7 @@ type PodGangSetSpec struct {
 	// Template describes the template spec for PodGangs that will be created in the PodGangSet.
 	Template PodGangTemplateSpec `json:"template"`
 	// Replicas is the number of desired replicas of the PodGang.
-	// +kubebuilder:default=1
-	// +optional
+	// +kubebuilder:default=0
 	Replicas int32 `json:"replicas,omitempty"`
 	// UpdateStrategy defines the strategy to be used when updating the PodGangs.
 	// +optional
