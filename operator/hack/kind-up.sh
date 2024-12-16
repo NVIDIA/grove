@@ -139,6 +139,7 @@ function kind::create_cluster() {
       kind::delete_cluster
     fi
   fi
+  mkdir -p "${KIND_CONFIG_DIR}"
   echo "Creating kind cluster ${CLUSTER_NAME}..."
   kind::generate_config
   kind create cluster --name "${CLUSTER_NAME}" --config "${KIND_CONFIG_DIR}/cluster-config.yaml"
