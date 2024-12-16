@@ -18,14 +18,18 @@ package podgangset
 
 import (
 	"context"
-
-	configv1alpha1 "github.com/NVIDIA/grove/operator/api/config/v1alpha1"
+	"fmt"
+	"time"
 
 	"github.com/go-logr/logr"
+	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/client-go/tools/record"
 	ctrl "sigs.k8s.io/controller-runtime"
 	ctrlclient "sigs.k8s.io/controller-runtime/pkg/client"
 	ctrllogger "sigs.k8s.io/controller-runtime/pkg/log"
+
+	configv1alpha1 "github.com/NVIDIA/grove/operator/api/config/v1alpha1"
+	"github.com/NVIDIA/grove/operator/api/core/v1alpha1"
 )
 
 // Reconciler reconciles PodGangSet resources.
@@ -49,5 +53,32 @@ func NewReconciler(mgr ctrl.Manager, controllerCfg configv1alpha1.PodGangSetCont
 
 // Reconcile reconciles a PodGangSet resource.
 func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	panic("implement me")
+	r.logger.Info("PodGangSet reconciliation started", "resource", req.NamespacedName)
+
+	pgs := &v1alpha1.PodGangSet{}
+	if err := r.client.Get(ctx, req.NamespacedName, pgs); err != nil {
+		if errors.IsNotFound(err) {
+			r.logger.V(1).Info("Object not found, stop reconciling")
+			return ctrl.Result{}, nil
+		}
+		r.logger.Error(err, "Failed to get PodGangSet; requeuing")
+		// TODO: do we need to requeue?
+		return ctrl.Result{RequeueAfter: 10 * time.Second}, err
+	}
+
+	if !pgs.DeletionTimestamp.IsZero() {
+		return r.delete(ctx, pgs)
+	}
+
+	return r.reconcile(ctx, pgs)
+}
+
+func (r *Reconciler) reconcile(ctx context.Context, pgs *v1alpha1.PodGangSet) (ctrl.Result, error) {
+	// TODO: implement
+	return ctrl.Result{}, fmt.Errorf("not implemented")
+}
+
+func (r *Reconciler) delete(ctx context.Context, pgs *v1alpha1.PodGangSet) (ctrl.Result, error) {
+	// TODO: implement
+	return ctrl.Result{}, fmt.Errorf("not implemented")
 }

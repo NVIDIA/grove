@@ -182,7 +182,7 @@ func (v *validator) validatePodCliqueTemplates(fldPath *field.Path) ([]string, f
 func (v *validator) validatePodCliqueTemplateSpec(cliqueTemplateSpec v1alpha1.PodCliqueTemplateSpec, fldPath *field.Path) ([]string, field.ErrorList) {
 	allErrs := field.ErrorList{}
 
-	allErrs = append(allErrs, validatePodCliqueTemplateObjectMeta(cliqueTemplateSpec.ObjectMeta, fldPath.Child("metadata"))...)
+	// TODO: check name
 
 	warnings, errs := v.validatePodCliqueSpec(cliqueTemplateSpec.Name, cliqueTemplateSpec.Spec, fldPath.Child("spec"))
 	if len(errs) != 0 {
@@ -361,9 +361,9 @@ func validatePodCliqueUpdate(fldPath *field.Path, newCliques, oldCliques []v1alp
 	}
 
 	for i := range newCliques {
-		allErrs = append(allErrs, apivalidation.ValidateObjectMetaUpdate(&newCliques[i].ObjectMeta, &oldCliques[i].ObjectMeta, fldPath.Child("metadata"))...)
+		// TODO: check name
 
-		allErrs = append(allErrs, validatePodSpecUpdate(fldPath.Child("spec", "spec"), &newCliques[i].Spec.PodSpec, &oldCliques[i].Spec.PodSpec)...)
+		allErrs = append(allErrs, validatePodSpecUpdate(fldPath.Child("spec", "podSpec"), &newCliques[i].Spec.PodSpec, &oldCliques[i].Spec.PodSpec)...)
 	}
 
 	return allErrs
