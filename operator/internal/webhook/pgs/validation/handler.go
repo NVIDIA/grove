@@ -28,7 +28,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 
-	"github.com/NVIDIA/grove/operator/api/podgangset/v1alpha1"
+	"github.com/NVIDIA/grove/operator/api/core/v1alpha1"
 )
 
 //const handlerName = "podgangset-validation-webhook"

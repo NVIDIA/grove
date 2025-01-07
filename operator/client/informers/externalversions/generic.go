@@ -1,5 +1,5 @@
 /*
-Copyright 2024 The Grove Authors.
+Copyright 2025 The Grove Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -20,7 +20,7 @@ package externalversions
 import (
 	"fmt"
 
-	v1alpha1 "github.com/NVIDIA/grove/operator/api/podgangset/v1alpha1"
+	v1alpha1 "github.com/NVIDIA/grove/operator/api/core/v1alpha1"
 	schema "k8s.io/apimachinery/pkg/runtime/schema"
 	cache "k8s.io/client-go/tools/cache"
 )
@@ -52,6 +52,8 @@ func (f *genericInformer) Lister() cache.GenericLister {
 func (f *sharedInformerFactory) ForResource(resource schema.GroupVersionResource) (GenericInformer, error) {
 	switch resource {
 	// Group=grove.io, Version=v1alpha1
+	case v1alpha1.SchemeGroupVersion.WithResource("podcliques"):
+		return &genericInformer{resource: resource.GroupResource(), informer: f.Grove().V1alpha1().PodCliques().Informer()}, nil
 	case v1alpha1.SchemeGroupVersion.WithResource("podgangsets"):
 		return &genericInformer{resource: resource.GroupResource(), informer: f.Grove().V1alpha1().PodGangSets().Informer()}, nil
 

@@ -1,5 +1,5 @@
 /*
-Copyright 2024 The Grove Authors.
+Copyright 2025 The Grove Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -18,7 +18,7 @@ limitations under the License.
 package scheme
 
 import (
-	grovev1alpha1 "github.com/NVIDIA/grove/operator/api/podgangset/v1alpha1"
+	grovev1alpha1 "github.com/NVIDIA/grove/operator/api/core/v1alpha1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	runtime "k8s.io/apimachinery/pkg/runtime"
 	schema "k8s.io/apimachinery/pkg/runtime/schema"

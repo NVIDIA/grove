@@ -1,5 +1,5 @@
 /*
-Copyright 2024 The Grove Authors.
+Copyright 2025 The Grove Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -19,8 +19,8 @@ package fake
 
 import (
 	clientset "github.com/NVIDIA/grove/operator/client/clientset/versioned"
-	grovev1alpha1 "github.com/NVIDIA/grove/operator/client/clientset/versioned/typed/podgangset/v1alpha1"
-	fakegrovev1alpha1 "github.com/NVIDIA/grove/operator/client/clientset/versioned/typed/podgangset/v1alpha1/fake"
+	grovev1alpha1 "github.com/NVIDIA/grove/operator/client/clientset/versioned/typed/core/v1alpha1"
+	fakegrovev1alpha1 "github.com/NVIDIA/grove/operator/client/clientset/versioned/typed/core/v1alpha1/fake"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/discovery"

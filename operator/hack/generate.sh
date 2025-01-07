@@ -49,8 +49,8 @@ function generate_clientset() {
 }
 
 function generate_crds() {
-  local output_dir="${OPERATOR_GO_MODULE_ROOT}/config/crd/bases"
-  local package="github.com/NVIDIA/grove/operator/api/podgangset/v1alpha1"
+  local output_dir="${OPERATOR_GO_MODULE_ROOT}/api/core/crds"
+  local package="github.com/NVIDIA/grove/operator/api/core/v1alpha1"
   local package_path="$(go list -f '{{.Dir}}' "${package}")"
 
   if [ -z "${package_path}" ]; then

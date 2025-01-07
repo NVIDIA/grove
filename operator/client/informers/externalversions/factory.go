@@ -1,5 +1,5 @@
 /*
-Copyright 2024 The Grove Authors.
+Copyright 2025 The Grove Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -23,8 +23,8 @@ import (
 	time "time"
 
 	versioned "github.com/NVIDIA/grove/operator/client/clientset/versioned"
+	core "github.com/NVIDIA/grove/operator/client/informers/externalversions/core"
 	internalinterfaces "github.com/NVIDIA/grove/operator/client/informers/externalversions/internalinterfaces"
-	podgangset "github.com/NVIDIA/grove/operator/client/informers/externalversions/podgangset"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	runtime "k8s.io/apimachinery/pkg/runtime"
 	schema "k8s.io/apimachinery/pkg/runtime/schema"
@@ -253,9 +253,9 @@ type SharedInformerFactory interface {
 	// client.
 	InformerFor(obj runtime.Object, newFunc internalinterfaces.NewInformerFunc) cache.SharedIndexInformer
 
-	Grove() podgangset.Interface
+	Grove() core.Interface
 }
 
-func (f *sharedInformerFactory) Grove() podgangset.Interface {
-	return podgangset.New(f, f.namespace, f.tweakListOptions)
+func (f *sharedInformerFactory) Grove() core.Interface {
+	return core.New(f, f.namespace, f.tweakListOptions)
 }

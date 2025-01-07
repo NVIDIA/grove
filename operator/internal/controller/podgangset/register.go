@@ -17,7 +17,7 @@
 package podgangset
 
 import (
-	"github.com/NVIDIA/grove/operator/api/podgangset/v1alpha1"
+	"github.com/NVIDIA/grove/operator/api/core/v1alpha1"
 
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/controller"

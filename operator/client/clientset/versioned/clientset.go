@@ -1,5 +1,5 @@
 /*
-Copyright 2024 The Grove Authors.
+Copyright 2025 The Grove Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -21,7 +21,7 @@ import (
 	"fmt"
 	"net/http"
 
-	grovev1alpha1 "github.com/NVIDIA/grove/operator/client/clientset/versioned/typed/podgangset/v1alpha1"
+	grovev1alpha1 "github.com/NVIDIA/grove/operator/client/clientset/versioned/typed/core/v1alpha1"
 	discovery "k8s.io/client-go/discovery"
 	rest "k8s.io/client-go/rest"
 	flowcontrol "k8s.io/client-go/util/flowcontrol"
