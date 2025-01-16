@@ -35,8 +35,8 @@ type PodCliqueList struct {
 
 // PodCliqueSpec defines the specification of a PodClique.
 type PodCliqueSpec struct {
-	// Template is the template of the pods in the clique.
-	Template corev1.PodTemplateSpec `json:"template"`
+	// Spec is the spec of the pods in the clique.
+	Spec corev1.PodSpec `json:"spec"`
 	// Replicas is the number of replicas of the pods in the clique.
 	Replicas int32 `json:"replicas"`
 	// MinAvailable is the minimum number of pods that must be available at any given time.

@@ -93,11 +93,9 @@ type PodGangTemplateSpec struct {
 type PodCliqueTemplateSpec struct {
 	// Standard object's metadata.
 	// More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#metadata
-	// +optional
-	metav1.ObjectMeta `json:"metadata,omitempty"`
+	metav1.ObjectMeta `json:"metadata"`
 	// Specification of the desired behavior of a PodClique.
 	// More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#spec-and-status
-	// +optional
 	Spec PodCliqueSpec `json:"spec"`
 }
 

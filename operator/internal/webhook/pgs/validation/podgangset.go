@@ -17,6 +17,8 @@
 package validation
 
 import (
+	"strings"
+
 	"github.com/NVIDIA/grove/operator/internal/utils"
 	"github.com/samber/lo"
 	admissionv1 "k8s.io/api/admission/v1"
@@ -27,7 +29,6 @@ import (
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/apimachinery/pkg/util/validation/field"
-	"strings"
 
 	"github.com/NVIDIA/grove/operator/api/core/v1alpha1"
 )
@@ -201,35 +202,33 @@ func (v *validator) validatePodCliqueTemplateSpec(cliqueTemplateSpec v1alpha1.Po
 		}
 	}
 
-	warnings, cliquePodTemplateSpecErrs := v.validatePodTemplateSpec(cliqueTemplateSpec.Spec.Template, fldPath.Child("template"))
-	if len(cliquePodTemplateSpecErrs) != 0 {
-		allErrs = append(allErrs, cliquePodTemplateSpecErrs...)
+	warnings, cliquePodSpecErrs := v.validatePodSpec(cliqueTemplateSpec.Spec.Spec, fldPath.Child("spec"))
+	if len(cliquePodSpecErrs) != 0 {
+		allErrs = append(allErrs, cliquePodSpecErrs...)
 	}
 
 	return warnings, allErrs
 }
 
-func (v *validator) validatePodTemplateSpec(template corev1.PodTemplateSpec, fldPath *field.Path) ([]string, field.ErrorList) {
+func (v *validator) validatePodSpec(spec corev1.PodSpec, fldPath *field.Path) ([]string, field.ErrorList) {
 	allErrs := field.ErrorList{}
 	var warnings []string
 
-	allErrs = append(allErrs, metav1validation.ValidateLabels(template.ObjectMeta.Labels, fldPath.Child("metadata"))...)
-
-	if !utils.IsEmptyStringType(template.Spec.RestartPolicy) {
+	if !utils.IsEmptyStringType(spec.RestartPolicy) {
 		warnings = append(warnings, "restartPolicy will be ignored, it will be set to Never")
 	}
 
 	specFldPath := fldPath.Child("spec")
 	if v.operation == admissionv1.Create {
-		if template.Spec.TopologySpreadConstraints != nil {
-			allErrs = append(allErrs, field.Invalid(specFldPath.Child("topologySpreadConstraints"), template.Spec.TopologySpreadConstraints, "must not be set"))
+		if spec.TopologySpreadConstraints != nil {
+			allErrs = append(allErrs, field.Invalid(specFldPath.Child("topologySpreadConstraints"), spec.TopologySpreadConstraints, "must not be set"))
 		}
-		if !utils.IsEmptyStringType(template.Spec.NodeName) {
-			allErrs = append(allErrs, field.Invalid(specFldPath.Child("nodeName"), template.Spec.NodeName, "must not be set"))
+		if !utils.IsEmptyStringType(spec.NodeName) {
+			allErrs = append(allErrs, field.Invalid(specFldPath.Child("nodeName"), spec.NodeName, "must not be set"))
 		}
 	}
-	if template.Spec.NodeSelector != nil {
-		allErrs = append(allErrs, field.Invalid(specFldPath.Child("nodeSelector"), template.Spec.NodeSelector, "must not be set"))
+	if spec.NodeSelector != nil {
+		allErrs = append(allErrs, field.Invalid(specFldPath.Child("nodeSelector"), spec.NodeSelector, "must not be set"))
 	}
 
 	return warnings, allErrs
