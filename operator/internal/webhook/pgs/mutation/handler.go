@@ -18,61 +18,35 @@ package mutation
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
-	"net/http"
-
-	"github.com/go-logr/logr"
-	v1 "k8s.io/api/admission/v1"
-	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/manager"
-	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 
 	"github.com/NVIDIA/grove/operator/api/core/v1alpha1"
+	"github.com/go-logr/logr"
+	"k8s.io/apimachinery/pkg/runtime"
+	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 )
 
-// MutatingHandler is a handler for mutating PodGangSet resources.
-type MutatingHandler struct {
-	client  client.Client
-	decoder admission.Decoder
-	logger  logr.Logger
+// Handler struct sets default values on PodGangSet CR
+type Handler struct {
+	logger logr.Logger
 }
 
-// NewHandler creates a new handler for PodGangSet Webhook.
-func NewHandler(mgr manager.Manager) (*MutatingHandler, error) {
-	return &MutatingHandler{
-		client:  mgr.GetClient(),
-		decoder: admission.NewDecoder(mgr.GetScheme()),
-		logger:  mgr.GetLogger(),
-	}, nil
+func NewHandler() *admission.Webhook {
+	return admission.WithCustomDefaulter(runtime.NewScheme(), &v1alpha1.PodGangSet{}, &Handler{})
 }
 
-// Handle adds defaults to PodGangSet resource.
-func (h *MutatingHandler) Handle(ctx context.Context, req admission.Request) admission.Response {
-	log := h.logger.WithValues("name", req.Name, "namespace", req.Namespace, "resource", fmt.Sprintf("%s/%s", req.Kind.Group, req.Kind.Kind), "operation", req.Operation, "user", req.UserInfo.Username)
-	log.V(1).Info("Grove mutation webhook invoked")
+// Default implements webhook.CustomDefaulter
+func (d *Handler) Default(ctx context.Context, obj runtime.Object) error {
+	d.logger.V(1).Info("Defaulting for PodGangSet")
 
-	return h.mutate(req)
-}
-
-func (h *MutatingHandler) mutate(req admission.Request) admission.Response {
-	switch req.Operation {
-	case v1.Create, v1.Update:
-		pgs := &v1alpha1.PodGangSet{}
-		if err := h.decoder.Decode(req, pgs); err != nil {
-			return admission.Errored(http.StatusBadRequest, err)
-		}
-		h.mutateCreate(pgs)
-
-		mPgs, err := json.Marshal(pgs)
-		if err != nil {
-			return admission.Errored(http.StatusInternalServerError, err)
-		}
-		return admission.PatchResponseFromRaw(req.Object.Raw, mPgs)
+	pgs, ok := obj.(*v1alpha1.PodGangSet)
+	if !ok {
+		return fmt.Errorf("expected an PodGangSet object but got %T", obj)
 	}
-	return admission.Response{}
+	d.addDefaults(pgs)
+	return nil
 }
 
-func (h *MutatingHandler) mutateCreate(pgs *v1alpha1.PodGangSet) {
-	mutatePodGangSet(pgs)
+func (Handler) addDefaults(pgs *v1alpha1.PodGangSet) {
+	defaultPodGangSetSpec(&pgs.Spec)
 }

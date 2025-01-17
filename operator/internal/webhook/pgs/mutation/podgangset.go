@@ -18,27 +18,24 @@ package mutation
 
 import (
 	"github.com/NVIDIA/grove/operator/api/core/v1alpha1"
+	"github.com/NVIDIA/grove/operator/internal/utils"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 )
 
-// mutatePodGangSet adds defaults to a PodGangSetSpec.
-func mutatePodGangSet(pgs *v1alpha1.PodGangSet) {
-	mutatePodGangSetSpec(&pgs.Spec)
-}
-
-// mutatePodGangSetSpec adds defaults to the specification of a PodGangSet.
-func mutatePodGangSetSpec(spec *v1alpha1.PodGangSetSpec) {
+// defaultPodGangSetSpec adds defaults to the specification of a PodGangSet.
+func defaultPodGangSetSpec(spec *v1alpha1.PodGangSetSpec) {
 
 	// default PodGangTemplateSpec
-	mutatePodGangTemplateSpec(&spec.Template)
+	defaultPodGangTemplateSpec(&spec.Template)
 
 	// default UpdateStrategy
-	mutateUpdateStrategy(spec.UpdateStrategy)
+	defaultUpdateStrategy(spec.UpdateStrategy)
 }
 
-func mutatePodGangTemplateSpec(spec *v1alpha1.PodGangTemplateSpec) {
+func defaultPodGangTemplateSpec(spec *v1alpha1.PodGangTemplateSpec) {
 	// default PodCliqueTemplateSpec
-	mutatePodCliqueTemplateSpec(spec.Cliques)
+	defaultPodCliqueTemplateSpec(spec.Cliques)
 
 	// default startup type
 	if spec.StartupType == nil {
@@ -56,18 +53,34 @@ func mutatePodGangTemplateSpec(spec *v1alpha1.PodGangTemplateSpec) {
 	}
 }
 
-func mutateUpdateStrategy(obj *v1alpha1.GangUpdateStrategy) {
+func defaultUpdateStrategy(updateStrategy *v1alpha1.GangUpdateStrategy) {
 	//default UpdateStrategy
-	if obj.Type == "" {
-		obj.Type = v1alpha1.GangUpdateStrategyRecreate
+	if utils.IsEmptyStringType(updateStrategy.Type) {
+		updateStrategy.Type = v1alpha1.GangUpdateStrategyRecreate
 	}
 
-	//default RollingUpdateConfig
-	if obj.RollingUpdateConfig.MaxSurge == nil {
-		*obj.RollingUpdateConfig.MaxSurge = intstr.FromInt(1)
-	}
+	if updateStrategy.Type == v1alpha1.GangUpdateStrategyRolling {
+		//default RollingUpdateConfig
+		if updateStrategy.RollingUpdateConfig.MaxSurge == nil {
+			*updateStrategy.RollingUpdateConfig.MaxSurge = intstr.FromInt(1)
+		}
 
-	if obj.RollingUpdateConfig.MaxUnavailable == nil {
-		*obj.RollingUpdateConfig.MaxUnavailable = intstr.FromInt(1)
+		if updateStrategy.RollingUpdateConfig.MaxUnavailable == nil {
+			*updateStrategy.RollingUpdateConfig.MaxUnavailable = intstr.FromInt(1)
+		}
+	}
+}
+
+func defaultPodCliqueTemplateSpec(cliqueSpecs []v1alpha1.PodCliqueTemplateSpec) {
+	for _, cliqueSpec := range cliqueSpecs {
+		// default PodTemplateSpec
+		defaultPodTemplateSpec(&cliqueSpec.Spec.Template)
+	}
+}
+
+// defaultPodTemplateSpec adds defaults to PodSpec.
+func defaultPodTemplateSpec(spec *corev1.PodTemplateSpec) {
+	if spec.Spec.TerminationGracePeriodSeconds == nil {
+		*spec.Spec.TerminationGracePeriodSeconds = 30
 	}
 }

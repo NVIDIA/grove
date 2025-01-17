@@ -17,17 +17,17 @@
 package mutation
 
 import (
-	corev1 "k8s.io/api/core/v1"
+	"sigs.k8s.io/controller-runtime/pkg/manager"
 )
 
-// mutatePodTemplateSpec adds defaults to PodSpec.
-func mutatePodTemplateSpec(spec *corev1.PodTemplateSpec) {
-	mutatePodSpec(spec.Spec)
-}
+const (
+	// HandlerName is the name of the default webhook handler for PodGangSet.
+	HandlerName = "podgangset-default-webhook"
+	webhookPath = "/webhooks/default-podgangset"
+)
 
-func mutatePodSpec(spec corev1.PodSpec) {
-	// default TerminationGracePeriodSeconds
-	if spec.TerminationGracePeriodSeconds == nil {
-		*spec.TerminationGracePeriodSeconds = 30
-	}
+// RegisterWithManager registers the webhook with the manager.
+func RegisterWithManager(mgr manager.Manager) error {
+	mgr.GetWebhookServer().Register(webhookPath, NewHandler())
+	return nil
 }
