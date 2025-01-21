@@ -18,10 +18,10 @@ limitations under the License.
 package v1alpha1
 
 import (
-	v1alpha1 "github.com/NVIDIA/grove/operator/api/core/v1alpha1"
-	"k8s.io/apimachinery/pkg/labels"
-	"k8s.io/client-go/listers"
-	"k8s.io/client-go/tools/cache"
+	corev1alpha1 "github.com/NVIDIA/grove/operator/api/core/v1alpha1"
+	labels "k8s.io/apimachinery/pkg/labels"
+	listers "k8s.io/client-go/listers"
+	cache "k8s.io/client-go/tools/cache"
 )
 
 // PodCliqueLister helps list PodCliques.
@@ -29,7 +29,7 @@ import (
 type PodCliqueLister interface {
 	// List lists all PodCliques in the indexer.
 	// Objects returned here must be treated as read-only.
-	List(selector labels.Selector) (ret []*v1alpha1.PodClique, err error)
+	List(selector labels.Selector) (ret []*corev1alpha1.PodClique, err error)
 	// PodCliques returns an object that can list and get PodCliques.
 	PodCliques(namespace string) PodCliqueNamespaceLister
 	PodCliqueListerExpansion
@@ -37,17 +37,17 @@ type PodCliqueLister interface {
 
 // podCliqueLister implements the PodCliqueLister interface.
 type podCliqueLister struct {
-	listers.ResourceIndexer[*v1alpha1.PodClique]
+	listers.ResourceIndexer[*corev1alpha1.PodClique]
 }
 
 // NewPodCliqueLister returns a new PodCliqueLister.
 func NewPodCliqueLister(indexer cache.Indexer) PodCliqueLister {
-	return &podCliqueLister{listers.New[*v1alpha1.PodClique](indexer, v1alpha1.Resource("podclique"))}
+	return &podCliqueLister{listers.New[*corev1alpha1.PodClique](indexer, corev1alpha1.Resource("podclique"))}
 }
 
 // PodCliques returns an object that can list and get PodCliques.
 func (s *podCliqueLister) PodCliques(namespace string) PodCliqueNamespaceLister {
-	return podCliqueNamespaceLister{listers.NewNamespaced[*v1alpha1.PodClique](s.ResourceIndexer, namespace)}
+	return podCliqueNamespaceLister{listers.NewNamespaced[*corev1alpha1.PodClique](s.ResourceIndexer, namespace)}
 }
 
 // PodCliqueNamespaceLister helps list and get PodCliques.
@@ -55,15 +55,15 @@ func (s *podCliqueLister) PodCliques(namespace string) PodCliqueNamespaceLister 
 type PodCliqueNamespaceLister interface {
 	// List lists all PodCliques in the indexer for a given namespace.
 	// Objects returned here must be treated as read-only.
-	List(selector labels.Selector) (ret []*v1alpha1.PodClique, err error)
+	List(selector labels.Selector) (ret []*corev1alpha1.PodClique, err error)
 	// Get retrieves the PodClique from the indexer for a given namespace and name.
 	// Objects returned here must be treated as read-only.
-	Get(name string) (*v1alpha1.PodClique, error)
+	Get(name string) (*corev1alpha1.PodClique, error)
 	PodCliqueNamespaceListerExpansion
 }
 
 // podCliqueNamespaceLister implements the PodCliqueNamespaceLister
 // interface.
 type podCliqueNamespaceLister struct {
-	listers.ResourceIndexer[*v1alpha1.PodClique]
+	listers.ResourceIndexer[*corev1alpha1.PodClique]
 }

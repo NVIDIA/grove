@@ -13,14 +13,14 @@ import (
 // +kubebuilder:subresource:scale:specpath=.spec.replicas,statuspath=.status.replicas,selectorpath=.status.hpaPodSelector
 // +kubebuilder:resource:shortName={pgs}
 
-// PodGangSet is a set of PodGangs defining specification on how to spread and manage PodGangs and monitoring their status.
+// PodGangSet is a set of PodGangs defining specification on how to spread and manage a gang of pods and monitoring their status.
 type PodGangSet struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:",inline"`
 	// Spec defines the specification of the PodGangSet.
 	Spec PodGangSetSpec `json:"spec"`
 	// Status defines the status of the PodGangSet.
-	Status PodGangSetStatus `json:"status"`
+	Status PodGangSetStatus `json:"status,omitempty"`
 }
 
 // +kubebuilder:object:root=true

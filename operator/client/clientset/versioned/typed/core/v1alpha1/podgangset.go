@@ -18,9 +18,9 @@ limitations under the License.
 package v1alpha1
 
 import (
-	"context"
+	context "context"
 
-	v1alpha1 "github.com/NVIDIA/grove/operator/api/core/v1alpha1"
+	corev1alpha1 "github.com/NVIDIA/grove/operator/api/core/v1alpha1"
 	scheme "github.com/NVIDIA/grove/operator/client/clientset/versioned/scheme"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	types "k8s.io/apimachinery/pkg/types"
@@ -36,33 +36,34 @@ type PodGangSetsGetter interface {
 
 // PodGangSetInterface has methods to work with PodGangSet resources.
 type PodGangSetInterface interface {
-	Create(ctx context.Context, podGangSet *v1alpha1.PodGangSet, opts v1.CreateOptions) (*v1alpha1.PodGangSet, error)
-	Update(ctx context.Context, podGangSet *v1alpha1.PodGangSet, opts v1.UpdateOptions) (*v1alpha1.PodGangSet, error)
+	Create(ctx context.Context, podGangSet *corev1alpha1.PodGangSet, opts v1.CreateOptions) (*corev1alpha1.PodGangSet, error)
+	Update(ctx context.Context, podGangSet *corev1alpha1.PodGangSet, opts v1.UpdateOptions) (*corev1alpha1.PodGangSet, error)
 	// Add a +genclient:noStatus comment above the type to avoid generating UpdateStatus().
-	UpdateStatus(ctx context.Context, podGangSet *v1alpha1.PodGangSet, opts v1.UpdateOptions) (*v1alpha1.PodGangSet, error)
+	UpdateStatus(ctx context.Context, podGangSet *corev1alpha1.PodGangSet, opts v1.UpdateOptions) (*corev1alpha1.PodGangSet, error)
 	Delete(ctx context.Context, name string, opts v1.DeleteOptions) error
 	DeleteCollection(ctx context.Context, opts v1.DeleteOptions, listOpts v1.ListOptions) error
-	Get(ctx context.Context, name string, opts v1.GetOptions) (*v1alpha1.PodGangSet, error)
-	List(ctx context.Context, opts v1.ListOptions) (*v1alpha1.PodGangSetList, error)
+	Get(ctx context.Context, name string, opts v1.GetOptions) (*corev1alpha1.PodGangSet, error)
+	List(ctx context.Context, opts v1.ListOptions) (*corev1alpha1.PodGangSetList, error)
 	Watch(ctx context.Context, opts v1.ListOptions) (watch.Interface, error)
-	Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts v1.PatchOptions, subresources ...string) (result *v1alpha1.PodGangSet, err error)
+	Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts v1.PatchOptions, subresources ...string) (result *corev1alpha1.PodGangSet, err error)
 	PodGangSetExpansion
 }
 
 // podGangSets implements PodGangSetInterface
 type podGangSets struct {
-	*gentype.ClientWithList[*v1alpha1.PodGangSet, *v1alpha1.PodGangSetList]
+	*gentype.ClientWithList[*corev1alpha1.PodGangSet, *corev1alpha1.PodGangSetList]
 }
 
 // newPodGangSets returns a PodGangSets
 func newPodGangSets(c *GroveV1alpha1Client, namespace string) *podGangSets {
 	return &podGangSets{
-		gentype.NewClientWithList[*v1alpha1.PodGangSet, *v1alpha1.PodGangSetList](
+		gentype.NewClientWithList[*corev1alpha1.PodGangSet, *corev1alpha1.PodGangSetList](
 			"podgangsets",
 			c.RESTClient(),
 			scheme.ParameterCodec,
 			namespace,
-			func() *v1alpha1.PodGangSet { return &v1alpha1.PodGangSet{} },
-			func() *v1alpha1.PodGangSetList { return &v1alpha1.PodGangSetList{} }),
+			func() *corev1alpha1.PodGangSet { return &corev1alpha1.PodGangSet{} },
+			func() *corev1alpha1.PodGangSetList { return &corev1alpha1.PodGangSetList{} },
+		),
 	}
 }

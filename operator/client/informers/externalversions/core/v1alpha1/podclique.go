@@ -18,13 +18,13 @@ limitations under the License.
 package v1alpha1
 
 import (
-	"context"
+	context "context"
 	time "time"
 
-	corev1alpha1 "github.com/NVIDIA/grove/operator/api/core/v1alpha1"
+	apicorev1alpha1 "github.com/NVIDIA/grove/operator/api/core/v1alpha1"
 	versioned "github.com/NVIDIA/grove/operator/client/clientset/versioned"
 	internalinterfaces "github.com/NVIDIA/grove/operator/client/informers/externalversions/internalinterfaces"
-	v1alpha1 "github.com/NVIDIA/grove/operator/client/listers/core/v1alpha1"
+	corev1alpha1 "github.com/NVIDIA/grove/operator/client/listers/core/v1alpha1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	runtime "k8s.io/apimachinery/pkg/runtime"
 	watch "k8s.io/apimachinery/pkg/watch"
@@ -35,7 +35,7 @@ import (
 // PodCliques.
 type PodCliqueInformer interface {
 	Informer() cache.SharedIndexInformer
-	Lister() v1alpha1.PodCliqueLister
+	Lister() corev1alpha1.PodCliqueLister
 }
 
 type podCliqueInformer struct {
@@ -70,7 +70,7 @@ func NewFilteredPodCliqueInformer(client versioned.Interface, namespace string, 
 				return client.GroveV1alpha1().PodCliques(namespace).Watch(context.TODO(), options)
 			},
 		},
-		&corev1alpha1.PodClique{},
+		&apicorev1alpha1.PodClique{},
 		resyncPeriod,
 		indexers,
 	)
@@ -81,9 +81,9 @@ func (f *podCliqueInformer) defaultInformer(client versioned.Interface, resyncPe
 }
 
 func (f *podCliqueInformer) Informer() cache.SharedIndexInformer {
-	return f.factory.InformerFor(&corev1alpha1.PodClique{}, f.defaultInformer)
+	return f.factory.InformerFor(&apicorev1alpha1.PodClique{}, f.defaultInformer)
 }
 
-func (f *podCliqueInformer) Lister() v1alpha1.PodCliqueLister {
-	return v1alpha1.NewPodCliqueLister(f.Informer().GetIndexer())
+func (f *podCliqueInformer) Lister() corev1alpha1.PodCliqueLister {
+	return corev1alpha1.NewPodCliqueLister(f.Informer().GetIndexer())
 }

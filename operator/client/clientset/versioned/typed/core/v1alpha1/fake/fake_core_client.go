@@ -28,11 +28,11 @@ type FakeGroveV1alpha1 struct {
 }
 
 func (c *FakeGroveV1alpha1) PodCliques(namespace string) v1alpha1.PodCliqueInterface {
-	return &FakePodCliques{c, namespace}
+	return newFakePodCliques(c, namespace)
 }
 
 func (c *FakeGroveV1alpha1) PodGangSets(namespace string) v1alpha1.PodGangSetInterface {
-	return &FakePodGangSets{c, namespace}
+	return newFakePodGangSets(c, namespace)
 }
 
 // RESTClient returns a RESTClient that is used to communicate

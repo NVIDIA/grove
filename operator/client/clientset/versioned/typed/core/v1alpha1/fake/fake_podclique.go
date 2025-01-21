@@ -18,129 +18,32 @@ limitations under the License.
 package fake
 
 import (
-	"context"
-
 	v1alpha1 "github.com/NVIDIA/grove/operator/api/core/v1alpha1"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	labels "k8s.io/apimachinery/pkg/labels"
-	types "k8s.io/apimachinery/pkg/types"
-	watch "k8s.io/apimachinery/pkg/watch"
-	testing "k8s.io/client-go/testing"
+	corev1alpha1 "github.com/NVIDIA/grove/operator/client/clientset/versioned/typed/core/v1alpha1"
+	gentype "k8s.io/client-go/gentype"
 )
 
-// FakePodCliques implements PodCliqueInterface
-type FakePodCliques struct {
+// fakePodCliques implements PodCliqueInterface
+type fakePodCliques struct {
+	*gentype.FakeClientWithList[*v1alpha1.PodClique, *v1alpha1.PodCliqueList]
 	Fake *FakeGroveV1alpha1
-	ns   string
 }
 
-var podcliquesResource = v1alpha1.SchemeGroupVersion.WithResource("podcliques")
-
-var podcliquesKind = v1alpha1.SchemeGroupVersion.WithKind("PodClique")
-
-// Get takes name of the podClique, and returns the corresponding podClique object, and an error if there is any.
-func (c *FakePodCliques) Get(ctx context.Context, name string, options v1.GetOptions) (result *v1alpha1.PodClique, err error) {
-	emptyResult := &v1alpha1.PodClique{}
-	obj, err := c.Fake.
-		Invokes(testing.NewGetActionWithOptions(podcliquesResource, c.ns, name, options), emptyResult)
-
-	if obj == nil {
-		return emptyResult, err
+func newFakePodCliques(fake *FakeGroveV1alpha1, namespace string) corev1alpha1.PodCliqueInterface {
+	return &fakePodCliques{
+		gentype.NewFakeClientWithList[*v1alpha1.PodClique, *v1alpha1.PodCliqueList](
+			fake.Fake,
+			namespace,
+			v1alpha1.SchemeGroupVersion.WithResource("podcliques"),
+			v1alpha1.SchemeGroupVersion.WithKind("PodClique"),
+			func() *v1alpha1.PodClique { return &v1alpha1.PodClique{} },
+			func() *v1alpha1.PodCliqueList { return &v1alpha1.PodCliqueList{} },
+			func(dst, src *v1alpha1.PodCliqueList) { dst.ListMeta = src.ListMeta },
+			func(list *v1alpha1.PodCliqueList) []*v1alpha1.PodClique { return gentype.ToPointerSlice(list.Items) },
+			func(list *v1alpha1.PodCliqueList, items []*v1alpha1.PodClique) {
+				list.Items = gentype.FromPointerSlice(items)
+			},
+		),
+		fake,
 	}
-	return obj.(*v1alpha1.PodClique), err
-}
-
-// List takes label and field selectors, and returns the list of PodCliques that match those selectors.
-func (c *FakePodCliques) List(ctx context.Context, opts v1.ListOptions) (result *v1alpha1.PodCliqueList, err error) {
-	emptyResult := &v1alpha1.PodCliqueList{}
-	obj, err := c.Fake.
-		Invokes(testing.NewListActionWithOptions(podcliquesResource, podcliquesKind, c.ns, opts), emptyResult)
-
-	if obj == nil {
-		return emptyResult, err
-	}
-
-	label, _, _ := testing.ExtractFromListOptions(opts)
-	if label == nil {
-		label = labels.Everything()
-	}
-	list := &v1alpha1.PodCliqueList{ListMeta: obj.(*v1alpha1.PodCliqueList).ListMeta}
-	for _, item := range obj.(*v1alpha1.PodCliqueList).Items {
-		if label.Matches(labels.Set(item.Labels)) {
-			list.Items = append(list.Items, item)
-		}
-	}
-	return list, err
-}
-
-// Watch returns a watch.Interface that watches the requested podCliques.
-func (c *FakePodCliques) Watch(ctx context.Context, opts v1.ListOptions) (watch.Interface, error) {
-	return c.Fake.
-		InvokesWatch(testing.NewWatchActionWithOptions(podcliquesResource, c.ns, opts))
-
-}
-
-// Create takes the representation of a podClique and creates it.  Returns the server's representation of the podClique, and an error, if there is any.
-func (c *FakePodCliques) Create(ctx context.Context, podClique *v1alpha1.PodClique, opts v1.CreateOptions) (result *v1alpha1.PodClique, err error) {
-	emptyResult := &v1alpha1.PodClique{}
-	obj, err := c.Fake.
-		Invokes(testing.NewCreateActionWithOptions(podcliquesResource, c.ns, podClique, opts), emptyResult)
-
-	if obj == nil {
-		return emptyResult, err
-	}
-	return obj.(*v1alpha1.PodClique), err
-}
-
-// Update takes the representation of a podClique and updates it. Returns the server's representation of the podClique, and an error, if there is any.
-func (c *FakePodCliques) Update(ctx context.Context, podClique *v1alpha1.PodClique, opts v1.UpdateOptions) (result *v1alpha1.PodClique, err error) {
-	emptyResult := &v1alpha1.PodClique{}
-	obj, err := c.Fake.
-		Invokes(testing.NewUpdateActionWithOptions(podcliquesResource, c.ns, podClique, opts), emptyResult)
-
-	if obj == nil {
-		return emptyResult, err
-	}
-	return obj.(*v1alpha1.PodClique), err
-}
-
-// UpdateStatus was generated because the type contains a Status member.
-// Add a +genclient:noStatus comment above the type to avoid generating UpdateStatus().
-func (c *FakePodCliques) UpdateStatus(ctx context.Context, podClique *v1alpha1.PodClique, opts v1.UpdateOptions) (result *v1alpha1.PodClique, err error) {
-	emptyResult := &v1alpha1.PodClique{}
-	obj, err := c.Fake.
-		Invokes(testing.NewUpdateSubresourceActionWithOptions(podcliquesResource, "status", c.ns, podClique, opts), emptyResult)
-
-	if obj == nil {
-		return emptyResult, err
-	}
-	return obj.(*v1alpha1.PodClique), err
-}
-
-// Delete takes name of the podClique and deletes it. Returns an error if one occurs.
-func (c *FakePodCliques) Delete(ctx context.Context, name string, opts v1.DeleteOptions) error {
-	_, err := c.Fake.
-		Invokes(testing.NewDeleteActionWithOptions(podcliquesResource, c.ns, name, opts), &v1alpha1.PodClique{})
-
-	return err
-}
-
-// DeleteCollection deletes a collection of objects.
-func (c *FakePodCliques) DeleteCollection(ctx context.Context, opts v1.DeleteOptions, listOpts v1.ListOptions) error {
-	action := testing.NewDeleteCollectionActionWithOptions(podcliquesResource, c.ns, opts, listOpts)
-
-	_, err := c.Fake.Invokes(action, &v1alpha1.PodCliqueList{})
-	return err
-}
-
-// Patch applies the patch and returns the patched podClique.
-func (c *FakePodCliques) Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts v1.PatchOptions, subresources ...string) (result *v1alpha1.PodClique, err error) {
-	emptyResult := &v1alpha1.PodClique{}
-	obj, err := c.Fake.
-		Invokes(testing.NewPatchSubresourceActionWithOptions(podcliquesResource, c.ns, name, pt, data, opts, subresources...), emptyResult)
-
-	if obj == nil {
-		return emptyResult, err
-	}
-	return obj.(*v1alpha1.PodClique), err
 }

@@ -9,12 +9,12 @@ var (
 	podGangSetCRD string
 )
 
-// PodCliqueCRD returns the embedded PodClique CRD
+// PodCliqueCRD returns the PodClique CRD
 func PodCliqueCRD() string {
 	return podCliqueCRD
 }
 
-// PodGangSetCRD returns the embedded PodGangSet CRD
+// PodGangSetCRD returns the PodGangSet CRD
 func PodGangSetCRD() string {
 	return podGangSetCRD
 }

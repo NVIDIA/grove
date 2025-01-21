@@ -18,13 +18,13 @@ limitations under the License.
 package v1alpha1
 
 import (
-	"context"
+	context "context"
 	time "time"
 
-	corev1alpha1 "github.com/NVIDIA/grove/operator/api/core/v1alpha1"
+	apicorev1alpha1 "github.com/NVIDIA/grove/operator/api/core/v1alpha1"
 	versioned "github.com/NVIDIA/grove/operator/client/clientset/versioned"
 	internalinterfaces "github.com/NVIDIA/grove/operator/client/informers/externalversions/internalinterfaces"
-	v1alpha1 "github.com/NVIDIA/grove/operator/client/listers/core/v1alpha1"
+	corev1alpha1 "github.com/NVIDIA/grove/operator/client/listers/core/v1alpha1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	runtime "k8s.io/apimachinery/pkg/runtime"
 	watch "k8s.io/apimachinery/pkg/watch"
@@ -35,7 +35,7 @@ import (
 // PodGangSets.
 type PodGangSetInformer interface {
 	Informer() cache.SharedIndexInformer
-	Lister() v1alpha1.PodGangSetLister
+	Lister() corev1alpha1.PodGangSetLister
 }
 
 type podGangSetInformer struct {
@@ -70,7 +70,7 @@ func NewFilteredPodGangSetInformer(client versioned.Interface, namespace string,
 				return client.GroveV1alpha1().PodGangSets(namespace).Watch(context.TODO(), options)
 			},
 		},
-		&corev1alpha1.PodGangSet{},
+		&apicorev1alpha1.PodGangSet{},
 		resyncPeriod,
 		indexers,
 	)
@@ -81,9 +81,9 @@ func (f *podGangSetInformer) defaultInformer(client versioned.Interface, resyncP
 }
 
 func (f *podGangSetInformer) Informer() cache.SharedIndexInformer {
-	return f.factory.InformerFor(&corev1alpha1.PodGangSet{}, f.defaultInformer)
+	return f.factory.InformerFor(&apicorev1alpha1.PodGangSet{}, f.defaultInformer)
 }
 
-func (f *podGangSetInformer) Lister() v1alpha1.PodGangSetLister {
-	return v1alpha1.NewPodGangSetLister(f.Informer().GetIndexer())
+func (f *podGangSetInformer) Lister() corev1alpha1.PodGangSetLister {
+	return corev1alpha1.NewPodGangSetLister(f.Informer().GetIndexer())
 }

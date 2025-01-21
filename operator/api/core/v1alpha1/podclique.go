@@ -39,10 +39,6 @@ type PodCliqueSpec struct {
 	Spec corev1.PodSpec `json:"spec"`
 	// Replicas is the number of replicas of the pods in the clique.
 	Replicas int32 `json:"replicas"`
-	// MinAvailable is the minimum number of pods that must be available at any given time.
-	// If it is not specified then it will be defaulted to spec.Replicas for the PodClique.
-	// +optional
-	MinAvailable *int32 `json:"minAvailable"`
 	// StartsAfter provides you a way to explicitly define the startup dependencies amongst cliques.
 	// If CliqueStartupType in PodGang has been set to 'CliqueStartupTypeExplicit', then to create an ordered start amongst PorClique's StartsAfter can be used.
 	// A forest of DAG's can be defined to model any start order dependencies. If there are more than one PodClique's defined and StartsAfter is not set for any of them,
@@ -52,9 +48,32 @@ type PodCliqueSpec struct {
 	// 2. If StartsAfter is defined and does not identify any PodClique then it will be flagged as a validation error.
 	// +optional
 	StartsAfter []string `json:"startsAfter,omitempty"`
-	// HPAConfig is the horizontal pod autoscaler configuration for a PodClique.
+	// ScaleConfig is the horizontal pod autoscaler configuration for a PodClique.
 	// +optional
-	HPAConfig *autoscalingv2.HorizontalPodAutoscalerSpec `json:"hpaConfig,omitempty"`
+	ScaleConfig *AutoScalingConfig `json:"autoScalingConfig,omitempty"`
+}
+
+// AutoScalingConfig defines the configuration for the horizontal pod autoscaler for a PodClique.
+type AutoScalingConfig struct {
+	// minReplicas is the lower limit for the number of replicas to which the autoscaler
+	// can scale down. It defaults to 1 pod. minReplicas is not allowed to be 0.
+	// Scaling is active as long as at least one metric value is available.
+	// +optional
+	MinReplicas *int32 `json:"minReplicas,omitempty"`
+	// maxReplicas is the upper limit for the number of replicas to which the autoscaler can scale up.
+	// It cannot be less that minReplicas.
+	MaxReplicas int32 `json:"maxReplicas"`
+	// Metrics contains the specifications for which to use to calculate the
+	// desired replica count (the maximum replica count across all metrics will
+	// be used).  The desired replica count is calculated multiplying the
+	// ratio between the target value and the current value by the current
+	// number of pods.  Ergo, metrics used must decrease as the pod count is
+	// increased, and vice versa.  See the individual metric source types for
+	// more information about how each type of metric must respond.
+	// If not set, the default metric will be set to 80% average CPU utilization.
+	// +listType=atomic
+	// +optional
+	Metrics []autoscalingv2.MetricSpec `json:"metrics,omitempty" protobuf:"bytes,4,rep,name=metrics"`
 }
 
 // PodCliqueStatus defines the status of a PodClique.

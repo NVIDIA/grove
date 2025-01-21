@@ -18,8 +18,8 @@ limitations under the License.
 package versioned
 
 import (
-	"fmt"
-	"net/http"
+	fmt "fmt"
+	http "net/http"
 
 	grovev1alpha1 "github.com/NVIDIA/grove/operator/client/clientset/versioned/typed/core/v1alpha1"
 	discovery "k8s.io/client-go/discovery"

@@ -18,9 +18,9 @@ limitations under the License.
 package v1alpha1
 
 import (
-	"context"
+	context "context"
 
-	v1alpha1 "github.com/NVIDIA/grove/operator/api/core/v1alpha1"
+	corev1alpha1 "github.com/NVIDIA/grove/operator/api/core/v1alpha1"
 	scheme "github.com/NVIDIA/grove/operator/client/clientset/versioned/scheme"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	types "k8s.io/apimachinery/pkg/types"
@@ -36,33 +36,34 @@ type PodCliquesGetter interface {
 
 // PodCliqueInterface has methods to work with PodClique resources.
 type PodCliqueInterface interface {
-	Create(ctx context.Context, podClique *v1alpha1.PodClique, opts v1.CreateOptions) (*v1alpha1.PodClique, error)
-	Update(ctx context.Context, podClique *v1alpha1.PodClique, opts v1.UpdateOptions) (*v1alpha1.PodClique, error)
+	Create(ctx context.Context, podClique *corev1alpha1.PodClique, opts v1.CreateOptions) (*corev1alpha1.PodClique, error)
+	Update(ctx context.Context, podClique *corev1alpha1.PodClique, opts v1.UpdateOptions) (*corev1alpha1.PodClique, error)
 	// Add a +genclient:noStatus comment above the type to avoid generating UpdateStatus().
-	UpdateStatus(ctx context.Context, podClique *v1alpha1.PodClique, opts v1.UpdateOptions) (*v1alpha1.PodClique, error)
+	UpdateStatus(ctx context.Context, podClique *corev1alpha1.PodClique, opts v1.UpdateOptions) (*corev1alpha1.PodClique, error)
 	Delete(ctx context.Context, name string, opts v1.DeleteOptions) error
 	DeleteCollection(ctx context.Context, opts v1.DeleteOptions, listOpts v1.ListOptions) error
-	Get(ctx context.Context, name string, opts v1.GetOptions) (*v1alpha1.PodClique, error)
-	List(ctx context.Context, opts v1.ListOptions) (*v1alpha1.PodCliqueList, error)
+	Get(ctx context.Context, name string, opts v1.GetOptions) (*corev1alpha1.PodClique, error)
+	List(ctx context.Context, opts v1.ListOptions) (*corev1alpha1.PodCliqueList, error)
 	Watch(ctx context.Context, opts v1.ListOptions) (watch.Interface, error)
-	Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts v1.PatchOptions, subresources ...string) (result *v1alpha1.PodClique, err error)
+	Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts v1.PatchOptions, subresources ...string) (result *corev1alpha1.PodClique, err error)
 	PodCliqueExpansion
 }
 
 // podCliques implements PodCliqueInterface
 type podCliques struct {
-	*gentype.ClientWithList[*v1alpha1.PodClique, *v1alpha1.PodCliqueList]
+	*gentype.ClientWithList[*corev1alpha1.PodClique, *corev1alpha1.PodCliqueList]
 }
 
 // newPodCliques returns a PodCliques
 func newPodCliques(c *GroveV1alpha1Client, namespace string) *podCliques {
 	return &podCliques{
-		gentype.NewClientWithList[*v1alpha1.PodClique, *v1alpha1.PodCliqueList](
+		gentype.NewClientWithList[*corev1alpha1.PodClique, *corev1alpha1.PodCliqueList](
 			"podcliques",
 			c.RESTClient(),
 			scheme.ParameterCodec,
 			namespace,
-			func() *v1alpha1.PodClique { return &v1alpha1.PodClique{} },
-			func() *v1alpha1.PodCliqueList { return &v1alpha1.PodCliqueList{} }),
+			func() *corev1alpha1.PodClique { return &corev1alpha1.PodClique{} },
+			func() *corev1alpha1.PodCliqueList { return &corev1alpha1.PodCliqueList{} },
+		),
 	}
 }

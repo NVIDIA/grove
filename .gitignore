@@ -34,7 +34,9 @@ operator/hack/tools/*
 operator/hack/kind/*
 operator/charts/crds/*
 scheduler-plugins/hack/tools/*
+scheduler-api/hack/tools/*
 
 # binary directory for locally produced dev scheduler binaries
 operator/bin/*
 scheduler-plugins/bin/*
+scheduler-api/bin/*
