@@ -17,7 +17,9 @@
 package mutation
 
 import (
+	"github.com/NVIDIA/grove/operator/api/core/v1alpha1"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
+	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 )
 
 const (
@@ -28,6 +30,12 @@ const (
 
 // RegisterWithManager registers the webhook with the manager.
 func RegisterWithManager(mgr manager.Manager) error {
-	mgr.GetWebhookServer().Register(webhookPath, NewHandler())
+	webhook := admission.
+		WithCustomDefaulter(mgr.GetScheme(),
+			&v1alpha1.PodGangSet{},
+			&Handler{logger: mgr.GetLogger().WithName("webhook").WithName(HandlerName)}).
+		WithRecoverPanic(true)
+
+	mgr.GetWebhookServer().Register(webhookPath, webhook)
 	return nil
 }

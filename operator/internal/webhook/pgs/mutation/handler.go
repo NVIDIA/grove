@@ -23,16 +23,11 @@ import (
 	"github.com/NVIDIA/grove/operator/api/core/v1alpha1"
 	"github.com/go-logr/logr"
 	"k8s.io/apimachinery/pkg/runtime"
-	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 )
 
 // Handler struct sets default values on PodGangSet CR
 type Handler struct {
 	logger logr.Logger
-}
-
-func NewHandler() *admission.Webhook {
-	return admission.WithCustomDefaulter(runtime.NewScheme(), &v1alpha1.PodGangSet{}, &Handler{})
 }
 
 // Default implements webhook.CustomDefaulter
