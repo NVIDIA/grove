@@ -20,7 +20,6 @@ import (
 	"github.com/NVIDIA/grove/operator/api/core/v1alpha1"
 	"github.com/NVIDIA/grove/operator/internal/utils"
 	corev1 "k8s.io/api/core/v1"
-	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 )
 
@@ -64,12 +63,14 @@ func defaultPodGangTemplateSpec(spec *v1alpha1.PodGangTemplateSpec) {
 
 func defaultUpdateStrategy(updateStrategy *v1alpha1.GangUpdateStrategy) {
 	//default RollingUpdateConfig
-	if updateStrategy.RollingUpdateConfig.MaxSurge == nil {
-		*updateStrategy.RollingUpdateConfig.MaxSurge = intstr.FromInt(1)
-	}
+	if updateStrategy.RollingUpdateConfig != nil {
+		if updateStrategy.RollingUpdateConfig.MaxSurge == nil {
+			*updateStrategy.RollingUpdateConfig.MaxSurge = intstr.FromInt(1)
+		}
 
-	if updateStrategy.RollingUpdateConfig.MaxUnavailable == nil {
-		*updateStrategy.RollingUpdateConfig.MaxUnavailable = intstr.FromInt(1)
+		if updateStrategy.RollingUpdateConfig.MaxUnavailable == nil {
+			*updateStrategy.RollingUpdateConfig.MaxUnavailable = intstr.FromInt(1)
+		}
 	}
 }
 
@@ -87,7 +88,7 @@ func defaultPodCliqueTemplateSpec(cliqueSpecs []v1alpha1.PodCliqueTemplateSpec) 
 // defaultPodSpec adds defaults to PodSpec.
 func defaultPodSpec(spec *corev1.PodSpec) {
 	if utils.IsEmptyStringType(spec.RestartPolicy) {
-		spec.RestartPolicy = v1.RestartPolicyNever
+		spec.RestartPolicy = corev1.RestartPolicyNever
 	}
 	if spec.TerminationGracePeriodSeconds == nil {
 		*spec.TerminationGracePeriodSeconds = 30
