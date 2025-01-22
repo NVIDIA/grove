@@ -43,5 +43,5 @@ func (d *Handler) Default(ctx context.Context, obj runtime.Object) error {
 }
 
 func (Handler) addDefaults(pgs *v1alpha1.PodGangSet) {
-	defaultPodGangSetSpec(&pgs.Spec)
+	defaultPodGangSet(pgs)
 }

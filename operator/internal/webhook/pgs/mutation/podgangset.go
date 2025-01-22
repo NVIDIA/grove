@@ -20,12 +20,21 @@ import (
 	"github.com/NVIDIA/grove/operator/api/core/v1alpha1"
 	"github.com/NVIDIA/grove/operator/internal/utils"
 	corev1 "k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 )
 
+// defaultPodGangSet adds defaults to a PodGangSet.
+func defaultPodGangSet(pgs *v1alpha1.PodGangSet) {
+	if utils.IsEmptyStringType(pgs.ObjectMeta.Namespace) {
+		pgs.ObjectMeta.Namespace = "default"
+	}
+
+	defaultPodGangSetSpec(&pgs.Spec)
+}
+
 // defaultPodGangSetSpec adds defaults to the specification of a PodGangSet.
 func defaultPodGangSetSpec(spec *v1alpha1.PodGangSetSpec) {
-
 	// default PodGangTemplateSpec
 	defaultPodGangTemplateSpec(&spec.Template)
 
@@ -54,33 +63,33 @@ func defaultPodGangTemplateSpec(spec *v1alpha1.PodGangTemplateSpec) {
 }
 
 func defaultUpdateStrategy(updateStrategy *v1alpha1.GangUpdateStrategy) {
-	//default UpdateStrategy
-	if utils.IsEmptyStringType(updateStrategy.Type) {
-		updateStrategy.Type = v1alpha1.GangUpdateStrategyRecreate
+	//default RollingUpdateConfig
+	if updateStrategy.RollingUpdateConfig.MaxSurge == nil {
+		*updateStrategy.RollingUpdateConfig.MaxSurge = intstr.FromInt(1)
 	}
 
-	if updateStrategy.Type == v1alpha1.GangUpdateStrategyRolling {
-		//default RollingUpdateConfig
-		if updateStrategy.RollingUpdateConfig.MaxSurge == nil {
-			*updateStrategy.RollingUpdateConfig.MaxSurge = intstr.FromInt(1)
-		}
-
-		if updateStrategy.RollingUpdateConfig.MaxUnavailable == nil {
-			*updateStrategy.RollingUpdateConfig.MaxUnavailable = intstr.FromInt(1)
-		}
+	if updateStrategy.RollingUpdateConfig.MaxUnavailable == nil {
+		*updateStrategy.RollingUpdateConfig.MaxUnavailable = intstr.FromInt(1)
 	}
 }
 
 func defaultPodCliqueTemplateSpec(cliqueSpecs []v1alpha1.PodCliqueTemplateSpec) {
 	for _, cliqueSpec := range cliqueSpecs {
-		// default PodTemplateSpec
-		defaultPodTemplateSpec(&cliqueSpec.Spec.Template)
+		// default PodSpec
+		defaultPodSpec(&cliqueSpec.Spec.Spec)
+
+		if cliqueSpec.Spec.ScaleConfig != nil {
+			*cliqueSpec.Spec.ScaleConfig.MinReplicas = 1
+		}
 	}
 }
 
-// defaultPodTemplateSpec adds defaults to PodSpec.
-func defaultPodTemplateSpec(spec *corev1.PodTemplateSpec) {
-	if spec.Spec.TerminationGracePeriodSeconds == nil {
-		*spec.Spec.TerminationGracePeriodSeconds = 30
+// defaultPodSpec adds defaults to PodSpec.
+func defaultPodSpec(spec *corev1.PodSpec) {
+	if utils.IsEmptyStringType(spec.RestartPolicy) {
+		spec.RestartPolicy = v1.RestartPolicyNever
+	}
+	if spec.TerminationGracePeriodSeconds == nil {
+		*spec.TerminationGracePeriodSeconds = 30
 	}
 }
