@@ -17,6 +17,7 @@
 package validation
 
 import (
+	"reflect"
 	"strings"
 
 	"github.com/NVIDIA/grove/operator/internal/utils"
@@ -43,10 +44,9 @@ type validator struct {
 	pgs       *v1alpha1.PodGangSet
 }
 
-func newValidator(op admissionv1.Operation, pgs *v1alpha1.PodGangSet) *validator {
+func newValidator(pgs *v1alpha1.PodGangSet) *validator {
 	return &validator{
-		operation: op,
-		pgs:       pgs,
+		pgs: pgs,
 	}
 }
 
@@ -60,6 +60,14 @@ func (v *validator) validate() ([]string, error) {
 	}
 
 	return warnings, allErrs.ToAggregate()
+}
+
+func (v *validator) validateUpdate(oldPgs *v1alpha1.PodGangSet) error {
+	allErrs := field.ErrorList{}
+
+	allErrs = append(allErrs, validatePodGangSetSpecUpdate(field.NewPath("spec"), &v.pgs.Spec, &oldPgs.Spec)...)
+
+	return allErrs.ToAggregate()
 }
 
 // validatePodGangSetSpec validates the specification of a PodGangSet object.
@@ -311,4 +319,95 @@ func validateScaleConfig(scaleConfig *v1alpha1.AutoScalingConfig, fldPath *field
 	}
 
 	return allErrs
+}
+
+func validatePodGangSetSpecUpdate(fldPath *field.Path, newSpec, oldSpec *v1alpha1.PodGangSetSpec) field.ErrorList {
+	allErrs := field.ErrorList{}
+
+	allErrs = append(allErrs, validatePodGangTemplateSpecUpdate(fldPath.Child("template"), &newSpec.Template, &oldSpec.Template)...)
+
+	if !reflect.DeepEqual(newSpec.GangSpreadConstraints, oldSpec.GangSpreadConstraints) {
+		allErrs = append(allErrs, field.Forbidden(fldPath.Child("gangSpreadConstraints"), "field is immutable"))
+	}
+
+	if newSpec.PriorityClassName != oldSpec.PriorityClassName {
+		allErrs = append(allErrs, field.Forbidden(fldPath.Child("priorityClassName"), "field is immutable"))
+	}
+
+	return allErrs
+}
+
+func validatePodGangTemplateSpecUpdate(fldPath *field.Path, newSpec, oldSpec *v1alpha1.PodGangTemplateSpec) field.ErrorList {
+	allErrs := field.ErrorList{}
+
+	allErrs = append(allErrs, validatePodCliqueUpdate(fldPath.Child("cliques"), newSpec.Cliques, oldSpec.Cliques)...)
+
+	if newSpec.StartupType != oldSpec.StartupType {
+		allErrs = append(allErrs, field.Forbidden(fldPath.Child("cliqueStartupType"), "field is immutable"))
+	}
+
+	if *newSpec.NetworkPackStrategy != *oldSpec.NetworkPackStrategy {
+		allErrs = append(allErrs, field.Forbidden(fldPath.Child("networkPackStrategy"), "field is immutable"))
+	}
+
+	return allErrs
+}
+
+func validatePodCliqueUpdate(fldPath *field.Path, newCliques, oldCliques []v1alpha1.PodCliqueTemplateSpec) field.ErrorList {
+	allErrs := field.ErrorList{}
+
+	if len(newCliques) != len(oldCliques) {
+		allErrs = append(allErrs, field.Forbidden(fldPath, "not allowed to change clique composition"))
+	}
+
+	for i := range newCliques {
+		allErrs = append(allErrs, apivalidation.ValidateObjectMetaUpdate(&newCliques[i].ObjectMeta, &oldCliques[i].ObjectMeta, fldPath.Child("metadata"))...)
+
+		allErrs = append(allErrs, validatePodSpecUpdate(fldPath.Child("spec", "spec"), &newCliques[i].Spec.PodSpec, &oldCliques[i].Spec.PodSpec)...)
+	}
+
+	return allErrs
+}
+
+func validatePodSpecUpdate(fldPath *field.Path, newSpec, oldSpec *corev1.PodSpec) field.ErrorList {
+	allErrs := field.ErrorList{}
+
+	// spec: Forbidden: pod updates may not change fields other than:
+	//  `spec.containers[*].image`,
+	//  `spec.initContainers[*].image`,
+	//  `spec.activeDeadlineSeconds`,
+	//  `spec.tolerations` (only additions to existing tolerations),
+	//  `spec.terminationGracePeriodSeconds` (allow it to be set to 1 if it was previously negative)
+
+	if len(newSpec.Tolerations) < len(oldSpec.Tolerations) || !reflect.DeepEqual(oldSpec.Tolerations, newSpec.Tolerations[:len(oldSpec.Tolerations)]) {
+		allErrs = append(allErrs, field.Forbidden(fldPath.Child("tolerations"), "not allowed to change immutable pod fields"))
+	}
+
+	if !(*oldSpec.TerminationGracePeriodSeconds < 0 && *newSpec.TerminationGracePeriodSeconds == 1) {
+		allErrs = append(allErrs, field.Forbidden(fldPath.Child("terminationGracePeriodSeconds"), "value can only be set to 1 if previously negative"))
+	}
+
+	// hide mutable fields
+	spec1 := newSpec.DeepCopy()
+	spec2 := oldSpec.DeepCopy()
+
+	clearContainerImages(spec1.Containers)
+	clearContainerImages(spec2.Containers)
+	clearContainerImages(spec1.InitContainers)
+	clearContainerImages(spec2.InitContainers)
+	spec1.ActiveDeadlineSeconds, spec2.ActiveDeadlineSeconds = nil, nil
+	spec1.Tolerations, spec2.Tolerations = []corev1.Toleration{}, []corev1.Toleration{}
+	spec1.TerminationGracePeriodSeconds, spec2.TerminationGracePeriodSeconds = nil, nil
+
+	if !reflect.DeepEqual(spec1, spec2) {
+		allErrs = append(allErrs, field.Forbidden(fldPath, "not allowed to change immutable pod fields"))
+	}
+
+	return allErrs
+}
+
+func clearContainerImages(containers []corev1.Container) {
+	for i := range containers {
+		containers[i].Image = ""
+	}
 }

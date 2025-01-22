@@ -19,8 +19,9 @@ package validation
 import (
 	"context"
 	"fmt"
-	v1 "k8s.io/api/admissionregistration/v1"
 	"net/http"
+
+	v1 "k8s.io/api/admissionregistration/v1"
 
 	"github.com/go-logr/logr"
 	admissionv1 "k8s.io/api/admission/v1"
@@ -97,7 +98,7 @@ func (h *Handler) validate(req admission.Request) admission.Response {
 }
 
 func (h *Handler) validateCreate(pgs *v1alpha1.PodGangSet) admission.Response {
-	warnings, err := newValidator(admissionv1.Create, pgs).validate()
+	warnings, err := newValidator(pgs).validate()
 	if err != nil {
 		return admission.Denied(err.Error()).WithWarnings(warnings...)
 	}
@@ -105,14 +106,17 @@ func (h *Handler) validateCreate(pgs *v1alpha1.PodGangSet) admission.Response {
 }
 
 func (h *Handler) validateUpdate(newPgs, oldPgs *v1alpha1.PodGangSet) admission.Response {
-	//validate new PodGangSet
-	warnings, err := newValidator(admissionv1.Update, newPgs).validate()
+	// validate new PodGangSet
+	validator := newValidator(newPgs)
+	warnings, err := validator.validate()
 	if err != nil {
 		return admission.Denied(err.Error()).WithWarnings(warnings...)
 	}
 	// validate updates to the PodGangSet
-	// TODO: implement
-	return admission.Denied("not implemented")
+	if err := validator.validateUpdate(oldPgs); err != nil {
+		return admission.Denied(err.Error()).WithWarnings(warnings...)
+	}
+	return admission.Allowed("PodGangSet is valid").WithWarnings(warnings...)
 }
 
 func (h *Handler) validateDelete() admission.Response {
