@@ -9065,14 +9065,6 @@ spec:
                           during the update.
                         x-kubernetes-int-or-string: true
                     type: object
-                  type:
-                    description: Type is the type of update strategy.
-                    enum:
-                    - RollingUpdate
-                    - Recreate
-                    type: string
-                required:
-                - type
                 type: object
             required:
             - template

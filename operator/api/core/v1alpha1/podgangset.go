@@ -145,8 +145,6 @@ const (
 
 // GangUpdateStrategy defines the strategy to be used when updating a PodGang.
 type GangUpdateStrategy struct {
-	// Type is the type of update strategy.
-	Type GangUpdateStrategyType `json:"type"`
 	// RollingUpdateConfig is the configuration to control the desired behavior of a rolling update of a PodGang.
 	// +optional
 	RollingUpdateConfig *RollingUpdateConfiguration `json:"rollingUpdateConfig,omitempty"`
@@ -180,21 +178,6 @@ type RollingUpdateConfiguration struct {
 	// +optional
 	MaxSurge *intstr.IntOrString `json:"maxSurge,omitempty"`
 }
-
-// GangUpdateStrategyType defines the strategy to be used when updating a PodGang which is the unit of update.
-// If no update strategy is set then it defaults to "Recreate".
-// +kubebuilder:validation:Enum={RollingUpdate,Recreate}
-// +kubebuilder:default=Recreate
-type GangUpdateStrategyType string
-
-const (
-	// GangUpdateStrategyRolling indicates that the PodGang should be updated in a rolling fashion.
-	// When rolling the availability is guaranteed, but it is possible that a most network optimal placement of pods within a PodGang is no longer possible.
-	GangUpdateStrategyRolling GangUpdateStrategyType = "RollingUpdate"
-	// GangUpdateStrategyRecreate indicates that the PodGang should be recreated instead of getting rolled.
-	// Unless the resource requirements or the total number of Pods within the PodGang have not changed, the previous placement of Pods will be retained.
-	GangUpdateStrategyRecreate GangUpdateStrategyType = "Recreate"
-)
 
 // PodGangStatus defines the status of a PodGang.
 type PodGangStatus struct {

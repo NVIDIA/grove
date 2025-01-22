@@ -34,7 +34,6 @@ import (
 )
 
 var (
-	allowedUpdateStrategyTypes   = sets.New[v1alpha1.GangUpdateStrategyType](v1alpha1.GangUpdateStrategyRecreate, v1alpha1.GangUpdateStrategyRolling)
 	allowedStartupTypes          = sets.New[v1alpha1.CliqueStartupType](v1alpha1.CliqueStartupTypeInOrder, v1alpha1.CliqueStartupTypeAnyOrder, v1alpha1.CliqueStartupTypeExplicit)
 	allowedRestartPolicies       = sets.New[v1alpha1.PodGangRestartPolicy](v1alpha1.GangRestartPolicyNever, v1alpha1.GangRestartPolicyOnFailure, v1alpha1.GangRestartPolicyAlways)
 	allowedNetworkPackStrategies = sets.New[v1alpha1.NetworkPackStrategy](v1alpha1.BestEffort, v1alpha1.Strict)
@@ -82,15 +81,12 @@ func (v *validator) validatePodGangSetSpec() ([]string, field.ErrorList) {
 func (v *validator) validateUpdateStrategy(fldPath *field.Path) field.ErrorList {
 	errs := field.ErrorList{}
 	updateStrategy := v.pgs.Spec.UpdateStrategy
+
 	if updateStrategy == nil {
 		return append(errs, field.Required(fldPath, "field is required"))
 	}
-	errs = append(errs, validateEnumType(&updateStrategy.Type, allowedUpdateStrategyTypes, fldPath.Child("type"))...)
-	if updateStrategy.Type == v1alpha1.GangUpdateStrategyRolling {
-		errs = append(errs, v.validateRollingUpdateConfig(fldPath.Child("rollingUpdateConfig"))...)
-	}
 
-	return errs
+	return append(errs, v.validateRollingUpdateConfig(fldPath.Child("rollingUpdateConfig"))...)
 }
 
 func (v *validator) validateRollingUpdateConfig(fldPath *field.Path) field.ErrorList {
@@ -149,7 +145,7 @@ func (v *validator) validatePodCliqueTemplates(fldPath *field.Path) ([]string, f
 	isExplicit := v.pgs.Spec.Template.StartupType != nil && *v.pgs.Spec.Template.StartupType == v1alpha1.CliqueStartupTypeExplicit
 
 	if len(cliqueTemplateSpecs) == 0 {
-		allErrs = append(allErrs, field.Required(fldPath, "at least on PodClique must be defined"))
+		allErrs = append(allErrs, field.Required(fldPath, "at least one PodClique must be defined"))
 	}
 
 	cliqueNames := make([]string, 0, len(cliqueTemplateSpecs))
@@ -181,28 +177,44 @@ func (v *validator) validatePodCliqueTemplateSpec(cliqueTemplateSpec v1alpha1.Po
 	allErrs := field.ErrorList{}
 
 	allErrs = append(allErrs, validatePodCliqueTemplateObjectMeta(cliqueTemplateSpec.ObjectMeta, fldPath.Child("metadata"))...)
-	if cliqueTemplateSpec.Spec.Replicas <= 0 {
-		allErrs = append(allErrs, field.Invalid(fldPath.Child("replicas"), cliqueTemplateSpec.Spec.Replicas, "must be greater than 0"))
+
+	warnings, errs := v.validatePodCliqueSpec(cliqueTemplateSpec.Name, cliqueTemplateSpec.Spec, fldPath.Child("spec"))
+	if len(errs) != 0 {
+		allErrs = append(allErrs, errs...)
+	}
+
+	return warnings, allErrs
+}
+
+func (v *validator) validatePodCliqueSpec(name string, cliqueSpec v1alpha1.PodCliqueSpec, fldPath *field.Path) ([]string, field.ErrorList) {
+	allErrs := field.ErrorList{}
+
+	if cliqueSpec.Replicas <= 0 {
+		allErrs = append(allErrs, field.Invalid(fldPath.Child("replicas"), cliqueSpec.Replicas, "must be greater than 0"))
 	}
 
 	isStartupTypeExplicit := v.pgs.Spec.Template.StartupType != nil && *v.pgs.Spec.Template.StartupType == v1alpha1.CliqueStartupTypeExplicit
-	if isStartupTypeExplicit && len(cliqueTemplateSpec.Spec.StartsAfter) > 0 {
-		for _, dep := range cliqueTemplateSpec.Spec.StartsAfter {
+	if isStartupTypeExplicit && len(cliqueSpec.StartsAfter) > 0 {
+		for _, dep := range cliqueSpec.StartsAfter {
 			if utils.IsEmptyStringType(dep) {
 				allErrs = append(allErrs, field.Required(fldPath.Child("startsAfter"), "clique dependency must not be empty"))
 			}
-			if dep == cliqueTemplateSpec.Name {
+			if dep == name {
 				allErrs = append(allErrs, field.Invalid(fldPath.Child("startsAfter"), dep, "clique dependency cannot refer to itself"))
 			}
 		}
-		duplicateStartAfterDeps := lo.FindDuplicates(cliqueTemplateSpec.Spec.StartsAfter)
+		duplicateStartAfterDeps := lo.FindDuplicates(cliqueSpec.StartsAfter)
 		if len(duplicateStartAfterDeps) > 0 {
 			allErrs = append(allErrs, field.Invalid(fldPath.Child("startsAfter"),
 				strings.Join(duplicateStartAfterDeps, ","), "clique dependencies must be unique"))
 		}
 	}
 
-	warnings, cliquePodSpecErrs := v.validatePodSpec(cliqueTemplateSpec.Spec.Spec, fldPath.Child("spec"))
+	if cliqueSpec.ScaleConfig != nil {
+		allErrs = append(allErrs, validateScaleConfig(cliqueSpec.ScaleConfig, fldPath.Child("autoScalingConfig"), cliqueSpec.Replicas)...)
+	}
+
+	warnings, cliquePodSpecErrs := v.validatePodSpec(cliqueSpec.Spec, fldPath.Child("spec"))
 	if len(cliquePodSpecErrs) != 0 {
 		allErrs = append(allErrs, cliquePodSpecErrs...)
 	}
@@ -276,6 +288,28 @@ func validateCliqueDependencies(cliques []v1alpha1.PodCliqueTemplateSpec, fldPat
 	cycles := depG.GetStronglyConnectedCliques()
 	if len(cycles) > 0 {
 		allErrs = append(allErrs, field.Invalid(fldPath, cycles, "clique must not have circular dependencies"))
+	}
+
+	return allErrs
+}
+
+func validateScaleConfig(scaleConfig *v1alpha1.AutoScalingConfig, fldPath *field.Path, replicas int32) field.ErrorList {
+	allErrs := field.ErrorList{}
+
+	if scaleConfig.MinReplicas == nil {
+		return append(allErrs, field.Required(fldPath.Child("minReplicas"), "field is required"))
+	}
+
+	if *scaleConfig.MinReplicas <= 0 {
+		allErrs = append(allErrs, field.Invalid(fldPath.Child("minReplicas"), *scaleConfig.MinReplicas, "must be greater than 0"))
+	}
+
+	if scaleConfig.MaxReplicas < *scaleConfig.MinReplicas {
+		allErrs = append(allErrs, field.Invalid(fldPath.Child("maxReplicas"), scaleConfig.MaxReplicas, "must be greater than or equal to minReplicas"))
+	}
+
+	if scaleConfig.MaxReplicas < replicas {
+		allErrs = append(allErrs, field.Invalid(fldPath.Child("maxReplicas"), scaleConfig.MaxReplicas, "must be greater than or equal to replicas"))
 	}
 
 	return allErrs
