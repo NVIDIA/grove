@@ -79,6 +79,10 @@ func defaultPodCliqueTemplateSpecs(cliqueSpecs []v1alpha1.PodCliqueTemplateSpec)
 		// default PodSpec
 		defaultPodSpec(&cliqueSpec.Spec.Spec)
 
+		if cliqueSpec.Spec.Replicas < 1 {
+			cliqueSpec.Spec.Replicas = 1
+		}
+
 		if cliqueSpec.Spec.ScaleConfig != nil {
 			*cliqueSpec.Spec.ScaleConfig.MinReplicas = 1
 		}
