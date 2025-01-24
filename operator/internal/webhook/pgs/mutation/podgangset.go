@@ -42,8 +42,8 @@ func defaultPodGangSetSpec(spec *v1alpha1.PodGangSetSpec) {
 }
 
 func defaultPodGangTemplateSpec(spec *v1alpha1.PodGangTemplateSpec) {
-	// default PodCliqueTemplateSpec
-	defaultPodCliqueTemplateSpec(spec.Cliques)
+	// default PodCliqueTemplateSpecs
+	defaultPodCliqueTemplateSpecs(spec.Cliques)
 
 	// default startup type
 	if spec.StartupType == nil {
@@ -74,7 +74,7 @@ func defaultUpdateStrategy(updateStrategy *v1alpha1.GangUpdateStrategy) {
 	}
 }
 
-func defaultPodCliqueTemplateSpec(cliqueSpecs []v1alpha1.PodCliqueTemplateSpec) {
+func defaultPodCliqueTemplateSpecs(cliqueSpecs []v1alpha1.PodCliqueTemplateSpec) {
 	for _, cliqueSpec := range cliqueSpecs {
 		// default PodSpec
 		defaultPodSpec(&cliqueSpec.Spec.Spec)

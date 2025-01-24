@@ -38,10 +38,6 @@ func (d *Handler) Default(ctx context.Context, obj runtime.Object) error {
 	if !ok {
 		return fmt.Errorf("expected an PodGangSet object but got %T", obj)
 	}
-	d.addDefaults(pgs)
-	return nil
-}
-
-func (Handler) addDefaults(pgs *v1alpha1.PodGangSet) {
 	defaultPodGangSet(pgs)
+	return nil
 }
