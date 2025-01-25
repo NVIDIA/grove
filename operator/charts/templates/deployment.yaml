@@ -53,6 +53,11 @@ spec:
             - name: kube-api-access-grove
               mountPath: /var/run/secrets/kubernetes.io/serviceaccount
               readOnly: true
+            {{- if .Values.webhooks.podgangsetValidationWebhook.isEnabled }}
+            - name: grove-webhook-server-cert
+              mountPath: /etc/grove-operator/webhook-certs
+              readOnly: true
+            {{- end }}
       volumes:
         - name: kube-api-access-grove
           projected:
@@ -69,3 +74,9 @@ spec:
         - name: operator-config
           configMap:
             name: {{ include "operator.config.name" . }}
+        {{- if .Values.webhooks.podgangsetValidationWebhook.isEnabled }}
+        - name: grove-webhook-server-cert
+          secret:
+            secretName: {{ required ".Values.webhookSeverSecret.name is required" .Values.webhookSeverSecret.name }}
+            defaultMode: 420
+        {{- end }}

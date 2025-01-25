@@ -59,7 +59,7 @@ config:
 configMap:
   labels:
     app.kubernetes.io/component: operator-configmap
-    app.kubernetes.io/name: grove-operator-config
+    app.kubernetes.io/name: grove-operator
     app.kubernetes.io/part-of: grove
 
 deployment:
@@ -88,15 +88,26 @@ clusterRole:
     app.kubernetes.io/part-of: grove
 
 clusterRoleBinding:
-    name: grove:system:grove-operator
-    labels:
-        app.kubernetes.io/component: operator-clusterrolebinding
-        app.kubernetes.io/name: grove-operator
-        app.kubernetes.io/part-of: grove
+  name: grove:system:grove-operator
+  labels:
+    app.kubernetes.io/component: operator-clusterrolebinding
+    app.kubernetes.io/name: grove-operator
+    app.kubernetes.io/part-of: grove
 
-webhook:
-  isEnabled: false
-  port: 9443
+webhooks:
+  podgangsetValidationWebhook:
+    isEnabled: true
+    labels:
+      app.kubernetes.io/component: operator-pgs-validating-webhook
+      app.kubernetes.io/name: pgs-validating-webhook
+      app.kubernetes.io/part-of: grove
+
+webhookSeverSecret:
+  name: grove-webhook-server-cert
+  labels:
+    app.kubernetes.io/component: operator-webhook-server-secret
+    app.kubernetes.io/name: grove-webhook-server-secret
+    app.kubernetes.io/part-of: grove
 
 priorityClass:
   enabled: false

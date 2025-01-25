@@ -15,3 +15,9 @@
 # limitations under the License.
 # */
 
+set -o errexit
+set -o nounset
+set -o pipefail
+
+source $(dirname $0)/openssl-util.sh
+generate_resources "$@"

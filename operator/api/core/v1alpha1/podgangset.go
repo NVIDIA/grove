@@ -144,6 +144,7 @@ const (
 )
 
 // GangUpdateStrategy defines the strategy to be used when updating a PodGang.
+// At this point we only support Rolling Updates, but we may add more strategies in the future.
 type GangUpdateStrategy struct {
 	// RollingUpdateConfig is the configuration to control the desired behavior of a rolling update of a PodGang.
 	// +optional

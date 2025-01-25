@@ -24,68 +24,73 @@ import (
 )
 
 const (
-	defaultLeaderElectionResourceLock = "leases"
-	defaultLeaderElectionResourceName = "grove-operator-leader-election"
+	defaultLeaderElectionResourceLock    = "leases"
+	defaultLeaderElectionResourceName    = "grove-operator-leader-election"
+	defaultWebhookServerTLSServerCertDir = "/etc/grove-operator/webhook-certs"
 )
 
 // SetDefaults_ClientConnectionConfiguration sets defaults for the k8s client connection.
-func SetDefaults_ClientConnectionConfiguration(obj *ClientConnectionConfiguration) {
-	if obj.QPS == 0.0 {
-		obj.QPS = 100.0
+func SetDefaults_ClientConnectionConfiguration(clientConnConfig *ClientConnectionConfiguration) {
+	if clientConnConfig.QPS == 0.0 {
+		clientConnConfig.QPS = 100.0
 	}
-	if obj.Burst == 0 {
-		obj.Burst = 120
+	if clientConnConfig.Burst == 0 {
+		clientConnConfig.Burst = 120
 	}
 }
 
 // SetDefaults_LeaderElectionConfiguration sets defaults for the leader election of the Grove operator.
-func SetDefaults_LeaderElectionConfiguration(obj *LeaderElectionConfiguration) {
+func SetDefaults_LeaderElectionConfiguration(leaderElectionConfig *LeaderElectionConfiguration) {
 	zero := metav1.Duration{}
-	if obj.LeaseDuration == zero {
-		obj.LeaseDuration = metav1.Duration{Duration: 15 * time.Second}
+	if leaderElectionConfig.LeaseDuration == zero {
+		leaderElectionConfig.LeaseDuration = metav1.Duration{Duration: 15 * time.Second}
 	}
-	if obj.RenewDeadline == zero {
-		obj.RenewDeadline = metav1.Duration{Duration: 10 * time.Second}
+	if leaderElectionConfig.RenewDeadline == zero {
+		leaderElectionConfig.RenewDeadline = metav1.Duration{Duration: 10 * time.Second}
 	}
-	if obj.RetryPeriod == zero {
-		obj.RetryPeriod = metav1.Duration{Duration: 2 * time.Second}
+	if leaderElectionConfig.RetryPeriod == zero {
+		leaderElectionConfig.RetryPeriod = metav1.Duration{Duration: 2 * time.Second}
 	}
-	if obj.ResourceLock == "" {
-		obj.ResourceLock = defaultLeaderElectionResourceLock
+	if leaderElectionConfig.ResourceLock == "" {
+		leaderElectionConfig.ResourceLock = defaultLeaderElectionResourceLock
 	}
-	if obj.ResourceName == "" {
-		obj.ResourceName = defaultLeaderElectionResourceName
+	if leaderElectionConfig.ResourceName == "" {
+		leaderElectionConfig.ResourceName = defaultLeaderElectionResourceName
 	}
 }
 
 // SetDefaults_OperatorConfiguration sets defaults for the configuration of the Grove operator.
-func SetDefaults_OperatorConfiguration(obj *OperatorConfiguration) {
-	if obj.LogLevel == "" {
-		obj.LogLevel = "info"
+func SetDefaults_OperatorConfiguration(operatorConfig *OperatorConfiguration) {
+	if operatorConfig.LogLevel == "" {
+		operatorConfig.LogLevel = "info"
 	}
-	if obj.LogFormat == "" {
-		obj.LogFormat = "json"
+	if operatorConfig.LogFormat == "" {
+		operatorConfig.LogFormat = "json"
 	}
 }
 
 // SetDefaults_ServerConfiguration sets defaults for the server configuration.
-func SetDefaults_ServerConfiguration(obj *ServerConfiguration) {
-	if obj.Webhooks.Port == 0 {
-		obj.Webhooks.Port = 2750
+func SetDefaults_ServerConfiguration(serverConfig *ServerConfiguration) {
+	if serverConfig.Webhooks.Port == 0 {
+		serverConfig.Webhooks.Port = 2750
 	}
 
-	if obj.HealthProbes == nil {
-		obj.HealthProbes = &Server{}
-	}
-	if obj.HealthProbes.Port == 0 {
-		obj.HealthProbes.Port = 2751
+	if serverConfig.Webhooks.ServerCertDir == "" {
+		serverConfig.Webhooks.ServerCertDir = defaultWebhookServerTLSServerCertDir
 	}
 
-	if obj.Metrics == nil {
-		obj.Metrics = &Server{}
+	if serverConfig.HealthProbes == nil {
+		serverConfig.HealthProbes = &Server{}
 	}
-	if obj.Metrics.Port == 0 {
-		obj.Metrics.Port = 2752
+	if serverConfig.HealthProbes.Port == 0 {
+		serverConfig.HealthProbes.Port = 2751
+	}
+
+	if serverConfig.Metrics == nil {
+		serverConfig.Metrics = &Server{}
+	}
+	if serverConfig.Metrics.Port == 0 {
+		serverConfig.Metrics.Port = 2752
 	}
 }
 

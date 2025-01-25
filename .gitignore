@@ -32,7 +32,6 @@ go.work.sum
 # hack tools binaries
 operator/hack/tools/*
 operator/hack/kind/*
-operator/charts/crds/*
 scheduler-plugins/hack/tools/*
 scheduler-api/hack/tools/*
 
@@ -40,3 +39,7 @@ scheduler-api/hack/tools/*
 operator/bin/*
 scheduler-plugins/bin/*
 scheduler-api/bin/*
+
+# generated/copied chart resources
+operator/charts/pki-resources/*
+operator/charts/crds/*

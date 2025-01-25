@@ -21,26 +21,15 @@ set -o pipefail
 
 source $(dirname $0)/ld-flags.sh
 
-
 function check_prereq() {
   if ! command -v skaffold &>/dev/null; then
-    echo >&2 "skaffold is not available, please install skaffold from https://skaffold.dev/docs/install/"
+    echo >&2 "skaffold is not installed, please install skaffold from https://skaffold.dev/docs/install/"
     exit 1
   fi
-}
-
-function copy_crds() {
-  declare -a crds=("grove.io_podgangsets.yaml")
-  targetPath="${OPERATOR_GO_MODULE_ROOT}/charts/crds"
-  for crd in "${crds[@]}"; do
-    local crdPath="${OPERATOR_GO_MODULE_ROOT}/config/crd/bases/${crd}"
-    if [ ! -f ${crdPath} ]; then
-      echo >&2 "CRD ${crd} not found in ${OPERATOR_GO_MODULE_ROOT}/config/crd/bases, run 'make generate' first"
-      exit 1
-    fi
-    echo "Copying CRD ${crd} to ${targetPath}"
-    cp ${crdPath} ${targetPath}
-  done
+  if ! command -v kubectl &>/dev/null; then
+    echo >&2 "kubectl is not installed, please install kubectl from https://kubernetes.io/docs/tasks/tools/install-kubectl/"
+    exit 1
+  fi
 }
 
 function skaffold_deploy() {
@@ -49,7 +38,12 @@ function skaffold_deploy() {
   skaffold "$@"
 }
 
-check_prereq
-copy_crds
-skaffold_deploy "$@"
+function main() {
+  echo "Checking prerequisites..."
+  check_prereq
+  echo "Skaffolding grove operator..."
+  skaffold_deploy "$@"
+}
+
+main "$@"
 
