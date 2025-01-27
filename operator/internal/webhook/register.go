@@ -18,8 +18,7 @@ package webhook
 
 import (
 	"fmt"
-
-	"github.com/NVIDIA/grove/operator/internal/webhook/pgs/mutation"
+	"github.com/NVIDIA/grove/operator/internal/webhook/pgs/defaulting"
 	"github.com/NVIDIA/grove/operator/internal/webhook/pgs/validation"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 )
@@ -28,9 +27,8 @@ func RegisterWebhooks(mgr manager.Manager) error {
 	if err := validation.RegisterWithManager(mgr); err != nil {
 		return fmt.Errorf("failed adding %s webhook handler: %v", validation.HandlerName, err)
 	}
-
-	if err := mutation.RegisterWithManager(mgr); err != nil {
-		return fmt.Errorf("failed adding %s webhook handler: %v", mutation.HandlerName, err)
+	if err := defaulting.RegisterWithManager(mgr); err != nil {
+		return fmt.Errorf("failed adding %s webhook handler: %v", defaulting.HandlerName, err)
 	}
 	return nil
 }

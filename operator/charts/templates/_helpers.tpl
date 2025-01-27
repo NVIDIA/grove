@@ -107,6 +107,13 @@ release: "{{ .Release.Name }}"
 {{- end }}
 {{- end -}}
 
+{{- define "operator.pgs.defaulting.webhook.labels" -}}
+{{- include "common.chart.labels" . }}
+{{- range $key, $val := .Values.webhooks.podgangsetDefaultingWebhook.labels }}
+{{ $key }}: {{ $val }}
+{{- end }}
+{{- end -}}
+
 {{- define "operator.server.secret.labels" -}}
 {{- include "common.chart.labels" . }}
 {{- range $key, $val := .Values.webhookSeverSecret.labels }}

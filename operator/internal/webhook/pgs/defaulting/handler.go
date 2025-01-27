@@ -14,7 +14,7 @@
 // limitations under the License.
 // */
 
-package mutation
+package defaulting
 
 import (
 	"context"
@@ -31,7 +31,7 @@ type Handler struct {
 }
 
 // Default implements webhook.CustomDefaulter
-func (d *Handler) Default(ctx context.Context, obj runtime.Object) error {
+func (d *Handler) Default(_ context.Context, obj runtime.Object) error {
 	d.logger.V(1).Info("Defaulting for PodGangSet")
 
 	pgs, ok := obj.(*v1alpha1.PodGangSet)

@@ -101,6 +101,12 @@ webhooks:
       app.kubernetes.io/component: operator-pgs-validating-webhook
       app.kubernetes.io/name: pgs-validating-webhook
       app.kubernetes.io/part-of: grove
+  podgangsetDefaultingWebhook:
+    isEnabled: true
+    labels:
+      app.kubernetes.io/component: operator-pgs-defaulting-webhook
+      app.kubernetes.io/name: pgs-defaulting-webhook
+      app.kubernetes.io/part-of: grove
 
 webhookSeverSecret:
   name: grove-webhook-server-cert

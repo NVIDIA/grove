@@ -14,7 +14,7 @@
 // limitations under the License.
 // */
 
-package mutation
+package defaulting
 
 import (
 	"github.com/NVIDIA/grove/operator/api/core/v1alpha1"
@@ -28,7 +28,6 @@ func defaultPodGangSet(pgs *v1alpha1.PodGangSet) {
 	if utils.IsEmptyStringType(pgs.ObjectMeta.Namespace) {
 		pgs.ObjectMeta.Namespace = "default"
 	}
-
 	defaultPodGangSetSpec(&pgs.Spec)
 }
 
@@ -36,7 +35,6 @@ func defaultPodGangSet(pgs *v1alpha1.PodGangSet) {
 func defaultPodGangSetSpec(spec *v1alpha1.PodGangSetSpec) {
 	// default PodGangTemplateSpec
 	defaultPodGangTemplateSpec(&spec.Template)
-
 	// default UpdateStrategy
 	defaultUpdateStrategy(spec.UpdateStrategy)
 }
@@ -44,17 +42,14 @@ func defaultPodGangSetSpec(spec *v1alpha1.PodGangSetSpec) {
 func defaultPodGangTemplateSpec(spec *v1alpha1.PodGangTemplateSpec) {
 	// default PodCliqueTemplateSpecs
 	defaultPodCliqueTemplateSpecs(spec.Cliques)
-
 	// default startup type
 	if spec.StartupType == nil {
 		*spec.StartupType = v1alpha1.CliqueStartupTypeInOrder
 	}
-
 	// default RestartPolicy
 	if spec.RestartPolicy == nil {
 		*spec.RestartPolicy = v1alpha1.GangRestartPolicyAlways
 	}
-
 	// default NetworkPackStrategy
 	if spec.NetworkPackStrategy == nil {
 		*spec.NetworkPackStrategy = v1alpha1.BestEffort
@@ -65,11 +60,10 @@ func defaultUpdateStrategy(updateStrategy *v1alpha1.GangUpdateStrategy) {
 	//default RollingUpdateConfig
 	if updateStrategy.RollingUpdateConfig != nil {
 		if updateStrategy.RollingUpdateConfig.MaxSurge == nil {
-			*updateStrategy.RollingUpdateConfig.MaxSurge = intstr.FromInt(1)
+			*updateStrategy.RollingUpdateConfig.MaxSurge = intstr.FromInt32(1)
 		}
-
 		if updateStrategy.RollingUpdateConfig.MaxUnavailable == nil {
-			*updateStrategy.RollingUpdateConfig.MaxUnavailable = intstr.FromInt(1)
+			*updateStrategy.RollingUpdateConfig.MaxUnavailable = intstr.FromInt32(1)
 		}
 	}
 }
@@ -78,11 +72,9 @@ func defaultPodCliqueTemplateSpecs(cliqueSpecs []v1alpha1.PodCliqueTemplateSpec)
 	for _, cliqueSpec := range cliqueSpecs {
 		// default PodSpec
 		defaultPodSpec(&cliqueSpec.Spec.Spec)
-
 		if cliqueSpec.Spec.Replicas < 1 {
 			cliqueSpec.Spec.Replicas = 1
 		}
-
 		if cliqueSpec.Spec.ScaleConfig != nil {
 			*cliqueSpec.Spec.ScaleConfig.MinReplicas = 1
 		}
