@@ -46,10 +46,6 @@ func defaultPodGangTemplateSpec(spec *v1alpha1.PodGangTemplateSpec) {
 	if spec.StartupType == nil {
 		*spec.StartupType = v1alpha1.CliqueStartupTypeInOrder
 	}
-	// default RestartPolicy
-	if spec.RestartPolicy == nil {
-		*spec.RestartPolicy = v1alpha1.GangRestartPolicyAlways
-	}
 	// default NetworkPackStrategy
 	if spec.NetworkPackStrategy == nil {
 		*spec.NetworkPackStrategy = v1alpha1.BestEffort
@@ -71,7 +67,7 @@ func defaultUpdateStrategy(updateStrategy *v1alpha1.GangUpdateStrategy) {
 func defaultPodCliqueTemplateSpecs(cliqueSpecs []v1alpha1.PodCliqueTemplateSpec) {
 	for _, cliqueSpec := range cliqueSpecs {
 		// default PodSpec
-		defaultPodSpec(&cliqueSpec.Spec.Spec)
+		defaultPodSpec(&cliqueSpec.Spec.PodSpec)
 		if cliqueSpec.Spec.Replicas < 1 {
 			cliqueSpec.Spec.Replicas = 1
 		}
@@ -84,7 +80,7 @@ func defaultPodCliqueTemplateSpecs(cliqueSpecs []v1alpha1.PodCliqueTemplateSpec)
 // defaultPodSpec adds defaults to PodSpec.
 func defaultPodSpec(spec *corev1.PodSpec) {
 	if utils.IsEmptyStringType(spec.RestartPolicy) {
-		spec.RestartPolicy = corev1.RestartPolicyNever
+		spec.RestartPolicy = corev1.RestartPolicyAlways
 	}
 	if spec.TerminationGracePeriodSeconds == nil {
 		*spec.TerminationGracePeriodSeconds = 30

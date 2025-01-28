@@ -75,15 +75,17 @@ type PodGangSetStatus struct {
 }
 
 // PodGangTemplateSpec defines a template spec for a PodGang.
+// A PodGang does not have a RestartPolicy field because the restart policy is predefined:
+// If the number of pods in any of the cliques falls below the threshold, the entire PodGang will be restarted.
+// The threshold is determined by either:
+// - The value of "MinReplicas", if specified in the ScaleConfig of that clique, or
+// - The "Replicas" value of that clique
 type PodGangTemplateSpec struct {
 	// Cliques is a slice of cliques that make up the PodGang. There should be at least one PodClique.
 	Cliques []PodCliqueTemplateSpec `json:"cliques"`
 	// StartupType defines the type of startup dependency amongst the cliques within a PodGang.
 	// +optional
 	StartupType *CliqueStartupType `json:"cliqueStartupType,omitempty"`
-	// RestartPolicy defines the restart policy for the PodGang.
-	// +optional
-	RestartPolicy *PodGangRestartPolicy `json:"restartPolicy,omitempty"`
 	// NetworkPackStrategy defines the strategy for packing pods on nodes while minimizing network switch hops.
 	// +optional
 	NetworkPackStrategy *NetworkPackStrategy `json:"networkPackStrategy,omitempty"`
@@ -112,21 +114,6 @@ const (
 	CliqueStartupTypeAnyOrder CliqueStartupType = "CliqueStartupTypeAnyOrder"
 	// CliqueStartupTypeExplicit defines that the cliques should be started after the cliques defined in PodClique.StartsAfter have started.
 	CliqueStartupTypeExplicit CliqueStartupType = "CliqueStartupTypeExplicit"
-)
-
-// PodGangRestartPolicy describes how the PodGang should be restarted. PodGang is the unit of restart.
-// If no restart policy is set then it defaults to Always.
-// +kubebuilder:validation:Enum={Never,OnFailure,Always}
-// +kubebuilder:default=Always
-type PodGangRestartPolicy string
-
-const (
-	// GangRestartPolicyNever indicates that the PodGang should never be restarted.
-	GangRestartPolicyNever PodGangRestartPolicy = "Never"
-	// GangRestartPolicyOnFailure indicates that the PodGang should be restarted only when it fails.
-	GangRestartPolicyOnFailure PodGangRestartPolicy = "OnFailure"
-	// GangRestartPolicyAlways indicates that the PodGang should always be restarted.
-	GangRestartPolicyAlways PodGangRestartPolicy = "Always"
 )
 
 // NetworkPackStrategy defines the strategy for packing pods across nodes while minimizing network switch hops.

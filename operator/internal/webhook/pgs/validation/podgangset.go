@@ -35,7 +35,6 @@ import (
 
 var (
 	allowedStartupTypes          = sets.New[v1alpha1.CliqueStartupType](v1alpha1.CliqueStartupTypeInOrder, v1alpha1.CliqueStartupTypeAnyOrder, v1alpha1.CliqueStartupTypeExplicit)
-	allowedRestartPolicies       = sets.New[v1alpha1.PodGangRestartPolicy](v1alpha1.GangRestartPolicyNever, v1alpha1.GangRestartPolicyOnFailure, v1alpha1.GangRestartPolicyAlways)
 	allowedNetworkPackStrategies = sets.New[v1alpha1.NetworkPackStrategy](v1alpha1.BestEffort, v1alpha1.Strict)
 )
 
@@ -127,7 +126,6 @@ func (v *validator) validatePodGangTemplateSpec(fldPath *field.Path) ([]string, 
 	allErrs := field.ErrorList{}
 
 	allErrs = append(allErrs, validateEnumType(v.pgs.Spec.Template.StartupType, allowedStartupTypes, fldPath.Child("cliqueStartupType"))...)
-	allErrs = append(allErrs, validateEnumType(v.pgs.Spec.Template.RestartPolicy, allowedRestartPolicies, fldPath.Child("restartPolicy"))...)
 	allErrs = append(allErrs, validateEnumType(v.pgs.Spec.Template.NetworkPackStrategy, allowedNetworkPackStrategies, fldPath.Child("networkPackStrategy"))...)
 
 	// validate cliques
@@ -214,7 +212,7 @@ func (v *validator) validatePodCliqueSpec(name string, cliqueSpec v1alpha1.PodCl
 		allErrs = append(allErrs, validateScaleConfig(cliqueSpec.ScaleConfig, fldPath.Child("autoScalingConfig"), cliqueSpec.Replicas)...)
 	}
 
-	warnings, cliquePodSpecErrs := v.validatePodSpec(cliqueSpec.Spec, fldPath.Child("spec"))
+	warnings, cliquePodSpecErrs := v.validatePodSpec(cliqueSpec.PodSpec, fldPath.Child("podSpec"))
 	if len(cliquePodSpecErrs) != 0 {
 		allErrs = append(allErrs, cliquePodSpecErrs...)
 	}
@@ -227,7 +225,7 @@ func (v *validator) validatePodSpec(spec corev1.PodSpec, fldPath *field.Path) ([
 	var warnings []string
 
 	if !utils.IsEmptyStringType(spec.RestartPolicy) {
-		warnings = append(warnings, "restartPolicy will be ignored, it will be set to Never")
+		warnings = append(warnings, "restartPolicy will be ignored, it will be set to Always")
 	}
 
 	specFldPath := fldPath.Child("spec")

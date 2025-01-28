@@ -530,12 +530,7 @@ spec:
                 required:
                 - maxReplicas
                 type: object
-              replicas:
-                description: Replicas is the number of replicas of the pods in the
-                  clique.
-                format: int32
-                type: integer
-              spec:
+              podSpec:
                 description: Spec is the spec of the pods in the clique.
                 properties:
                   activeDeadlineSeconds:
@@ -8510,6 +8505,11 @@ spec:
                 required:
                 - containers
                 type: object
+              replicas:
+                description: Replicas is the number of replicas of the pods in the
+                  clique.
+                format: int32
+                type: integer
               startsAfter:
                 description: |-
                   StartsAfter provides you a way to explicitly define the startup dependencies amongst cliques.
@@ -8523,8 +8523,8 @@ spec:
                   type: string
                 type: array
             required:
+            - podSpec
             - replicas
-            - spec
             type: object
           status:
             description: Status defines the status of a PodClique.
