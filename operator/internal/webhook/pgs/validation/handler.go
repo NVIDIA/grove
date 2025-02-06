@@ -46,12 +46,12 @@ func NewHandler(mgr manager.Manager) *Handler {
 	return &Handler{
 		client:  mgr.GetClient(),
 		decoder: admission.NewDecoder(mgr.GetScheme()),
-		logger:  mgr.GetLogger(),
+		logger:  mgr.GetLogger().WithName("webhook").WithName(HandlerName),
 	}
 }
 
 // Handle validates operations done on PodGangSet and PodGang resources.
-func (h *Handler) Handle(ctx context.Context, req admission.Request) admission.Response {
+func (h *Handler) Handle(_ context.Context, req admission.Request) admission.Response {
 	log := h.logger.WithValues("name", req.Name, "namespace", req.Namespace, "resource", fmt.Sprintf("%s/%s", req.Kind.Group, req.Kind.Kind), "operation", req.Operation, "user", req.UserInfo.Username)
 	log.V(1).Info("PodGangSet validation webhook invoked")
 

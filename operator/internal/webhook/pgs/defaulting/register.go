@@ -29,13 +29,10 @@ const (
 )
 
 // RegisterWithManager registers the webhook with the manager.
-func RegisterWithManager(mgr manager.Manager) error {
+func (h *Handler) RegisterWithManager(mgr manager.Manager) error {
 	webhook := admission.
-		WithCustomDefaulter(mgr.GetScheme(),
-			&v1alpha1.PodGangSet{},
-			&Handler{logger: mgr.GetLogger().WithName("webhook").WithName(HandlerName)}).
+		WithCustomDefaulter(mgr.GetScheme(), &v1alpha1.PodGangSet{}, h).
 		WithRecoverPanic(true)
-
 	mgr.GetWebhookServer().Register(webhookPath, webhook)
 	return nil
 }

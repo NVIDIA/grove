@@ -1,4 +1,4 @@
-apiVersion: skaffold/v4beta11
+apiVersion: skaffold/v4beta12
 kind: Config
 metadata:
   name: grove-operator
@@ -13,7 +13,6 @@ build:
             - api
             - cmd
             - internal
-            - go.mod
             - VERSION
         flags:
           - -v
@@ -28,16 +27,14 @@ deploy:
         setValueTemplates:
           image.repository: '{{.IMAGE_REPO_local_skaffold_grove_operator}}'
           image.tag: '{{.IMAGE_TAG_local_skaffold_grove_operator}}@{{.IMAGE_DIGEST_local_skaffold_grove_operator}}'
-        namespace: default
         skipBuildDependencies: true
+        createNamespace: true
+        wait: true
 profiles:
   - name: debug
     patches:
-        - op: add
-          path: /deploy/helm/releases/0/setValues/replicas
-          value: 1
-        - op: add
-          path: /deploy/helm/releases/0/setValues/config
-          value:
-            leaderElection:
-              enabled: false
+      - op: add
+        path: /deploy/helm/releases/0/setValues
+        value:
+          replicaCount: 1
+          config.leaderElection.enabled: false

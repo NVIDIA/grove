@@ -19,10 +19,12 @@ package defaulting
 import (
 	"context"
 	"fmt"
-
 	"github.com/NVIDIA/grove/operator/api/core/v1alpha1"
+	k8sutils "github.com/NVIDIA/grove/operator/internal/utils/kubernetes"
 	"github.com/go-logr/logr"
 	"k8s.io/apimachinery/pkg/runtime"
+	"sigs.k8s.io/controller-runtime/pkg/manager"
+	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 )
 
 // Handler struct sets default values on PodGangSet CR
@@ -30,14 +32,25 @@ type Handler struct {
 	logger logr.Logger
 }
 
-// Default implements webhook.CustomDefaulter
-func (d *Handler) Default(_ context.Context, obj runtime.Object) error {
-	d.logger.V(1).Info("Defaulting for PodGangSet")
+// NewHandler returns a new instance of defaulting webhook handler.
+func NewHandler(mgr manager.Manager) *Handler {
+	return &Handler{
+		logger: mgr.GetLogger().WithName("webhook").WithName(HandlerName),
+	}
+}
 
+// Default implements webhook.CustomDefaulter
+func (h *Handler) Default(ctx context.Context, obj runtime.Object) error {
+	h.logger.Info("Defaulting webhook invoked for PodGangSet")
 	pgs, ok := obj.(*v1alpha1.PodGangSet)
 	if !ok {
 		return fmt.Errorf("expected an PodGangSet object but got %T", obj)
 	}
+	req, err := admission.RequestFromContext(ctx)
+	if err != nil {
+		return err
+	}
+	h.logger.Info("Applying defaults", "PodGangSet", k8sutils.CreateObjectKeyForCreateWebhooks(pgs, req))
 	defaultPodGangSet(pgs)
 	return nil
 }

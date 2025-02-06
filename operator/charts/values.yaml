@@ -1,4 +1,4 @@
-# This will set the replicaset count more information can be found here: https://kubernetes.io/docs/concepts/workloads/controllers/replicaset/
+# ReplicaCount is the value for spec.replicas for the grove-operator deployment resource.
 replicaCount: 1
 
 # This sets the container image more information can be found here: https://kubernetes.io/docs/concepts/containers/images/
@@ -70,6 +70,7 @@ deployment:
 
 # This is for setting up a service more information can be found here: https://kubernetes.io/docs/concepts/services-networking/service/
 service:
+  # NOTE: If you are going to change the service name then ensure that SAN entries in the webhook certificate also reflect the change.
   name: grove-operator
   # This sets the service type more information can be found here: https://kubernetes.io/docs/concepts/services-networking/service/#publishing-services-service-types
   type: ClusterIP

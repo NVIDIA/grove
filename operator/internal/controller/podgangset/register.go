@@ -18,6 +18,7 @@ package podgangset
 
 import (
 	"github.com/NVIDIA/grove/operator/api/core/v1alpha1"
+	"log/slog"
 
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
@@ -28,6 +29,7 @@ const controllerName = "podgangset-controller"
 
 // RegisterWithManager registers the PodGangSet Reconciler with the manager.
 func (r *Reconciler) RegisterWithManager(mgr manager.Manager) error {
+	slog.Info("Registering reconciler", "controllerName", controllerName)
 	return ctrl.NewControllerManagedBy(mgr).
 		Named(controllerName).
 		WithOptions(controller.Options{

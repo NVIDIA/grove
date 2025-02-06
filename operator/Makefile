@@ -107,3 +107,8 @@ deploy-local-debug: $(SKAFFOLD)
 .PHONY: undeploy-local
 undeploy-local: $(SKAFFOLD)
 	@$(SKAFFOLD) delete -m grove-operator -n $(NAMESPACE)
+
+.PHONY: clean-chart-resources
+clean-chart-resources:
+	@rm -f $(REPO_ROOT)/charts/crds/*.yaml
+	@rm -rf $(REPO_ROOT)/charts/pki-resources/*

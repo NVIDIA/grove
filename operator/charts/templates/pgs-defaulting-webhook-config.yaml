@@ -21,9 +21,6 @@ webhooks:
     matchPolicy: Exact
     name: pgs.defaulting.webhooks.grove.io
     namespaceSelector: { }
-    objectSelector:
-      matchLabels:
-        app.kubernetes.io/part-of: grove
     rules:
       - apiGroups:
           - "grove.io"
@@ -34,7 +31,7 @@ webhooks:
           - UPDATE
         resources:
           - podgangsets
-        scope: Namespaced
+        scope: '*'
     sideEffects: None
     timeoutSeconds: 10
   {{- end }}

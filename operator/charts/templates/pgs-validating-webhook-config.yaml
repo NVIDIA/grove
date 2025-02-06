@@ -21,9 +21,6 @@ webhooks:
     matchPolicy: Exact
     name: pgs.validating.webhooks.grove.io
     namespaceSelector: { }
-    objectSelector:
-      matchLabels:
-        app.kubernetes.io/part-of: grove
     rules:
       - apiGroups:
           - "grove.io"
@@ -35,7 +32,7 @@ webhooks:
         resources:
           - podgangsets
           - podcliques
-        scope: Namespaced
+        scope: '*'
     sideEffects: None
     timeoutSeconds: 10
 {{- end }}

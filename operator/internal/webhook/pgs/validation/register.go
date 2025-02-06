@@ -29,9 +29,9 @@ const (
 )
 
 // RegisterWithManager registers the webhook with the manager.
-func RegisterWithManager(mgr manager.Manager) error {
+func (h *Handler) RegisterWithManager(mgr manager.Manager) error {
 	webhook := &admission.Webhook{
-		Handler:      NewHandler(mgr),
+		Handler:      h,
 		RecoverPanic: ptr.To(true),
 	}
 	mgr.GetWebhookServer().Register(webhookPath, webhook)

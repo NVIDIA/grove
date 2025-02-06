@@ -123,7 +123,7 @@ function pki::create_server_config() {
   req_extensions = extensions
 
   [ dn ]
-  CN = grove-server
+  CN = grove-operator
   O = Grove
 
   [ extensions ]
@@ -133,10 +133,10 @@ function pki::create_server_config() {
   subjectAltName = @sans
 
   [ sans ]
-  DNS.0 = grove
-  DNS.1 = grove.${namespace}
-  DNS.2 = grove.${namespace}.svc
-  DNS.3 = grove.${namespace}.svc.cluster.local
+  DNS.0 = grove-operator
+  DNS.1 = grove-operator.${namespace}
+  DNS.2 = grove-operator.${namespace}.svc
+  DNS.3 = grove-operator.${namespace}.svc.cluster.local
 EOF
 }
 

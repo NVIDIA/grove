@@ -16,7 +16,7 @@ import (
 // PodGangSet is a set of PodGangs defining specification on how to spread and manage a gang of pods and monitoring their status.
 type PodGangSet struct {
 	metav1.TypeMeta   `json:",inline"`
-	metav1.ObjectMeta `json:",inline"`
+	metav1.ObjectMeta `json:"metadata,omitempty"`
 	// Spec defines the specification of the PodGangSet.
 	Spec PodGangSetSpec `json:"spec"`
 	// Status defines the status of the PodGangSet.

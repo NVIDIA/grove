@@ -21,6 +21,7 @@ import (
 	"github.com/NVIDIA/grove/operator/internal/utils"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
+	"k8s.io/utils/ptr"
 )
 
 // defaultPodGangSet adds defaults to a PodGangSet.
@@ -36,53 +37,62 @@ func defaultPodGangSetSpec(spec *v1alpha1.PodGangSetSpec) {
 	// default PodGangTemplateSpec
 	defaultPodGangTemplateSpec(&spec.Template)
 	// default UpdateStrategy
-	defaultUpdateStrategy(spec.UpdateStrategy)
+	defaultUpdateStrategy(spec)
 }
 
 func defaultPodGangTemplateSpec(spec *v1alpha1.PodGangTemplateSpec) {
 	// default PodCliqueTemplateSpecs
-	defaultPodCliqueTemplateSpecs(spec.Cliques)
+	spec.Cliques = defaultPodCliqueTemplateSpecs(spec.Cliques)
 	// default startup type
 	if spec.StartupType == nil {
-		*spec.StartupType = v1alpha1.CliqueStartupTypeInOrder
+		spec.StartupType = ptr.To(v1alpha1.CliqueStartupTypeInOrder)
 	}
 	// default NetworkPackStrategy
 	if spec.NetworkPackStrategy == nil {
-		*spec.NetworkPackStrategy = v1alpha1.BestEffort
+		spec.NetworkPackStrategy = ptr.To(v1alpha1.BestEffort)
 	}
 }
 
-func defaultUpdateStrategy(updateStrategy *v1alpha1.GangUpdateStrategy) {
-	//default RollingUpdateConfig
-	if updateStrategy.RollingUpdateConfig != nil {
-		if updateStrategy.RollingUpdateConfig.MaxSurge == nil {
-			*updateStrategy.RollingUpdateConfig.MaxSurge = intstr.FromInt32(1)
-		}
-		if updateStrategy.RollingUpdateConfig.MaxUnavailable == nil {
-			*updateStrategy.RollingUpdateConfig.MaxUnavailable = intstr.FromInt32(1)
+func defaultUpdateStrategy(spec *v1alpha1.PodGangSetSpec) {
+	updateStrategy := spec.UpdateStrategy.DeepCopy()
+	if updateStrategy == nil || updateStrategy.RollingUpdateConfig == nil {
+		updateStrategy = &v1alpha1.GangUpdateStrategy{
+			RollingUpdateConfig: &v1alpha1.RollingUpdateConfiguration{},
 		}
 	}
+	if updateStrategy.RollingUpdateConfig.MaxSurge == nil {
+		updateStrategy.RollingUpdateConfig.MaxSurge = ptr.To(intstr.FromInt32(1))
+	}
+	if updateStrategy.RollingUpdateConfig.MaxUnavailable == nil {
+		updateStrategy.RollingUpdateConfig.MaxUnavailable = ptr.To(intstr.FromInt32(1))
+	}
+	spec.UpdateStrategy = updateStrategy
 }
 
-func defaultPodCliqueTemplateSpecs(cliqueSpecs []v1alpha1.PodCliqueTemplateSpec) {
+func defaultPodCliqueTemplateSpecs(cliqueSpecs []v1alpha1.PodCliqueTemplateSpec) []v1alpha1.PodCliqueTemplateSpec {
+	defaultedCliqueSpecs := make([]v1alpha1.PodCliqueTemplateSpec, 0, len(cliqueSpecs))
 	for _, cliqueSpec := range cliqueSpecs {
-		// default PodSpec
-		defaultPodSpec(&cliqueSpec.Spec.PodSpec)
-		if cliqueSpec.Spec.Replicas < 1 {
-			cliqueSpec.Spec.Replicas = 1
+		defaultedCliqueSpec := cliqueSpec.DeepCopy()
+		defaultedCliqueSpec.Spec.PodSpec = *defaultPodSpec(&cliqueSpec.Spec.PodSpec)
+		if defaultedCliqueSpec.Spec.Replicas < 1 {
+			defaultedCliqueSpec.Spec.Replicas = 1
 		}
-		if cliqueSpec.Spec.ScaleConfig != nil {
-			*cliqueSpec.Spec.ScaleConfig.MinReplicas = 1
+		if defaultedCliqueSpec.Spec.ScaleConfig != nil {
+			defaultedCliqueSpec.Spec.ScaleConfig.MinReplicas = ptr.To[int32](1)
 		}
+		defaultedCliqueSpecs = append(defaultedCliqueSpecs, *defaultedCliqueSpec)
 	}
+	return defaultedCliqueSpecs
 }
 
 // defaultPodSpec adds defaults to PodSpec.
-func defaultPodSpec(spec *corev1.PodSpec) {
-	if utils.IsEmptyStringType(spec.RestartPolicy) {
-		spec.RestartPolicy = corev1.RestartPolicyAlways
+func defaultPodSpec(spec *corev1.PodSpec) *corev1.PodSpec {
+	defaultedPodSpec := spec.DeepCopy()
+	if utils.IsEmptyStringType(defaultedPodSpec.RestartPolicy) {
+		defaultedPodSpec.RestartPolicy = corev1.RestartPolicyAlways
 	}
-	if spec.TerminationGracePeriodSeconds == nil {
-		*spec.TerminationGracePeriodSeconds = 30
+	if defaultedPodSpec.TerminationGracePeriodSeconds == nil {
+		defaultedPodSpec.TerminationGracePeriodSeconds = ptr.To[int64](30)
 	}
+	return defaultedPodSpec
 }
