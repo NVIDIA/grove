@@ -77,6 +77,6 @@ spec:
         {{- if .Values.webhooks.podgangsetValidationWebhook.isEnabled }}
         - name: grove-webhook-server-cert
           secret:
-            secretName: {{ required ".Values.webhookSeverSecret.name is required" .Values.webhookSeverSecret.name }}
+            secretName: {{ required ".Values.webhookServerSecret.name is required" .Values.webhookServerSecret.name }}
             defaultMode: 420
         {{- end }}

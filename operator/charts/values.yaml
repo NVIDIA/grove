@@ -109,7 +109,7 @@ webhooks:
       app.kubernetes.io/name: pgs-defaulting-webhook
       app.kubernetes.io/part-of: grove
 
-webhookSeverSecret:
+webhookServerSecret:
   name: grove-webhook-server-cert
   labels:
     app.kubernetes.io/component: operator-webhook-server-secret

@@ -116,7 +116,7 @@ release: "{{ .Release.Name }}"
 
 {{- define "operator.server.secret.labels" -}}
 {{- include "common.chart.labels" . }}
-{{- range $key, $val := .Values.webhookSeverSecret.labels }}
+{{- range $key, $val := .Values.webhookServerSecret.labels }}
 {{ $key }}: {{ $val }}
 {{- end }}
 {{- end -}}

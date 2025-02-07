@@ -6,7 +6,7 @@ WORKDIR /go/src/github.com/NVIDIA/grove/operator
 COPY . .
 
 # Reference: https://docs.docker.com/reference/dockerfile/#automatic-platform-args-in-the-global-scope
-# Docker auomatically defines global scope build arguments.
+# Docker automatically defines global scope build arguments.
 ARG TARGETOS
 ARG TARGETARCH
 
