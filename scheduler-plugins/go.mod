@@ -4,7 +4,7 @@ go 1.23.0
 
 require (
 	k8s.io/component-base v0.31.1
-	k8s.io/kubernetes v1.31.1
+	k8s.io/kubernetes v1.31.6
 )
 
 require (
