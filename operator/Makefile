@@ -108,6 +108,11 @@ deploy-local-debug: $(SKAFFOLD)
 undeploy-local: $(SKAFFOLD)
 	@$(SKAFFOLD) delete -m grove-operator -n $(NAMESPACE)
 
+# Deploys all the add-ons to a local k8s cluster.
+.PHONY: deploy-addons
+deploy-addons:
+	@$(HACK_DIR)/deploy-addons.sh --all
+
 .PHONY: clean-chart-resources
 clean-chart-resources:
 	@rm -f $(REPO_ROOT)/charts/crds/*.yaml

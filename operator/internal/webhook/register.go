@@ -18,22 +18,22 @@ package webhook
 
 import (
 	"fmt"
-	"github.com/NVIDIA/grove/operator/internal/webhook/pgs/defaulting"
-	"github.com/NVIDIA/grove/operator/internal/webhook/pgs/validation"
+	defaulting2 "github.com/NVIDIA/grove/operator/internal/webhook/admission/pgs/defaulting"
+	validation2 "github.com/NVIDIA/grove/operator/internal/webhook/admission/pgs/validation"
 	"log/slog"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 )
 
 func RegisterWebhooks(mgr manager.Manager) error {
-	validatingWebhook := validation.NewHandler(mgr)
-	slog.Info("Registering webhook with manager", "handler", validation.HandlerName)
+	validatingWebhook := validation2.NewHandler(mgr)
+	slog.Info("Registering webhook with manager", "handler", validation2.HandlerName)
 	if err := validatingWebhook.RegisterWithManager(mgr); err != nil {
-		return fmt.Errorf("failed adding %s webhook handler: %v", validation.HandlerName, err)
+		return fmt.Errorf("failed adding %s webhook handler: %v", validation2.HandlerName, err)
 	}
-	defaultingWebhook := defaulting.NewHandler(mgr)
-	slog.Info("Registering webhook with manager", "handler", defaulting.HandlerName)
+	defaultingWebhook := defaulting2.NewHandler(mgr)
+	slog.Info("Registering webhook with manager", "handler", defaulting2.HandlerName)
 	if err := defaultingWebhook.RegisterWithManager(mgr); err != nil {
-		return fmt.Errorf("failed adding %s webhook handler: %v", defaulting.HandlerName, err)
+		return fmt.Errorf("failed adding %s webhook handler: %v", defaulting2.HandlerName, err)
 	}
 	return nil
 }

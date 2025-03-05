@@ -10,8 +10,8 @@ rules:
   resources:
   - podgangsets
   - podgangsets/status
-  - podgangs
-  - podgangs/status
+  - podcliques
+  - podcliques/status
   verbs:
   - create
   - get

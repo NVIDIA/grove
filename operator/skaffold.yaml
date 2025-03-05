@@ -7,7 +7,6 @@ build:
   artifacts:
     - image: local-skaffold/grove-operator
       ko: # see https://skaffold.dev/docs/builders/builder-types/ko/
-        fromImage: gcr.io/distroless/static-debian11:nonroot
         dependencies: # configures which files should skaffold watch for changes in dev mode.
           paths:
             - api

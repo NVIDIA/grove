@@ -30,7 +30,11 @@ config.yaml: |
   {{- end }}
   logLevel: {{ .Values.config.logLevel | default "info" }}
   logFormat: {{ .Values.config.logFormat | default "json" }}
-
+  {{- if .Values.config.authorizer.enabled }}
+  authorizer:
+    enabled: {{ .Values.config.authorizer.enabled }}
+    exemptServiceAccounts: {{ join "," .Values.config.authorizer.exemptServiceAccounts }}
+  {{- end }}
 
 {{- end -}}
 

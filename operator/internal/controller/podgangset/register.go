@@ -18,11 +18,14 @@ package podgangset
 
 import (
 	"github.com/NVIDIA/grove/operator/api/core/v1alpha1"
+	grovectrlutils "github.com/NVIDIA/grove/operator/internal/controller/utils"
 	"log/slog"
-
-	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/builder"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
+	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
+	"sigs.k8s.io/controller-runtime/pkg/predicate"
 )
 
 const controllerName = "podgangset-controller"
@@ -30,11 +33,34 @@ const controllerName = "podgangset-controller"
 // RegisterWithManager registers the PodGangSet Reconciler with the manager.
 func (r *Reconciler) RegisterWithManager(mgr manager.Manager) error {
 	slog.Info("Registering reconciler", "controllerName", controllerName)
-	return ctrl.NewControllerManagedBy(mgr).
+	return builder.ControllerManagedBy(mgr).
 		Named(controllerName).
 		WithOptions(controller.Options{
 			MaxConcurrentReconciles: *r.config.ConcurrentSyncs,
 		}).
 		For(&v1alpha1.PodGangSet{}).
+		Owns(&v1alpha1.PodClique{}, builder.WithPredicates(podCliquePredicate())).
 		Complete(r)
+}
+
+// podCliquesPredicate returns a predicate that filters out PodClique resources that are not managed by Grove.
+func podCliquePredicate() predicate.Predicate {
+	isManagedClique := func(obj client.Object) bool {
+		podClique, ok := obj.(*v1alpha1.PodClique)
+		if !ok {
+			return false
+		}
+		return grovectrlutils.IsManagedByGrove(podClique.GetLabels())
+	}
+	return predicate.Funcs{
+		CreateFunc: func(_ event.CreateEvent) bool { return false },
+		DeleteFunc: func(deleteEvent event.DeleteEvent) bool {
+			return isManagedClique(deleteEvent.Object)
+		},
+		UpdateFunc: func(updateEvent event.UpdateEvent) bool {
+			// Only allow update event if the PodClique is managed by Grove and the spec has not changed.
+			return isManagedClique(updateEvent.ObjectNew)
+		},
+		GenericFunc: func(_ event.GenericEvent) bool { return false },
+	}
 }

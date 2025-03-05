@@ -61,6 +61,8 @@ type PodGangSetSpec struct {
 type PodGangSetStatus struct {
 	// ObservedGeneration is the most recent generation observed by the controller.
 	ObservedGeneration *int64 `json:"observedGeneration,omitempty"`
+	// LastErrors captures the last errors observed by the controller when reconciling the PodGangSet.
+	LastErrors []LastError `json:"lastErrors,omitempty"`
 	// Replicas is the total number of non-terminated PodGangs targeted by this PodGangSet.
 	Replicas int32 `json:"replicas,omitempty"`
 	// ReadyReplicas is the number of ready PodGangs targeted by this PodGangSet.
@@ -211,3 +213,16 @@ const (
 	// This is a terminal state and is typically used for batch jobs.
 	PodGangSucceeded PodGangPhase = "Succeeded"
 )
+
+// ErrorCode is a custom error code that uniquely identifies an error.
+type ErrorCode string
+
+// LastError captures the last error observed by the controller when reconciling a PodGangSet.
+type LastError struct {
+	// Code is the error code that uniquely identifies the error.
+	Code ErrorCode `json:"code"`
+	// Description is a human-readable description of the error.
+	Description string `json:"description"`
+	// ObservedAt is the time at which the error was observed.
+	ObservedAt metav1.Time `json:"observedAt"`
+}

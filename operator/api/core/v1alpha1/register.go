@@ -22,8 +22,14 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 )
 
-// GroupName is the name of the group for all resources defined in this package.
-const GroupName = "grove.io"
+const (
+	// GroupName is the name of the group for all resources defined in this package.
+	GroupName = "grove.io"
+	// PodCliqueKind is the kind for a PodClique resource.
+	PodCliqueKind = "PodClique"
+	// PodGangSetKind is the kind for a PodGangSet resource.
+	PodGangSetKind = "PodGangSet"
+)
 
 var (
 	// SchemeGroupVersion is group version used to register these objects

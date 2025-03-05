@@ -39,18 +39,18 @@ var (
 	allowedNetworkPackStrategies = sets.New[v1alpha1.NetworkPackStrategy](v1alpha1.BestEffort, v1alpha1.Strict)
 )
 
-type validator struct {
+type pgsValidator struct {
 	operation admissionv1.Operation
 	pgs       *v1alpha1.PodGangSet
 }
 
-func newValidator(pgs *v1alpha1.PodGangSet) *validator {
-	return &validator{
+func newPGSValidator(pgs *v1alpha1.PodGangSet) *pgsValidator {
+	return &pgsValidator{
 		pgs: pgs,
 	}
 }
 
-func (v *validator) validate() ([]string, error) {
+func (v *pgsValidator) validate() ([]string, error) {
 	allErrs := field.ErrorList{}
 
 	allErrs = append(allErrs, apivalidation.ValidateObjectMeta(&v.pgs.ObjectMeta, true, apivalidation.NameIsDNSSubdomain, field.NewPath("metadata"))...)
@@ -62,7 +62,7 @@ func (v *validator) validate() ([]string, error) {
 	return warnings, allErrs.ToAggregate()
 }
 
-func (v *validator) validateUpdate(oldPgs *v1alpha1.PodGangSet) error {
+func (v *pgsValidator) validateUpdate(oldPgs *v1alpha1.PodGangSet) error {
 	allErrs := field.ErrorList{}
 
 	allErrs = append(allErrs, validatePodGangSetSpecUpdate(field.NewPath("spec"), &v.pgs.Spec, &oldPgs.Spec)...)
@@ -71,7 +71,7 @@ func (v *validator) validateUpdate(oldPgs *v1alpha1.PodGangSet) error {
 }
 
 // validatePodGangSetSpec validates the specification of a PodGangSet object.
-func (v *validator) validatePodGangSetSpec() ([]string, field.ErrorList) {
+func (v *pgsValidator) validatePodGangSetSpec() ([]string, field.ErrorList) {
 	allErrs := field.ErrorList{}
 	fldPath := field.NewPath("spec")
 
@@ -85,7 +85,7 @@ func (v *validator) validatePodGangSetSpec() ([]string, field.ErrorList) {
 	return warnings, allErrs
 }
 
-func (v *validator) validateUpdateStrategy(fldPath *field.Path) field.ErrorList {
+func (v *pgsValidator) validateUpdateStrategy(fldPath *field.Path) field.ErrorList {
 	errs := field.ErrorList{}
 	updateStrategy := v.pgs.Spec.UpdateStrategy
 
@@ -96,7 +96,7 @@ func (v *validator) validateUpdateStrategy(fldPath *field.Path) field.ErrorList 
 	return append(errs, v.validateRollingUpdateConfig(fldPath.Child("rollingUpdateConfig"))...)
 }
 
-func (v *validator) validateRollingUpdateConfig(fldPath *field.Path) field.ErrorList {
+func (v *pgsValidator) validateRollingUpdateConfig(fldPath *field.Path) field.ErrorList {
 	errs := field.ErrorList{}
 
 	rollingUpdateConfig := v.pgs.Spec.UpdateStrategy.RollingUpdateConfig
@@ -130,7 +130,7 @@ func (v *validator) validateRollingUpdateConfig(fldPath *field.Path) field.Error
 	return errs
 }
 
-func (v *validator) validatePodGangTemplateSpec(fldPath *field.Path) ([]string, field.ErrorList) {
+func (v *pgsValidator) validatePodGangTemplateSpec(fldPath *field.Path) ([]string, field.ErrorList) {
 	allErrs := field.ErrorList{}
 
 	allErrs = append(allErrs, validateEnumType(v.pgs.Spec.Template.StartupType, allowedStartupTypes, fldPath.Child("cliqueStartupType"))...)
@@ -144,7 +144,7 @@ func (v *validator) validatePodGangTemplateSpec(fldPath *field.Path) ([]string, 
 	return warnings, allErrs
 }
 
-func (v *validator) validatePodCliqueTemplates(fldPath *field.Path) ([]string, field.ErrorList) {
+func (v *pgsValidator) validatePodCliqueTemplates(fldPath *field.Path) ([]string, field.ErrorList) {
 	allErrs := field.ErrorList{}
 	var warnings []string
 	cliqueTemplateSpecs := v.pgs.Spec.Template.Cliques
@@ -179,7 +179,7 @@ func (v *validator) validatePodCliqueTemplates(fldPath *field.Path) ([]string, f
 	return warnings, allErrs
 }
 
-func (v *validator) validatePodCliqueTemplateSpec(cliqueTemplateSpec v1alpha1.PodCliqueTemplateSpec, fldPath *field.Path) ([]string, field.ErrorList) {
+func (v *pgsValidator) validatePodCliqueTemplateSpec(cliqueTemplateSpec v1alpha1.PodCliqueTemplateSpec, fldPath *field.Path) ([]string, field.ErrorList) {
 	allErrs := field.ErrorList{}
 
 	// TODO: check name
@@ -192,7 +192,7 @@ func (v *validator) validatePodCliqueTemplateSpec(cliqueTemplateSpec v1alpha1.Po
 	return warnings, allErrs
 }
 
-func (v *validator) validatePodCliqueSpec(name string, cliqueSpec v1alpha1.PodCliqueSpec, fldPath *field.Path) ([]string, field.ErrorList) {
+func (v *pgsValidator) validatePodCliqueSpec(name string, cliqueSpec v1alpha1.PodCliqueSpec, fldPath *field.Path) ([]string, field.ErrorList) {
 	allErrs := field.ErrorList{}
 
 	if cliqueSpec.Replicas <= 0 {
@@ -228,7 +228,7 @@ func (v *validator) validatePodCliqueSpec(name string, cliqueSpec v1alpha1.PodCl
 	return warnings, allErrs
 }
 
-func (v *validator) validatePodSpec(spec corev1.PodSpec, fldPath *field.Path) ([]string, field.ErrorList) {
+func (v *pgsValidator) validatePodSpec(spec corev1.PodSpec, fldPath *field.Path) ([]string, field.ErrorList) {
 	allErrs := field.ErrorList{}
 	var warnings []string
 

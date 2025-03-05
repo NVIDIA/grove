@@ -17,7 +17,7 @@
 package validation
 
 import (
-	"k8s.io/utils/ptr"
+	"github.com/NVIDIA/grove/operator/api/core/v1alpha1"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 )
@@ -30,10 +30,9 @@ const (
 
 // RegisterWithManager registers the webhook with the manager.
 func (h *Handler) RegisterWithManager(mgr manager.Manager) error {
-	webhook := &admission.Webhook{
-		Handler:      h,
-		RecoverPanic: ptr.To(true),
-	}
+	webhook := admission.
+		WithCustomValidator(mgr.GetScheme(), &v1alpha1.PodGangSet{}, h).
+		WithRecoverPanic(true)
 	mgr.GetWebhookServer().Register(webhookPath, webhook)
 	return nil
 }

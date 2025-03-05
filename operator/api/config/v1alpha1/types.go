@@ -61,6 +61,7 @@ type OperatorConfiguration struct {
 	Controllers      ControllerConfiguration `json:"controllers"`
 	LogLevel         LogLevel                `json:"logLevel"`
 	LogFormat        LogFormat               `json:"logFormat"`
+	Authorizer       AuthorizerConfig        `json:"authorizer"`
 }
 
 // LeaderElectionConfiguration defines the configuration for the leader election.
@@ -114,6 +115,7 @@ type ClientConnectionConfiguration struct {
 // DebuggingConfiguration defines the configuration for debugging.
 type DebuggingConfiguration struct {
 	// EnableProfiling enables profiling via host:port/debug/pprof/ endpoints.
+	// +optional
 	EnableProfiling *bool `json:"enableProfiling,omitempty"`
 }
 
@@ -124,6 +126,7 @@ type ServerConfiguration struct {
 	// HealthProbes is the configuration for serving the healthz and readyz endpoints.
 	HealthProbes *Server `json:"healthProbes,omitempty"`
 	// Metrics is the configuration for serving the metrics endpoint.
+	// +optional
 	Metrics *Server `json:"metrics,omitempty"`
 }
 
@@ -146,10 +149,29 @@ type Server struct {
 type ControllerConfiguration struct {
 	// PodGangSet is the configuration for the PodGangSet controller.
 	PodGangSet PodGangSetControllerConfiguration `json:"podGangSet"`
+	// PodClique is the configuration for the PodClique controller.
+	PodClique PodCliqueControllerConfiguration `json:"podClique"`
 }
 
 // PodGangSetControllerConfiguration defines the configuration for the PodGangSet controller.
 type PodGangSetControllerConfiguration struct {
 	// ConcurrentSyncs is the number of workers used for the controller to concurrently work on events.
+	// +optional
 	ConcurrentSyncs *int `json:"concurrentSyncs,omitempty"`
+}
+
+// PodCliqueControllerConfiguration defines the configuration for the PodClique controller.
+type PodCliqueControllerConfiguration struct {
+	// ConcurrentSyncs is the number of workers used for the controller to concurrently work on events.
+	// +optional
+	ConcurrentSyncs *int `json:"concurrentSyncs,omitempty"`
+}
+
+// AuthorizerConfig defines the configuration for the authorizer admission webhook.
+type AuthorizerConfig struct {
+	// Enabled indicates whether the authorizer is enabled.
+	Enabled bool `json:"enabled"`
+	// ExemptServiceAccounts is a list of service accounts that are exempt from authorizer checks.
+	// +optional
+	ExemptServiceAccounts []string `json:"exemptServiceAccounts,omitempty"`
 }
