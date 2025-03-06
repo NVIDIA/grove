@@ -53,6 +53,8 @@ config:
   controllers:
     podGangSet:
       concurrentSyncs: 3
+    podClique:
+      concurrentSyncs: 3
   logLevel: info
   logFormat: json
   authorizer:

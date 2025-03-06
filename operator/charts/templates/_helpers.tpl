@@ -24,6 +24,8 @@ config.yaml: |
   controllers:
     podGangSet:
       concurrentSyncs: {{ .Values.config.controllers.podGangSet.concurrentSyncs }}
+    podClique:
+      concurrentSyncs: {{ .Values.config.controllers.podClique.concurrentSyncs }}
   {{- if .Values.config.debugging }}
   debugging:
     enableProfiling: {{ .Values.config.debugging.enableProfiling }}

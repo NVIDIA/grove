@@ -100,3 +100,9 @@ func SetDefaults_PodGangSetControllerConfiguration(obj *PodGangSetControllerConf
 		obj.ConcurrentSyncs = ptr.To(1)
 	}
 }
+
+func SetDefaults_PodCliqueControllerConfiguration(obj *PodCliqueControllerConfiguration) {
+	if obj.ConcurrentSyncs == nil {
+		obj.ConcurrentSyncs = ptr.To(1)
+	}
+}

@@ -45,7 +45,8 @@ spec:
             timeoutSeconds: 5
           {{- end }}
           {{- if .Values.resources }}
-{{- toYaml .Values.resources | nindent 10 }}
+          resources:
+{{- toYaml .Values.resources | nindent 12 }}
           {{- end }}
           volumeMounts:
             - name: operator-config
