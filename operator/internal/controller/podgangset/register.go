@@ -17,22 +17,25 @@
 package podgangset
 
 import (
-	"github.com/NVIDIA/grove/operator/api/core/v1alpha1"
-	grovectrlutils "github.com/NVIDIA/grove/operator/internal/controller/utils"
-	"log/slog"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
+
+	"github.com/NVIDIA/grove/operator/api/core/v1alpha1"
+	grovectrlutils "github.com/NVIDIA/grove/operator/internal/controller/utils"
 )
 
-const controllerName = "podgangset-controller"
+const (
+	controllerName = "podgangset-controller"
+	finalizerName  = "podgangset.grove.io"
+)
 
 // RegisterWithManager registers the PodGangSet Reconciler with the manager.
 func (r *Reconciler) RegisterWithManager(mgr manager.Manager) error {
-	slog.Info("Registering reconciler", "controllerName", controllerName)
+	r.logger.Info("Registering reconciler", "controllerName", controllerName)
 	return builder.ControllerManagedBy(mgr).
 		Named(controllerName).
 		WithOptions(controller.Options{
