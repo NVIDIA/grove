@@ -26,10 +26,13 @@ import (
 	"k8s.io/client-go/tools/record"
 	ctrl "sigs.k8s.io/controller-runtime"
 	ctrlclient "sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	ctrllogger "sigs.k8s.io/controller-runtime/pkg/log"
+	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	configv1alpha1 "github.com/NVIDIA/grove/operator/api/config/v1alpha1"
 	"github.com/NVIDIA/grove/operator/api/core/v1alpha1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 // Reconciler reconciles PodGangSet resources.
@@ -74,8 +77,39 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 }
 
 func (r *Reconciler) reconcile(ctx context.Context, pgs *v1alpha1.PodGangSet) (ctrl.Result, error) {
-	// TODO: implement
-	return ctrl.Result{}, fmt.Errorf("not implemented")
+	r.logger.Info("PodGangSet creating PC\n")
+	for _, clique := range pgs.Spec.Template.Cliques {
+		pc := &v1alpha1.PodClique{
+			TypeMeta: metav1.TypeMeta{
+				Kind:       v1alpha1.PodCliqueKind,
+				APIVersion: "v1alpha1",
+			},
+			ObjectMeta: metav1.ObjectMeta{
+				Namespace: pgs.Namespace,
+				Name:      clique.Name,
+			},
+			Spec: v1alpha1.PodCliqueSpec{
+				Replicas: clique.Spec.Replicas,
+				PodSpec:  clique.Spec.PodSpec,
+			},
+			Status: v1alpha1.PodCliqueStatus{},
+		}
+
+		r.logger.Info("new PC", "name", pc.Name, "namespace", pc.Namespace)
+		_, err := controllerutil.CreateOrUpdate(ctx, r.client, pc, func() error {
+			//r.client.Patch(ctx, pc, client.MergeFrom(pc.DeepCopy()))
+			pc.ObjectMeta.Name = clique.Name
+			pc.Spec.PodSpec = clique.Spec.PodSpec
+			pc.Spec.Replicas = clique.Spec.Replicas
+			pc.Status = v1alpha1.PodCliqueStatus{}
+			return nil
+		})
+		if err != nil {
+			return reconcile.Result{}, err
+		}
+	}
+	r.logger.Info("PodGangSet created PC\n")
+	return ctrl.Result{}, nil
 }
 
 func (r *Reconciler) delete(ctx context.Context, pgs *v1alpha1.PodGangSet) (ctrl.Result, error) {

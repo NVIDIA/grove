@@ -1,10 +1,11 @@
 package podclique
 
 import (
+	"log/slog"
+
 	"github.com/NVIDIA/grove/operator/api/core/v1alpha1"
 	grovectrlutils "github.com/NVIDIA/grove/operator/internal/controller/utils"
 	corev1 "k8s.io/api/core/v1"
-	"log/slog"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -25,8 +26,8 @@ func (r *Reconciler) RegisterWithManager(mgr ctrl.Manager) error {
 			MaxConcurrentReconciles: *r.config.ConcurrentSyncs,
 		}).
 		For(&v1alpha1.PodClique{}).
-		WithEventFilter(podCliquePredicate()).
-		Owns(&corev1.Pod{}, builder.WithPredicates(podPredicate())).
+		//WithEventFilter(podCliquePredicate()).
+		//Owns(&corev1.Pod{}, builder.WithPredicates(podPredicate())).
 		Complete(r)
 }
 
