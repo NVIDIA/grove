@@ -15,11 +15,11 @@ import (
 
 type PodClique struct {
 	metav1.TypeMeta   `json:",inline"`
-	metav1.ObjectMeta `json:",inline"`
+	metav1.ObjectMeta `json:"metadata,omitempty"`
 	// Spec defines the specification of a PodClique.
 	Spec PodCliqueSpec `json:"spec"`
 	// Status defines the status of a PodClique.
-	Status PodCliqueStatus `json:"status"`
+	Status PodCliqueStatus `json:"status,omitempty"`
 }
 
 // +kubebuilder:object:root=true

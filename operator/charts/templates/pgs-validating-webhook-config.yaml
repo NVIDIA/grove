@@ -31,7 +31,6 @@ webhooks:
           - UPDATE
         resources:
           - podgangsets
-          - podcliques
         scope: '*'
     sideEffects: None
     timeoutSeconds: 10

@@ -19,6 +19,7 @@ package client
 import (
 	configv1alpha1 "github.com/NVIDIA/grove/operator/api/config/v1alpha1"
 	podgangsetv1alpha1 "github.com/NVIDIA/grove/operator/api/core/v1alpha1"
+	k8sscheme "k8s.io/client-go/kubernetes/scheme"
 
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
@@ -31,6 +32,7 @@ func init() {
 	localSchemeBuilder := runtime.NewSchemeBuilder(
 		configv1alpha1.AddToScheme,
 		podgangsetv1alpha1.AddToScheme,
+		k8sscheme.AddToScheme,
 	)
 	utilruntime.Must(localSchemeBuilder.AddToScheme(Scheme))
 }

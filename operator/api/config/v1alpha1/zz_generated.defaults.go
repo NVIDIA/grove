@@ -38,4 +38,5 @@ func SetObjectDefaults_OperatorConfiguration(in *OperatorConfiguration) {
 	SetDefaults_LeaderElectionConfiguration(&in.LeaderElection)
 	SetDefaults_ServerConfiguration(&in.Server)
 	SetDefaults_PodGangSetControllerConfiguration(&in.Controllers.PodGangSet)
+	SetDefaults_PodCliqueControllerConfiguration(&in.Controllers.PodClique)
 }
