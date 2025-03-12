@@ -1,6 +1,8 @@
 package podclique
 
 import (
+	"fmt"
+
 	"github.com/NVIDIA/grove/operator/api/core/v1alpha1"
 	grovectrlutils "github.com/NVIDIA/grove/operator/internal/controller/utils"
 
@@ -25,7 +27,10 @@ func (r *Reconciler) RegisterWithManager(mgr ctrl.Manager) error {
 			MaxConcurrentReconciles: *r.config.ConcurrentSyncs,
 		}).
 		For(&v1alpha1.PodClique{}).
-		WithEventFilter(podCliquePredicate()).
+		// TODO: FIX: the function below doesn't accept pod status updates
+		//WithEventFilter(predicate.GenerationChangedPredicate{}).
+		// TODO: FIX: the function below ignores pod updates
+		//WithEventFilter(podCliquePredicate()).
 		Owns(&corev1.Pod{}, builder.WithPredicates(podPredicate())).
 		Complete(r)
 }
@@ -55,6 +60,8 @@ func podCliquePredicate() predicate.Predicate {
 
 // podPredicate returns a predicate that filters out pods that are not managed by Grove.
 func podPredicate() predicate.Predicate {
+	// TODO: remove print
+	fmt.Println("-->podPredicate")
 	isManagedPod := func(pod *corev1.Pod) bool {
 		return grovectrlutils.HasExpectedOwner(v1alpha1.PodCliqueKind, pod.OwnerReferences) && grovectrlutils.IsManagedByGrove(pod.GetLabels())
 	}
@@ -70,7 +77,11 @@ func podPredicate() predicate.Predicate {
 		/*
 			Allow update events where the pod status has changed.
 		*/
-		UpdateFunc:  func(_ event.UpdateEvent) bool { return false },
+		UpdateFunc: func(event event.UpdateEvent) bool {
+			// TODO: remove print
+			fmt.Println("-->podPredicate: UPDATE")
+			return true
+		},
 		GenericFunc: func(_ event.GenericEvent) bool { return false },
 	}
 }

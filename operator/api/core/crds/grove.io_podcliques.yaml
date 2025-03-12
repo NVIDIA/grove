@@ -8594,6 +8594,56 @@ spec:
                   Selector is the label selector that determines which pods are part of the PodClique.
                   PodClique is a unit of scale and this selector is used by HPA to scale the PodClique based on metrics captured for the pods that match this selector.
                 type: string
+              lastErrors:
+                description: LastErrors captures the last errors observed by the controller
+                  when reconciling the PodClique.
+                items:
+                  description: LastError captures the last error observed by the controller
+                    when reconciling an object.
+                  properties:
+                    code:
+                      description: Code is the error code that uniquely identifies
+                        the error.
+                      type: string
+                    description:
+                      description: Description is a human-readable description of
+                        the error.
+                      type: string
+                    observedAt:
+                      description: ObservedAt is the time at which the error was observed.
+                      format: date-time
+                      type: string
+                  required:
+                  - code
+                  - description
+                  - observedAt
+                  type: object
+                type: array
+              lastOperation:
+                description: LastOperation captures the last operation done by the
+                  respective reconciler on the PodClique.
+                properties:
+                  description:
+                    description: Description is a human-readable description of the
+                      last operation.
+                    type: string
+                  lastTransitionTime:
+                    description: LastUpdateTime is the time at which the last operation
+                      was updated.
+                    format: date-time
+                    type: string
+                  state:
+                    description: State is the state of the last operation.
+                    type: string
+                  type:
+                    description: Type is the type of the last operation.
+                    type: string
+                required:
+                - description
+                - lastTransitionTime
+                - state
+                - type
+                type: object
               observedGeneration:
                 description: ObservedGeneration is the most recent generation observed
                   by the controller.

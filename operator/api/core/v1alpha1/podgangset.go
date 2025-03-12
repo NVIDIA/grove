@@ -253,7 +253,7 @@ type LastOperation struct {
 // ErrorCode is a custom error code that uniquely identifies an error.
 type ErrorCode string
 
-// LastError captures the last error observed by the controller when reconciling a PodGangSet.
+// LastError captures the last error observed by the controller when reconciling an object.
 type LastError struct {
 	// Code is the error code that uniquely identifies the error.
 	Code ErrorCode `json:"code"`

@@ -1,0 +1,289 @@
+package pod
+
+import (
+	"context"
+	"errors"
+	"fmt"
+	"reflect"
+
+	"github.com/NVIDIA/grove/operator/api/core/v1alpha1"
+	"github.com/NVIDIA/grove/operator/internal/component"
+	groveerr "github.com/NVIDIA/grove/operator/internal/errors"
+	"github.com/NVIDIA/grove/operator/internal/utils"
+	k8sutils "github.com/NVIDIA/grove/operator/internal/utils/kubernetes"
+
+	"github.com/go-logr/logr"
+	"github.com/samber/lo"
+	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
+)
+
+const (
+	errSyncPod   v1alpha1.ErrorCode = "ERR_SYNC_POD"
+	errDeletePod v1alpha1.ErrorCode = "ERR_DELETE_POD"
+)
+
+type _resource struct {
+	client client.Client
+	scheme *runtime.Scheme
+}
+
+// podInfo contains info about pods created by a PodClique
+type podInfo struct {
+	pods     map[string]*corev1.Pod
+	replicas int32
+	ready    int32
+}
+
+// New creates an instance of Pod component operator.
+func New(client client.Client, scheme *runtime.Scheme) component.Operator[v1alpha1.PodClique] {
+	return &_resource{
+		client: client,
+		scheme: scheme,
+	}
+}
+
+func (r _resource) Sync(ctx context.Context, logger logr.Logger, pclq *v1alpha1.PodClique) error {
+	info, err := r.listPods(ctx, logger, pclq)
+	if err != nil {
+		logger.Error(err, "failed to list pods")
+		return err
+	}
+	logger.Info("Found pods", "count", len(info.pods))
+
+	objectKeys := getObjectKeys(pclq)
+	tasks := make([]utils.Task, 0, len(objectKeys))
+	for _, objectKey := range objectKeys {
+		createOrUpdateTask := utils.Task{
+			Name: fmt.Sprintf("CreateOrUpdatePod-%s", objectKey),
+			Fn: func(ctx context.Context) error {
+				return r.doCreateOrUpdate(ctx, logger, pclq, objectKey, info)
+			},
+		}
+		tasks = append(tasks, createOrUpdateTask)
+	}
+	if errs := utils.RunConcurrently(ctx, tasks); len(errs) > 0 {
+		return errors.Join(errs...)
+	}
+
+	return r.updatePodCount(ctx, logger, pclq, info)
+}
+
+func (r _resource) Delete(ctx context.Context, logger logr.Logger, pclqObjectMeta metav1.ObjectMeta) error {
+	logger.Info("Triggering deletion of Pod", "objectKey", client.ObjectKey{Name: pclqObjectMeta.Name, Namespace: pclqObjectMeta.Namespace})
+	if err := r.client.DeleteAllOf(ctx,
+		&v1alpha1.PodClique{},
+		client.InNamespace(pclqObjectMeta.Namespace),
+		client.MatchingLabels(getPodSelectorLabels(pclqObjectMeta))); err != nil {
+		return groveerr.WrapError(err,
+			errDeletePod,
+			component.OperationDelete,
+			fmt.Sprintf("Failed to delete Pod for PodClique: %v", client.ObjectKey{Name: pclqObjectMeta.Name, Namespace: pclqObjectMeta.Namespace}),
+		)
+	}
+	return nil
+}
+
+func (r _resource) doCreateOrUpdate(ctx context.Context, logger logr.Logger, pclq *v1alpha1.PodClique, podObjectKey client.ObjectKey, info *podInfo) error {
+	logger.Info("Running CreateOrUpdate Pod", "podObjectKey", podObjectKey)
+	pod := emptyPod(podObjectKey)
+	opResult, err := controllerutil.CreateOrPatch(ctx, r.client, pod, func() error {
+		return r.buildResource(logger, pod, pclq, info)
+	})
+	if err != nil {
+		return groveerr.WrapError(err,
+			errSyncPod,
+			component.OperationSync,
+			fmt.Sprintf("Error syncing Pod: %v for PodClique: %v", podObjectKey, client.ObjectKeyFromObject(pclq)),
+		)
+	}
+	logger.Info("triggered create or update of PodClique", "podObjectKey", podObjectKey, "result", opResult)
+	return nil
+}
+
+func (r _resource) buildResource(logger logr.Logger, pod *corev1.Pod, pclq *v1alpha1.PodClique, info *podInfo) error {
+	podObjectKey, pclqObjectKey := client.ObjectKeyFromObject(pod), client.ObjectKeyFromObject(pclq)
+	if actual, ok := info.pods[pod.Name]; ok {
+		pod.ObjectMeta.Labels = actual.Labels
+		pod.ObjectMeta.Annotations = actual.Annotations
+		pod.Spec = actual.Spec
+		if updatePod(pod, pclq) {
+			logger.Info("update pod", "name", pod.Name)
+		}
+	} else {
+		logger.Info("create pod", "name", pod.Name)
+		podSpec := findPodSpec(podObjectKey, pclq)
+		if podSpec == nil {
+			logger.Info("Pod spec not found in PodClique", "podObjectKey", podObjectKey, "pclqObjectKey", pclqObjectKey)
+			return groveerr.New(errSyncPod,
+				component.OperationSync,
+				fmt.Sprintf("PodSpec for Pod: %v not found in PodClique: %v", podObjectKey, pclqObjectKey),
+			)
+		}
+		if err := controllerutil.SetControllerReference(pclq, pod, r.scheme); err != nil {
+			return err
+		}
+		pod.ObjectMeta.Labels = getLabels(pclq)
+		pod.ObjectMeta.Annotations = pclq.Annotations
+		pod.Spec = *podSpec
+	}
+	return nil
+}
+
+func (r _resource) updatePodCount(ctx context.Context, logger logr.Logger, pclq *v1alpha1.PodClique, info *podInfo) error {
+	// TODO: check Selector, Conditions
+	if pclq.Status.Replicas == info.replicas && pclq.Status.ReadyReplicas == info.ready {
+		return nil
+	}
+
+	logger.Info("update pclq status", "replicas", info.replicas, "ready", info.ready)
+	pclq.Status.Replicas = info.replicas
+	pclq.Status.ReadyReplicas = info.ready
+	// TODO: fix UpdatedReplicas
+	pclq.Status.UpdatedReplicas = pclq.Status.Replicas
+	// TODO: set Selector, Conditions
+
+	if err := r.client.Status().Update(ctx, pclq); err != nil {
+		logger.Error(err, "failed to update pclq status")
+		return err
+	}
+	return nil
+}
+
+func getPodSelectorLabels(pclqObjectMeta metav1.ObjectMeta) map[string]string {
+	return k8sutils.GetDefaultLabelsForManagedResources(pclqObjectMeta.Name)
+}
+
+func getLabels(pclq *v1alpha1.PodClique) map[string]string {
+	return lo.Assign(
+		pclq.Labels,
+		k8sutils.GetDefaultLabelsForManagedResources(pclq.Name),
+	)
+}
+
+func findPodSpec(podObjectKey client.ObjectKey, pclq *v1alpha1.PodClique) *corev1.PodSpec {
+	for replicaID := range pclq.Spec.Replicas {
+		if createPodName(pclq.Name, replicaID) == podObjectKey.Name {
+			return &pclq.Spec.PodSpec
+		}
+	}
+	return nil
+}
+
+func getObjectKeys(pclq *v1alpha1.PodClique) []client.ObjectKey {
+	podNames := getPodNames(pclq)
+	podObjKeys := make([]client.ObjectKey, 0, len(podNames))
+	for _, podName := range podNames {
+		podObjKeys = append(podObjKeys, client.ObjectKey{
+			Name:      podName,
+			Namespace: pclq.Namespace,
+		})
+	}
+	return podObjKeys
+}
+
+func getPodNames(pclq *v1alpha1.PodClique) []string {
+	podPrefix := pclq.Name
+	podNames := make([]string, 0, pclq.Spec.Replicas)
+	for replicaID := range pclq.Spec.Replicas {
+		podNames = append(podNames, createPodName(podPrefix, replicaID))
+	}
+	return podNames
+}
+
+func createPodName(prefix string, suffix int32) string {
+	return fmt.Sprintf("%s-%d", prefix, suffix)
+}
+
+func emptyPod(objKey client.ObjectKey) *corev1.Pod {
+	return &corev1.Pod{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      objKey.Name,
+			Namespace: objKey.Namespace,
+		},
+	}
+}
+
+// retrieve the existing pods created by the PodClique
+func (r _resource) listPods(ctx context.Context, logger logr.Logger, pclq *v1alpha1.PodClique) (*podInfo, error) {
+	var podList corev1.PodList
+	if err := r.client.List(ctx, &podList, client.InNamespace(pclq.Namespace)); err != nil {
+		return nil, err
+	}
+
+	info := &podInfo{pods: make(map[string]*corev1.Pod)}
+	for i, pod := range podList.Items {
+		ref := pod.OwnerReferences[0]
+		if ref.Kind == v1alpha1.PodCliqueKind && ref.Name == pclq.Name {
+			logger.Info("found existing pod", "name", pod.Name)
+			info.pods[pod.Name] = &podList.Items[i]
+			info.replicas++
+			for _, cond := range pod.Status.Conditions {
+				if cond.Type == corev1.PodReady {
+					if cond.Status == corev1.ConditionTrue {
+						info.ready++
+					}
+					break
+				}
+			}
+		}
+	}
+	return info, nil
+}
+
+// update the allowed pod fields with the new values only if they have changed
+func updatePod(pod *corev1.Pod, pclq *v1alpha1.PodClique) bool {
+	spec := &pclq.Spec.PodSpec
+	if len(pod.Spec.Containers) != len(spec.Containers) || len(pod.Spec.InitContainers) != len(spec.InitContainers) {
+		return false
+	}
+
+	var update bool
+	for i, container := range spec.Containers {
+		if container.Image != pod.Spec.Containers[i].Image {
+			pod.Spec.Containers[i].Image = container.Image
+			update = true
+		}
+	}
+
+	for i, container := range spec.InitContainers {
+		if container.Image != pod.Spec.InitContainers[i].Image {
+			pod.Spec.InitContainers[i].Image = container.Image
+			update = true
+		}
+	}
+
+	if spec.ActiveDeadlineSeconds == nil {
+		if pod.Spec.ActiveDeadlineSeconds != nil {
+			pod.Spec.ActiveDeadlineSeconds = nil
+			update = true
+		}
+	} else {
+		if pod.Spec.ActiveDeadlineSeconds == nil || *pod.Spec.ActiveDeadlineSeconds != *spec.ActiveDeadlineSeconds {
+			pod.Spec.ActiveDeadlineSeconds = spec.ActiveDeadlineSeconds
+			update = true
+		}
+	}
+
+	if len(spec.Tolerations) > len(pod.Spec.Tolerations) {
+		for i := len(pod.Spec.Tolerations); i < len(spec.Tolerations); i++ {
+			pod.Spec.Tolerations = append(pod.Spec.Tolerations, spec.Tolerations[i])
+			update = true
+		}
+	}
+
+	if !reflect.DeepEqual(pod.Annotations, pclq.Annotations) {
+		pod.Annotations = pclq.Annotations
+		update = true
+	}
+
+	if !reflect.DeepEqual(pod.Labels, pclq.Labels) {
+		pod.Labels = pclq.Labels
+		update = true
+	}
+
+	return update
+}

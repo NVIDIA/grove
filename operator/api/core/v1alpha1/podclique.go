@@ -80,6 +80,10 @@ type AutoScalingConfig struct {
 type PodCliqueStatus struct {
 	// ObservedGeneration is the most recent generation observed by the controller.
 	ObservedGeneration *int64 `json:"observedGeneration,omitempty"`
+	// LastOperation captures the last operation done by the respective reconciler on the PodClique.
+	LastOperation *LastOperation `json:"lastOperation,omitempty"`
+	// LastErrors captures the last errors observed by the controller when reconciling the PodClique.
+	LastErrors []LastError `json:"lastErrors,omitempty"`
 	// Replicas is the total number of non-terminated Pods targeted by this PodClique.
 	Replicas int32 `json:"replicas,omitempty"`
 	// ReadyReplicas is the number of ready Pods targeted by this PodClique.

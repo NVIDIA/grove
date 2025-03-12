@@ -9095,7 +9095,7 @@ spec:
                   when reconciling the PodGangSet.
                 items:
                   description: LastError captures the last error observed by the controller
-                    when reconciling a PodGangSet.
+                    when reconciling an object.
                   properties:
                     code:
                       description: Code is the error code that uniquely identifies
