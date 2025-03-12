@@ -39,6 +39,20 @@ function build_grove_operator() {
     cmd/main.go
 }
 
+function build_init_container() {
+  local ld_flags=$(build_ld_flags)
+  printf '%s\n' "Building grove-initc with:
+   GOOS: $GOOS
+   GOARCH: $GOARCH
+   ldflags: $ld_flags ..."
+
+  CGO_ENABLED=0 GOOS=${GOOS} GOARCH=${GOARCH} GO111MODULE=on \
+    go build \
+    -o "${BINARY_DIR}/grove-initc" \
+    -ldflags "${ld_flags}" \
+    cmd/initc/main.go
+}
+
 mkdir -p ${BINARY_DIR}
 build_grove_operator
-
+build_init_container

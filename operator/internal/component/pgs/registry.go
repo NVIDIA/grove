@@ -4,7 +4,10 @@ import (
 	"github.com/NVIDIA/grove/operator/api/core/v1alpha1"
 	"github.com/NVIDIA/grove/operator/internal/component"
 	"github.com/NVIDIA/grove/operator/internal/component/pgs/podclique"
+	"github.com/NVIDIA/grove/operator/internal/component/pgs/role"
+	"github.com/NVIDIA/grove/operator/internal/component/pgs/rolebinding"
 	"github.com/NVIDIA/grove/operator/internal/component/pgs/service"
+	"github.com/NVIDIA/grove/operator/internal/component/pgs/serviceaccount"
 
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 )
@@ -13,7 +16,11 @@ import (
 func CreateOperatorRegistry(mgr manager.Manager) component.OperatorRegistry[v1alpha1.PodGangSet] {
 	cl := mgr.GetClient()
 	reg := component.NewOperatorRegistry[v1alpha1.PodGangSet]()
-	reg.Register(component.KindPodClique, podclique.New(cl, mgr.GetScheme()))
+	scheme := mgr.GetScheme()
+	reg.Register(component.KindPodClique, podclique.New(cl, scheme))
 	reg.Register(component.KindHeadlessService, service.New(cl))
+	reg.Register(component.KindServiceAccount, serviceaccount.New(cl, scheme))
+	reg.Register(component.KindRole, role.New(cl, scheme))
+	reg.Register(component.KindRoleBinding, rolebinding.New(cl, scheme))
 	return reg
 }

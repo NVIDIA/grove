@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"reflect"
+	"strings"
 
 	"github.com/NVIDIA/grove/operator/api/core/v1alpha1"
 	"github.com/NVIDIA/grove/operator/internal/component"
@@ -146,6 +147,21 @@ func (r _resource) buildResource(logger logr.Logger, pod *corev1.Pod, pclq *v1al
 		pod.ObjectMeta.Labels = pclq.Labels
 		pod.ObjectMeta.Annotations = pclq.Annotations
 		pod.Spec = *podSpec
+
+		if len(pclq.Spec.StartsAfter) != 0 {
+			pod.Spec.ServiceAccountName = pclq.OwnerReferences[0].Name
+			pod.Spec.InitContainers = append(pod.Spec.InitContainers, corev1.Container{
+				Name: "start-after",
+				//Image:           os.Getenv("GROVE_IMAGE"),
+				//ImagePullPolicy: corev1.PullIfNotPresent,
+				//Command:         []string{"/grove-initc"},
+				// TODO: use proper image
+				Image:           "docker.io/dmitsh/grove-initc:ds-initc",
+				ImagePullPolicy: corev1.PullAlways,
+				Command:         []string{"/usr/local/bin/initc"},
+				Args:            []string{"-namespace", pclq.Namespace, "-after", strings.Join(pclq.Spec.StartsAfter, ",")},
+			})
+		}
 	}
 	return nil
 }

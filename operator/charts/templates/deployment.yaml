@@ -26,6 +26,9 @@ spec:
         - name: grove-operator
           image: {{ include "image" .Values.image }}
           imagePullPolicy: {{ .Values.image.pullPolicy }}
+          env:
+            - name: GROVE_IMAGE
+              value: {{ include "image" .Values.image }}
           args:
             - --config=/etc/grove-operator/config/config.yaml
           {{- if .Values.config.server.healthProbes.enable }}

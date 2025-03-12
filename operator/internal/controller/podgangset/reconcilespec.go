@@ -52,7 +52,7 @@ func (r *Reconciler) recordReconcileStart(ctx context.Context, logger logr.Logge
 }
 
 func (r *Reconciler) syncPodGangSetResources(ctx context.Context, logger logr.Logger, pgs *v1alpha1.PodGangSet) ctrlcommon.ReconcileStepResult {
-	for _, kind := range getOrderedKindsForSync() {
+	for _, kind := range getOrderedKindsForSync(pgs.Spec.Template.StartupType) {
 		operator, err := r.operatorRegistry.GetOperator(kind)
 		if err != nil {
 			return ctrlcommon.ReconcileWithErrors(fmt.Sprintf("error getting operator for kind: %s", kind), err)
@@ -94,8 +94,15 @@ func (r *Reconciler) recordIncompleteReconcile(ctx context.Context, logger logr.
 	return *errResult
 }
 
-func getOrderedKindsForSync() []component.Kind {
-	return []component.Kind{
+func getOrderedKindsForSync(startupType *v1alpha1.CliqueStartupType) []component.Kind {
+	kinds := []component.Kind{
 		component.KindPodClique,
 	}
+
+	switch *startupType {
+	case v1alpha1.CliqueStartupTypeInOrder, v1alpha1.CliqueStartupTypeExplicit:
+		kinds = append(kinds, component.KindServiceAccount, component.KindRole, component.KindRoleBinding)
+	}
+
+	return kinds
 }

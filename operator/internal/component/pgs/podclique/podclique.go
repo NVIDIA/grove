@@ -89,7 +89,7 @@ func (r _resource) doCreateOrUpdate(ctx context.Context, logger logr.Logger, pgs
 
 func (r _resource) buildResource(logger logr.Logger, pclq *v1alpha1.PodClique, pgs *v1alpha1.PodGangSet) error {
 	pclqObjectKey, pgsObjectKey := client.ObjectKeyFromObject(pclq), client.ObjectKeyFromObject(pgs)
-	pcTemplateSpec := findPodCliqueTemplateSpec(pclqObjectKey, pgs)
+	pcTemplateSpec, pcIndx := findPodCliqueTemplateSpec(pclqObjectKey, pgs)
 	if pcTemplateSpec == nil {
 		logger.Info("PodClique template spec not found in PodGangSet", "podCliqueObjectKey", pclqObjectKey, "podGangSetObjectKey", pgsObjectKey)
 		return groveerr.New(errSyncPodClique,
@@ -107,6 +107,28 @@ func (r _resource) buildResource(logger logr.Logger, pclq *v1alpha1.PodClique, p
 	// set PodCliqueSpec
 	// ------------------------------------
 	pclq.Spec = pcTemplateSpec.Spec
+
+	// Set StartsAfter if needed
+	if pgs.Spec.Template.StartupType != nil {
+		switch *pgs.Spec.Template.StartupType {
+		case v1alpha1.CliqueStartupTypeAnyOrder:
+			pclq.Spec.StartsAfter = nil
+		case v1alpha1.CliqueStartupTypeInOrder:
+			if pcIndx > 0 {
+				pclq.Spec.StartsAfter = []string{createPodCliqueName(pgs.Name, pgs.Spec.Template.Cliques[pcIndx-1].Name)}
+			} else {
+				pclq.Spec.StartsAfter = nil
+			}
+		case v1alpha1.CliqueStartupTypeExplicit:
+			if n := len(pcTemplateSpec.Spec.StartsAfter); n != 0 {
+				pclq.Spec.StartsAfter = make([]string, 0, n)
+				for _, name := range pcTemplateSpec.Spec.StartsAfter {
+					pclq.Spec.StartsAfter = append(pclq.Spec.StartsAfter, createPodCliqueName(pgs.Name, name))
+				}
+			}
+		}
+	}
+
 	return nil
 }
 
@@ -131,13 +153,13 @@ func getLabels(pgsName string, pcObjectKey client.ObjectKey, pcTemplateSpec *v1a
 	)
 }
 
-func findPodCliqueTemplateSpec(pclqObjectKey client.ObjectKey, pgs *v1alpha1.PodGangSet) *v1alpha1.PodCliqueTemplateSpec {
-	for _, pclqTemplate := range pgs.Spec.Template.Cliques {
+func findPodCliqueTemplateSpec(pclqObjectKey client.ObjectKey, pgs *v1alpha1.PodGangSet) (*v1alpha1.PodCliqueTemplateSpec, int) {
+	for indx, pclqTemplate := range pgs.Spec.Template.Cliques {
 		if createPodCliqueName(pgs.Name, pclqTemplate.Name) == pclqObjectKey.Name {
-			return pclqTemplate
+			return pclqTemplate, indx
 		}
 	}
-	return nil
+	return nil, -1
 }
 
 func getObjectKeys(pgs *v1alpha1.PodGangSet) []client.ObjectKey {
