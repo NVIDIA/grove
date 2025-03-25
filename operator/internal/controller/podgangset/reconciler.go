@@ -18,132 +18,63 @@ package podgangset
 
 import (
 	"context"
-	"fmt"
-
+	"github.com/NVIDIA/grove/operator/internal/component"
+	pgsComponent "github.com/NVIDIA/grove/operator/internal/component/pgs"
+	ctrlutils "github.com/NVIDIA/grove/operator/internal/controller/utils"
 	"github.com/go-logr/logr"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/client-go/tools/record"
-	ctrl "sigs.k8s.io/controller-runtime"
-	"sigs.k8s.io/controller-runtime/pkg/client"
-	ctrlclient "sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	ctrllogger "sigs.k8s.io/controller-runtime/pkg/log"
 
 	configv1alpha1 "github.com/NVIDIA/grove/operator/api/config/v1alpha1"
 	"github.com/NVIDIA/grove/operator/api/core/v1alpha1"
-	"github.com/NVIDIA/grove/operator/internal/utils"
+	ctrlcommon "github.com/NVIDIA/grove/operator/internal/controller/common"
+	ctrl "sigs.k8s.io/controller-runtime"
+	ctrlclient "sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )
 
 // Reconciler reconciles PodGangSet resources.
 type Reconciler struct {
-	config        configv1alpha1.PodGangSetControllerConfiguration
-	client        ctrlclient.Client
-	eventRecorder record.EventRecorder
-	logger        logr.Logger
+	config                  configv1alpha1.PodGangSetControllerConfiguration
+	client                  ctrlclient.Client
+	reconcileStatusRecorder ctrlcommon.ReconcileStatusRecorder[v1alpha1.PodGangSet]
+	operatorRegistry        component.OperatorRegistry[v1alpha1.PodGangSet]
 }
 
 // NewReconciler creates a new reconciler for PodGangSet.
 func NewReconciler(mgr ctrl.Manager, controllerCfg configv1alpha1.PodGangSetControllerConfiguration) *Reconciler {
-	logger := ctrllogger.Log.WithName(controllerName)
 	return &Reconciler{
-		config:        controllerCfg,
-		client:        mgr.GetClient(),
-		eventRecorder: mgr.GetEventRecorderFor(controllerName),
-		logger:        logger,
+		config:                  controllerCfg,
+		client:                  mgr.GetClient(),
+		reconcileStatusRecorder: NewReconcileStatusRecorder(mgr.GetClient(), mgr.GetEventRecorderFor(controllerName)),
+		operatorRegistry:        pgsComponent.CreateOperatorRegistry(mgr),
 	}
 }
 
 // Reconcile reconciles a PodGangSet resource.
 func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	r.logger.Info("PodGangSet reconciliation started", "resource", req.NamespacedName)
+	logger := ctrllogger.FromContext(ctx).
+		WithName(controllerName).
+		WithValues("pgs-name", req.Name, "pgs-namespace", req.Namespace)
 
 	pgs := &v1alpha1.PodGangSet{}
-	if err := r.client.Get(ctx, req.NamespacedName, pgs); err != nil {
-		r.logger.Error(err, "PodGangSet not found", "name", req.NamespacedName.String())
-		return ctrl.Result{}, client.IgnoreNotFound(err)
+	if result := ctrlutils.GetPodGangSet(ctx, r.client, logger, req.NamespacedName, pgs); ctrlcommon.ShortCircuitReconcileFlow(result) {
+		return result.Result()
 	}
 
-	// Add finalizer if not being deleted and finalizer is missing
-	if pgs.ObjectMeta.DeletionTimestamp.IsZero() {
-		if !utils.ContainsString(pgs.ObjectMeta.Finalizers, finalizerName) {
-			pgs.ObjectMeta.Finalizers = append(pgs.ObjectMeta.Finalizers, finalizerName)
-		}
-		return r.reconcile(ctx, pgs)
-	} else {
-		// Handle deletion if finalizer is present
-		if utils.ContainsString(pgs.ObjectMeta.Finalizers, finalizerName) {
-			// Remove finalizer and update object
-			pgs.ObjectMeta.Finalizers = utils.RemoveString(pgs.ObjectMeta.Finalizers, finalizerName)
-		}
-		return r.delete(ctx, pgs)
+	if result := r.reconcileDelete(ctx, logger, pgs); ctrlcommon.ShortCircuitReconcileFlow(result) {
+		return result.Result()
 	}
+
+	return r.reconcileSpec(ctx, logger, pgs).Result()
 }
 
-func (r *Reconciler) reconcile(ctx context.Context, pgs *v1alpha1.PodGangSet) (ctrl.Result, error) {
-	spec := &pgs.Spec
-	for replicaID := range spec.Replicas {
-		for _, templ := range spec.Template.Cliques {
-			pclq := r.getPodClique(pgs, &templ, replicaID)
-
-			// Check if the PodClique already exists
-			found := &v1alpha1.PodClique{}
-			err := r.client.Get(ctx, types.NamespacedName{Name: pclq.Name, Namespace: pclq.Namespace}, found)
-			if err != nil {
-				if client.IgnoreNotFound(err) == nil {
-					r.logger.Info("Creating PodClique", "name", pclq.Name, "namespace", pclq.Namespace)
-					if err := r.client.Create(ctx, pclq); err != nil {
-						return ctrl.Result{}, err
-					}
-				} else {
-					return ctrl.Result{}, err
-				}
-			} else {
-				// If the PodClique exists, ensure it matches the desired state
-				r.logger.Info("Updating PodClique", "name", pclq.Name, "namespace", pclq.Namespace)
-				if err := r.client.Update(ctx, found); err != nil {
-					return ctrl.Result{}, err
-				}
-			}
+func (r *Reconciler) reconcileDelete(ctx context.Context, logger logr.Logger, pgs *v1alpha1.PodGangSet) ctrlcommon.ReconcileStepResult {
+	if !pgs.DeletionTimestamp.IsZero() {
+		if !controllerutil.ContainsFinalizer(pgs, v1alpha1.FinalizerPodGangSet) {
+			return ctrlcommon.DoNotRequeue()
 		}
+		dLog := logger.WithValues("operation", "delete")
+		return r.triggerDeletionFlow(ctx, dLog, pgs)
 	}
-
-	// TODO: in case an error in the internal loop, do we need to roll back already created objects?
-	return ctrl.Result{}, nil
-}
-
-func (r *Reconciler) delete(ctx context.Context, pgs *v1alpha1.PodGangSet) (ctrl.Result, error) {
-	// TODO: implement
-	r.logger.Info("Deleting PodGangSet", "name", pgs.Name, "namespace", pgs.Namespace)
-	err := r.client.Delete(ctx, pgs)
-
-	return ctrl.Result{}, err
-}
-
-func (r *Reconciler) getPodClique(pgs *v1alpha1.PodGangSet, templ *v1alpha1.PodCliqueTemplateSpec, replicaID int32) *v1alpha1.PodClique {
-	pclq := &v1alpha1.PodClique{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:        fmt.Sprintf("%s-%d", templ.Name, replicaID),
-			Namespace:   pgs.Namespace,
-			Labels:      templ.Labels,
-			Annotations: templ.Annotations,
-		},
-		Spec: v1alpha1.PodCliqueSpec{
-			Replicas:    templ.Spec.Replicas,
-			PodSpec:     templ.Spec.PodSpec,
-			StartsAfter: templ.Spec.StartsAfter,
-			ScaleConfig: templ.Spec.ScaleConfig,
-		},
-	}
-
-	// Add required labels
-	if pclq.Labels == nil {
-		pclq.Labels = make(map[string]string)
-	}
-	pclq.Labels[v1alpha1.LabelManagedByKey] = v1alpha1.LabelManagedByValue
-
-	// Set the owner reference and finalizers
-	controllerutil.SetControllerReference(pgs, pclq, r.client.Scheme())
-
-	return pclq
+	return ctrlcommon.ContinueReconcile()
 }

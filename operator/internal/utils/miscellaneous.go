@@ -22,22 +22,3 @@ import "strings"
 func IsEmptyStringType[T ~string](val T) bool {
 	return len(strings.TrimSpace(string(val))) == 0
 }
-
-func ContainsString(slice []string, s string) bool {
-	for _, item := range slice {
-		if item == s {
-			return true
-		}
-	}
-	return false
-}
-
-func RemoveString(slice []string, s string) []string {
-	var result []string
-	for _, item := range slice {
-		if item != s {
-			result = append(result, item)
-		}
-	}
-	return result
-}

@@ -60,7 +60,8 @@ type PodGangSetSpec struct {
 // PodGangSetStatus defines the status of a PodGangSet.
 type PodGangSetStatus struct {
 	// ObservedGeneration is the most recent generation observed by the controller.
-	ObservedGeneration *int64 `json:"observedGeneration,omitempty"`
+	ObservedGeneration *int64         `json:"observedGeneration,omitempty"`
+	LastOperation      *LastOperation `json:"lastOperation,omitempty"`
 	// LastErrors captures the last errors observed by the controller when reconciling the PodGangSet.
 	LastErrors []LastError `json:"lastErrors,omitempty"`
 	// Replicas is the total number of non-terminated PodGangs targeted by this PodGangSet.
@@ -84,7 +85,7 @@ type PodGangSetStatus struct {
 // - The "Replicas" value of that clique
 type PodGangTemplateSpec struct {
 	// Cliques is a slice of cliques that make up the PodGang. There should be at least one PodClique.
-	Cliques []PodCliqueTemplateSpec `json:"cliques"`
+	Cliques []*PodCliqueTemplateSpec `json:"cliques"`
 	// StartupType defines the type of startup dependency amongst the cliques within a PodGang.
 	// +optional
 	StartupType *CliqueStartupType `json:"cliqueStartupType,omitempty"`
@@ -213,6 +214,40 @@ const (
 	// This is a terminal state and is typically used for batch jobs.
 	PodGangSucceeded PodGangPhase = "Succeeded"
 )
+
+// LastOperationType is a string alias for the type of the last operation.
+type LastOperationType string
+
+const (
+	// LastOperationTypeReconcile indicates that the last operation was a reconcile operation.
+	LastOperationTypeReconcile LastOperationType = "Reconcile"
+	// LastOperationTypeDelete indicates that the last operation was a delete operation.
+	LastOperationTypeDelete LastOperationType = "Delete"
+)
+
+// LastOperationState is a string alias for the state of the last operation.
+type LastOperationState string
+
+const (
+	// LastOperationStateProcessing indicates that the last operation is in progress.
+	LastOperationStateProcessing LastOperationState = "Processing"
+	// LastOperationStateSucceeded indicates that the last operation succeeded.
+	LastOperationStateSucceeded LastOperationState = "Succeeded"
+	// LastOperationStateError indicates that the last operation completed with errors and will be retried.
+	LastOperationStateError LastOperationState = "Error"
+)
+
+// LastOperation captures the last operation done by the respective reconciler on the PodGangSet.
+type LastOperation struct {
+	// Type is the type of the last operation.
+	Type LastOperationType `json:"type"`
+	// State is the state of the last operation.
+	State LastOperationState `json:"state"`
+	// Description is a human-readable description of the last operation.
+	Description string `json:"description"`
+	// LastUpdateTime is the time at which the last operation was updated.
+	LastUpdateTime metav1.Time `json:"lastTransitionTime"`
+}
 
 // ErrorCode is a custom error code that uniquely identifies an error.
 type ErrorCode string
