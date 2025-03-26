@@ -3,7 +3,6 @@ package common
 import (
 	"context"
 	"errors"
-	"fmt"
 	"github.com/NVIDIA/grove/operator/api/core/v1alpha1"
 	"github.com/NVIDIA/grove/operator/internal/component"
 	"github.com/go-logr/logr"
@@ -74,12 +73,12 @@ func ContinueReconcile() ReconcileStepResult {
 }
 
 // ReconcileWithErrors returns a ReconcileStepResult that re-queues the reconciliation with the given errors.
-func ReconcileWithErrors(errs ...error) ReconcileStepResult {
+func ReconcileWithErrors(description string, errs ...error) ReconcileStepResult {
 	return ReconcileStepResult{
 		result:            ctrl.Result{Requeue: true},
 		errs:              errs,
 		continueReconcile: false,
-		description:       fmt.Sprintf("%s", errors.Join(errs...).Error()),
+		description:       description,
 	}
 }
 

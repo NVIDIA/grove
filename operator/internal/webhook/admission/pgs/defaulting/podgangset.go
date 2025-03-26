@@ -69,8 +69,8 @@ func defaultUpdateStrategy(spec *v1alpha1.PodGangSetSpec) {
 	spec.UpdateStrategy = updateStrategy
 }
 
-func defaultPodCliqueTemplateSpecs(cliqueSpecs []v1alpha1.PodCliqueTemplateSpec) []v1alpha1.PodCliqueTemplateSpec {
-	defaultedCliqueSpecs := make([]v1alpha1.PodCliqueTemplateSpec, 0, len(cliqueSpecs))
+func defaultPodCliqueTemplateSpecs(cliqueSpecs []*v1alpha1.PodCliqueTemplateSpec) []*v1alpha1.PodCliqueTemplateSpec {
+	defaultedCliqueSpecs := make([]*v1alpha1.PodCliqueTemplateSpec, 0, len(cliqueSpecs))
 	for _, cliqueSpec := range cliqueSpecs {
 		defaultedCliqueSpec := cliqueSpec.DeepCopy()
 		defaultedCliqueSpec.Spec.PodSpec = *defaultPodSpec(&cliqueSpec.Spec.PodSpec)
@@ -80,7 +80,7 @@ func defaultPodCliqueTemplateSpecs(cliqueSpecs []v1alpha1.PodCliqueTemplateSpec)
 		if defaultedCliqueSpec.Spec.ScaleConfig != nil && defaultedCliqueSpec.Spec.ScaleConfig.MinReplicas == nil {
 			defaultedCliqueSpec.Spec.ScaleConfig.MinReplicas = ptr.To[int32](1)
 		}
-		defaultedCliqueSpecs = append(defaultedCliqueSpecs, *defaultedCliqueSpec)
+		defaultedCliqueSpecs = append(defaultedCliqueSpecs, defaultedCliqueSpec)
 	}
 	return defaultedCliqueSpecs
 }

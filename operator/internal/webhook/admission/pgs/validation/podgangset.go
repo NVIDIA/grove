@@ -44,90 +44,82 @@ type pgsValidator struct {
 	pgs       *v1alpha1.PodGangSet
 }
 
-func newPGSValidator(pgs *v1alpha1.PodGangSet) *pgsValidator {
+func newPGSValidator(pgs *v1alpha1.PodGangSet, operation admissionv1.Operation) *pgsValidator {
 	return &pgsValidator{
-		pgs: pgs,
+		operation: operation,
+		pgs:       pgs,
 	}
 }
 
 func (v *pgsValidator) validate() ([]string, error) {
 	allErrs := field.ErrorList{}
-
 	allErrs = append(allErrs, apivalidation.ValidateObjectMeta(&v.pgs.ObjectMeta, true, apivalidation.NameIsDNSSubdomain, field.NewPath("metadata"))...)
-	warnings, errs := v.validatePodGangSetSpec()
+	fldPath := field.NewPath("spec")
+	warnings, errs := v.validatePodGangSetSpec(fldPath)
 	if len(errs) != 0 {
 		allErrs = append(allErrs, errs...)
 	}
-
 	return warnings, allErrs.ToAggregate()
 }
 
 func (v *pgsValidator) validateUpdate(oldPgs *v1alpha1.PodGangSet) error {
 	allErrs := field.ErrorList{}
-
 	allErrs = append(allErrs, validatePodGangSetSpecUpdate(field.NewPath("spec"), &v.pgs.Spec, &oldPgs.Spec)...)
-
 	return allErrs.ToAggregate()
 }
 
 // validatePodGangSetSpec validates the specification of a PodGangSet object.
-func (v *pgsValidator) validatePodGangSetSpec() ([]string, field.ErrorList) {
+func (v *pgsValidator) validatePodGangSetSpec(fldPath *field.Path) ([]string, field.ErrorList) {
 	allErrs := field.ErrorList{}
-	fldPath := field.NewPath("spec")
-
 	allErrs = append(allErrs, apivalidation.ValidateNonnegativeField(int64(v.pgs.Spec.Replicas), fldPath.Child("replicas"))...)
 	allErrs = append(allErrs, v.validateUpdateStrategy(fldPath.Child("updateStrategy"))...)
 	warnings, errs := v.validatePodGangTemplateSpec(fldPath.Child("template"))
 	if len(errs) != 0 {
 		allErrs = append(allErrs, errs...)
 	}
-
 	return warnings, allErrs
 }
 
 func (v *pgsValidator) validateUpdateStrategy(fldPath *field.Path) field.ErrorList {
 	errs := field.ErrorList{}
 	updateStrategy := v.pgs.Spec.UpdateStrategy
-
 	if updateStrategy == nil {
 		return append(errs, field.Required(fldPath, "field is required"))
 	}
-
 	return append(errs, v.validateRollingUpdateConfig(fldPath.Child("rollingUpdateConfig"))...)
 }
 
 func (v *pgsValidator) validateRollingUpdateConfig(fldPath *field.Path) field.ErrorList {
-	errs := field.ErrorList{}
+	allErrs := field.ErrorList{}
 
 	rollingUpdateConfig := v.pgs.Spec.UpdateStrategy.RollingUpdateConfig
 	replicas := int(v.pgs.Spec.Replicas)
-
 	if rollingUpdateConfig == nil {
-		return append(errs, field.Required(fldPath, "field is required"))
-	} else {
-		maxUnavailable, err := intstr.GetScaledValueFromIntOrPercent(rollingUpdateConfig.MaxUnavailable, replicas, false)
-		if err != nil {
-			errs = append(errs, field.Invalid(fldPath.Child("maxUnavailable"), rollingUpdateConfig.MaxUnavailable, err.Error()))
-		}
-		maxSurge, err := intstr.GetScaledValueFromIntOrPercent(rollingUpdateConfig.MaxSurge, replicas, false)
-		if err != nil {
-			errs = append(errs, field.Invalid(fldPath.Child("maxSurge"), rollingUpdateConfig.MaxSurge, err.Error()))
-		}
-
-		// Ensure that MaxUnavailable and MaxSurge are non-negative.
-		errs = append(errs, apivalidation.ValidateNonnegativeField(int64(maxUnavailable), fldPath.Child("maxUnavailable"))...)
-		errs = append(errs, apivalidation.ValidateNonnegativeField(int64(maxSurge), fldPath.Child("maxSurge"))...)
-
-		// Ensure that MaxUnavailable is not more than the replicas for the PodGangSet.
-		if maxUnavailable > replicas {
-			errs = append(errs, field.Invalid(fldPath.Child("maxUnavailable"), rollingUpdateConfig.MaxUnavailable, "cannot be greater than replicas"))
-		}
-		// Ensure that both MaxSurge and MaxUnavailable are not zero.
-		if maxSurge == 0 && maxUnavailable == 0 {
-			errs = append(errs, field.Invalid(fldPath.Child("maxUnavailable"), rollingUpdateConfig.MaxUnavailable, "cannot be 0 when maxSurge is 0"))
-		}
+		return append(allErrs, field.Required(fldPath, "field is required"))
 	}
-	return errs
+
+	maxUnavailable, err := intstr.GetScaledValueFromIntOrPercent(rollingUpdateConfig.MaxUnavailable, replicas, false)
+	if err != nil {
+		allErrs = append(allErrs, field.Invalid(fldPath.Child("maxUnavailable"), rollingUpdateConfig.MaxUnavailable, err.Error()))
+	}
+	maxSurge, err := intstr.GetScaledValueFromIntOrPercent(rollingUpdateConfig.MaxSurge, replicas, false)
+	if err != nil {
+		allErrs = append(allErrs, field.Invalid(fldPath.Child("maxSurge"), rollingUpdateConfig.MaxSurge, err.Error()))
+	}
+
+	// Ensure that MaxUnavailable and MaxSurge are non-negative.
+	allErrs = append(allErrs, apivalidation.ValidateNonnegativeField(int64(maxUnavailable), fldPath.Child("maxUnavailable"))...)
+	allErrs = append(allErrs, apivalidation.ValidateNonnegativeField(int64(maxSurge), fldPath.Child("maxSurge"))...)
+
+	// Ensure that MaxUnavailable is not more than the replicas for the PodGangSet.
+	if maxUnavailable > replicas {
+		allErrs = append(allErrs, field.Invalid(fldPath.Child("maxUnavailable"), rollingUpdateConfig.MaxUnavailable, "cannot be greater than replicas"))
+	}
+	// Ensure that both MaxSurge and MaxUnavailable are not zero.
+	if maxSurge == 0 && maxUnavailable == 0 {
+		allErrs = append(allErrs, field.Invalid(fldPath.Child("maxUnavailable"), rollingUpdateConfig.MaxUnavailable, "cannot be 0 when maxSurge is 0"))
+	}
+	return allErrs
 }
 
 func (v *pgsValidator) validatePodGangTemplateSpec(fldPath *field.Path) ([]string, field.ErrorList) {
@@ -179,16 +171,13 @@ func (v *pgsValidator) validatePodCliqueTemplates(fldPath *field.Path) ([]string
 	return warnings, allErrs
 }
 
-func (v *pgsValidator) validatePodCliqueTemplateSpec(cliqueTemplateSpec v1alpha1.PodCliqueTemplateSpec, fldPath *field.Path) ([]string, field.ErrorList) {
+func (v *pgsValidator) validatePodCliqueTemplateSpec(cliqueTemplateSpec *v1alpha1.PodCliqueTemplateSpec, fldPath *field.Path) ([]string, field.ErrorList) {
 	allErrs := field.ErrorList{}
-
 	// TODO: check name
-
 	warnings, errs := v.validatePodCliqueSpec(cliqueTemplateSpec.Name, cliqueTemplateSpec.Spec, fldPath.Child("spec"))
 	if len(errs) != 0 {
 		allErrs = append(allErrs, errs...)
 	}
-
 	return warnings, allErrs
 }
 
@@ -274,7 +263,7 @@ func validatePodCliqueTemplateObjectMeta(cliqueObjMeta metav1.ObjectMeta, fldPat
 	return allErrs
 }
 
-func validateCliqueDependencies(cliques []v1alpha1.PodCliqueTemplateSpec, fldPath *field.Path) field.ErrorList {
+func validateCliqueDependencies(cliques []*v1alpha1.PodCliqueTemplateSpec, fldPath *field.Path) field.ErrorList {
 	allErrs := field.ErrorList{}
 
 	depG := NewPodCliqueDependencyGraph()
@@ -339,30 +328,24 @@ func validatePodGangSetSpecUpdate(fldPath *field.Path, newSpec, oldSpec *v1alpha
 
 func validatePodGangTemplateSpecUpdate(fldPath *field.Path, newSpec, oldSpec *v1alpha1.PodGangTemplateSpec) field.ErrorList {
 	allErrs := field.ErrorList{}
-
 	allErrs = append(allErrs, validatePodCliqueUpdate(fldPath.Child("cliques"), newSpec.Cliques, oldSpec.Cliques)...)
-
-	if newSpec.StartupType != oldSpec.StartupType {
+	if *newSpec.StartupType != *oldSpec.StartupType {
 		allErrs = append(allErrs, field.Forbidden(fldPath.Child("cliqueStartupType"), "field is immutable"))
 	}
-
 	if *newSpec.NetworkPackStrategy != *oldSpec.NetworkPackStrategy {
 		allErrs = append(allErrs, field.Forbidden(fldPath.Child("networkPackStrategy"), "field is immutable"))
 	}
-
 	return allErrs
 }
 
-func validatePodCliqueUpdate(fldPath *field.Path, newCliques, oldCliques []v1alpha1.PodCliqueTemplateSpec) field.ErrorList {
+func validatePodCliqueUpdate(fldPath *field.Path, newCliques, oldCliques []*v1alpha1.PodCliqueTemplateSpec) field.ErrorList {
 	allErrs := field.ErrorList{}
 
 	if len(newCliques) != len(oldCliques) {
 		allErrs = append(allErrs, field.Forbidden(fldPath, "not allowed to change clique composition"))
 	}
-
 	for i := range newCliques {
 		// TODO: check name
-
 		allErrs = append(allErrs, validatePodSpecUpdate(fldPath.Child("spec", "podSpec"), &newCliques[i].Spec.PodSpec, &oldCliques[i].Spec.PodSpec)...)
 	}
 
@@ -378,15 +361,15 @@ func validatePodSpecUpdate(fldPath *field.Path, newSpec, oldSpec *corev1.PodSpec
 	//  `spec.activeDeadlineSeconds`,
 	//  `spec.tolerations` (only additions to existing tolerations),
 	//  `spec.terminationGracePeriodSeconds` (allow it to be set to 1 if it was previously negative)
-
 	if len(newSpec.Tolerations) < len(oldSpec.Tolerations) || !reflect.DeepEqual(oldSpec.Tolerations, newSpec.Tolerations[:len(oldSpec.Tolerations)]) {
 		allErrs = append(allErrs, field.Forbidden(fldPath.Child("tolerations"), "not allowed to change immutable pod fields"))
 	}
-
-	if !(*oldSpec.TerminationGracePeriodSeconds < 0 && *newSpec.TerminationGracePeriodSeconds == 1) {
-		allErrs = append(allErrs, field.Forbidden(fldPath.Child("terminationGracePeriodSeconds"), "value can only be set to 1 if previously negative"))
+	if *oldSpec.TerminationGracePeriodSeconds < 0 {
+		// The only change that is allowed is to set this value to 1. All other modifications should be rejected.
+		if *newSpec.TerminationGracePeriodSeconds != 1 {
+			allErrs = append(allErrs, field.Forbidden(fldPath.Child("terminationGracePeriodSeconds"), "value can only be set to 1 if previously negative"))
+		}
 	}
-
 	// hide mutable fields
 	spec1 := newSpec.DeepCopy()
 	spec2 := oldSpec.DeepCopy()

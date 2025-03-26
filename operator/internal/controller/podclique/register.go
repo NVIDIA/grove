@@ -19,7 +19,6 @@ const (
 )
 
 func (r *Reconciler) RegisterWithManager(mgr ctrl.Manager) error {
-	r.logger.Info("Registering reconciler", "controllerName", controllerName)
 	return builder.ControllerManagedBy(mgr).
 		Named(controllerName).
 		WithOptions(controller.Options{

@@ -60,8 +60,9 @@ type PodGangSetSpec struct {
 // PodGangSetStatus defines the status of a PodGangSet.
 type PodGangSetStatus struct {
 	// ObservedGeneration is the most recent generation observed by the controller.
-	ObservedGeneration *int64         `json:"observedGeneration,omitempty"`
-	LastOperation      *LastOperation `json:"lastOperation,omitempty"`
+	ObservedGeneration *int64 `json:"observedGeneration,omitempty"`
+	// LastOperation captures the last operation done by the respective reconciler on the PodGangSet.
+	LastOperation *LastOperation `json:"lastOperation,omitempty"`
 	// LastErrors captures the last errors observed by the controller when reconciling the PodGangSet.
 	LastErrors []LastError `json:"lastErrors,omitempty"`
 	// Replicas is the total number of non-terminated PodGangs targeted by this PodGangSet.

@@ -8,6 +8,7 @@ import (
 	ctrlutils "github.com/NVIDIA/grove/operator/internal/controller/utils"
 	"github.com/NVIDIA/grove/operator/internal/utils"
 	"github.com/go-logr/logr"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )
 
@@ -29,8 +30,9 @@ func (r *Reconciler) triggerDeletionFlow(ctx context.Context, logger logr.Logger
 
 func (r *Reconciler) recordDeletionStart(ctx context.Context, logger logr.Logger, pgs *v1alpha1.PodGangSet) ctrlcommon.ReconcileStepResult {
 	if err := r.reconcileStatusRecorder.RecordStart(ctx, pgs, v1alpha1.LastOperationTypeDelete); err != nil {
-		logger.Error(err, "failed to record deletion start operation", "PodGangSet", pgs)
-		return ctrlcommon.ReconcileWithErrors(err)
+		errMsg := "failed to record deletion start operation"
+		logger.Error(err, errMsg, "PodGangSet", pgs)
+		return ctrlcommon.ReconcileWithErrors(errMsg, err)
 	}
 	return ctrlcommon.ContinueReconcile()
 }
@@ -48,7 +50,7 @@ func (r *Reconciler) deletePodGangSetResources(ctx context.Context, logger logr.
 	}
 	logger.Info("Triggering delete of PodGangSet resources")
 	if errs := utils.RunConcurrently(ctx, deleteTasks); len(errs) > 0 {
-		return ctrlcommon.ReconcileWithErrors(errs...)
+		return ctrlcommon.ReconcileWithErrors("error deleting managed resources", errs...)
 	}
 	return ctrlcommon.ContinueReconcile()
 }
@@ -65,7 +67,7 @@ func (r *Reconciler) removeFinalizer(ctx context.Context, logger logr.Logger, pg
 	}
 	logger.Info("Removing finalizer", "PodGangSet", pgs, "finalizerName", v1alpha1.FinalizerPodGangSet)
 	if err := ctrlutils.RemoveAndPatchFinalizer(ctx, r.client, pgs, v1alpha1.FinalizerPodGangSet); err != nil {
-		return ctrlcommon.ReconcileWithErrors(fmt.Errorf("failed to remove finalizer: %s from PodGangSet: %v: %w", v1alpha1.FinalizerPodGangSet, pgs, err))
+		return ctrlcommon.ReconcileWithErrors("error removing finalizer", fmt.Errorf("failed to remove finalizer: %s from PodGangSet: %v: %w", v1alpha1.FinalizerPodGangSet, client.ObjectKeyFromObject(pgs), err))
 	}
 	return ctrlcommon.ContinueReconcile()
 }
@@ -75,7 +77,7 @@ func (r *Reconciler) recordIncompleteDeletion(ctx context.Context, logger logr.L
 		logger.Error(err, "failed to record deletion completion operation", "PodGangSet", pgs)
 		// combine all errors
 		allErrs := append(errResult.GetErrors(), err)
-		return ctrlcommon.ReconcileWithErrors(allErrs...)
+		return ctrlcommon.ReconcileWithErrors("error recording incomplete reconciliation", allErrs...)
 	}
 	return *errResult
 }

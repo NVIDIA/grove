@@ -13,8 +13,6 @@ type _resource struct {
 	client client.Client
 }
 
-var _ component.Operator[v1alpha1.PodGangSet] = (*_resource[v1alpha1.PodGangSet])(nil)
-
 func New(client client.Client) component.Operator[v1alpha1.PodGangSet] {
 	return &_resource{
 		client: client,
@@ -23,10 +21,10 @@ func New(client client.Client) component.Operator[v1alpha1.PodGangSet] {
 
 func (_ _resource) Sync(ctx context.Context, logger logr.Logger, pgs *v1alpha1.PodGangSet) error {
 	//TODO implement me
-	panic("implement me")
+	return nil
 }
 
 func (_ _resource) Delete(ctx context.Context, logger logr.Logger, objMeta metav1.ObjectMeta) error {
 	//TODO implement me
-	panic("implement me")
+	return nil
 }

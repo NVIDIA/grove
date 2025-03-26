@@ -40,6 +40,7 @@ func (r *Reconciler) RegisterWithManager(mgr manager.Manager) error {
 			MaxConcurrentReconciles: *r.config.ConcurrentSyncs,
 		}).
 		For(&v1alpha1.PodGangSet{}).
+		WithEventFilter(predicate.GenerationChangedPredicate{}).
 		Owns(&v1alpha1.PodClique{}, builder.WithPredicates(podCliquePredicate())).
 		Complete(r)
 }

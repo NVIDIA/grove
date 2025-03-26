@@ -11,6 +11,7 @@ import (
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/tools/record"
+	"log/slog"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"time"
 )
@@ -29,7 +30,8 @@ func NewReconcileStatusRecorder(client client.Client, eventRecorder record.Event
 }
 
 func (r *recorder) RecordStart(ctx context.Context, pgs *v1alpha1.PodGangSet, operationType v1alpha1.LastOperationType) error {
-	eventReason := lo.Ternary(operationType == v1alpha1.LastOperationTypeReconcile, v1alpha1.EventReconciling, v1alpha1.EventDeleting)
+	slog.Info("recording start", "pgs", pgs.Name, "operationType", operationType)
+	eventReason := lo.Ternary[string](operationType == v1alpha1.LastOperationTypeReconcile, v1alpha1.EventReconciling, v1alpha1.EventDeleting)
 	r.eventRecorder.Event(pgs, v1.EventTypeNormal, eventReason, fmt.Sprintf("Reconciling PodGangSet"))
 	description := lo.Ternary(operationType == v1alpha1.LastOperationTypeReconcile, "PodGangSet reconciliation is in progress", "PodGangSet deletion is in progress")
 	return r.recordLastOperationAndLastErrors(ctx, pgs, operationType, v1alpha1.LastOperationStateProcessing, description)
@@ -42,7 +44,7 @@ func (r *recorder) RecordCompletion(ctx context.Context, pgs *v1alpha1.PodGangSe
 		lastErrors  []v1alpha1.LastError
 		lastOpState = v1alpha1.LastOperationStateSucceeded
 	)
-	if operationResult.HasErrors() {
+	if operationResult != nil && operationResult.HasErrors() {
 		lastErrors = groveerr.MapToLastErrors(operationResult.GetErrors())
 		lastOpState = v1alpha1.LastOperationStateError
 	}
@@ -50,10 +52,18 @@ func (r *recorder) RecordCompletion(ctx context.Context, pgs *v1alpha1.PodGangSe
 }
 
 func (r *recorder) recordCompletionEvent(pgs *v1alpha1.PodGangSet, operationType v1alpha1.LastOperationType, operationResult *ctrlcommon.ReconcileStepResult) {
+	slog.Info("recording completion", "pgs", pgs.Name, "operationType", operationType)
 	eventReason := getCompletionEventReason(operationType, operationResult)
-	eventType := lo.Ternary(operationResult.HasErrors(), v1.EventTypeWarning, v1.EventTypeNormal)
+	eventType := lo.Ternary(operationResult != nil && operationResult.HasErrors(), v1.EventTypeWarning, v1.EventTypeNormal)
 	message := getCompletionEventMessage(operationType, operationResult)
 	r.eventRecorder.Event(pgs, eventType, eventReason, message)
+}
+
+func getCompletionEventReason(operationType v1alpha1.LastOperationType, operationResult *ctrlcommon.ReconcileStepResult) string {
+	if operationResult != nil && operationResult.HasErrors() {
+		return lo.Ternary[string](operationType == v1alpha1.LastOperationTypeReconcile, v1alpha1.EventReconcileError, v1alpha1.EventDeleteError)
+	}
+	return lo.Ternary[string](operationType == v1alpha1.LastOperationTypeReconcile, v1alpha1.EventReconciled, v1alpha1.EventDeleted)
 }
 
 func getCompletionEventMessage(operationType v1alpha1.LastOperationType, operationResult *ctrlcommon.ReconcileStepResult) string {
@@ -61,13 +71,6 @@ func getCompletionEventMessage(operationType v1alpha1.LastOperationType, operati
 		return operationResult.GetDescription()
 	}
 	return lo.Ternary(operationType == v1alpha1.LastOperationTypeReconcile, "Reconciled PodGangSet", "Deleted PodGangSet")
-}
-
-func getCompletionEventReason(operationType v1alpha1.LastOperationType, operationResult *ctrlcommon.ReconcileStepResult) string {
-	if operationResult != nil && operationResult.HasErrors() {
-		return lo.Ternary(operationType == v1alpha1.LastOperationTypeReconcile, v1alpha1.EventReconcileError, v1alpha1.EventDeleteError)
-	}
-	return lo.Ternary(operationType == v1alpha1.LastOperationTypeReconcile, v1alpha1.EventReconciled, v1alpha1.EventDeleted)
 }
 
 func getLastOperationCompletionDescription(operationType v1alpha1.LastOperationType, operationResult *ctrlcommon.ReconcileStepResult) string {

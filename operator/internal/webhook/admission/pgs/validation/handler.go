@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"github.com/NVIDIA/grove/operator/internal/errors"
 	"github.com/go-logr/logr"
+	admissionv1 "k8s.io/api/admission/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
@@ -31,8 +32,6 @@ import (
 const (
 	ErrValidateCreatePodGangSet v1alpha1.ErrorCode = "ERR_VALIDATE_CREATE_PODGANGSET"
 	ErrValidateUpdatePodGangSet v1alpha1.ErrorCode = "ERR_VALIDATE_UPDATE_PODGANGSET"
-	OperationCreate                                = "Create"
-	OperationUpdate                                = "Update"
 )
 
 // Handler is a handler for validating PodGangSet resources.
@@ -49,24 +48,24 @@ func NewHandler(mgr manager.Manager) *Handler {
 
 func (h *Handler) ValidateCreate(ctx context.Context, obj runtime.Object) (admission.Warnings, error) {
 	h.logValidatorFunctionInvocation(ctx)
-	pgs, err := getPodGangSet(obj)
+	pgs, err := castToPodGangSet(obj)
 	if err != nil {
-		return nil, errors.WrapError(err, ErrValidateCreatePodGangSet, OperationCreate, "failed to cast object to PodGangSet")
+		return nil, errors.WrapError(err, ErrValidateCreatePodGangSet, string(admissionv1.Create), "failed to cast object to PodGangSet")
 	}
-	return newPGSValidator(pgs).validate()
+	return newPGSValidator(pgs, admissionv1.Create).validate()
 }
 
 func (h *Handler) ValidateUpdate(ctx context.Context, newObj, oldObj runtime.Object) (admission.Warnings, error) {
 	h.logValidatorFunctionInvocation(ctx)
-	newPgs, err := getPodGangSet(newObj)
+	newPgs, err := castToPodGangSet(newObj)
 	if err != nil {
-		return nil, errors.WrapError(err, ErrValidateUpdatePodGangSet, OperationUpdate, "failed to cast new object to PodGangSet")
+		return nil, errors.WrapError(err, ErrValidateUpdatePodGangSet, string(admissionv1.Update), "failed to cast new object to PodGangSet")
 	}
-	oldPgs, err := getPodGangSet(oldObj)
+	oldPgs, err := castToPodGangSet(oldObj)
 	if err != nil {
-		return nil, errors.WrapError(err, ErrValidateUpdatePodGangSet, OperationUpdate, "failed to cast old object to PodGangSet")
+		return nil, errors.WrapError(err, ErrValidateUpdatePodGangSet, string(admissionv1.Update), "failed to cast old object to PodGangSet")
 	}
-	validator := newPGSValidator(newPgs)
+	validator := newPGSValidator(newPgs, admissionv1.Update)
 	warnings, err := validator.validate()
 	if err != nil {
 		return warnings, err
@@ -78,7 +77,7 @@ func (h *Handler) ValidateDelete(_ context.Context, _ runtime.Object) (admission
 	return nil, nil
 }
 
-func getPodGangSet(obj runtime.Object) (*v1alpha1.PodGangSet, error) {
+func castToPodGangSet(obj runtime.Object) (*v1alpha1.PodGangSet, error) {
 	pgs, ok := obj.(*v1alpha1.PodGangSet)
 	if !ok {
 		return nil, fmt.Errorf("expected an PodGangSet object but got %T", obj)

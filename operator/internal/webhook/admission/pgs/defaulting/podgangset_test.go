@@ -35,7 +35,7 @@ func TestDefaultPodGangSet(t *testing.T) {
 		},
 		Spec: v1alpha1.PodGangSetSpec{
 			Template: v1alpha1.PodGangTemplateSpec{
-				Cliques: []v1alpha1.PodCliqueTemplateSpec{{
+				Cliques: []*v1alpha1.PodCliqueTemplateSpec{{
 					Name: "test",
 					Spec: v1alpha1.PodCliqueSpec{
 						Replicas: 1,
@@ -66,7 +66,7 @@ func TestDefaultPodGangSet(t *testing.T) {
 		},
 		Spec: v1alpha1.PodGangSetSpec{
 			Template: v1alpha1.PodGangTemplateSpec{
-				Cliques: []v1alpha1.PodCliqueTemplateSpec{{
+				Cliques: []*v1alpha1.PodCliqueTemplateSpec{{
 					Name: "test",
 					Spec: v1alpha1.PodCliqueSpec{
 						ScaleConfig: &v1alpha1.AutoScalingConfig{
