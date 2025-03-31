@@ -3,6 +3,7 @@ package podclique
 import (
 	"context"
 	"fmt"
+	"github.com/NVIDIA/grove/operator/internal/utils"
 
 	"github.com/NVIDIA/grove/operator/api/core/v1alpha1"
 	ctrlcommon "github.com/NVIDIA/grove/operator/internal/controller/common"
@@ -29,7 +30,20 @@ func (r *Reconciler) triggerDeletionFlow(ctx context.Context, logger logr.Logger
 }
 
 func (r *Reconciler) deletePodCliqueResources(ctx context.Context, logger logr.Logger, pclq *v1alpha1.PodClique) ctrlcommon.ReconcileStepResult {
-	// TODO implement me
+	operators := r.operatorRegistry.GetAllOperators()
+	deleteTasks := make([]utils.Task, 0, len(operators))
+	for kind, operator := range operators {
+		deleteTasks = append(deleteTasks, utils.Task{
+			Name: fmt.Sprintf("delete-%s", kind),
+			Fn: func(ctx context.Context) error {
+				return operator.Delete(ctx, logger, pclq.ObjectMeta)
+			},
+		})
+	}
+	logger.Info("Triggering delete of PodClique resources")
+	if errs := utils.RunConcurrently(ctx, deleteTasks); len(errs) > 0 {
+		return ctrlcommon.ReconcileWithErrors("error deleting managed resources", errs...)
+	}
 	return ctrlcommon.ContinueReconcile()
 }
 

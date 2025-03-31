@@ -3,12 +3,10 @@ package podgangset
 import (
 	"context"
 	"fmt"
-
 	"github.com/NVIDIA/grove/operator/api/core/v1alpha1"
 	ctrlcommon "github.com/NVIDIA/grove/operator/internal/controller/common"
 	ctrlutils "github.com/NVIDIA/grove/operator/internal/controller/utils"
 	"github.com/NVIDIA/grove/operator/internal/utils"
-
 	"github.com/go-logr/logr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
@@ -41,7 +39,7 @@ func (r *Reconciler) recordDeletionStart(ctx context.Context, logger logr.Logger
 
 func (r *Reconciler) deletePodGangSetResources(ctx context.Context, logger logr.Logger, pgs *v1alpha1.PodGangSet) ctrlcommon.ReconcileStepResult {
 	operators := r.operatorRegistry.GetAllOperators()
-	deleteTasks := make([]utils.Task, len(operators))
+	deleteTasks := make([]utils.Task, 0, len(operators))
 	for kind, operator := range operators {
 		deleteTasks = append(deleteTasks, utils.Task{
 			Name: fmt.Sprintf("delete-%s", kind),

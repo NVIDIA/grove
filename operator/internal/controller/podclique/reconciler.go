@@ -59,7 +59,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 func (r *Reconciler) reconcileDelete(ctx context.Context, logger logr.Logger, pclq *v1alpha1.PodClique) ctrlcommon.ReconcileStepResult {
 	logger.Info("reconcile deletion")
 	if !pclq.DeletionTimestamp.IsZero() {
-		if !controllerutil.ContainsFinalizer(pclq, v1alpha1.FinalizerPodGangSet) {
+		if !controllerutil.ContainsFinalizer(pclq, v1alpha1.FinalizerPodClique) {
 			return ctrlcommon.DoNotRequeue()
 		}
 		dLog := logger.WithValues("operation", "delete")

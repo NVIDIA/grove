@@ -17,8 +17,8 @@ import (
 func (r *Reconciler) reconcileSpec(ctx context.Context, logger logr.Logger, pclq *v1alpha1.PodClique) ctrlcommon.ReconcileStepResult {
 	rLog := logger.WithValues("operation", "spec-reconcile")
 	reconcileStepFns := []ctrlcommon.ReconcileStepFn[v1alpha1.PodClique]{
-		r.recordReconcileStart,
 		r.ensureFinalizer,
+		r.recordReconcileStart,
 		r.syncPodCliqueResources,
 		r.recordReconcileSuccess,
 		//r.updatePodCliqueStatus,
@@ -34,20 +34,20 @@ func (r *Reconciler) reconcileSpec(ctx context.Context, logger logr.Logger, pclq
 	return ctrlcommon.ContinueReconcile()
 }
 
-func (r *Reconciler) recordReconcileStart(ctx context.Context, logger logr.Logger, pclq *v1alpha1.PodClique) ctrlcommon.ReconcileStepResult {
-	if err := r.reconcileStatusRecorder.RecordStart(ctx, pclq, v1alpha1.LastOperationTypeReconcile); err != nil {
-		logger.Error(err, "failed to record reconcile start operation")
-		return ctrlcommon.ReconcileWithErrors("error recoding reconcile start", err)
-	}
-	return ctrlcommon.ContinueReconcile()
-}
-
 func (r *Reconciler) ensureFinalizer(ctx context.Context, logger logr.Logger, pclq *v1alpha1.PodClique) ctrlcommon.ReconcileStepResult {
 	if !controllerutil.ContainsFinalizer(pclq, v1alpha1.FinalizerPodClique) {
 		logger.Info("Adding finalizer", "PodClique", client.ObjectKeyFromObject(pclq), "finalizerName", v1alpha1.FinalizerPodClique)
 		if err := ctrlutils.AddAndPatchFinalizer(ctx, r.client, pclq, v1alpha1.FinalizerPodClique); err != nil {
 			return ctrlcommon.ReconcileWithErrors("error adding finalizer", err)
 		}
+	}
+	return ctrlcommon.ContinueReconcile()
+}
+
+func (r *Reconciler) recordReconcileStart(ctx context.Context, logger logr.Logger, pclq *v1alpha1.PodClique) ctrlcommon.ReconcileStepResult {
+	if err := r.reconcileStatusRecorder.RecordStart(ctx, pclq, v1alpha1.LastOperationTypeReconcile); err != nil {
+		logger.Error(err, "failed to record reconcile start operation")
+		return ctrlcommon.ReconcileWithErrors("error recoding reconcile start", err)
 	}
 	return ctrlcommon.ContinueReconcile()
 }

@@ -17,8 +17,8 @@ import (
 func (r *Reconciler) reconcileSpec(ctx context.Context, logger logr.Logger, pgs *v1alpha1.PodGangSet) ctrlcommon.ReconcileStepResult {
 	rLog := logger.WithValues("operation", "spec-reconcile")
 	reconcileStepFns := []ctrlcommon.ReconcileStepFn[v1alpha1.PodGangSet]{
-		r.recordReconcileStart,
 		r.ensureFinalizer,
+		r.recordReconcileStart,
 		r.syncPodGangSetResources,
 		r.recordReconcileSuccess,
 		r.updateObservedGeneration,
@@ -33,20 +33,20 @@ func (r *Reconciler) reconcileSpec(ctx context.Context, logger logr.Logger, pgs 
 	return ctrlcommon.ContinueReconcile()
 }
 
-func (r *Reconciler) recordReconcileStart(ctx context.Context, logger logr.Logger, pgs *v1alpha1.PodGangSet) ctrlcommon.ReconcileStepResult {
-	if err := r.reconcileStatusRecorder.RecordStart(ctx, pgs, v1alpha1.LastOperationTypeReconcile); err != nil {
-		logger.Error(err, "failed to record reconcile start operation")
-		return ctrlcommon.ReconcileWithErrors("error recoding reconcile start", err)
-	}
-	return ctrlcommon.ContinueReconcile()
-}
-
 func (r *Reconciler) ensureFinalizer(ctx context.Context, logger logr.Logger, pgs *v1alpha1.PodGangSet) ctrlcommon.ReconcileStepResult {
 	if !controllerutil.ContainsFinalizer(pgs, v1alpha1.FinalizerPodGangSet) {
 		logger.Info("Adding finalizer", "finalizerName", v1alpha1.FinalizerPodGangSet)
 		if err := ctrlutils.AddAndPatchFinalizer(ctx, r.client, pgs, v1alpha1.FinalizerPodGangSet); err != nil {
 			return ctrlcommon.ReconcileWithErrors("error adding finalizer", fmt.Errorf("failed to add finalizer: %s to PodGangSet: %v: %w", v1alpha1.FinalizerPodGangSet, client.ObjectKeyFromObject(pgs), err))
 		}
+	}
+	return ctrlcommon.ContinueReconcile()
+}
+
+func (r *Reconciler) recordReconcileStart(ctx context.Context, logger logr.Logger, pgs *v1alpha1.PodGangSet) ctrlcommon.ReconcileStepResult {
+	if err := r.reconcileStatusRecorder.RecordStart(ctx, pgs, v1alpha1.LastOperationTypeReconcile); err != nil {
+		logger.Error(err, "failed to record reconcile start operation")
+		return ctrlcommon.ReconcileWithErrors("error recoding reconcile start", err)
 	}
 	return ctrlcommon.ContinueReconcile()
 }
