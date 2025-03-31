@@ -19,10 +19,10 @@ package validation
 import (
 	"fmt"
 
+	"github.com/NVIDIA/grove/operator/internal/utils"
+
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/apimachinery/pkg/util/validation/field"
-
-	"github.com/NVIDIA/grove/operator/internal/utils"
 )
 
 func validateEnumType[T comparable](value *T, allowedValues sets.Set[T], fldPath *field.Path) field.ErrorList {

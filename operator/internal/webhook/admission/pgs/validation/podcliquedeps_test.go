@@ -1,9 +1,10 @@
 package validation
 
 import (
-	"github.com/stretchr/testify/assert"
 	"slices"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func TestGetUnknownCliques(t *testing.T) {

@@ -18,18 +18,19 @@ package podgangset
 
 import (
 	"context"
-	"github.com/NVIDIA/grove/operator/internal/component"
-	pgsComponent "github.com/NVIDIA/grove/operator/internal/component/pgs"
-	ctrlutils "github.com/NVIDIA/grove/operator/internal/controller/utils"
-	"github.com/go-logr/logr"
-	ctrllogger "sigs.k8s.io/controller-runtime/pkg/log"
 
 	configv1alpha1 "github.com/NVIDIA/grove/operator/api/config/v1alpha1"
 	"github.com/NVIDIA/grove/operator/api/core/v1alpha1"
+	"github.com/NVIDIA/grove/operator/internal/component"
+	pgsComponent "github.com/NVIDIA/grove/operator/internal/component/pgs"
 	ctrlcommon "github.com/NVIDIA/grove/operator/internal/controller/common"
+	ctrlutils "github.com/NVIDIA/grove/operator/internal/controller/utils"
+
+	"github.com/go-logr/logr"
 	ctrl "sigs.k8s.io/controller-runtime"
 	ctrlclient "sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
+	ctrllogger "sigs.k8s.io/controller-runtime/pkg/log"
 )
 
 // Reconciler reconciles PodGangSet resources.

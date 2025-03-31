@@ -19,14 +19,15 @@ package validation
 import (
 	"context"
 	"fmt"
+
+	"github.com/NVIDIA/grove/operator/api/core/v1alpha1"
 	"github.com/NVIDIA/grove/operator/internal/errors"
+
 	"github.com/go-logr/logr"
 	admissionv1 "k8s.io/api/admission/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
-
-	"github.com/NVIDIA/grove/operator/api/core/v1alpha1"
 )
 
 const (

@@ -2,6 +2,7 @@ package utils
 
 import (
 	"github.com/NVIDIA/grove/operator/api/core/v1alpha1"
+
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 

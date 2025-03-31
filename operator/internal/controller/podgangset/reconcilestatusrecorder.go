@@ -3,17 +3,19 @@ package podgangset
 import (
 	"context"
 	"fmt"
+	"log/slog"
+	"time"
+
 	"github.com/NVIDIA/grove/operator/api/core/v1alpha1"
 	"github.com/NVIDIA/grove/operator/internal/controller/common"
 	ctrlcommon "github.com/NVIDIA/grove/operator/internal/controller/common"
 	groveerr "github.com/NVIDIA/grove/operator/internal/errors"
+
 	"github.com/samber/lo"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/tools/record"
-	"log/slog"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"time"
 )
 
 type recorder struct {

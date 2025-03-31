@@ -3,11 +3,13 @@ package common
 import (
 	"context"
 	"errors"
+	"time"
+
 	"github.com/NVIDIA/grove/operator/api/core/v1alpha1"
 	"github.com/NVIDIA/grove/operator/internal/component"
+
 	"github.com/go-logr/logr"
 	ctrl "sigs.k8s.io/controller-runtime"
-	"time"
 )
 
 // ReconcileStatusRecorder is an interface that defines the methods to record the start and completion of a reconcile operation.

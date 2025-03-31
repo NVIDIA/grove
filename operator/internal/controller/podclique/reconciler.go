@@ -2,7 +2,11 @@ package podclique
 
 import (
 	"context"
+
+	configv1alpha1 "github.com/NVIDIA/grove/operator/api/config/v1alpha1"
+	"github.com/NVIDIA/grove/operator/api/core/v1alpha1"
 	ctrlcommon "github.com/NVIDIA/grove/operator/internal/controller/common"
+	ctrlutils "github.com/NVIDIA/grove/operator/internal/controller/utils"
 
 	"github.com/go-logr/logr"
 	"k8s.io/client-go/tools/record"
@@ -10,10 +14,6 @@ import (
 	ctrlclient "sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	ctrllogger "sigs.k8s.io/controller-runtime/pkg/log"
-
-	configv1alpha1 "github.com/NVIDIA/grove/operator/api/config/v1alpha1"
-	"github.com/NVIDIA/grove/operator/api/core/v1alpha1"
-	ctrlutils "github.com/NVIDIA/grove/operator/internal/controller/utils"
 )
 
 // Reconciler reconciles PodClique objects.

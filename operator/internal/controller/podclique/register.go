@@ -1,6 +1,9 @@
 package podclique
 
 import (
+	"github.com/NVIDIA/grove/operator/api/core/v1alpha1"
+	grovectrlutils "github.com/NVIDIA/grove/operator/internal/controller/utils"
+
 	corev1 "k8s.io/api/core/v1"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
@@ -8,9 +11,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
-
-	"github.com/NVIDIA/grove/operator/api/core/v1alpha1"
-	grovectrlutils "github.com/NVIDIA/grove/operator/internal/controller/utils"
 )
 
 const (

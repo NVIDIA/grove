@@ -17,15 +17,15 @@
 package podgangset
 
 import (
+	"github.com/NVIDIA/grove/operator/api/core/v1alpha1"
+	grovectrlutils "github.com/NVIDIA/grove/operator/internal/controller/utils"
+
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
-
-	"github.com/NVIDIA/grove/operator/api/core/v1alpha1"
-	grovectrlutils "github.com/NVIDIA/grove/operator/internal/controller/utils"
 )
 
 const (

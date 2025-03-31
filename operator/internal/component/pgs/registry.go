@@ -5,6 +5,7 @@ import (
 	"github.com/NVIDIA/grove/operator/internal/component"
 	"github.com/NVIDIA/grove/operator/internal/component/pgs/podclique"
 	"github.com/NVIDIA/grove/operator/internal/component/pgs/service"
+
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 )
 
