@@ -1,6 +1,6 @@
 module github.com/NVIDIA/grove/scheduler-plugins
 
-go 1.23.0
+go 1.24.0
 
 require (
 	k8s.io/component-base v0.31.1

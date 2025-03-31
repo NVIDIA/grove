@@ -29,7 +29,7 @@ func (g *PodCliqueDependencyGraph) GetUnknownCliques(discoveredCliques []string)
 			}
 		}
 	}
-	return nil
+	return unknownCliques
 }
 
 // GetStronglyConnectedCliques returns all strongly connected cliques in the graph representing the PodClique dependencies.

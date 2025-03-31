@@ -78,7 +78,7 @@ func initializeOperatorConfig(cliOpts *groveopts.CLIOptions) (*configv1alpha1.Op
 }
 
 func printFlags() {
-	var flagKVs []interface{}
+	var flagKVs []any
 	flag.VisitAll(func(f *flag.Flag) {
 		flagKVs = append(flagKVs, f.Name, f.Value.String())
 	})
