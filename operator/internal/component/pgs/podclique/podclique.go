@@ -112,7 +112,7 @@ func (r _resource) buildResource(logger logr.Logger, pclq *v1alpha1.PodClique, p
 
 func getPodCliqueSelectorLabels(pgsObjectMeta metav1.ObjectMeta) map[string]string {
 	return lo.Assign(
-		k8sutils.GetDefaultLabelsForManagedResources(pgsObjectMeta.Name),
+		k8sutils.GetDefaultLabelsForPodGangSetManagedResources(pgsObjectMeta.Name),
 		map[string]string{
 			v1alpha1.LabelComponentKey: component.NamePodClique,
 		},
@@ -126,7 +126,7 @@ func getLabels(pgsName string, pcObjectKey client.ObjectKey, pcTemplateSpec *v1a
 	}
 	return lo.Assign(
 		pcTemplateSpec.Labels,
-		k8sutils.GetDefaultLabelsForManagedResources(pgsName),
+		k8sutils.GetDefaultLabelsForPodGangSetManagedResources(pgsName),
 		pcComponentLabels,
 	)
 }

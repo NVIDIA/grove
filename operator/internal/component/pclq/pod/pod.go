@@ -10,10 +10,8 @@ import (
 	"github.com/NVIDIA/grove/operator/internal/component"
 	groveerr "github.com/NVIDIA/grove/operator/internal/errors"
 	"github.com/NVIDIA/grove/operator/internal/utils"
-	k8sutils "github.com/NVIDIA/grove/operator/internal/utils/kubernetes"
 
 	"github.com/go-logr/logr"
-	"github.com/samber/lo"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -33,9 +31,7 @@ type _resource struct {
 
 // podInfo contains info about pods created by a PodClique
 type podInfo struct {
-	pods     map[string]*corev1.Pod
-	replicas int32
-	ready    int32
+	pods map[string]*corev1.Pod
 }
 
 // New creates an instance of Pod component operator.
@@ -47,12 +43,12 @@ func New(client client.Client, scheme *runtime.Scheme) component.Operator[v1alph
 }
 
 func (r _resource) Sync(ctx context.Context, logger logr.Logger, pclq *v1alpha1.PodClique) error {
-	info, err := r.listPods(ctx, logger, pclq)
+	info, err := r.listPods(ctx, logger, pclq.Name, pclq.Namespace)
 	if err != nil {
 		logger.Error(err, "failed to list pods")
 		return err
 	}
-	logger.Info("Found pods", "count", len(info.pods))
+	logger.Info("Found existing pods", "count", len(info.pods))
 
 	objectKeys := getObjectKeys(pclq)
 	tasks := make([]utils.Task, 0, len(objectKeys))
@@ -69,20 +65,29 @@ func (r _resource) Sync(ctx context.Context, logger logr.Logger, pclq *v1alpha1.
 		return errors.Join(errs...)
 	}
 
-	return r.updatePodCount(ctx, logger, pclq, info)
+	return nil
 }
 
 func (r _resource) Delete(ctx context.Context, logger logr.Logger, pclqObjectMeta metav1.ObjectMeta) error {
-	logger.Info("Triggering deletion of Pod", "objectKey", client.ObjectKey{Name: pclqObjectMeta.Name, Namespace: pclqObjectMeta.Namespace})
-	if err := r.client.DeleteAllOf(ctx,
-		&v1alpha1.PodClique{},
-		client.InNamespace(pclqObjectMeta.Namespace),
-		client.MatchingLabels(getPodSelectorLabels(pclqObjectMeta))); err != nil {
-		return groveerr.WrapError(err,
-			errDeletePod,
-			component.OperationDelete,
-			fmt.Sprintf("Failed to delete Pod for PodClique: %v", client.ObjectKey{Name: pclqObjectMeta.Name, Namespace: pclqObjectMeta.Namespace}),
-		)
+	info, err := r.listPods(ctx, logger, pclqObjectMeta.Name, pclqObjectMeta.Namespace)
+	if err != nil {
+		logger.Error(err, "failed to list pods")
+		return err
+	}
+	logger.Info("Found pods to delete", "count", len(info.pods))
+
+	tasks := make([]utils.Task, 0, len(info.pods))
+	for _, pod := range info.pods {
+		deleteTask := utils.Task{
+			Name: fmt.Sprintf("DeletePod-%s", pod.Name),
+			Fn: func(ctx context.Context) error {
+				return r.doDelete(ctx, logger, pod)
+			},
+		}
+		tasks = append(tasks, deleteTask)
+	}
+	if errs := utils.RunConcurrently(ctx, tasks); len(errs) > 0 {
+		return errors.Join(errs...)
 	}
 	return nil
 }
@@ -104,6 +109,18 @@ func (r _resource) doCreateOrUpdate(ctx context.Context, logger logr.Logger, pcl
 	return nil
 }
 
+func (r _resource) doDelete(ctx context.Context, logger logr.Logger, pod *corev1.Pod) error {
+	logger.Info("Running Delete Pod", "name", pod.Name, "namespace", pod.Namespace)
+	if err := r.client.Delete(ctx, pod); err != nil {
+		return groveerr.WrapError(err,
+			errDeletePod,
+			component.OperationDelete,
+			fmt.Sprintf("Error deleting Pod: %s/%s", pod.Namespace, pod.Name),
+		)
+	}
+	return nil
+}
+
 func (r _resource) buildResource(logger logr.Logger, pod *corev1.Pod, pclq *v1alpha1.PodClique, info *podInfo) error {
 	podObjectKey, pclqObjectKey := client.ObjectKeyFromObject(pod), client.ObjectKeyFromObject(pclq)
 	if actual, ok := info.pods[pod.Name]; ok {
@@ -111,10 +128,10 @@ func (r _resource) buildResource(logger logr.Logger, pod *corev1.Pod, pclq *v1al
 		pod.ObjectMeta.Annotations = actual.Annotations
 		pod.Spec = actual.Spec
 		if updatePod(pod, pclq) {
-			logger.Info("update pod", "name", pod.Name)
+			logger.Info("Update pod", "name", pod.Name)
 		}
 	} else {
-		logger.Info("create pod", "name", pod.Name)
+		logger.Info("Create pod", "name", pod.Name)
 		podSpec := findPodSpec(podObjectKey, pclq)
 		if podSpec == nil {
 			logger.Info("Pod spec not found in PodClique", "podObjectKey", podObjectKey, "pclqObjectKey", pclqObjectKey)
@@ -126,42 +143,11 @@ func (r _resource) buildResource(logger logr.Logger, pod *corev1.Pod, pclq *v1al
 		if err := controllerutil.SetControllerReference(pclq, pod, r.scheme); err != nil {
 			return err
 		}
-		pod.ObjectMeta.Labels = getLabels(pclq)
+		pod.ObjectMeta.Labels = pclq.Labels
 		pod.ObjectMeta.Annotations = pclq.Annotations
 		pod.Spec = *podSpec
 	}
 	return nil
-}
-
-func (r _resource) updatePodCount(ctx context.Context, logger logr.Logger, pclq *v1alpha1.PodClique, info *podInfo) error {
-	// TODO: check Selector, Conditions
-	if pclq.Status.Replicas == info.replicas && pclq.Status.ReadyReplicas == info.ready {
-		return nil
-	}
-
-	logger.Info("update pclq status", "replicas", info.replicas, "ready", info.ready)
-	pclq.Status.Replicas = info.replicas
-	pclq.Status.ReadyReplicas = info.ready
-	// TODO: fix UpdatedReplicas
-	pclq.Status.UpdatedReplicas = pclq.Status.Replicas
-	// TODO: set Selector, Conditions
-
-	if err := r.client.Status().Update(ctx, pclq); err != nil {
-		logger.Error(err, "failed to update pclq status")
-		return err
-	}
-	return nil
-}
-
-func getPodSelectorLabels(pclqObjectMeta metav1.ObjectMeta) map[string]string {
-	return k8sutils.GetDefaultLabelsForManagedResources(pclqObjectMeta.Name)
-}
-
-func getLabels(pclq *v1alpha1.PodClique) map[string]string {
-	return lo.Assign(
-		pclq.Labels,
-		k8sutils.GetDefaultLabelsForManagedResources(pclq.Name),
-	)
 }
 
 func findPodSpec(podObjectKey client.ObjectKey, pclq *v1alpha1.PodClique) *corev1.PodSpec {
@@ -208,26 +194,19 @@ func emptyPod(objKey client.ObjectKey) *corev1.Pod {
 }
 
 // retrieve the existing pods created by the PodClique
-func (r _resource) listPods(ctx context.Context, logger logr.Logger, pclq *v1alpha1.PodClique) (*podInfo, error) {
+func (r _resource) listPods(ctx context.Context, logger logr.Logger, pclqName, namespace string) (*podInfo, error) {
 	var podList corev1.PodList
-	if err := r.client.List(ctx, &podList, client.InNamespace(pclq.Namespace)); err != nil {
+	if err := r.client.List(ctx, &podList, client.InNamespace(namespace)); err != nil {
 		return nil, err
 	}
 
 	info := &podInfo{pods: make(map[string]*corev1.Pod)}
 	for i, pod := range podList.Items {
-		ref := pod.OwnerReferences[0]
-		if ref.Kind == v1alpha1.PodCliqueKind && ref.Name == pclq.Name {
-			logger.Info("found existing pod", "name", pod.Name)
-			info.pods[pod.Name] = &podList.Items[i]
-			info.replicas++
-			for _, cond := range pod.Status.Conditions {
-				if cond.Type == corev1.PodReady {
-					if cond.Status == corev1.ConditionTrue {
-						info.ready++
-					}
-					break
-				}
+		if len(pod.OwnerReferences) == 1 {
+			ref := pod.OwnerReferences[0]
+			if ref.Kind == v1alpha1.PodCliqueKind && ref.Name == pclqName {
+				logger.Info("Found existing pod", "name", pod.Name)
+				info.pods[pod.Name] = &podList.Items[i]
 			}
 		}
 	}

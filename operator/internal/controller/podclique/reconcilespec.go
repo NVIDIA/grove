@@ -8,6 +8,7 @@ import (
 	"github.com/NVIDIA/grove/operator/internal/component"
 	ctrlcommon "github.com/NVIDIA/grove/operator/internal/controller/common"
 	ctrlutils "github.com/NVIDIA/grove/operator/internal/controller/utils"
+	corev1 "k8s.io/api/core/v1"
 
 	"github.com/go-logr/logr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -21,7 +22,7 @@ func (r *Reconciler) reconcileSpec(ctx context.Context, logger logr.Logger, pclq
 		r.recordReconcileStart,
 		r.syncPodCliqueResources,
 		r.recordReconcileSuccess,
-		//r.updatePodCliqueStatus,
+		r.updatePodCliqueStatus,
 		r.updateObservedGeneration,
 	}
 
@@ -74,7 +75,7 @@ func (r *Reconciler) recordReconcileSuccess(ctx context.Context, logger logr.Log
 	return ctrlcommon.ContinueReconcile()
 }
 
-/* update PodClique status only if needed
+// update PodClique status only if needed
 func (r *Reconciler) updatePodCliqueStatus(ctx context.Context, logger logr.Logger, pclq *v1alpha1.PodClique) ctrlcommon.ReconcileStepResult {
 	var podList corev1.PodList
 	if err := r.client.List(ctx, &podList, client.InNamespace(pclq.Namespace)); err != nil {
@@ -116,7 +117,7 @@ func (r *Reconciler) updatePodCliqueStatus(ctx context.Context, logger logr.Logg
 		return ctrlcommon.ReconcileWithErrors("error updating PodClique status", err)
 	}
 	return ctrlcommon.ContinueReconcile()
-}*/
+}
 
 func (r *Reconciler) updateObservedGeneration(ctx context.Context, logger logr.Logger, pclq *v1alpha1.PodClique) ctrlcommon.ReconcileStepResult {
 	original := pclq.DeepCopy()
