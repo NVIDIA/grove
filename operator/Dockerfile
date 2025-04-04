@@ -27,4 +27,5 @@ LABEL org.opencontainers.image.version=${VERSION}
 
 WORKDIR /
 COPY --from=builder /go/src/github.com/NVIDIA/grove/operator/bin/grove-operator /grove-operator
+COPY --from=builder /go/src/github.com/NVIDIA/grove/operator/bin/grove-initc /grove-initc
 ENTRYPOINT ["/grove-operator"]
