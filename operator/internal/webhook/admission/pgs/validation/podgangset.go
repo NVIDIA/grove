@@ -27,7 +27,6 @@ import (
 	admissionv1 "k8s.io/api/admission/v1"
 	corev1 "k8s.io/api/core/v1"
 	apivalidation "k8s.io/apimachinery/pkg/api/validation"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	metav1validation "k8s.io/apimachinery/pkg/apis/meta/v1/validation"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/apimachinery/pkg/util/sets"
@@ -173,7 +172,11 @@ func (v *pgsValidator) validatePodCliqueTemplates(fldPath *field.Path) ([]string
 
 func (v *pgsValidator) validatePodCliqueTemplateSpec(cliqueTemplateSpec *v1alpha1.PodCliqueTemplateSpec, fldPath *field.Path) ([]string, field.ErrorList) {
 	allErrs := field.ErrorList{}
-	// TODO: check name
+
+	allErrs = append(allErrs, validateNonEmptyStringField(cliqueTemplateSpec.Name, fldPath.Child("name"))...)
+	allErrs = append(allErrs, metav1validation.ValidateLabels(cliqueTemplateSpec.Labels, fldPath.Child("labels"))...)
+	allErrs = append(allErrs, apivalidation.ValidateAnnotations(cliqueTemplateSpec.Annotations, fldPath.Child("annotations"))...)
+
 	warnings, errs := v.validatePodCliqueSpec(cliqueTemplateSpec.Name, cliqueTemplateSpec.Spec, fldPath.Child("spec"))
 	if len(errs) != 0 {
 		allErrs = append(allErrs, errs...)
@@ -239,28 +242,6 @@ func (v *pgsValidator) validatePodSpec(spec corev1.PodSpec, fldPath *field.Path)
 	}
 
 	return warnings, allErrs
-}
-
-func validatePodCliqueTemplateObjectMeta(cliqueObjMeta metav1.ObjectMeta, fldPath *field.Path) field.ErrorList {
-	allErrs := field.ErrorList{}
-
-	allErrs = append(allErrs, validateNonEmptyStringField(cliqueObjMeta.Name, fldPath.Child("name"))...)
-	allErrs = append(allErrs, metav1validation.ValidateLabels(cliqueObjMeta.Labels, fldPath.Child("labels"))...)
-	allErrs = append(allErrs, apivalidation.ValidateAnnotations(cliqueObjMeta.Annotations, fldPath.Child("annotations"))...)
-
-	// Setting GenerateName is not allowed for a PodCliqueTemplateSpec when configuring a PodGangSet.
-	if len(cliqueObjMeta.GetGenerateName()) != 0 {
-		allErrs = append(allErrs, field.Forbidden(fldPath.Child("generateName"), "not allowed on this type"))
-	}
-	// Setting Namespace is not allowed for a PodCliqueTemplateSpec when configuring a PodGangSet.
-	if len(cliqueObjMeta.Namespace) != 0 {
-		allErrs = append(allErrs, field.Forbidden(fldPath.Child("namespace"), "not allowed on this type"))
-	}
-
-	// If you set any field other than Name, labels and Annotations, it will be ignored. We only explicitly disallow setting GenerateName and Namespace.
-	// TODO revisit this with others and see if this is ok.
-
-	return allErrs
 }
 
 func validateCliqueDependencies(cliques []*v1alpha1.PodCliqueTemplateSpec, fldPath *field.Path) field.ErrorList {
