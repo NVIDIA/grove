@@ -1,8 +1,8 @@
 package v1alpha1
 
 import (
-	autoscalingv2 "k8s.io/api/autoscaling/v2"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
 )
 
 // +genclient
@@ -34,8 +34,16 @@ type PodGangList struct {
 
 // PodGangSpec defines the specification of a PodGang.
 type PodGangSpec struct {
-	// Members is a list of references to resources that should be gang-scheduled.
-	Members []autoscalingv2.CrossVersionObjectReference `json:"members"`
+	// GangMembers is a slice of all MemberSets that constitute a unit for gang scheduling.
+	GangMembers []MemberSet `json:"gangMembers"`
+}
+
+// MemberSet is a group of member Pods that share the same PodTemplateSpec.
+type MemberSet struct {
+	// PodReferences is a list of references to the Pods that are part of this member set.
+	PodReferences []types.NamespacedName
+	// MinReplicas is the minimum number of replicas that should be gang-scheduled.
+	MinReplicas *int32
 }
 
 // PodGangStatus defines the status of a PodGang.
