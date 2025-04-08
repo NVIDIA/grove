@@ -37,7 +37,7 @@ type PodCliqueList struct {
 type PodCliqueSpec struct {
 	// Spec is the spec of the pods in the clique.
 	PodSpec corev1.PodSpec `json:"podSpec"`
-	// Replicas is the number of replicas of the pods in the clique.
+	// Replicas is the number of replicas of the pods in the clique. It cannot be less than 1.
 	Replicas int32 `json:"replicas"`
 	// StartsAfter provides you a way to explicitly define the startup dependencies amongst cliques.
 	// If CliqueStartupType in PodGang has been set to 'CliqueStartupTypeExplicit', then to create an ordered start amongst PorClique's StartsAfter can be used.
@@ -56,7 +56,7 @@ type PodCliqueSpec struct {
 // AutoScalingConfig defines the configuration for the horizontal pod autoscaler for a PodClique.
 type AutoScalingConfig struct {
 	// minReplicas is the lower limit for the number of replicas to which the autoscaler
-	// can scale down. It defaults to 1 pod. minReplicas is not allowed to be 0.
+	// can scale down. It defaults to PodCliqueSpec.Replicas if not defined. minReplicas is not allowed to be 0.
 	// Scaling is active as long as at least one metric value is available.
 	// +optional
 	MinReplicas *int32 `json:"minReplicas,omitempty"`
