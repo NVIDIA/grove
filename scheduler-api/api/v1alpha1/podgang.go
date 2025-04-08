@@ -34,16 +34,18 @@ type PodGangList struct {
 
 // PodGangSpec defines the specification of a PodGang.
 type PodGangSpec struct {
-	// GangMembers is a slice of all MemberSets that constitute a unit for gang scheduling.
-	GangMembers []MemberSet `json:"gangMembers"`
+	// MemberCliques is a list of member cliques in the PodGang.
+	MemberCliques []MemberClique `json:"memberSet"`
 }
 
-// MemberSet is a group of member Pods that share the same PodTemplateSpec.
-type MemberSet struct {
+// MemberClique defines a set of members in a PodGang that share the same PodTemplateSpec.
+type MemberClique struct {
 	// PodReferences is a list of references to the Pods that are part of this member set.
-	PodReferences []types.NamespacedName
-	// MinReplicas is the minimum number of replicas that should be gang-scheduled.
-	MinReplicas *int32
+	PodReferences []types.NamespacedName `json:"podReferences"`
+	// MinReplicas is the number of replicas that needs to be gang scheduled.
+	// If the MinReplicas is greater than len(PodReferences) then scheduler makes the best effort to schedule as many pods beyond
+	// MinReplicas. However, guaranteed gang scheduling is only provided for MinReplicas.
+	MinReplicas int32 `json:"minReplicas"`
 }
 
 // PodGangStatus defines the status of a PodGang.
