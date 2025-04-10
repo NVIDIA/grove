@@ -109,9 +109,7 @@ type PodGangTemplateSpec struct {
 // +kubebuilder:object:generate=true
 type ServiceSpec struct {
 	// PublishNotReadyAddresses if set to true will publish the DNS records of pods before the pods are ready.
-	// Defaults to True.
-	// +optional
-	PublishNotReadyAddresses *bool `json:"publishNotReadyAddresses,omitempty"`
+	PublishNotReadyAddresses bool `json:"publishNotReadyAddresses"`
 }
 
 // PodCliqueTemplateSpec defines a template spec for a PodClique.

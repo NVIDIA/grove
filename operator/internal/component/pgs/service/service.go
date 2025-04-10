@@ -14,7 +14,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )
@@ -82,7 +81,7 @@ func (r _resource) buildResource(logger logr.Logger, svc *corev1.Service, pgs *v
 			v1alpha1.LabelPartOfKey: pgs.Name,
 		},
 		ClusterIP:                "None",
-		PublishNotReadyAddresses: ptr.Deref(pgs.Spec.Template.ServiceSpec.PublishNotReadyAddresses, true),
+		PublishNotReadyAddresses: pgs.Spec.Template.ServiceSpec.PublishNotReadyAddresses,
 	}
 
 	if err := controllerutil.SetControllerReference(pgs, svc, r.scheme); err != nil {

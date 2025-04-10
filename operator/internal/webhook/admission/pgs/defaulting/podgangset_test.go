@@ -53,7 +53,7 @@ func TestDefaultPodGangSet(t *testing.T) {
 				StartupType:         ptr.To(v1alpha1.CliqueStartupTypeInOrder),
 				NetworkPackStrategy: ptr.To(v1alpha1.BestEffort),
 				ServiceSpec: &v1alpha1.ServiceSpec{
-					PublishNotReadyAddresses: ptr.To(true),
+					PublishNotReadyAddresses: true,
 				},
 			},
 			UpdateStrategy: &v1alpha1.GangUpdateStrategy{
