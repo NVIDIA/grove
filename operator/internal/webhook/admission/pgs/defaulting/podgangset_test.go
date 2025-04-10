@@ -52,6 +52,9 @@ func TestDefaultPodGangSet(t *testing.T) {
 				}},
 				StartupType:         ptr.To(v1alpha1.CliqueStartupTypeInOrder),
 				NetworkPackStrategy: ptr.To(v1alpha1.BestEffort),
+				ServiceSpec: &v1alpha1.ServiceSpec{
+					PublishNotReadyAddresses: ptr.To(true),
+				},
 			},
 			UpdateStrategy: &v1alpha1.GangUpdateStrategy{
 				RollingUpdateConfig: &v1alpha1.RollingUpdateConfiguration{
@@ -75,6 +78,9 @@ func TestDefaultPodGangSet(t *testing.T) {
 						},
 					},
 				}},
+				ServiceSpec: &v1alpha1.ServiceSpec{
+					PublishNotReadyAddresses: ptr.To(true),
+				},
 			},
 		},
 	}

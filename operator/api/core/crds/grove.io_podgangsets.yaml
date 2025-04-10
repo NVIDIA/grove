@@ -9034,6 +9034,17 @@ spec:
                     - BestEffort
                     - Strict
                     type: string
+                  serviceSpec:
+                    description: |-
+                      ServiceSpec defines the config options for the headless service.
+                      If present, create headless service for each PodGang
+                    properties:
+                      publishNotReadyAddresses:
+                        description: |-
+                          PublishNotReadyAddresses if set to true will publish the DNS records of pods before the pods are ready.
+                          Defaults to True.
+                        type: boolean
+                    type: object
                   terminationDelay:
                     description: |-
                       TerminationDelay is the delay after which the gang termination will be triggered.

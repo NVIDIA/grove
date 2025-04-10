@@ -132,9 +132,11 @@ func getLabels(pgsName string, pcObjectKey client.ObjectKey, pcTemplateSpec *v1a
 }
 
 func findPodCliqueTemplateSpec(pclqObjectKey client.ObjectKey, pgs *v1alpha1.PodGangSet) *v1alpha1.PodCliqueTemplateSpec {
-	for _, pclqTemplate := range pgs.Spec.Template.Cliques {
-		if createPodCliqueName(pgs.Name, pclqTemplate.Name) == pclqObjectKey.Name {
-			return pclqTemplate
+	for replicaID := range pgs.Spec.Replicas {
+		for _, pclqTemplate := range pgs.Spec.Template.Cliques {
+			if createPodCliqueName(pgs.Name, replicaID, pclqTemplate.Name) == pclqObjectKey.Name {
+				return pclqTemplate
+			}
 		}
 	}
 	return nil
@@ -155,14 +157,17 @@ func getObjectKeys(pgs *v1alpha1.PodGangSet) []client.ObjectKey {
 func getPodCliqueNames(pgs *v1alpha1.PodGangSet) []string {
 	pcPrefix := pgs.Name
 	pcNames := make([]string, 0, len(pgs.Spec.Template.Cliques))
-	for _, pcTemplateSpec := range pgs.Spec.Template.Cliques {
-		pcNames = append(pcNames, createPodCliqueName(pcPrefix, pcTemplateSpec.Name))
+	for replicaID := range pgs.Spec.Replicas {
+		for _, pcTemplateSpec := range pgs.Spec.Template.Cliques {
+			pcNames = append(pcNames, createPodCliqueName(pcPrefix, replicaID, pcTemplateSpec.Name))
+		}
 	}
 	return pcNames
 }
 
-func createPodCliqueName(prefix, suffix string) string {
-	return fmt.Sprintf("%s-%s", prefix, suffix)
+// PC name : <PGS.Name>-<PGS.ReplicaID>-<PC.Name>
+func createPodCliqueName(prefix string, replicaID int32, suffix string) string {
+	return fmt.Sprintf("%s-%d-%s", prefix, replicaID, suffix)
 }
 
 func emptyPodClique(objKey client.ObjectKey) *v1alpha1.PodClique {

@@ -180,6 +180,8 @@ func getPodNames(pclq *v1alpha1.PodClique) []string {
 	return podNames
 }
 
+// PC name : <PGS.Name>-<PGS.ReplicaID>-<PC.Name>
+// Pod name : <PC.Name>-<PC.ReplicaID>
 func createPodName(prefix string, suffix int32) string {
 	return fmt.Sprintf("%s-%d", prefix, suffix)
 }

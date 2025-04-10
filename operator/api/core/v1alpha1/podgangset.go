@@ -100,6 +100,18 @@ type PodGangTemplateSpec struct {
 	// running pods go above the threshold.
 	// +optional
 	TerminationDelay *metav1.Duration `json:"terminationDelay,omitempty"`
+	// ServiceSpec defines the config options for the headless service.
+	// If present, create headless service for each PodGang
+	// +optional
+	ServiceSpec *ServiceSpec `json:"serviceSpec,omitempty"`
+}
+
+// +kubebuilder:object:generate=true
+type ServiceSpec struct {
+	// PublishNotReadyAddresses if set to true will publish the DNS records of pods before the pods are ready.
+	// Defaults to True.
+	// +optional
+	PublishNotReadyAddresses *bool `json:"publishNotReadyAddresses,omitempty"`
 }
 
 // PodCliqueTemplateSpec defines a template spec for a PodClique.

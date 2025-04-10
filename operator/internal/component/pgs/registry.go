@@ -14,6 +14,6 @@ func CreateOperatorRegistry(mgr manager.Manager) component.OperatorRegistry[v1al
 	cl := mgr.GetClient()
 	reg := component.NewOperatorRegistry[v1alpha1.PodGangSet]()
 	reg.Register(component.KindPodClique, podclique.New(cl, mgr.GetScheme()))
-	reg.Register(component.KindHeadlessService, service.New(cl))
+	reg.Register(component.KindHeadlessService, service.New(cl, mgr.GetScheme()))
 	return reg
 }
