@@ -457,6 +457,11 @@ func (in *PodGangTemplateSpec) DeepCopyInto(out *PodGangTemplateSpec) {
 		*out = new(NetworkPackStrategy)
 		**out = **in
 	}
+	if in.TerminationDelay != nil {
+		in, out := &in.TerminationDelay, &out.TerminationDelay
+		*out = new(v1.Duration)
+		**out = **in
+	}
 	return
 }
 

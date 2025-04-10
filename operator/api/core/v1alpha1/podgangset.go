@@ -93,6 +93,13 @@ type PodGangTemplateSpec struct {
 	// NetworkPackStrategy defines the strategy for packing pods on nodes while minimizing network switch hops.
 	// +optional
 	NetworkPackStrategy *NetworkPackStrategy `json:"networkPackStrategy,omitempty"`
+	// TerminationDelay is the delay after which the gang termination will be triggered.
+	// A gang is a candidate for termination if number of running pods fall below a threshold for any PodClique.
+	// If a PodGang remains a candidate past TerminationDelay then it will be terminated. This allows additional time
+	// to the kube-scheduler to re-schedule sufficient pods in the PodGang that will result in having the total number of
+	// running pods go above the threshold.
+	// +optional
+	TerminationDelay *metav1.Duration `json:"terminationDelay,omitempty"`
 }
 
 // PodCliqueTemplateSpec defines a template spec for a PodClique.

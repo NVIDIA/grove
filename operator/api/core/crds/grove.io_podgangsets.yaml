@@ -784,7 +784,7 @@ spec:
                                 minReplicas:
                                   description: |-
                                     minReplicas is the lower limit for the number of replicas to which the autoscaler
-                                    can scale down. It defaults to 1 pod. minReplicas is not allowed to be 0.
+                                    can scale down. It defaults to PodCliqueSpec.Replicas if not defined. minReplicas is not allowed to be 0.
                                     Scaling is active as long as at least one metric value is available.
                                   format: int32
                                   type: integer
@@ -9003,7 +9003,7 @@ spec:
                               type: object
                             replicas:
                               description: Replicas is the number of replicas of the
-                                pods in the clique.
+                                pods in the clique. It cannot be less than 1.
                               format: int32
                               type: integer
                             startsAfter:
@@ -9033,6 +9033,14 @@ spec:
                     enum:
                     - BestEffort
                     - Strict
+                    type: string
+                  terminationDelay:
+                    description: |-
+                      TerminationDelay is the delay after which the gang termination will be triggered.
+                      A gang is a candidate for termination if number of running pods fall below a threshold for any PodClique.
+                      If a PodGang remains a candidate past TerminationDelay then it will be terminated. This allows additional time
+                      to the kube-scheduler to re-schedule sufficient pods in the PodGang that will result in having the total number of
+                      running pods go above the threshold.
                     type: string
                 required:
                 - cliques

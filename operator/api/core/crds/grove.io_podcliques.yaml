@@ -525,7 +525,7 @@ spec:
                   minReplicas:
                     description: |-
                       minReplicas is the lower limit for the number of replicas to which the autoscaler
-                      can scale down. It defaults to 1 pod. minReplicas is not allowed to be 0.
+                      can scale down. It defaults to PodCliqueSpec.Replicas if not defined. minReplicas is not allowed to be 0.
                       Scaling is active as long as at least one metric value is available.
                     format: int32
                     type: integer
@@ -8509,7 +8509,7 @@ spec:
                 type: object
               replicas:
                 description: Replicas is the number of replicas of the pods in the
-                  clique.
+                  clique. It cannot be less than 1.
                 format: int32
                 type: integer
               startsAfter:
