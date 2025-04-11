@@ -34,8 +34,8 @@ type PodGangList struct {
 
 // PodGangSpec defines the specification of a PodGang.
 type PodGangSpec struct {
-	// Groups is a list of member pod groups in the PodGang.
-	Groups []PodGroup `json:"groups"`
+	// PodGroups is a list of member pod groups in the PodGang.
+	PodGroups []PodGroup `json:"podgroups"`
 	// TerminationDelay is a delay timer that activates gang termination of a running PodGang
 	// whenever the number of running pods violates the minReplicas constraint of any PodGroup.
 	TerminationDelay metav1.Duration `json:"terminationDelay"`
