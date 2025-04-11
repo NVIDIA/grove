@@ -34,13 +34,16 @@ type PodGangList struct {
 
 // PodGangSpec defines the specification of a PodGang.
 type PodGangSpec struct {
-	// MemberCliques is a list of member cliques in the PodGang.
-	MemberCliques []MemberClique `json:"memberSet"`
+	// Groups is a list of member pod groups in the PodGang.
+	Groups []PodGroup `json:"groups"`
+	// TerminationDelay is a delay timer that activates gang termination of a running PodGang
+	// whenever the number of running pods violates the minReplicas constraint of any PodGroup.
+	TerminationDelay metav1.Duration `json:"terminationDelay"`
 }
 
-// MemberClique defines a set of members in a PodGang that share the same PodTemplateSpec.
-type MemberClique struct {
-	// PodReferences is a list of references to the Pods that are part of this member set.
+// PodGroup defines a set of pods in a PodGang that share the same PodTemplateSpec.
+type PodGroup struct {
+	// PodReferences is a list of references to the Pods that are part of this group.
 	PodReferences []types.NamespacedName `json:"podReferences"`
 	// MinReplicas is the number of replicas that needs to be gang scheduled.
 	// If the MinReplicas is greater than len(PodReferences) then scheduler makes the best effort to schedule as many pods beyond
