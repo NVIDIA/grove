@@ -1,5 +1,5 @@
 /*
-Copyright 2020 The Kubernetes Authors.
+Copyright 2025 The Kubernetes Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package grove
+package grovescheduling
 
 import (
 	"context"
@@ -26,30 +26,30 @@ import (
 	"k8s.io/kubernetes/pkg/scheduler/framework"
 )
 
-// Grove is a plugin that schedules pods in a group.
-type Grove struct {
+// GroveScheduling is a plugin that schedules pods in a group.
+type GroveScheduling struct {
 	logger           klog.Logger
 	frameworkHandler framework.Handle
 }
 
-var _ framework.QueueSortPlugin = &Grove{}
-var _ framework.PreFilterPlugin = &Grove{}
-var _ framework.PostFilterPlugin = &Grove{}
-var _ framework.PermitPlugin = &Grove{}
-var _ framework.ReservePlugin = &Grove{}
+var _ framework.QueueSortPlugin = &GroveScheduling{}
+var _ framework.PreFilterPlugin = &GroveScheduling{}
+var _ framework.PostFilterPlugin = &GroveScheduling{}
+var _ framework.PermitPlugin = &GroveScheduling{}
+var _ framework.ReservePlugin = &GroveScheduling{}
 
-var _ framework.EnqueueExtensions = &Grove{}
+var _ framework.EnqueueExtensions = &GroveScheduling{}
 
 const (
 	// Name is the name of the plugin used in Registry and configurations.
-	Name = "Grove"
+	Name = "GroveScheduling"
 )
 
-// New initializes and returns a new Grove plugin.
+// New initializes and returns a new GroveScheduling plugin.
 func New(ctx context.Context, obj runtime.Object, handle framework.Handle) (framework.Plugin, error) {
 	lh := klog.FromContext(ctx).WithValues("plugin", Name)
-	lh.V(5).Info("creating new grove plugin")
-	plugin := &Grove{
+	lh.V(5).Info("creating new grovescheduling plugin")
+	plugin := &GroveScheduling{
 		logger:           lh,
 		frameworkHandler: handle,
 	}
@@ -57,46 +57,46 @@ func New(ctx context.Context, obj runtime.Object, handle framework.Handle) (fram
 }
 
 // Name returns name of the plugin. It is used in logs, etc.
-func (gv *Grove) Name() string {
+func (gs *GroveScheduling) Name() string {
 	return Name
 }
 
 // Less is used to sort pods in the scheduling queue.
-func (gv *Grove) Less(podInfo1, podInfo2 *framework.QueuedPodInfo) bool {
+func (gs *GroveScheduling) Less(podInfo1, podInfo2 *framework.QueuedPodInfo) bool {
 	return false
 }
 
-func (gv *Grove) EventsToRegister(_ context.Context) ([]framework.ClusterEventWithHint, error) {
+func (gs *GroveScheduling) EventsToRegister(_ context.Context) ([]framework.ClusterEventWithHint, error) {
 	return []framework.ClusterEventWithHint{}, nil
 }
 
 // PreFilter
-func (gv *Grove) PreFilter(ctx context.Context, state *framework.CycleState, pod *v1.Pod) (*framework.PreFilterResult, *framework.Status) {
+func (gs *GroveScheduling) PreFilter(ctx context.Context, state *framework.CycleState, pod *v1.Pod) (*framework.PreFilterResult, *framework.Status) {
 	return nil, framework.NewStatus(framework.Success, "")
 }
 
 // PostFilter is used to reject a group of pods if a pod does not pass PreFilter or Filter.
-func (gv *Grove) PostFilter(ctx context.Context, state *framework.CycleState, pod *v1.Pod,
+func (gs *GroveScheduling) PostFilter(ctx context.Context, state *framework.CycleState, pod *v1.Pod,
 	filteredNodeStatusMap framework.NodeToStatusMap) (*framework.PostFilterResult, *framework.Status) {
 	return &framework.PostFilterResult{}, framework.NewStatus(framework.Unschedulable)
 }
 
 // PreFilterExtensions returns a PreFilterExtensions interface if the plugin implements one.
-func (gv *Grove) PreFilterExtensions() framework.PreFilterExtensions {
+func (gs *GroveScheduling) PreFilterExtensions() framework.PreFilterExtensions {
 	return nil
 }
 
 // Permit is the functions invoked by the framework at "Permit" extension point.
-func (gv *Grove) Permit(ctx context.Context, state *framework.CycleState, pod *v1.Pod, nodeName string) (*framework.Status, time.Duration) {
+func (gs *GroveScheduling) Permit(ctx context.Context, state *framework.CycleState, pod *v1.Pod, nodeName string) (*framework.Status, time.Duration) {
 	return framework.NewStatus(framework.Success, ""), 0
 }
 
 // Reserve is the functions invoked by the framework at "reserve" extension point.
-func (gv *Grove) Reserve(ctx context.Context, state *framework.CycleState, pod *v1.Pod, nodeName string) *framework.Status {
+func (gs *GroveScheduling) Reserve(ctx context.Context, state *framework.CycleState, pod *v1.Pod, nodeName string) *framework.Status {
 	return nil
 }
 
 // Unreserve rejects all other Pods in the PodGroup when one of the pods in the group times out.
-func (gv *Grove) Unreserve(ctx context.Context, state *framework.CycleState, pod *v1.Pod, nodeName string) {
+func (gs *GroveScheduling) Unreserve(ctx context.Context, state *framework.CycleState, pod *v1.Pod, nodeName string) {
 	return
 }
