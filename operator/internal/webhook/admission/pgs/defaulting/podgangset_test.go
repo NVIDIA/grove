@@ -35,7 +35,7 @@ func TestDefaultPodGangSet(t *testing.T) {
 			Namespace: "default",
 		},
 		Spec: v1alpha1.PodGangSetSpec{
-			Template: v1alpha1.PodGangTemplateSpec{
+			TemplateSpec: v1alpha1.PodGangTemplateSpec{
 				Cliques: []*v1alpha1.PodCliqueTemplateSpec{{
 					Name: "test",
 					Spec: v1alpha1.PodCliqueSpec{
@@ -52,7 +52,7 @@ func TestDefaultPodGangSet(t *testing.T) {
 				}},
 				StartupType:         ptr.To(v1alpha1.CliqueStartupTypeInOrder),
 				NetworkPackStrategy: ptr.To(v1alpha1.BestEffort),
-				ServiceSpec: &v1alpha1.ServiceSpec{
+				HeadlessServiceConfig: &v1alpha1.HeadlessServiceConfig{
 					PublishNotReadyAddresses: true,
 				},
 			},
@@ -69,7 +69,7 @@ func TestDefaultPodGangSet(t *testing.T) {
 			Name: "PGS1",
 		},
 		Spec: v1alpha1.PodGangSetSpec{
-			Template: v1alpha1.PodGangTemplateSpec{
+			TemplateSpec: v1alpha1.PodGangTemplateSpec{
 				Cliques: []*v1alpha1.PodCliqueTemplateSpec{{
 					Name: "test",
 					Spec: v1alpha1.PodCliqueSpec{
@@ -78,7 +78,7 @@ func TestDefaultPodGangSet(t *testing.T) {
 						},
 					},
 				}},
-				ServiceSpec: &v1alpha1.ServiceSpec{
+				HeadlessServiceConfig: &v1alpha1.HeadlessServiceConfig{
 					PublishNotReadyAddresses: ptr.To(true),
 				},
 			},

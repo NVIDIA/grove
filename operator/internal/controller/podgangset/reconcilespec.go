@@ -57,7 +57,7 @@ func (r *Reconciler) syncPodGangSetResources(ctx context.Context, logger logr.Lo
 		if err != nil {
 			return ctrlcommon.ReconcileWithErrors(fmt.Sprintf("error getting operator for kind: %s", kind), err)
 		}
-		logger.Info("Syncing PodGangSet resources", "kind", kind)
+		logger.Info("Syncing PodGangSet resource", "kind", kind)
 		if err = operator.Sync(ctx, logger, pgs); err != nil {
 			return ctrlcommon.ReconcileWithErrors("error syncing managed resources", fmt.Errorf("failed to sync %s: %w", kind, err))
 		}

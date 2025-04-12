@@ -38,16 +38,24 @@ func New(client client.Client, scheme *runtime.Scheme) component.Operator[v1alph
 }
 
 func (r _resource) Sync(ctx context.Context, logger logr.Logger, pgs *v1alpha1.PodGangSet) error {
-	objectKeys := getObjectKeys(pgs)
-	tasks := make([]utils.Task, 0, len(objectKeys))
-	for _, objectKey := range objectKeys {
-		createOrUpdateTask := utils.Task{
-			Name: fmt.Sprintf("CreateOrUpdatePodClique-%s", objectKey),
-			Fn: func(ctx context.Context) error {
-				return r.doCreateOrUpdate(ctx, logger, pgs, objectKey)
-			},
+	numTasks := int(pgs.Spec.Replicas) * len(pgs.Spec.TemplateSpec.Cliques)
+	tasks := make([]utils.Task, 0, numTasks)
+
+	for replicaIndex := range pgs.Spec.Replicas {
+		podGangName := utils.GeneratePodGangName(pgs.Name, replicaIndex)
+		for _, pclqTemplateSpec := range pgs.Spec.TemplateSpec.Cliques {
+			pclqObjectKey := client.ObjectKey{
+				Name:      createPodCliqueName(pgs.Name, replicaIndex, pclqTemplateSpec.Name),
+				Namespace: pgs.Namespace,
+			}
+			createOrUpdateTask := utils.Task{
+				Name: fmt.Sprintf("CreateOrUpdatePodClique-%s", pclqObjectKey),
+				Fn: func(ctx context.Context) error {
+					return r.doCreateOrUpdate(ctx, logger, pgs, pclqObjectKey, podGangName)
+				},
+			}
+			tasks = append(tasks, createOrUpdateTask)
 		}
-		tasks = append(tasks, createOrUpdateTask)
 	}
 	if errs := utils.RunConcurrently(ctx, tasks); len(errs) > 0 {
 		return errors.Join(errs...)
@@ -67,14 +75,15 @@ func (r _resource) Delete(ctx context.Context, logger logr.Logger, pgsObjectMeta
 			fmt.Sprintf("Failed to delete PodCliques for PodGangSet: %v", client.ObjectKey{Name: pgsObjectMeta.Name, Namespace: pgsObjectMeta.Namespace}),
 		)
 	}
+	logger.Info("Deleted PodClique", "name", pgsObjectMeta.Name)
 	return nil
 }
 
-func (r _resource) doCreateOrUpdate(ctx context.Context, logger logr.Logger, pgs *v1alpha1.PodGangSet, pclqObjectKey client.ObjectKey) error {
+func (r _resource) doCreateOrUpdate(ctx context.Context, logger logr.Logger, pgs *v1alpha1.PodGangSet, pclqObjectKey client.ObjectKey, podGangName string) error {
 	logger.Info("Running CreateOrUpdate PodClique", "pclqObjectKey", pclqObjectKey)
 	pclq := emptyPodClique(pclqObjectKey)
 	opResult, err := controllerutil.CreateOrPatch(ctx, r.client, pclq, func() error {
-		return r.buildResource(logger, pclq, pgs)
+		return r.buildResource(logger, pclq, pgs, podGangName)
 	})
 	if err != nil {
 		return groveerr.WrapError(err,
@@ -87,10 +96,10 @@ func (r _resource) doCreateOrUpdate(ctx context.Context, logger logr.Logger, pgs
 	return nil
 }
 
-func (r _resource) buildResource(logger logr.Logger, pclq *v1alpha1.PodClique, pgs *v1alpha1.PodGangSet) error {
+func (r _resource) buildResource(logger logr.Logger, pclq *v1alpha1.PodClique, pgs *v1alpha1.PodGangSet, podGangName string) error {
 	pclqObjectKey, pgsObjectKey := client.ObjectKeyFromObject(pclq), client.ObjectKeyFromObject(pgs)
-	pcTemplateSpec := findPodCliqueTemplateSpec(pclqObjectKey, pgs)
-	if pcTemplateSpec == nil {
+	pclqTemplateSpec := findPodCliqueTemplateSpec(pclqObjectKey, pgs)
+	if pclqTemplateSpec == nil {
 		logger.Info("PodClique template spec not found in PodGangSet", "podCliqueObjectKey", pclqObjectKey, "podGangSetObjectKey", pgsObjectKey)
 		return groveerr.New(errSyncPodClique,
 			component.OperationSync,
@@ -102,11 +111,11 @@ func (r _resource) buildResource(logger logr.Logger, pclq *v1alpha1.PodClique, p
 	if err := controllerutil.SetControllerReference(pgs, pclq, r.scheme); err != nil {
 		return err
 	}
-	pclq.ObjectMeta.Labels = getLabels(pgs.Name, pclqObjectKey, pcTemplateSpec)
-	pclq.ObjectMeta.Annotations = pcTemplateSpec.Annotations
+	pclq.ObjectMeta.Labels = getLabels(pgs.Name, pclqObjectKey, pclqTemplateSpec, podGangName)
+	pclq.ObjectMeta.Annotations = pclqTemplateSpec.Annotations
 	// set PodCliqueSpec
 	// ------------------------------------
-	pclq.Spec = pcTemplateSpec.Spec
+	pclq.Spec = pclqTemplateSpec.Spec
 	return nil
 }
 
@@ -119,22 +128,23 @@ func getPodCliqueSelectorLabels(pgsObjectMeta metav1.ObjectMeta) map[string]stri
 	)
 }
 
-func getLabels(pgsName string, pcObjectKey client.ObjectKey, pcTemplateSpec *v1alpha1.PodCliqueTemplateSpec) map[string]string {
-	pcComponentLabels := map[string]string{
-		v1alpha1.LabelAppNameKey:   pcObjectKey.Name,
-		v1alpha1.LabelComponentKey: component.NamePodClique,
+func getLabels(pgsName string, pclqObjectKey client.ObjectKey, pclqTemplateSpec *v1alpha1.PodCliqueTemplateSpec, podGangName string) map[string]string {
+	pclqComponentLabels := map[string]string{
+		v1alpha1.LabelAppNameKey:     pclqObjectKey.Name,
+		v1alpha1.LabelComponentKey:   component.NamePodClique,
+		v1alpha1.LabelPodGangNameKey: podGangName,
 	}
 	return lo.Assign(
-		pcTemplateSpec.Labels,
+		pclqTemplateSpec.Labels,
 		k8sutils.GetDefaultLabelsForPodGangSetManagedResources(pgsName),
-		pcComponentLabels,
+		pclqComponentLabels,
 	)
 }
 
 func findPodCliqueTemplateSpec(pclqObjectKey client.ObjectKey, pgs *v1alpha1.PodGangSet) *v1alpha1.PodCliqueTemplateSpec {
-	for replicaID := range pgs.Spec.Replicas {
-		for _, pclqTemplate := range pgs.Spec.Template.Cliques {
-			if createPodCliqueName(pgs.Name, replicaID, pclqTemplate.Name) == pclqObjectKey.Name {
+	for replicaIndex := range pgs.Spec.Replicas {
+		for _, pclqTemplate := range pgs.Spec.TemplateSpec.Cliques {
+			if createPodCliqueName(pgs.Name, replicaIndex, pclqTemplate.Name) == pclqObjectKey.Name {
 				return pclqTemplate
 			}
 		}
@@ -142,32 +152,10 @@ func findPodCliqueTemplateSpec(pclqObjectKey client.ObjectKey, pgs *v1alpha1.Pod
 	return nil
 }
 
-func getObjectKeys(pgs *v1alpha1.PodGangSet) []client.ObjectKey {
-	pcNames := getPodCliqueNames(pgs)
-	pcObjKeys := make([]client.ObjectKey, 0, len(pcNames))
-	for _, pcName := range pcNames {
-		pcObjKeys = append(pcObjKeys, client.ObjectKey{
-			Name:      pcName,
-			Namespace: pgs.Namespace,
-		})
-	}
-	return pcObjKeys
-}
-
-func getPodCliqueNames(pgs *v1alpha1.PodGangSet) []string {
-	pcPrefix := pgs.Name
-	pcNames := make([]string, 0, len(pgs.Spec.Template.Cliques))
-	for replicaID := range pgs.Spec.Replicas {
-		for _, pcTemplateSpec := range pgs.Spec.Template.Cliques {
-			pcNames = append(pcNames, createPodCliqueName(pcPrefix, replicaID, pcTemplateSpec.Name))
-		}
-	}
-	return pcNames
-}
-
-// PC name : <PGS.Name>-<PGS.ReplicaID>-<PC.Name>
-func createPodCliqueName(prefix string, replicaID int32, suffix string) string {
-	return fmt.Sprintf("%s-%d-%s", prefix, replicaID, suffix)
+// createPodCliqueName creates a PodClique name based on the PodGangSet name, replica index, and PodClique name.
+// PodCliqueName convention is <PGS.Name>-<PGS.ReplicaIndex>-<PCLQ.Name>
+func createPodCliqueName(prefix string, replicaIndex int32, suffix string) string {
+	return fmt.Sprintf("%s-%d-%s", prefix, replicaIndex, suffix)
 }
 
 func emptyPodClique(objKey client.ObjectKey) *v1alpha1.PodClique {

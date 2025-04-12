@@ -124,8 +124,8 @@ func (v *pgsValidator) validateRollingUpdateConfig(fldPath *field.Path) field.Er
 func (v *pgsValidator) validatePodGangTemplateSpec(fldPath *field.Path) ([]string, field.ErrorList) {
 	allErrs := field.ErrorList{}
 
-	allErrs = append(allErrs, validateEnumType(v.pgs.Spec.Template.StartupType, allowedStartupTypes, fldPath.Child("cliqueStartupType"))...)
-	allErrs = append(allErrs, validateEnumType(v.pgs.Spec.Template.NetworkPackStrategy, allowedNetworkPackStrategies, fldPath.Child("networkPackStrategy"))...)
+	allErrs = append(allErrs, validateEnumType(v.pgs.Spec.TemplateSpec.StartupType, allowedStartupTypes, fldPath.Child("cliqueStartupType"))...)
+	allErrs = append(allErrs, validateEnumType(v.pgs.Spec.TemplateSpec.NetworkPackStrategy, allowedNetworkPackStrategies, fldPath.Child("networkPackStrategy"))...)
 
 	// validate cliques
 	warnings, errs := v.validatePodCliqueTemplates(fldPath.Child("cliques"))
@@ -138,8 +138,8 @@ func (v *pgsValidator) validatePodGangTemplateSpec(fldPath *field.Path) ([]strin
 func (v *pgsValidator) validatePodCliqueTemplates(fldPath *field.Path) ([]string, field.ErrorList) {
 	allErrs := field.ErrorList{}
 	var warnings []string
-	cliqueTemplateSpecs := v.pgs.Spec.Template.Cliques
-	isExplicit := v.pgs.Spec.Template.StartupType != nil && *v.pgs.Spec.Template.StartupType == v1alpha1.CliqueStartupTypeExplicit
+	cliqueTemplateSpecs := v.pgs.Spec.TemplateSpec.Cliques
+	isExplicit := v.pgs.Spec.TemplateSpec.StartupType != nil && *v.pgs.Spec.TemplateSpec.StartupType == v1alpha1.CliqueStartupTypeExplicit
 
 	if len(cliqueTemplateSpecs) == 0 {
 		allErrs = append(allErrs, field.Required(fldPath, "at least one PodClique must be defined"))
@@ -191,7 +191,7 @@ func (v *pgsValidator) validatePodCliqueSpec(name string, cliqueSpec v1alpha1.Po
 		allErrs = append(allErrs, field.Invalid(fldPath.Child("replicas"), cliqueSpec.Replicas, "must be greater than 0"))
 	}
 
-	isStartupTypeExplicit := v.pgs.Spec.Template.StartupType != nil && *v.pgs.Spec.Template.StartupType == v1alpha1.CliqueStartupTypeExplicit
+	isStartupTypeExplicit := v.pgs.Spec.TemplateSpec.StartupType != nil && *v.pgs.Spec.TemplateSpec.StartupType == v1alpha1.CliqueStartupTypeExplicit
 	if isStartupTypeExplicit && len(cliqueSpec.StartsAfter) > 0 {
 		for _, dep := range cliqueSpec.StartsAfter {
 			if utils.IsEmptyStringType(dep) {
@@ -294,7 +294,7 @@ func validateScaleConfig(scaleConfig *v1alpha1.AutoScalingConfig, fldPath *field
 func validatePodGangSetSpecUpdate(fldPath *field.Path, newSpec, oldSpec *v1alpha1.PodGangSetSpec) field.ErrorList {
 	allErrs := field.ErrorList{}
 
-	allErrs = append(allErrs, validatePodGangTemplateSpecUpdate(fldPath.Child("template"), &newSpec.Template, &oldSpec.Template)...)
+	allErrs = append(allErrs, validatePodGangTemplateSpecUpdate(fldPath.Child("template"), &newSpec.TemplateSpec, &oldSpec.TemplateSpec)...)
 
 	if !reflect.DeepEqual(newSpec.GangSpreadConstraints, oldSpec.GangSpreadConstraints) {
 		allErrs = append(allErrs, field.Forbidden(fldPath.Child("gangSpreadConstraints"), "field is immutable"))

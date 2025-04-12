@@ -39,8 +39,8 @@ type PodGangSetSpec struct {
 	// Replicas is the number of desired replicas of the PodGang.
 	// +kubebuilder:default=0
 	Replicas int32 `json:"replicas,omitempty"`
-	// Template describes the template spec for PodGangs that will be created in the PodGangSet.
-	Template PodGangTemplateSpec `json:"template"`
+	// TemplateSpec describes the template spec for PodGangs that will be created in the PodGangSet.
+	TemplateSpec PodGangTemplateSpec `json:"templateSpec"`
 	// UpdateStrategy defines the strategy to be used when updating the PodGangs.
 	// +optional
 	UpdateStrategy *GangUpdateStrategy `json:"updateStrategy,omitempty"`
@@ -100,15 +100,15 @@ type PodGangTemplateSpec struct {
 	// running pods go above the threshold.
 	// +optional
 	TerminationDelay *metav1.Duration `json:"terminationDelay,omitempty"`
-	// ServiceSpec defines the config options for the headless service.
-	// If present, create headless service for each PodGang
+	// HeadlessServiceConfig defines the config options for the headless service.
+	// If present, create headless service for each PodGang.
 	// +optional
-	ServiceSpec *ServiceSpec `json:"serviceSpec,omitempty"`
+	HeadlessServiceConfig *HeadlessServiceConfig `json:"headlessServiceConfig,omitempty"`
 }
 
-// +kubebuilder:object:generate=true
-type ServiceSpec struct {
-	// PublishNotReadyAddresses if set to true will publish the DNS records of pods before the pods are ready.
+// HeadlessServiceConfig defines the config options for the headless service.
+type HeadlessServiceConfig struct {
+	// PublishNotReadyAddresses if set to true will publish the DNS records of pods even if the pods are not ready.
 	PublishNotReadyAddresses bool `json:"publishNotReadyAddresses"`
 }
 

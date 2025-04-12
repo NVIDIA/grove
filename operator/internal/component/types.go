@@ -25,6 +25,8 @@ const (
 const (
 	// NamePodClique is the value for v1alpha1.LabelComponentKey for a PodClique resource.
 	NamePodClique = "pgs-podclique"
+	// NamePodGangHeadlessService is the value for v1alpha1.LabelComponentKey for a Headless service for a Pod Gang.
+	NamePodGangHeadlessService = "pgs-headless-service"
 )
 
 // GroveCustomResourceType defines a type bound for generic types.

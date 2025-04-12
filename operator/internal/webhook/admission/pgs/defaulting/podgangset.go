@@ -36,7 +36,7 @@ func defaultPodGangSet(pgs *v1alpha1.PodGangSet) {
 // defaultPodGangSetSpec adds defaults to the specification of a PodGangSet.
 func defaultPodGangSetSpec(spec *v1alpha1.PodGangSetSpec) {
 	// default PodGangTemplateSpec
-	defaultPodGangTemplateSpec(&spec.Template)
+	defaultPodGangTemplateSpec(&spec.TemplateSpec)
 	// default UpdateStrategy
 	defaultUpdateStrategy(spec)
 }

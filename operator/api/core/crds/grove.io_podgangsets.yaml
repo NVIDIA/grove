@@ -233,9 +233,9 @@ spec:
                 description: Replicas is the number of desired replicas of the PodGang.
                 format: int32
                 type: integer
-              template:
-                description: Template describes the template spec for PodGangs that
-                  will be created in the PodGangSet.
+              templateSpec:
+                description: TemplateSpec describes the template spec for PodGangs
+                  that will be created in the PodGangSet.
                 properties:
                   cliqueStartupType:
                     description: StartupType defines the type of startup dependency
@@ -9027,6 +9027,19 @@ spec:
                       - spec
                       type: object
                     type: array
+                  headlessServiceConfig:
+                    description: |-
+                      HeadlessServiceConfig defines the config options for the headless service.
+                      If present, create headless service for each PodGang.
+                    properties:
+                      publishNotReadyAddresses:
+                        description: PublishNotReadyAddresses if set to true will
+                          publish the DNS records of pods even if the pods are not
+                          ready.
+                        type: boolean
+                    required:
+                    - publishNotReadyAddresses
+                    type: object
                   networkPackStrategy:
                     description: NetworkPackStrategy defines the strategy for packing
                       pods on nodes while minimizing network switch hops.
@@ -9034,18 +9047,6 @@ spec:
                     - BestEffort
                     - Strict
                     type: string
-                  serviceSpec:
-                    description: |-
-                      ServiceSpec defines the config options for the headless service.
-                      If present, create headless service for each PodGang
-                    properties:
-                      publishNotReadyAddresses:
-                        description: PublishNotReadyAddresses if set to true will
-                          publish the DNS records of pods before the pods are ready.
-                        type: boolean
-                    required:
-                    - publishNotReadyAddresses
-                    type: object
                   terminationDelay:
                     description: |-
                       TerminationDelay is the delay after which the gang termination will be triggered.
@@ -9100,7 +9101,7 @@ spec:
                     type: object
                 type: object
             required:
-            - template
+            - templateSpec
             type: object
           status:
             description: Status defines the status of the PodGangSet.
