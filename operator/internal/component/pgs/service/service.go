@@ -37,6 +37,30 @@ func New(client client.Client, scheme *runtime.Scheme) component.Operator[v1alph
 	}
 }
 
+func (r _resource) GetExistingResourceNames(ctx context.Context, logger logr.Logger, pgs *v1alpha1.PodGangSet) ([]string, error) {
+	logger.Info("Looking for existing PodGangSet Headless Services", "objectKey", client.ObjectKeyFromObject(pgs))
+	existingServiceNames := make([]string, 0, int(pgs.Spec.Replicas))
+	objMetaList := &metav1.PartialObjectMetadataList{}
+	objMetaList.SetGroupVersionKind(corev1.SchemeGroupVersion.WithKind("Service"))
+	if err := r.client.List(ctx,
+		objMetaList,
+		client.InNamespace(pgs.Namespace),
+		client.MatchingLabels(getSelectorLabelsForAllHeadlessServices(pgs.Name)),
+	); err != nil {
+		return nil, groveerr.WrapError(err,
+			errSyncPodGangService,
+			component.OperationGetExistingResourceNames,
+			fmt.Sprintf("Error listing PodGangSet Headless Services: %v", client.ObjectKeyFromObject(pgs)),
+		)
+	}
+	for _, serviceObjMeta := range objMetaList.Items {
+		if metav1.IsControlledBy(&serviceObjMeta, &pgs.ObjectMeta) {
+			existingServiceNames = append(existingServiceNames, serviceObjMeta.Name)
+		}
+	}
+	return existingServiceNames, nil
+}
+
 func (r _resource) Sync(ctx context.Context, logger logr.Logger, pgs *v1alpha1.PodGangSet) error {
 	// Do not create headless service if service spec is not defined.
 	if pgs.Spec.TemplateSpec.HeadlessServiceConfig == nil {
@@ -76,7 +100,7 @@ func (r _resource) Delete(ctx context.Context, logger logr.Logger, pgObjMeta met
 }
 
 func (r _resource) doCreateOrUpdate(ctx context.Context, logger logr.Logger, pgs *v1alpha1.PodGangSet, pgServiceObjectKey client.ObjectKey) error {
-	logger.Info("Running CreateOrUpdate PodGang Headless Service", "pgServiceObjectKey", pgServiceObjectKey)
+	logger.Info("Running CreateOrUpdate PodGang Headless Service", "objectKey", pgServiceObjectKey)
 	pgService := emptyPGService(pgServiceObjectKey)
 	opResult, err := controllerutil.CreateOrPatch(ctx, r.client, pgService, func() error {
 		return r.buildResource(pgService, pgs)
@@ -153,7 +177,7 @@ func getObjectKeys(pgs *v1alpha1.PodGangSet) []client.ObjectKey {
 func getPodGangServiceNames(pgs *v1alpha1.PodGangSet) []string {
 	pgServiceNames := make([]string, 0, pgs.Spec.Replicas)
 	for replicaIndex := range pgs.Spec.Replicas {
-		pgServiceNames = append(pgServiceNames, utils.GeneratePodGangName(pgs.Name, replicaIndex))
+		pgServiceNames = append(pgServiceNames, component.GeneratePodGangName(pgs.Name, replicaIndex))
 	}
 	return pgServiceNames
 }

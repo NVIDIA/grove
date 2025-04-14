@@ -95,7 +95,7 @@ deploy-local: $(SKAFFOLD)
 .PHONY: deploy-local-dev
 deploy-local-dev: $(SKAFFOLD)
 	@$(HACK_DIR)/prepare-local-deploy.sh $(NAMESPACE) $(CERT_EXPIRY)
-	@$(HACK_DIR)/deploy-local.sh dev --cleanup=false -m grove-operator --trigger='manual' -n $(NAMESPACE)
+	@$(HACK_DIR)/deploy-local.sh dev --cleanup=false --keep-running-on-failure -m grove-operator --trigger='manual' -n $(NAMESPACE)
 
 # Deploys grove-operator to a local k8s cluster using skaffold in debug mode.
 .PHONY: deploy-local-debug

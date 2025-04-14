@@ -20,10 +20,10 @@ const (
 const (
 	// FinalizerPodGangSet is the finalizer for PodGangSet that is added to `.metadata.finalizers[]` slice. This will be placed on all PodGangSet resources
 	// during reconciliation. This finalizer is used to clean up resources that are created for a PodGangSet when it is deleted.
-	FinalizerPodGangSet = "podgangset.grove.io"
+	FinalizerPodGangSet = "grove.io/podgangset.grove.io"
 	// FinalizerPodClique is the finalizer for PodClique that is added to `.metadata.finalizers[]` slice. This will be placed on all PodClique resources
 	// during reconciliation. This finalizer is used to clean up resources that are created for a PodClique when it is deleted.
-	FinalizerPodClique = "podclique.grove.io"
+	FinalizerPodClique = "grove.io/podclique.grove.io"
 )
 
 // Constants for events.

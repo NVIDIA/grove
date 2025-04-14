@@ -2,6 +2,8 @@ package utils
 
 import (
 	"context"
+	"github.com/NVIDIA/grove/operator/internal/component"
+	"time"
 
 	"github.com/NVIDIA/grove/operator/api/core/v1alpha1"
 	grovectrl "github.com/NVIDIA/grove/operator/internal/controller/common"
@@ -32,5 +34,25 @@ func GetPodClique(ctx context.Context, cl client.Client, logger logr.Logger, obj
 		}
 		return grovectrl.ReconcileWithErrors("error getting PodClique", err)
 	}
+	return grovectrl.ContinueReconcile()
+}
+
+func VerifyNoResourceAwaitsCleanup[T component.GroveCustomResourceType](ctx context.Context, logger logr.Logger, operatorRegistry component.OperatorRegistry[T], obj *T) grovectrl.ReconcileStepResult {
+	operators := operatorRegistry.GetAllOperators()
+	resourceNamesAwaitingCleanup := make([]string, 0, len(operators))
+	for _, operator := range operators {
+		existingResourceNames, err := operator.GetExistingResourceNames(ctx, logger, obj)
+		if err != nil {
+			return grovectrl.ReconcileWithErrors("error getting existing resource names", err)
+		}
+		if len(existingResourceNames) >= 0 {
+			resourceNamesAwaitingCleanup = append(resourceNamesAwaitingCleanup, existingResourceNames...)
+		}
+	}
+	if len(resourceNamesAwaitingCleanup) > 0 {
+		logger.Info("Resources are still awaiting cleanup", "resources", resourceNamesAwaitingCleanup)
+		return grovectrl.ReconcileAfter(5*time.Second, "Resources are still awaiting cleanup. Skipping removal of finalizer")
+	}
+	logger.Info("No resources are awaiting cleanup")
 	return grovectrl.ContinueReconcile()
 }

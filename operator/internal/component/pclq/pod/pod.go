@@ -42,6 +42,11 @@ func New(client client.Client, scheme *runtime.Scheme) component.Operator[v1alph
 	}
 }
 
+func (r _resource) GetExistingResourceNames(ctx context.Context, logger logr.Logger, pclq *v1alpha1.PodClique) ([]string, error) {
+	//TODO Implement me
+	return nil, nil
+}
+
 func (r _resource) Sync(ctx context.Context, logger logr.Logger, pclq *v1alpha1.PodClique) error {
 	info, err := r.listPods(ctx, logger, pclq.Name, pclq.Namespace)
 	if err != nil {

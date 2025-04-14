@@ -12,6 +12,8 @@ import (
 
 // Constants for common operations that an Operator can perform.
 const (
+	// OperationGetExistingResourceNames represents an operation to get existing resource names.
+	OperationGetExistingResourceNames = "GetExistingResourceNames"
 	// OperationSync represents a sync operation.
 	OperationSync = "Sync"
 	// OperationDelete represents a delete operation.
@@ -27,6 +29,12 @@ const (
 	NamePodClique = "pgs-podclique"
 	// NamePodGangHeadlessService is the value for v1alpha1.LabelComponentKey for a Headless service for a Pod Gang.
 	NamePodGangHeadlessService = "pgs-headless-service"
+	// NamePodRole is the role that is associated to all Pods that are created for a PodGangSet.
+	NamePodRole = "pod-role"
+	// NamePodRoleBinding is the RoleBinding to a Role that is associated to all Pods that are created for a PodGangSet.
+	NamePodRoleBinding = "pod-role-binding"
+	// NamePodServiceAccount is the ServiceAccount that is used by all Pods that are created for a PodGangSet.
+	NamePodServiceAccount = "pod-service-account"
 )
 
 // GroveCustomResourceType defines a type bound for generic types.
@@ -36,6 +44,8 @@ type GroveCustomResourceType interface {
 
 // Operator is a facade that manages one or more resources that are provisioned for a PodGangSet.
 type Operator[T GroveCustomResourceType] interface {
+	// GetExistingResourceNames returns the names of all the existing resources that this Operator manages.
+	GetExistingResourceNames(ctx context.Context, logger logr.Logger, obj *T) ([]string, error)
 	// Sync synchronizes all resources that this Operator manages. If a component does not exist then it will
 	// create it. If there are changes in the owning PodGangSet resource that transpires changes to one or more resources
 	// managed by this Operator then those component(s) will be either be updated or a deletion is triggered.

@@ -56,8 +56,7 @@ func (r *Reconciler) deletePodGangSetResources(ctx context.Context, logger logr.
 }
 
 func (r *Reconciler) verifyNoResourcesAwaitsCleanup(ctx context.Context, logger logr.Logger, pgs *v1alpha1.PodGangSet) ctrlcommon.ReconcileStepResult {
-	// TODO implement me
-	return ctrlcommon.ContinueReconcile()
+	return ctrlutils.VerifyNoResourceAwaitsCleanup(ctx, logger, r.operatorRegistry, pgs)
 }
 
 func (r *Reconciler) removeFinalizer(ctx context.Context, logger logr.Logger, pgs *v1alpha1.PodGangSet) ctrlcommon.ReconcileStepResult {

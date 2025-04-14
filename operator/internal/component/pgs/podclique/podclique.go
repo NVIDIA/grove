@@ -20,6 +20,7 @@ import (
 )
 
 const (
+	errListPodClique   v1alpha1.ErrorCode = "ERR_LIST_PODCLIQUE"
 	errSyncPodClique   v1alpha1.ErrorCode = "ERR_SYNC_PODCLIQUE"
 	errDeletePodClique v1alpha1.ErrorCode = "ERR_DELETE_PODCLIQUE"
 )
@@ -37,12 +38,36 @@ func New(client client.Client, scheme *runtime.Scheme) component.Operator[v1alph
 	}
 }
 
+func (r _resource) GetExistingResourceNames(ctx context.Context, logger logr.Logger, pgs *v1alpha1.PodGangSet) ([]string, error) {
+	logger.Info("Looking for existing PodCliques for PodGangSet", "objectKey", client.ObjectKeyFromObject(pgs))
+	existingPclqNames := make([]string, 0, int(pgs.Spec.Replicas)*len(pgs.Spec.TemplateSpec.Cliques))
+	objMetaList := &metav1.PartialObjectMetadataList{}
+	objMetaList.SetGroupVersionKind(v1alpha1.SchemeGroupVersion.WithKind("PodClique"))
+	if err := r.client.List(ctx,
+		objMetaList,
+		client.InNamespace(pgs.Namespace),
+		client.MatchingLabels(getPodCliqueSelectorLabels(pgs.ObjectMeta)),
+	); err != nil {
+		return nil, groveerr.WrapError(err,
+			errListPodClique,
+			component.OperationGetExistingResourceNames,
+			fmt.Sprintf("Error listing PodCliques for PodGangSet: %v", client.ObjectKeyFromObject(pgs)),
+		)
+	}
+	for _, pclqObjMeta := range objMetaList.Items {
+		if metav1.IsControlledBy(&pclqObjMeta, &pgs.ObjectMeta) {
+			existingPclqNames = append(existingPclqNames, pclqObjMeta.Name)
+		}
+	}
+	return existingPclqNames, nil
+}
+
 func (r _resource) Sync(ctx context.Context, logger logr.Logger, pgs *v1alpha1.PodGangSet) error {
 	numTasks := int(pgs.Spec.Replicas) * len(pgs.Spec.TemplateSpec.Cliques)
 	tasks := make([]utils.Task, 0, numTasks)
 
 	for replicaIndex := range pgs.Spec.Replicas {
-		podGangName := utils.GeneratePodGangName(pgs.Name, replicaIndex)
+		podGangName := component.GeneratePodGangName(pgs.Name, replicaIndex)
 		for _, pclqTemplateSpec := range pgs.Spec.TemplateSpec.Cliques {
 			pclqObjectKey := client.ObjectKey{
 				Name:      createPodCliqueName(pgs.Name, replicaIndex, pclqTemplateSpec.Name),

@@ -98,5 +98,8 @@ func getOrderedKindsForSync() []component.Kind {
 	return []component.Kind{
 		component.KindPodClique,
 		component.KindHeadlessService,
+		component.KindRole,
+		component.KindRoleBinding,
+		component.KindServiceAccount,
 	}
 }
