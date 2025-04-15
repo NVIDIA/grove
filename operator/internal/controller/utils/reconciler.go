@@ -2,10 +2,10 @@ package utils
 
 import (
 	"context"
-	"github.com/NVIDIA/grove/operator/internal/component"
 	"time"
 
 	"github.com/NVIDIA/grove/operator/api/core/v1alpha1"
+	"github.com/NVIDIA/grove/operator/internal/component"
 	grovectrl "github.com/NVIDIA/grove/operator/internal/controller/common"
 
 	"github.com/go-logr/logr"

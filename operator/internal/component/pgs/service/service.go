@@ -4,15 +4,15 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	k8sutils "github.com/NVIDIA/grove/operator/internal/utils/kubernetes"
-	"github.com/samber/lo"
 
 	"github.com/NVIDIA/grove/operator/api/core/v1alpha1"
 	"github.com/NVIDIA/grove/operator/internal/component"
-	"github.com/NVIDIA/grove/operator/internal/utils"
-
 	groveerr "github.com/NVIDIA/grove/operator/internal/errors"
+	"github.com/NVIDIA/grove/operator/internal/utils"
+	k8sutils "github.com/NVIDIA/grove/operator/internal/utils/kubernetes"
+
 	"github.com/go-logr/logr"
+	"github.com/samber/lo"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
