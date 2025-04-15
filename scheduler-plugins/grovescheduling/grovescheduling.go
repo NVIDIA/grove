@@ -22,7 +22,7 @@ import (
 
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/klog/v2"
+	klog "k8s.io/klog/v2"
 	"k8s.io/kubernetes/pkg/scheduler/framework"
 )
 
@@ -33,9 +33,13 @@ type GroveScheduling struct {
 }
 
 var _ framework.QueueSortPlugin = &GroveScheduling{}
+
 var _ framework.PreFilterPlugin = &GroveScheduling{}
+
 var _ framework.PostFilterPlugin = &GroveScheduling{}
+
 var _ framework.PermitPlugin = &GroveScheduling{}
+
 var _ framework.ReservePlugin = &GroveScheduling{}
 
 var _ framework.EnqueueExtensions = &GroveScheduling{}
