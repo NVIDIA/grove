@@ -28,6 +28,7 @@ type _resource struct {
 	scheme *runtime.Scheme
 }
 
+// New creates an instance of ServiceAccount component operator.
 func New(client client.Client, scheme *runtime.Scheme) component.Operator[v1alpha1.PodGangSet] {
 	return &_resource{
 		client: client,
@@ -35,7 +36,8 @@ func New(client client.Client, scheme *runtime.Scheme) component.Operator[v1alph
 	}
 }
 
-func (r _resource) GetExistingResourceNames(ctx context.Context, logger logr.Logger, pgs *v1alpha1.PodGangSet) ([]string, error) {
+// GetExistingResourceNames returns the names of all the existing resources that the ServiceAccount Operator manages.
+func (r _resource) GetExistingResourceNames(ctx context.Context, _ logr.Logger, pgs *v1alpha1.PodGangSet) ([]string, error) {
 	saNames := make([]string, 0, 1)
 	objectKey := getObjectKey(pgs.ObjectMeta)
 	objMeta := &metav1.PartialObjectMetadata{}
@@ -56,6 +58,7 @@ func (r _resource) GetExistingResourceNames(ctx context.Context, logger logr.Log
 	return saNames, nil
 }
 
+// Sync synchronizes all resources that the ServiceAccount Operator manages.
 func (r _resource) Sync(ctx context.Context, logger logr.Logger, pgs *v1alpha1.PodGangSet) error {
 	objectKey := getObjectKey(pgs.ObjectMeta)
 	sa := emptyServiceAccount(objectKey)

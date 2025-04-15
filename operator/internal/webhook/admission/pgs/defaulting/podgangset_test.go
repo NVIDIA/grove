@@ -79,7 +79,7 @@ func TestDefaultPodGangSet(t *testing.T) {
 					},
 				}},
 				HeadlessServiceConfig: &v1alpha1.HeadlessServiceConfig{
-					PublishNotReadyAddresses: ptr.To(true),
+					PublishNotReadyAddresses: true,
 				},
 			},
 		},

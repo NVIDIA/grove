@@ -26,6 +26,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 )
 
+// RegisterWebhooks registers the webhooks with the controller manager.
 func RegisterWebhooks(mgr manager.Manager) error {
 	validatingWebhook := validation2.NewHandler(mgr)
 	slog.Info("Registering webhook with manager", "handler", validation2.HandlerName)

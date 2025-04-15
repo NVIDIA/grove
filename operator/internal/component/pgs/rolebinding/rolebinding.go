@@ -30,6 +30,7 @@ type _resource struct {
 	scheme *runtime.Scheme
 }
 
+// New creates an instance of RoleBinding component operator.
 func New(client client.Client, scheme *runtime.Scheme) component.Operator[v1alpha1.PodGangSet] {
 	return &_resource{
 		client: client,
@@ -37,7 +38,8 @@ func New(client client.Client, scheme *runtime.Scheme) component.Operator[v1alph
 	}
 }
 
-func (r _resource) GetExistingResourceNames(ctx context.Context, logger logr.Logger, pgs *v1alpha1.PodGangSet) ([]string, error) {
+// GetExistingResourceNames returns the names of all the existing resources that the RoleBinding Operator manages.
+func (r _resource) GetExistingResourceNames(ctx context.Context, _ logr.Logger, pgs *v1alpha1.PodGangSet) ([]string, error) {
 	roleBindingNames := make([]string, 0, 1)
 	objectKey := getObjectKey(pgs.ObjectMeta)
 	objMeta := &metav1.PartialObjectMetadata{}
@@ -58,6 +60,7 @@ func (r _resource) GetExistingResourceNames(ctx context.Context, logger logr.Log
 	return roleBindingNames, nil
 }
 
+// Sync synchronizes all resources that the RoleBinding Operator manages.
 func (r _resource) Sync(ctx context.Context, logger logr.Logger, pgs *v1alpha1.PodGangSet) error {
 	objectKey := getObjectKey(pgs.ObjectMeta)
 	role := emptyRoleBinding(objectKey)

@@ -30,6 +30,7 @@ type _resource struct {
 	scheme *runtime.Scheme
 }
 
+// New creates an instance of Service component operator.
 func New(client client.Client, scheme *runtime.Scheme) component.Operator[v1alpha1.PodGangSet] {
 	return &_resource{
 		client: client,
@@ -37,6 +38,7 @@ func New(client client.Client, scheme *runtime.Scheme) component.Operator[v1alph
 	}
 }
 
+// GetExistingResourceNames returns the names of all the existing resources that the Service Operator manages.
 func (r _resource) GetExistingResourceNames(ctx context.Context, logger logr.Logger, pgs *v1alpha1.PodGangSet) ([]string, error) {
 	logger.Info("Looking for existing PodGangSet Headless Services", "objectKey", client.ObjectKeyFromObject(pgs))
 	existingServiceNames := make([]string, 0, int(pgs.Spec.Replicas))
@@ -61,6 +63,7 @@ func (r _resource) GetExistingResourceNames(ctx context.Context, logger logr.Log
 	return existingServiceNames, nil
 }
 
+// Sync synchronizes all resources that the Service Operator manages.
 func (r _resource) Sync(ctx context.Context, logger logr.Logger, pgs *v1alpha1.PodGangSet) error {
 	// Do not create headless service if service spec is not defined.
 	if pgs.Spec.TemplateSpec.HeadlessServiceConfig == nil {

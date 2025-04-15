@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/NVIDIA/grove/operator/api/core/v1alpha1"
-	"github.com/NVIDIA/grove/operator/internal/controller/common"
 	ctrlcommon "github.com/NVIDIA/grove/operator/internal/controller/common"
 	groveerr "github.com/NVIDIA/grove/operator/internal/errors"
 
@@ -24,7 +23,7 @@ type recorder struct {
 }
 
 // NewReconcileStatusRecorder returns a new reconcile status recorder for PodGangSet.
-func NewReconcileStatusRecorder(client client.Client, eventRecorder record.EventRecorder) common.ReconcileStatusRecorder[v1alpha1.PodGangSet] {
+func NewReconcileStatusRecorder(client client.Client, eventRecorder record.EventRecorder) ctrlcommon.ReconcileStatusRecorder[v1alpha1.PodGangSet] {
 	return &recorder{
 		client:        client,
 		eventRecorder: eventRecorder,
@@ -34,7 +33,7 @@ func NewReconcileStatusRecorder(client client.Client, eventRecorder record.Event
 func (r *recorder) RecordStart(ctx context.Context, pgs *v1alpha1.PodGangSet, operationType v1alpha1.LastOperationType) error {
 	slog.Info("recording start", "pgs", pgs.Name, "operationType", operationType)
 	eventReason := lo.Ternary[string](operationType == v1alpha1.LastOperationTypeReconcile, v1alpha1.EventReconciling, v1alpha1.EventDeleting)
-	r.eventRecorder.Event(pgs, v1.EventTypeNormal, eventReason, fmt.Sprintf("Reconciling PodGangSet"))
+	r.eventRecorder.Event(pgs, v1.EventTypeNormal, eventReason, "Reconciling PodGangSet")
 	description := lo.Ternary(operationType == v1alpha1.LastOperationTypeReconcile, "PodGangSet reconciliation is in progress", "PodGangSet deletion is in progress")
 	return r.recordLastOperationAndLastErrors(ctx, pgs, operationType, v1alpha1.LastOperationStateProcessing, description)
 }
@@ -88,7 +87,6 @@ func (r *recorder) recordLastOperationAndLastErrors(ctx context.Context,
 	operationStatus v1alpha1.LastOperationState,
 	description string,
 	lastErrors ...v1alpha1.LastError) error {
-
 	originalPgs := pgs.DeepCopy()
 	pgs.Status.LastOperation = &v1alpha1.LastOperation{
 		Type:           operationType,

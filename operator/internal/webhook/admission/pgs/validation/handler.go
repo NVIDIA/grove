@@ -31,7 +31,9 @@ import (
 )
 
 const (
+	// ErrValidateCreatePodGangSet is the error code returned where the request to create a PodGangSet is invalid.
 	ErrValidateCreatePodGangSet v1alpha1.ErrorCode = "ERR_VALIDATE_CREATE_PODGANGSET"
+	// ErrValidateUpdatePodGangSet is the error code returned where the request to update a PodGangSet is invalid.
 	ErrValidateUpdatePodGangSet v1alpha1.ErrorCode = "ERR_VALIDATE_UPDATE_PODGANGSET"
 )
 
@@ -47,6 +49,7 @@ func NewHandler(mgr manager.Manager) *Handler {
 	}
 }
 
+// ValidateCreate validates a PodGangSet create request.
 func (h *Handler) ValidateCreate(ctx context.Context, obj runtime.Object) (admission.Warnings, error) {
 	h.logValidatorFunctionInvocation(ctx)
 	pgs, err := castToPodGangSet(obj)
@@ -56,6 +59,7 @@ func (h *Handler) ValidateCreate(ctx context.Context, obj runtime.Object) (admis
 	return newPGSValidator(pgs, admissionv1.Create).validate()
 }
 
+// ValidateUpdate validates a PodGangSet update request.
 func (h *Handler) ValidateUpdate(ctx context.Context, newObj, oldObj runtime.Object) (admission.Warnings, error) {
 	h.logValidatorFunctionInvocation(ctx)
 	newPgs, err := castToPodGangSet(newObj)
@@ -74,6 +78,7 @@ func (h *Handler) ValidateUpdate(ctx context.Context, newObj, oldObj runtime.Obj
 	return warnings, validator.validateUpdate(oldPgs)
 }
 
+// ValidateDelete validates a PodGangSet delete request.
 func (h *Handler) ValidateDelete(_ context.Context, _ runtime.Object) (admission.Warnings, error) {
 	return nil, nil
 }

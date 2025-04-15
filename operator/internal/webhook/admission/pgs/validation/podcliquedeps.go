@@ -4,22 +4,24 @@ import (
 	"k8s.io/utils/strings/slices"
 )
 
+// PodCliqueDependencyGraph is the graph structure established from the dependencies between PodCliques.
 type PodCliqueDependencyGraph struct {
 	adjacency map[string][]string
 }
 
+// NewPodCliqueDependencyGraph returns an empty PodCliqueDependencyGraph.
 func NewPodCliqueDependencyGraph() *PodCliqueDependencyGraph {
 	return &PodCliqueDependencyGraph{
 		adjacency: make(map[string][]string),
 	}
 }
 
+// AddDependencies adds all the `to` PodCliques that depend on the  `from` PodClique.
 func (g *PodCliqueDependencyGraph) AddDependencies(from string, to []string) {
-	for _, t := range to {
-		g.adjacency[from] = append(g.adjacency[from], t)
-	}
+	g.adjacency[from] = append(g.adjacency[from], to...)
 }
 
+// GetUnknownCliques returns cliques that are not present in the discoveredCliques slice.
 func (g *PodCliqueDependencyGraph) GetUnknownCliques(discoveredCliques []string) []string {
 	unknownCliques := make([]string, 0, len(discoveredCliques))
 	for _, toCliques := range g.adjacency {

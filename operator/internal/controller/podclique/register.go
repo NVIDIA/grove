@@ -16,6 +16,7 @@ const (
 	finalizerName  = "podclique.grove.io"
 )
 
+// RegisterWithManager registers the PodClique controller with the given controller manager.
 func (r *Reconciler) RegisterWithManager(mgr ctrl.Manager) error {
 	return builder.ControllerManagedBy(mgr).
 		Named(controllerName).
@@ -44,7 +45,7 @@ func podPredicate() predicate.Predicate {
 		/*
 			Allow update events where the pod status has changed.
 		*/
-		UpdateFunc:  func(event event.UpdateEvent) bool { return true },
+		UpdateFunc:  func(_ event.UpdateEvent) bool { return true },
 		GenericFunc: func(_ event.GenericEvent) bool { return false },
 	}
 }

@@ -37,6 +37,7 @@ func GetPodClique(ctx context.Context, cl client.Client, logger logr.Logger, obj
 	return grovectrl.ContinueReconcile()
 }
 
+// VerifyNoResourceAwaitsCleanup ensures no resources that are to be cleaned up are still present in the cluster.
 func VerifyNoResourceAwaitsCleanup[T component.GroveCustomResourceType](ctx context.Context, logger logr.Logger, operatorRegistry component.OperatorRegistry[T], obj *T) grovectrl.ReconcileStepResult {
 	operators := operatorRegistry.GetAllOperators()
 	resourceNamesAwaitingCleanup := make([]string, 0, len(operators))

@@ -27,8 +27,8 @@ import (
 
 // defaultPodGangSet adds defaults to a PodGangSet.
 func defaultPodGangSet(pgs *v1alpha1.PodGangSet) {
-	if utils.IsEmptyStringType(pgs.ObjectMeta.Namespace) {
-		pgs.ObjectMeta.Namespace = "default"
+	if utils.IsEmptyStringType(pgs.Namespace) {
+		pgs.Namespace = "default"
 	}
 	defaultPodGangSetSpec(&pgs.Spec)
 }

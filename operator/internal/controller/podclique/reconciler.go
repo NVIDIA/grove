@@ -38,6 +38,7 @@ func NewReconciler(mgr ctrl.Manager, controllerCfg configv1alpha1.PodCliqueContr
 	}
 }
 
+// Reconcile reconciles the `PodClique` resource.
 func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	logger := ctrllogger.FromContext(ctx).
 		WithName(controllerName).

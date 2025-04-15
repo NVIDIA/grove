@@ -101,6 +101,7 @@ func SetDefaults_PodGangSetControllerConfiguration(obj *PodGangSetControllerConf
 	}
 }
 
+// SetDefaults_PodCliqueControllerConfiguration sets defaults for the PodCliqueControllerConfiguration.
 func SetDefaults_PodCliqueControllerConfiguration(obj *PodCliqueControllerConfiguration) {
 	if obj.ConcurrentSyncs == nil {
 		obj.ConcurrentSyncs = ptr.To(1)

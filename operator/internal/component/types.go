@@ -94,16 +94,19 @@ type _registry[T GroveCustomResourceType] struct {
 	operators map[Kind]Operator[T]
 }
 
+// NewOperatorRegistry creates a new OperatorRegistry.
 func NewOperatorRegistry[T GroveCustomResourceType]() OperatorRegistry[T] {
 	return &_registry[T]{
 		operators: make(map[Kind]Operator[T]),
 	}
 }
 
+// Register registers an operator with its associated kind in the registry.
 func (r *_registry[T]) Register(kind Kind, operator Operator[T]) {
 	r.operators[kind] = operator
 }
 
+// GetOperator gets the operator associated with a kind from the registry.
 func (r *_registry[T]) GetOperator(kind Kind) (Operator[T], error) {
 	operator, ok := r.operators[kind]
 	if !ok {
@@ -112,6 +115,7 @@ func (r *_registry[T]) GetOperator(kind Kind) (Operator[T], error) {
 	return operator, nil
 }
 
+// GetAllOperators gets all operators registered.
 func (r *_registry[T]) GetAllOperators() map[Kind]Operator[T] {
 	return r.operators
 }

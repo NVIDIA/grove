@@ -7,15 +7,18 @@ import (
 	"sync"
 )
 
+// Task is a named closure.
 type Task struct {
 	Name string
 	Fn   func(ctx context.Context) error
 }
 
+// RunConcurrently executes a slice of Tasks concurrently.
 func RunConcurrently(ctx context.Context, tasks []Task) []error {
 	return RunConcurrentlyWithBounds(ctx, tasks, len(tasks))
 }
 
+// RunConcurrentlyWithBounds executes a slice of Tasks with at most `bound` tasks running concurrently.
 func RunConcurrentlyWithBounds(ctx context.Context, tasks []Task, bound int) []error {
 	rg := newRunGroup(bound)
 	for _, task := range tasks {

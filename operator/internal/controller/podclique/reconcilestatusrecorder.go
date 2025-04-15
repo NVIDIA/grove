@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/NVIDIA/grove/operator/api/core/v1alpha1"
-	"github.com/NVIDIA/grove/operator/internal/controller/common"
 	ctrlcommon "github.com/NVIDIA/grove/operator/internal/controller/common"
 	groveerr "github.com/NVIDIA/grove/operator/internal/errors"
 
@@ -24,7 +23,7 @@ type recorder struct {
 }
 
 // NewReconcileStatusRecorder returns a new reconcile status recorder for PodClique.
-func NewReconcileStatusRecorder(client client.Client, eventRecorder record.EventRecorder) common.ReconcileStatusRecorder[v1alpha1.PodClique] {
+func NewReconcileStatusRecorder(client client.Client, eventRecorder record.EventRecorder) ctrlcommon.ReconcileStatusRecorder[v1alpha1.PodClique] {
 	return &recorder{
 		client:        client,
 		eventRecorder: eventRecorder,
@@ -34,7 +33,7 @@ func NewReconcileStatusRecorder(client client.Client, eventRecorder record.Event
 func (r *recorder) RecordStart(ctx context.Context, pclq *v1alpha1.PodClique, operationType v1alpha1.LastOperationType) error {
 	slog.Info("recording start", "pclq", pclq.Name, "operationType", operationType)
 	eventReason := lo.Ternary[string](operationType == v1alpha1.LastOperationTypeReconcile, v1alpha1.EventReconciling, v1alpha1.EventDeleting)
-	r.eventRecorder.Event(pclq, v1.EventTypeNormal, eventReason, fmt.Sprintf("Reconciling PodClique"))
+	r.eventRecorder.Event(pclq, v1.EventTypeNormal, eventReason, "Reconciling PodClique")
 	description := lo.Ternary(operationType == v1alpha1.LastOperationTypeReconcile, "PodClique reconciliation is in progress", "PodClique deletion is in progress")
 	return r.recordLastOperationAndLastErrors(ctx, pclq, operationType, v1alpha1.LastOperationStateProcessing, description)
 }
@@ -88,7 +87,6 @@ func (r *recorder) recordLastOperationAndLastErrors(ctx context.Context,
 	operationStatus v1alpha1.LastOperationState,
 	description string,
 	lastErrors ...v1alpha1.LastError) error {
-
 	originalPclq := pclq.DeepCopy()
 	pclq.Status.LastOperation = &v1alpha1.LastOperation{
 		Type:           operationType,

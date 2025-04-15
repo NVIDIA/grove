@@ -38,6 +38,7 @@ func New(client client.Client, scheme *runtime.Scheme) component.Operator[v1alph
 	}
 }
 
+// GetExistingResourceNames returns the names of all the existing resources that the PodClique Operator manages.
 func (r _resource) GetExistingResourceNames(ctx context.Context, logger logr.Logger, pgs *v1alpha1.PodGangSet) ([]string, error) {
 	logger.Info("Looking for existing PodCliques for PodGangSet", "objectKey", client.ObjectKeyFromObject(pgs))
 	existingPclqNames := make([]string, 0, int(pgs.Spec.Replicas)*len(pgs.Spec.TemplateSpec.Cliques))
@@ -62,6 +63,7 @@ func (r _resource) GetExistingResourceNames(ctx context.Context, logger logr.Log
 	return existingPclqNames, nil
 }
 
+// Sync synchronizes all resources that the PodClique Operator manages.
 func (r _resource) Sync(ctx context.Context, logger logr.Logger, pgs *v1alpha1.PodGangSet) error {
 	numTasks := int(pgs.Spec.Replicas) * len(pgs.Spec.TemplateSpec.Cliques)
 	tasks := make([]utils.Task, 0, numTasks)
@@ -136,8 +138,8 @@ func (r _resource) buildResource(logger logr.Logger, pclq *v1alpha1.PodClique, p
 	if err := controllerutil.SetControllerReference(pgs, pclq, r.scheme); err != nil {
 		return err
 	}
-	pclq.ObjectMeta.Labels = getLabels(pgs.Name, pclqObjectKey, pclqTemplateSpec, podGangName)
-	pclq.ObjectMeta.Annotations = pclqTemplateSpec.Annotations
+	pclq.Labels = getLabels(pgs.Name, pclqObjectKey, pclqTemplateSpec, podGangName)
+	pclq.Annotations = pclqTemplateSpec.Annotations
 	// set PodCliqueSpec
 	// ------------------------------------
 	pclq.Spec = pclqTemplateSpec.Spec
