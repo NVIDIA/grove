@@ -24,7 +24,7 @@ CODE_GENERATOR	    := $(TOOLS_BIN_DIR)/code-generator
 # default tool versions
 # -------------------------------------------------------------------------
 CONTROLLER_GEN_VERSION ?= $(call version_gomod,sigs.k8s.io/controller-tools)
-GOLANGCI_LINT_VERSION ?= v1.60.3
+GOLANGCI_LINT_VERSION ?= v2.1.1
 CODE_GENERATOR_VERSION ?= $(call version_gomod,k8s.io/api)
 
 export PATH := $(abspath $(TOOLS_BIN_DIR)):$(PATH)
@@ -47,7 +47,7 @@ $(CONTROLLER_GEN):
 $(GOLANGCI_LINT):
 	@# CGO_ENABLED has to be set to 1 in order for golangci-lint to be able to load plugins
 	@# see https://github.com/golangci/golangci-lint/issues/1276
-	GOBIN=$(abspath $(TOOLS_BIN_DIR)) CGO_ENABLED=1 go install github.com/golangci/golangci-lint/cmd/golangci-lint@$(GOLANGCI_LINT_VERSION)
+	GOBIN=$(abspath $(TOOLS_BIN_DIR)) CGO_ENABLED=1 go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@$(GOLANGCI_LINT_VERSION)
 
 $(GOIMPORTS_REVISER):
 	GOBIN=$(abspath $(TOOLS_BIN_DIR)) go install github.com/incu6us/goimports-reviser/v3@$(GOIMPORTS_REVISER_VERSION)

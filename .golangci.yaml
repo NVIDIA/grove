@@ -1,55 +1,72 @@
+version: "2"
 run:
   concurrency: 4
   timeout: 10m
-
 linters:
   enable:
-    - revive
-    - loggercheck
     - importas
+    - loggercheck
     - misspell
-    - unparam
-    - unconvert
     - nilerr
+    - revive
+    - unconvert
+    - unparam
     - whitespace
-
-issues:
-  exclude-use-default: false
-  exclude:
-    # errcheck: Almost all programs ignore errors on these functions and in most cases it's ok
-    - Error return value of .((os\.)?std(out|err)\..*|.*Close|.*Flush|os\.Remove(All)?|.*printf?|os\.(Un)?Setenv). is not checked
-    # revive:
-    - var-naming # ((var|const|struct field|func) .* should be .*
-    - dot-imports # should not use dot imports
-    - package-comments # package comment should be of the form
-    - unexported-return # exported func .* returns unexported type .*, which can be annoying to use
-    - indent-error-flow # if block ends with a return statement, so drop this else and outdent its block
-    - "exported: (type|func) name will be used as .* by other packages, and that stutters;"
-    - "exported function Convert_.* should have comment or be unexported"
-    - redundant-import-alias
-    # typecheck:
-    - "undeclared name: `.*`"
-    - "\".*\" imported but not used"
-  exclude-rules:
-    - linters:
-        - staticcheck
-      text: "SA1019:" # Excludes messages where deprecated variables are used
-
-  exclude-files:
-    - "zz_generated\\..*\\.go$"
-
-linters-settings:
-  revive:
+  settings:
+    loggercheck:
+      logr: true
+      zap: true
+      no-printf-like: true
+    misspell:
+      mode: restricted # only check comments
+    revive:
+      rules:
+        - name: duplicated-imports
+        - name: unused-parameter
+        - name: unreachable-code
+        - name: context-as-argument
+        - name: early-return
+        - name: exported
+  exclusions:
+    generated: lax
     rules:
-      - name: duplicated-imports
-      - name: unused-parameter
-      - name: unreachable-code
-      - name: context-as-argument
-      - name: early-return
-      - name: exported
-  loggercheck:
-    no-printf-like: true
-    logr: true
-    zap: true
-  misspell:
-    mode: restricted # only check comments
+      - linters:
+          - staticcheck
+        text: 'SA1019:' # Excludes messages where deprecated variables are used
+      - path: (.+)\.go$
+        # errcheck: Almost all programs ignore errors on these functions and in most cases it's ok
+        text: Error return value of .((os\.)?std(out|err)\..*|.*Close|.*Flush|os\.Remove(All)?|.*printf?|os\.(Un)?Setenv). is not checked
+        # revive:
+      - path: (.+)\.go$
+        text: var-naming # ((var|const|struct field|func) .* should be .*
+      - path: (.+)\.go$
+        text: dot-imports # should not use dot imports
+      - path: (.+)\.go$
+        text: package-comments # package comment should be of the form
+      - path: (.+)\.go$
+        text: unexported-return # exported func .* returns unexported type .*, which can be annoying to use
+      - path: (.+)\.go$
+        text: indent-error-flow # if block ends with a return statement, so drop this else and outdent its block
+      - path: (.+)\.go$
+        text: 'exported: (type|func) name will be used as .* by other packages, and that stutters;'
+      - path: (.+)\.go$
+        text: exported function Convert_.* should have comment or be unexported
+      - path: (.+)\.go$
+        text: redundant-import-alias
+        # typecheck:
+      - path: (.+)\.go$
+        text: 'undeclared name: `.*`'
+      - path: (.+)\.go$
+        text: '".*" imported but not used'
+    paths:
+      - zz_generated\..*\.go$
+      - third_party$
+      - builtin$
+      - examples$
+formatters:
+  exclusions:
+    generated: lax
+    paths:
+      - third_party$
+      - builtin$
+      - examples$
