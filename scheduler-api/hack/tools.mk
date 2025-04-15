@@ -15,17 +15,21 @@
 # */
 
 
-TOOLS_DIR 			:= $(HACK_DIR)/tools
-TOOLS_BIN_DIR       := $(TOOLS_DIR)/bin
-CONTROLLER_GEN      := $(TOOLS_BIN_DIR)/controller-gen
-GOLANGCI_LINT       := $(TOOLS_BIN_DIR)/golangci-lint
-CODE_GENERATOR	    := $(TOOLS_BIN_DIR)/code-generator
+TOOLS_DIR         := $(HACK_DIR)/tools
+TOOLS_BIN_DIR     := $(TOOLS_DIR)/bin
+CONTROLLER_GEN    := $(TOOLS_BIN_DIR)/controller-gen
+GOLANGCI_LINT     := $(TOOLS_BIN_DIR)/golangci-lint
+CODE_GENERATOR    := $(TOOLS_BIN_DIR)/code-generator
+GO_ADD_LICENSE    := $(TOOLS_BIN_DIR)/addlicense
+GOIMPORTS_REVISER := $(TOOLS_BIN_DIR)/goimports-reviser
 
 # default tool versions
 # -------------------------------------------------------------------------
-CONTROLLER_GEN_VERSION ?= $(call version_gomod,sigs.k8s.io/controller-tools)
-GOLANGCI_LINT_VERSION ?= v2.1.1
-CODE_GENERATOR_VERSION ?= $(call version_gomod,k8s.io/api)
+CONTROLLER_GEN_VERSION    ?= $(call version_gomod,sigs.k8s.io/controller-tools)
+CODE_GENERATOR_VERSION    ?= $(call version_gomod,k8s.io/api)
+GOLANGCI_LINT_VERSION     ?= v2.1.1
+GO_ADD_LICENSE_VERSION    ?= v1.1.1
+GOIMPORTS_REVISER_VERSION ?= v3.9.1
 
 export PATH := $(abspath $(TOOLS_BIN_DIR)):$(PATH)
 
@@ -56,3 +60,6 @@ CODE_GENERATOR_ROOT = $(shell go env GOMODCACHE)/k8s.io/code-generator@$(CODE_GE
 $(CODE_GENERATOR):
 	GOBIN=$(abspath $(TOOLS_BIN_DIR)) GO111MODULE=on go install k8s.io/code-generator/cmd/client-gen@$(CODE_GENERATOR_VERSION)
 	cp -f $(CODE_GENERATOR_ROOT)/kube_codegen.sh $(TOOLS_BIN_DIR)/
+
+$(GO_ADD_LICENSE):
+	GOBIN=$(abspath $(TOOLS_BIN_DIR)) go install github.com/google/addlicense@$(GO_ADD_LICENSE_VERSION)

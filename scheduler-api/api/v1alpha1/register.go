@@ -6,6 +6,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 )
 
+// GroupName is the name of the Grove API group.
 const GroupName = "scheduler.grove.io"
 
 var (
