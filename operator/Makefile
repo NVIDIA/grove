@@ -14,8 +14,8 @@
 # limitations under the License.
 # */
 
-REPO_ROOT           := $(shell dirname "$(realpath $(lastword $(MAKEFILE_LIST)))")
-HACK_DIR            := $(REPO_ROOT)/hack
+REPO_ROOT := $(shell dirname "$(realpath $(lastword $(MAKEFILE_LIST)))")
+HACK_DIR  := $(REPO_ROOT)/hack
 
 # Include tools targets
 include $(HACK_DIR)/tools.mk

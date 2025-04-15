@@ -15,30 +15,30 @@
 # */
 
 
-SYSTEM_NAME         := $(shell uname -s | tr '[:upper:]' '[:lower:]')
-SYSTEM_ARCH         := $(shell uname -m | sed 's/x86_64/amd64/;s/aarch64/arm64/')
-TOOLS_DIR 			:= $(HACK_DIR)/tools
-TOOLS_BIN_DIR       := $(TOOLS_DIR)/bin
-CONTROLLER_GEN      := $(TOOLS_BIN_DIR)/controller-gen
-SETUP_ENVTEST       := $(TOOLS_BIN_DIR)/setup-envtest
-KIND                := $(TOOLS_BIN_DIR)/kind
-GOLANGCI_LINT       := $(TOOLS_BIN_DIR)/golangci-lint
-GOIMPORTS_REVISER   := $(TOOLS_BIN_DIR)/goimports-reviser
-CODE_GENERATOR	    := $(TOOLS_BIN_DIR)/code-generator
-YQ					:= $(TOOLS_BIN_DIR)/yq
-GO_ADD_LICENSE      := $(TOOLS_BIN_DIR)/addlicense
-SKAFFOLD            := $(TOOLS_BIN_DIR)/skaffold
+SYSTEM_NAME       := $(shell uname -s | tr '[:upper:]' '[:lower:]')
+SYSTEM_ARCH       := $(shell uname -m | sed 's/x86_64/amd64/;s/aarch64/arm64/')
+TOOLS_DIR         := $(HACK_DIR)/tools
+TOOLS_BIN_DIR     := $(TOOLS_DIR)/bin
+CONTROLLER_GEN    := $(TOOLS_BIN_DIR)/controller-gen
+SETUP_ENVTEST     := $(TOOLS_BIN_DIR)/setup-envtest
+KIND              := $(TOOLS_BIN_DIR)/kind
+GOLANGCI_LINT     := $(TOOLS_BIN_DIR)/golangci-lint
+GOIMPORTS_REVISER := $(TOOLS_BIN_DIR)/goimports-reviser
+CODE_GENERATOR    := $(TOOLS_BIN_DIR)/code-generator
+YQ                := $(TOOLS_BIN_DIR)/yq
+GO_ADD_LICENSE    := $(TOOLS_BIN_DIR)/addlicense
+SKAFFOLD          := $(TOOLS_BIN_DIR)/skaffold
 
 # default tool versions
 # -------------------------------------------------------------------------
-CONTROLLER_GEN_VERSION ?= $(call version_gomod,sigs.k8s.io/controller-tools)
-KIND_VERSION ?= v0.24.0
-GOLANGCI_LINT_VERSION ?= v2.1.1
-GOIMPORTS_REVISER_VERSION ?= v3.6.5
-CODE_GENERATOR_VERSION ?= $(call version_gomod,k8s.io/api)
-YQ_VERSION ?= v4.44.3
-GO_ADD_LICENSE_VERSION ?= v1.1.1
-SKAFFOLD_VERSION ?= v2.14.0
+CONTROLLER_GEN_VERSION    ?= $(call version_gomod,sigs.k8s.io/controller-tools)
+KIND_VERSION              ?= v0.27.0
+GOLANGCI_LINT_VERSION     ?= v2.1.1
+GOIMPORTS_REVISER_VERSION ?= v3.9.1
+CODE_GENERATOR_VERSION    ?= $(call version_gomod,k8s.io/api)
+YQ_VERSION                ?= v4.45.1
+GO_ADD_LICENSE_VERSION    ?= v1.1.1
+SKAFFOLD_VERSION          ?= v2.14.0
 
 export PATH := $(abspath $(TOOLS_BIN_DIR)):$(PATH)
 
