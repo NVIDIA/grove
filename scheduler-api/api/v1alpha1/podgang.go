@@ -18,7 +18,6 @@ package v1alpha1
 
 import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/types"
 )
 
 // +genclient
@@ -54,17 +53,29 @@ type PodGangSpec struct {
 	PodGroups []PodGroup `json:"podgroups"`
 	// TerminationDelay is a delay timer that activates gang termination of a running PodGang
 	// whenever the number of running pods violates the minReplicas constraint of any PodGroup.
+	// It allows for a grace period to allow the scheduler to schedule the pods again so that they
+	// are equal to or greater than the minReplicas, thus preventing unnecessary PodGang termination.
 	TerminationDelay metav1.Duration `json:"terminationDelay"`
 }
 
 // PodGroup defines a set of pods in a PodGang that share the same PodTemplateSpec.
 type PodGroup struct {
 	// PodReferences is a list of references to the Pods that are part of this group.
-	PodReferences []types.NamespacedName `json:"podReferences"`
+	PodReferences []NamespacedName `json:"podReferences"`
 	// MinReplicas is the number of replicas that needs to be gang scheduled.
 	// If the MinReplicas is greater than len(PodReferences) then scheduler makes the best effort to schedule as many pods beyond
 	// MinReplicas. However, guaranteed gang scheduling is only provided for MinReplicas.
 	MinReplicas int32 `json:"minReplicas"`
+}
+
+// NamespacedName is a struct that contains the namespace and name of an object.
+// types.NamespacedName does not have json tags, so we define our own for the time being.
+// If https://github.com/kubernetes/kubernetes/issues/131313 is resolved, we can switch to using the APIMachinery type instead.
+type NamespacedName struct {
+	// Namespace is the namespace of the object.
+	Namespace string `json:"namespace"`
+	// Name is the name of the object.
+	Name string `json:"name"`
 }
 
 // PodGangStatus defines the status of a PodGang.

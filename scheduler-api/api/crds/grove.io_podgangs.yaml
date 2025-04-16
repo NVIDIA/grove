@@ -40,29 +40,54 @@ spec:
           spec:
             description: Spec defines the specification of the PodGang.
             properties:
-              members:
-                description: Members is a list of references to resources that should
-                  be gang-scheduled.
+              podgroups:
+                description: PodGroups is a list of member pod groups in the PodGang.
                 items:
-                  description: CrossVersionObjectReference contains enough information
-                    to let you identify the referred resource.
+                  description: PodGroup defines a set of pods in a PodGang that share
+                    the same PodTemplateSpec.
                   properties:
-                    apiVersion:
-                      description: apiVersion is the API version of the referent
-                      type: string
-                    kind:
-                      description: 'kind is the kind of the referent; More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
-                      type: string
-                    name:
-                      description: 'name is the name of the referent; More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names'
-                      type: string
+                    minReplicas:
+                      description: |-
+                        MinReplicas is the number of replicas that needs to be gang scheduled.
+                        If the MinReplicas is greater than len(PodReferences) then scheduler makes the best effort to schedule as many pods beyond
+                        MinReplicas. However, guaranteed gang scheduling is only provided for MinReplicas.
+                      format: int32
+                      type: integer
+                    podReferences:
+                      description: PodReferences is a list of references to the Pods
+                        that are part of this group.
+                      items:
+                        description: |-
+                          NamespacedName is a struct that contains the namespace and name of an object.
+                          types.NamespacedName does not have json tags, so we define our own for the time being.
+                          If https://github.com/kubernetes/kubernetes/issues/131313 is resolved, we can switch to using the APIMachinery type instead.
+                        properties:
+                          name:
+                            description: Name is the name of the object.
+                            type: string
+                          namespace:
+                            description: Namespace is the namespace of the object.
+                            type: string
+                        required:
+                        - name
+                        - namespace
+                        type: object
+                      type: array
                   required:
-                  - kind
-                  - name
+                  - minReplicas
+                  - podReferences
                   type: object
                 type: array
+              terminationDelay:
+                description: |-
+                  TerminationDelay is a delay timer that activates gang termination of a running PodGang
+                  whenever the number of running pods violates the minReplicas constraint of any PodGroup.
+                  It allows for a grace period to allow the scheduler to schedule the pods again so that they
+                  are equal to or greater than the minReplicas, thus preventing unnecessary PodGang termination.
+                type: string
             required:
-            - members
+            - podgroups
+            - terminationDelay
             type: object
           status:
             description: Status defines the status of the PodGang.
