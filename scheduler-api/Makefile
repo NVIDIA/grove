@@ -14,28 +14,30 @@
 # limitations under the License.
 # */
 
-REPO_ROOT := $(shell dirname "$(realpath $(lastword $(MAKEFILE_LIST)))")
-HACK_DIR  := $(REPO_ROOT)/hack
+MODULE_ROOT     := $(shell dirname "$(realpath $(lastword $(MAKEFILE_LIST)))")
+MODULE_HACK_DIR := $(MODULE_ROOT)/hack
+REPO_ROOT       := $(shell dirname "$(MODULE_ROOT)")
+REPO_HACK_DIR   := $(REPO_ROOT)/hack
 
 # Include tools targets
-include $(HACK_DIR)/tools.mk
+include $(REPO_HACK_DIR)/tools.mk
 
 # Generates code and CRDs.
 .PHONY: generate
 generate: $(CODE_GENERATOR) $(CONTROLLER_GEN)
-	@$(HACK_DIR)/generate.sh
+	@$(MODULE_HACK_DIR)/generate.sh
 
 # Lints the codebase using GOLANGCI_LINT.
 .PHONY: lint
 lint: $(GOLANGCI_LINT)
-	@$(GOLANGCI_LINT) run -c ../.golangci.yaml ./...
+	@$(GOLANGCI_LINT) run -c $(REPO_ROOT)/.golangci.yaml ./...
 
 # Formats the codebase
 .PHONY: format
 format: $(GOIMPORTS_REVISER)
-	@$(HACK_DIR)/format.sh ./api/
+	@$(REPO_HACK_DIR)/format.sh ./api/
 
 # Add license headers to all files
 .PHONY: add-license-headers
 add-license-headers: $(GO_ADD_LICENSE)
-	@$(HACK_DIR)/add-license-headers.sh
+	@$(REPO_HACK_DIR)/add-license-headers.sh

@@ -15,35 +15,50 @@
 # limitations under the License.
 # */
 
-
 set -o errexit
 set -o nounset
 set -o pipefail
 
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
-OPERATOR_GO_MODULE_ROOT="$(dirname "$SCRIPT_DIR")"
-TOOLS_BIN_DIR="${SCRIPT_DIR}/tools/bin"
+MODULE_ROOT="$(dirname "$SCRIPT_DIR")"
+REPO_ROOT="$(dirname "$MODULE_ROOT")"
+REPO_HACK_DIR=${REPO_ROOT}/hack
+TOOLS_BIN_DIR="${REPO_HACK_DIR}/tools/bin"
 
-source "${TOOLS_BIN_DIR}/kube_codegen.sh"
+trap cleanup EXIT
+
+function setup() {
+  # kube_codegen.sh NEEDS to run from inside the Go module, as it uses go.mod for dependency versions.
+  # Symbolic linking does not work either, since it uses `pwd -P` inside. Only copying will work.
+  mkdir -p ${MODULE_ROOT}/hack/tools/bin/
+  cp -f ${TOOLS_BIN_DIR}/kube_codegen.sh ${MODULE_ROOT}/hack/tools/bin/
+  source "${MODULE_ROOT}/hack/tools/bin/kube_codegen.sh"
+}
+
+function cleanup() {
+  rm -rf ${MODULE_ROOT}/hack/tools
+}
 
 function generate_deepcopy_defaulter() {
  kube::codegen::gen_helpers \
-    --boilerplate "${SCRIPT_DIR}/boilerplate.go.txt" \
-    "${OPERATOR_GO_MODULE_ROOT}/api"
+    --boilerplate "${REPO_HACK_DIR}/boilerplate.go.txt" \
+    "${MODULE_ROOT}/api"
 }
 
 function generate_clientset() {
   kube::codegen::gen_client \
     --with-watch \
-    --output-dir "${OPERATOR_GO_MODULE_ROOT}/client" \
+    --output-dir "${MODULE_ROOT}/client" \
     --output-pkg "github.com/NVIDIA/grove/operator/client" \
-    --boilerplate "${SCRIPT_DIR}/boilerplate.go.txt" \
-    "${OPERATOR_GO_MODULE_ROOT}/api"
+    --boilerplate "${REPO_HACK_DIR}/boilerplate.go.txt" \
+    "${MODULE_ROOT}/api"
 }
 
 function main() {
+  setup
+
   echo "> Generate..."
-  go generate "${OPERATOR_GO_MODULE_ROOT}/..."
+  go generate "${MODULE_ROOT}/..."
 
   echo "> Generating DeepCopy and Defaulting functions..."
   generate_deepcopy_defaulter

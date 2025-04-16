@@ -22,6 +22,8 @@ set -o pipefail
 echo "> Adding Apache License header to all go files where it is not present"
 
 YEAR="$(date +%Y)"
+SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
+REPO_HACK_DIR=$(dirname "$SCRIPT_DIR")/hack
 
 # addlicense with a license file (parameter -f) expects no comments in the file.
 # boilerplate.go.txt is however also used also when generating go code.
@@ -29,7 +31,7 @@ YEAR="$(date +%Y)"
 
 temp_file=$(mktemp)
 trap "rm -f $temp_file" EXIT
-sed -e "s/YEAR/${YEAR}/g" -e 's|^// *||' hack/boilerplate.go.txt > $temp_file
+sed -e "s/YEAR/${YEAR}/g" -e 's|^// *||' ${REPO_HACK_DIR}/boilerplate.go.txt > $temp_file
 
 addlicense \
   -f $temp_file \

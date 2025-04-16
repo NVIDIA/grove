@@ -30,6 +30,7 @@ go.work.sum
 .DS_Store
 
 # hack tools binaries
+hack/tools/*
 operator/hack/tools/*
 operator/hack/kind/*
 scheduler-plugins/hack/tools/*

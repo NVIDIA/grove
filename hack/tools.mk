@@ -1,5 +1,5 @@
 # /*
-# Copyright 2024 The Grove Authors.
+# Copyright 2025 The Grove Authors.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -17,7 +17,7 @@
 
 SYSTEM_NAME       := $(shell uname -s | tr '[:upper:]' '[:lower:]')
 SYSTEM_ARCH       := $(shell uname -m | sed 's/x86_64/amd64/;s/aarch64/arm64/')
-TOOLS_DIR         := $(HACK_DIR)/tools
+TOOLS_DIR         := $(REPO_HACK_DIR)/tools
 TOOLS_BIN_DIR     := $(TOOLS_DIR)/bin
 CONTROLLER_GEN    := $(TOOLS_BIN_DIR)/controller-gen
 SETUP_ENVTEST     := $(TOOLS_BIN_DIR)/setup-envtest
