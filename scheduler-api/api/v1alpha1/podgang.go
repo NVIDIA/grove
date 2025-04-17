@@ -29,7 +29,7 @@ import (
 // PodGang defines a specification of a group of pods that should be scheduled together.
 type PodGang struct {
 	metav1.TypeMeta   `json:",inline"`
-	metav1.ObjectMeta `json:",inline"`
+	metav1.ObjectMeta `json:"metadata,omitempty"`
 	// Spec defines the specification of the PodGang.
 	Spec PodGangSpec `json:"spec"`
 	// Status defines the status of the PodGang.

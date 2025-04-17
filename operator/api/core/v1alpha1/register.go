@@ -35,10 +35,9 @@ var (
 	// SchemeGroupVersion is group version used to register these objects
 	SchemeGroupVersion = schema.GroupVersion{Group: GroupName, Version: "v1alpha1"}
 	// SchemeBuilder is used to add go types to the GroupVersionKind scheme
-	SchemeBuilder      = runtime.NewSchemeBuilder(addKnownTypes)
-	localSchemeBuilder = &SchemeBuilder
+	SchemeBuilder = runtime.NewSchemeBuilder(addKnownTypes)
 	// AddToScheme is a reference to the Scheme Builder's AddToScheme function.
-	AddToScheme = localSchemeBuilder.AddToScheme
+	AddToScheme = SchemeBuilder.AddToScheme
 )
 
 // Kind takes an unqualified kind and returns back a Group qualified GroupKind
@@ -60,8 +59,4 @@ func addKnownTypes(scheme *runtime.Scheme) error {
 	)
 	metav1.AddToGroupVersion(scheme, SchemeGroupVersion)
 	return nil
-}
-
-func init() {
-	localSchemeBuilder.Register()
 }
