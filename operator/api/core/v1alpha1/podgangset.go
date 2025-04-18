@@ -60,17 +60,6 @@ type PodGangSetSpec struct {
 	// UpdateStrategy defines the strategy to be used when updating the PodGangs.
 	// +optional
 	UpdateStrategy *GangUpdateStrategy `json:"updateStrategy,omitempty"`
-	// GangSpreadConstraints defines the constraints for spreading PodGang's across domains identified by a topology.
-	// +optional
-	GangSpreadConstraints []corev1.TopologySpreadConstraint `json:"gangSpreadConstraints,omitempty"`
-	// PriorityClassName is the name of the PriorityClass to be used for the PodGangSet.
-	// If specified, indicates the priority of the PodGangSet. "system-node-critical" and
-	// "system-cluster-critical" are two special keywords which indicate the
-	// highest priorities with the former being the highest priority. Any other
-	// name must be defined by creating a PriorityClass object with that name.
-	// If not specified, the pod priority will be default or zero if there is no default.
-	// +optional
-	PriorityClassName string `json:"priorityClassName,omitempty"`
 }
 
 // PodGangSetStatus defines the status of a PodGangSet.
@@ -106,9 +95,30 @@ type PodGangTemplateSpec struct {
 	// StartupType defines the type of startup dependency amongst the cliques within a PodGang.
 	// +optional
 	StartupType *CliqueStartupType `json:"cliqueStartupType,omitempty"`
+	// HeadlessServiceConfig defines the config options for the headless service.
+	// If present, create headless service for each PodGang.
+	// +optional
+	HeadlessServiceConfig *HeadlessServiceConfig `json:"headlessServiceConfig,omitempty"`
+	// SchedulingPolicyConfig defines the scheduling policy configuration for the PodGang.
+	SchedulingPolicyConfig *SchedulingPolicyConfig `json:"schedulingPolicyConfig,omitempty"`
+}
+
+// SchedulingPolicyConfig defines the scheduling policy configuration for the PodGang.
+type SchedulingPolicyConfig struct {
 	// NetworkPackStrategy defines the strategy for packing pods on nodes while minimizing network switch hops.
 	// +optional
 	NetworkPackStrategy *NetworkPackStrategy `json:"networkPackStrategy,omitempty"`
+	// GangSpreadConstraints defines the constraints for spreading PodGang's across domains identified by a topology.
+	// +optional
+	GangSpreadConstraints []corev1.TopologySpreadConstraint `json:"gangSpreadConstraints,omitempty"`
+	// PriorityClassName is the name of the PriorityClass to be used for the PodGangSet.
+	// If specified, indicates the priority of the PodGangSet. "system-node-critical" and
+	// "system-cluster-critical" are two special keywords which indicate the
+	// highest priorities with the former being the highest priority. Any other
+	// name must be defined by creating a PriorityClass object with that name.
+	// If not specified, the pod priority will be default or zero if there is no default.
+	// +optional
+	PriorityClassName string `json:"priorityClassName,omitempty"`
 	// TerminationDelay is the delay after which the gang termination will be triggered.
 	// A gang is a candidate for termination if number of running pods fall below a threshold for any PodClique.
 	// If a PodGang remains a candidate past TerminationDelay then it will be terminated. This allows additional time
@@ -116,10 +126,6 @@ type PodGangTemplateSpec struct {
 	// running pods go above the threshold.
 	// +optional
 	TerminationDelay *metav1.Duration `json:"terminationDelay,omitempty"`
-	// HeadlessServiceConfig defines the config options for the headless service.
-	// If present, create headless service for each PodGang.
-	// +optional
-	HeadlessServiceConfig *HeadlessServiceConfig `json:"headlessServiceConfig,omitempty"`
 }
 
 // HeadlessServiceConfig defines the config options for the headless service.

@@ -123,16 +123,20 @@ func (v *pgsValidator) validateRollingUpdateConfig(fldPath *field.Path) field.Er
 
 func (v *pgsValidator) validatePodGangTemplateSpec(fldPath *field.Path) ([]string, field.ErrorList) {
 	allErrs := field.ErrorList{}
-
 	allErrs = append(allErrs, validateEnumType(v.pgs.Spec.TemplateSpec.StartupType, allowedStartupTypes, fldPath.Child("cliqueStartupType"))...)
-	allErrs = append(allErrs, validateEnumType(v.pgs.Spec.TemplateSpec.NetworkPackStrategy, allowedNetworkPackStrategies, fldPath.Child("networkPackStrategy"))...)
-
 	// validate cliques
 	warnings, errs := v.validatePodCliqueTemplates(fldPath.Child("cliques"))
 	if len(errs) != 0 {
 		allErrs = append(allErrs, errs...)
 	}
+	allErrs = append(allErrs, validatePodGangSchedulingPolicyConfig(fldPath.Child("schedulingPolicyConfig"), v.pgs.Spec.TemplateSpec.SchedulingPolicyConfig)...)
 	return warnings, allErrs
+}
+
+func validatePodGangSchedulingPolicyConfig(fldPath *field.Path, config *v1alpha1.SchedulingPolicyConfig) field.ErrorList {
+	allErrs := field.ErrorList{}
+	allErrs = append(allErrs, validateEnumType(config.NetworkPackStrategy, allowedNetworkPackStrategies, fldPath.Child("networkPackStrategy"))...)
+	return allErrs
 }
 
 func (v *pgsValidator) validatePodCliqueTemplates(fldPath *field.Path) ([]string, field.ErrorList) {
@@ -293,17 +297,7 @@ func validateScaleConfig(scaleConfig *v1alpha1.AutoScalingConfig, fldPath *field
 
 func validatePodGangSetSpecUpdate(fldPath *field.Path, newSpec, oldSpec *v1alpha1.PodGangSetSpec) field.ErrorList {
 	allErrs := field.ErrorList{}
-
 	allErrs = append(allErrs, validatePodGangTemplateSpecUpdate(fldPath.Child("template"), &newSpec.TemplateSpec, &oldSpec.TemplateSpec)...)
-
-	if !reflect.DeepEqual(newSpec.GangSpreadConstraints, oldSpec.GangSpreadConstraints) {
-		allErrs = append(allErrs, field.Forbidden(fldPath.Child("gangSpreadConstraints"), "field is immutable"))
-	}
-
-	if newSpec.PriorityClassName != oldSpec.PriorityClassName {
-		allErrs = append(allErrs, field.Forbidden(fldPath.Child("priorityClassName"), "field is immutable"))
-	}
-
 	return allErrs
 }
 
@@ -313,8 +307,22 @@ func validatePodGangTemplateSpecUpdate(fldPath *field.Path, newSpec, oldSpec *v1
 	if *newSpec.StartupType != *oldSpec.StartupType {
 		allErrs = append(allErrs, field.Forbidden(fldPath.Child("cliqueStartupType"), "field is immutable"))
 	}
-	if *newSpec.NetworkPackStrategy != *oldSpec.NetworkPackStrategy {
+	allErrs = append(allErrs, validatePodGangSchedulingPolicyConfigUpdate(fldPath.Child("schedulingPolicyConfig"), newSpec.SchedulingPolicyConfig, newSpec.SchedulingPolicyConfig)...)
+	return allErrs
+}
+
+func validatePodGangSchedulingPolicyConfigUpdate(fldPath *field.Path, newConfig, oldConfig *v1alpha1.SchedulingPolicyConfig) field.ErrorList {
+	allErrs := field.ErrorList{}
+
+	if *newConfig.NetworkPackStrategy != *oldConfig.NetworkPackStrategy {
 		allErrs = append(allErrs, field.Forbidden(fldPath.Child("networkPackStrategy"), "field is immutable"))
+	}
+	if !reflect.DeepEqual(newConfig.GangSpreadConstraints, oldConfig.GangSpreadConstraints) {
+		allErrs = append(allErrs, field.Forbidden(fldPath.Child("gangSpreadConstraints"), "field is immutable"))
+	}
+
+	if newConfig.PriorityClassName != oldConfig.PriorityClassName {
+		allErrs = append(allErrs, field.Forbidden(fldPath.Child("priorityClassName"), "field is immutable"))
 	}
 	return allErrs
 }
