@@ -107,13 +107,6 @@ apiVersion: kind.x-k8s.io/v1alpha4
 nodes:
 - role: control-plane
   image: kindest/node:v1.32.2
-  extraPortMappings:
-  - containerPort: 4566
-    hostPort: 4566
-    protocol: TCP
-  - containerPort: 10000
-    hostPort: 10000
-    protocol: TCP
 EOF
   if [ "${DEPLOY_REGISTRY}" = true ]; then
     echo "Adding registry config to the kind cluster config..."
