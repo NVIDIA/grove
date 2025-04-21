@@ -1,16 +1,16 @@
 # builder
-FROM --platform=$BUILDPLATFORM golang:1.23.3 AS builder
+FROM --platform=$BUILDPLATFORM golang:1.24.2 AS builder
 ARG GOPROXY=https://proxy.golang.org,direct
 ENV GOPROXY=$GOPROXY
-WORKDIR /go/src/github.com/NVIDIA/grove/operator
-COPY . .
+WORKDIR /go/src/github.com/NVIDIA/grove
+COPY ../. .
 
 # Reference: https://docs.docker.com/reference/dockerfile/#automatic-platform-args-in-the-global-scope
 # Docker automatically defines global scope build arguments.
 ARG TARGETOS
 ARG TARGETARCH
 
-RUN make build-${TARGETOS}-${TARGETARCH}
+RUN make --directory=operator build-${TARGETOS}-${TARGETARCH}
 
 # All image label keys are as per the OCI recommendations.
 # Reference: https://github.com/opencontainers/image-spec/blob/main/annotations.md#pre-defined-annotation-keys

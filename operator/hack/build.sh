@@ -21,7 +21,7 @@ set -o pipefail
 
 source $(dirname $0)/ld-flags.sh
 
-BINARY_DIR="${OPERATOR_GO_MODULE_ROOT}/bin"
+BINARY_DIR="${MODULE_ROOT}/bin"
 GOOS=${GOOS:-$(go env GOOS)}
 GOARCH=${GOARCH:-$(go env GOARCH)}
 

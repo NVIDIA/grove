@@ -75,7 +75,7 @@ kind-down: $(KIND)
 # Example: make docker-build-amd64, make docker-build-arm64
 .PHONY: docker-build-%
 docker-build-%:
-	@$(MODULE_HACK_DIR)/docker-build.sh
+	@GOARCH=$$(echo $* | cut -d- -f 1) $(MODULE_HACK_DIR)/docker-build.sh
 
 # Make targets for deploying grove-operator to a local k8s cluster via skaffold
 # -------------------------------------------------------------
