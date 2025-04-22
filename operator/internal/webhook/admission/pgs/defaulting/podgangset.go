@@ -49,6 +49,9 @@ func defaultPodGangTemplateSpec(spec *v1alpha1.PodGangTemplateSpec) {
 		spec.StartupType = ptr.To(v1alpha1.CliqueStartupTypeInOrder)
 	}
 	// default NetworkPackStrategy
+	if spec.SchedulingPolicyConfig == nil {
+		spec.SchedulingPolicyConfig = &v1alpha1.SchedulingPolicyConfig{}
+	}
 	if spec.SchedulingPolicyConfig.NetworkPackStrategy == nil {
 		spec.SchedulingPolicyConfig.NetworkPackStrategy = ptr.To(v1alpha1.BestEffort)
 	}
