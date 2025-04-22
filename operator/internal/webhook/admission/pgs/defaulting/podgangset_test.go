@@ -19,7 +19,7 @@ package defaulting
 import (
 	"testing"
 
-	"github.com/NVIDIA/grove/operator/api/core/v1alpha1"
+	grovecorev1alpha1 "github.com/NVIDIA/grove/operator/api/core/v1alpha1"
 
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
@@ -29,56 +29,58 @@ import (
 )
 
 func TestDefaultPodGangSet(t *testing.T) {
-	want := v1alpha1.PodGangSet{
+	want := grovecorev1alpha1.PodGangSet{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "PGS1",
 			Namespace: "default",
 		},
-		Spec: v1alpha1.PodGangSetSpec{
-			TemplateSpec: v1alpha1.PodGangTemplateSpec{
-				Cliques: []*v1alpha1.PodCliqueTemplateSpec{{
+		Spec: grovecorev1alpha1.PodGangSetSpec{
+			TemplateSpec: grovecorev1alpha1.PodGangTemplateSpec{
+				Cliques: []*grovecorev1alpha1.PodCliqueTemplateSpec{{
 					Name: "test",
-					Spec: v1alpha1.PodCliqueSpec{
+					Spec: grovecorev1alpha1.PodCliqueSpec{
 						Replicas: 1,
 						PodSpec: corev1.PodSpec{
 							RestartPolicy:                 corev1.RestartPolicyAlways,
 							TerminationGracePeriodSeconds: ptr.To[int64](30),
 						},
-						ScaleConfig: &v1alpha1.AutoScalingConfig{
+						ScaleConfig: &grovecorev1alpha1.AutoScalingConfig{
 							MinReplicas: ptr.To[int32](1),
 							MaxReplicas: 3,
 						},
 					},
 				}},
-				StartupType:         ptr.To(v1alpha1.CliqueStartupTypeInOrder),
-				NetworkPackStrategy: ptr.To(v1alpha1.BestEffort),
-				HeadlessServiceConfig: &v1alpha1.HeadlessServiceConfig{
+				StartupType: ptr.To(grovecorev1alpha1.CliqueStartupTypeInOrder),
+				SchedulingPolicyConfig: &grovecorev1alpha1.SchedulingPolicyConfig{
+					NetworkPackStrategy: ptr.To(grovecorev1alpha1.BestEffort),
+				},
+				HeadlessServiceConfig: &grovecorev1alpha1.HeadlessServiceConfig{
 					PublishNotReadyAddresses: true,
 				},
 			},
-			UpdateStrategy: &v1alpha1.GangUpdateStrategy{
-				RollingUpdateConfig: &v1alpha1.RollingUpdateConfiguration{
+			UpdateStrategy: &grovecorev1alpha1.GangUpdateStrategy{
+				RollingUpdateConfig: &grovecorev1alpha1.RollingUpdateConfiguration{
 					MaxSurge:       ptr.To(intstr.FromInt32(1)),
 					MaxUnavailable: ptr.To(intstr.FromInt32(1)),
 				},
 			},
 		},
 	}
-	input := v1alpha1.PodGangSet{
+	input := grovecorev1alpha1.PodGangSet{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: "PGS1",
 		},
-		Spec: v1alpha1.PodGangSetSpec{
-			TemplateSpec: v1alpha1.PodGangTemplateSpec{
-				Cliques: []*v1alpha1.PodCliqueTemplateSpec{{
+		Spec: grovecorev1alpha1.PodGangSetSpec{
+			TemplateSpec: grovecorev1alpha1.PodGangTemplateSpec{
+				Cliques: []*grovecorev1alpha1.PodCliqueTemplateSpec{{
 					Name: "test",
-					Spec: v1alpha1.PodCliqueSpec{
-						ScaleConfig: &v1alpha1.AutoScalingConfig{
+					Spec: grovecorev1alpha1.PodCliqueSpec{
+						ScaleConfig: &grovecorev1alpha1.AutoScalingConfig{
 							MaxReplicas: 3,
 						},
 					},
 				}},
-				HeadlessServiceConfig: &v1alpha1.HeadlessServiceConfig{
+				HeadlessServiceConfig: &grovecorev1alpha1.HeadlessServiceConfig{
 					PublishNotReadyAddresses: true,
 				},
 			},

@@ -58,7 +58,7 @@ function generate_crds() {
     rm "${output_dir}/*.yaml"
   fi
 
-  controller-gen crd paths="${package_path}" output:crd:dir="${output_dir}" output:stdout
+  controller-gen crd:allowDangerousTypes=true paths="${package_path}" output:crd:dir="${output_dir}" output:stdout
 }
 
 function main() {

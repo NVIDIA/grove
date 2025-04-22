@@ -79,7 +79,7 @@ func defaultPodCliqueTemplateSpecs(cliqueSpecs []*v1alpha1.PodCliqueTemplateSpec
 			defaultedCliqueSpec.Spec.Replicas = 1
 		}
 		if defaultedCliqueSpec.Spec.ScaleConfig != nil && defaultedCliqueSpec.Spec.ScaleConfig.MinReplicas == nil {
-			defaultedCliqueSpec.Spec.ScaleConfig.MinReplicas = ptr.To[int32](1)
+			defaultedCliqueSpec.Spec.ScaleConfig.MinReplicas = ptr.To[int32](cliqueSpec.Spec.Replicas)
 		}
 		defaultedCliqueSpecs = append(defaultedCliqueSpecs, defaultedCliqueSpec)
 	}

@@ -93,6 +93,7 @@ type PodGangTemplateSpec struct {
 	// Cliques is a slice of cliques that make up the PodGang. There should be at least one PodClique.
 	Cliques []*PodCliqueTemplateSpec `json:"cliques"`
 	// StartupType defines the type of startup dependency amongst the cliques within a PodGang.
+	// If it is not defined then default of CliqueStartupTypeInOrder is used.
 	// +optional
 	StartupType *CliqueStartupType `json:"cliqueStartupType,omitempty"`
 	// HeadlessServiceConfig defines the config options for the headless service.
