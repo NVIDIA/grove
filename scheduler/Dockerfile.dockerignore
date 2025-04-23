@@ -1,0 +1,18 @@
+# Ignore everyting
+**
+
+# Exclude folders/files that are relevant for build
+!.git
+!hack/
+!scheduler-plugins/Dockerfile.dockerignore
+!scheduler-plugins/cmd/
+!scheduler-plugins/internal/
+!scheduler-plugins/grovescheduling/
+!scheduler-plugins/hack/
+!scheduler-plugins/go.mod
+!scheduler-plugins/go.sum
+!scheduler-plugins/Makefile
+!scheduler-plugins/VERSION
+
+# Ignore kind's setup files
+scheduler-plugins/hack/kind/

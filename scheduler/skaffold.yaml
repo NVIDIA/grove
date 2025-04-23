@@ -1,0 +1,55 @@
+apiVersion: skaffold/v4beta12
+kind: Config
+metadata:
+  name: scheduler-plugins-replace
+build:
+  local: { } # see https://skaffold.dev/docs/builders/build-environments/local/
+  artifacts:
+    - image: local-skaffold/kube-scheduler
+      context: ..
+      docker:
+        dockerfile: Dockerfile
+        buildArgs:
+          VERSION: "{{.VERSION}}"
+    # ko does not work properly, somehow. Fix later as faster builds are a must
+      # ko:
+      #   dependencies:
+      #     paths:
+      #       - cmd
+      #       - grovescheduling
+      #       - internal
+      #       - VERSION
+      #   flags:
+      #     - -v
+      #   ldflags:
+      #     - '{{.LD_FLAGS}}'
+      #   main: ./cmd
+---
+apiVersion: skaffold/v4beta12
+kind: Config
+metadata:
+  name: scheduler-plugins-second
+build:
+  local: { } # see https://skaffold.dev/docs/builders/build-environments/local/
+  artifacts:
+    - image: local-skaffold/kube-scheduler
+      ko:
+        dependencies:
+          paths:
+            - cmd
+            - grovescheduling
+            - internal
+            - VERSION
+        flags:
+          - -v
+        ldflags:
+          - '{{.LD_FLAGS}}'
+        main: ./cmd
+# Deploy will only be used to run the scheduler as the second scheduler
+# deploy:
+#   kubectl:
+#     hooks:
+#       after:
+#       - host:
+#           command: ["sh", "-c", "./hack/replace-scheduler.sh"]
+#           os: [darwin, linux]
