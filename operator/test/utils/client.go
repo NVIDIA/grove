@@ -1,3 +1,19 @@
+// /*
+// Copyright 2025 The Grove Authors.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+// */
+
 package utils
 
 import (
@@ -61,13 +77,16 @@ func CreateDefaultFakeClient() client.Client {
 // along with any expected errors for the Get, Create, Patch, and Delete client methods.
 func CreateFakeClientForObjects(getErr, createErr, patchErr, deleteErr *apierrors.StatusError, existingObjects []client.Object) {
 	clientBuilder := NewTestClientBuilder()
-	if existingObjects != nil && len(existingObjects) > 0 {
+	if len(existingObjects) > 0 {
 		clientBuilder.WithObjects(existingObjects...)
 	}
 
 	for _, obj := range existingObjects {
 		objKey := client.ObjectKeyFromObject(obj)
 		clientBuilder.RecordErrorForObjects(ClientMethodGet, getErr, objKey)
+		clientBuilder.RecordErrorForObjects(ClientMethodCreate, createErr, objKey)
+		clientBuilder.RecordErrorForObjects(ClientMethodPatch, patchErr, objKey)
+		clientBuilder.RecordErrorForObjects(ClientMethodDelete, deleteErr, objKey)
 	}
 }
 
@@ -76,7 +95,7 @@ func CreateFakeClientForObjects(getErr, createErr, patchErr, deleteErr *apierror
 // If the matchingLabels is nil or empty then the deleteAll/list error will be recorded for all objects matching the GVK in the given namespace.
 func CreateFakeClientForObjectsMatchingLabels(deleteAllErr, listErr *apierrors.StatusError, namespace string, targetObjectsGVK schema.GroupVersionKind, matchingLabels map[string]string, existingObjects ...client.Object) client.Client {
 	clientBuilder := NewTestClientBuilder()
-	if existingObjects != nil && len(existingObjects) > 0 {
+	if len(existingObjects) > 0 {
 		clientBuilder.WithObjects(existingObjects...)
 	}
 	return clientBuilder.
@@ -204,7 +223,7 @@ func (c *testClient) DeleteAllOf(ctx context.Context, obj client.Object, opts ..
 	if err != nil {
 		return err
 	}
-	if err = c.getRecordedObjectCollectionError(ClientMethodDeleteAll, deleteOpts.Namespace, deleteOpts.ListOptions.LabelSelector, gvk); err != nil {
+	if err = c.getRecordedObjectCollectionError(ClientMethodDeleteAll, deleteOpts.Namespace, deleteOpts.LabelSelector, gvk); err != nil {
 		return err
 	}
 	return c.delegate.DeleteAllOf(ctx, obj, opts...)
@@ -261,7 +280,7 @@ func (c *testClient) getRecordedObjectCollectionError(method ClientMethod, names
 	foundErrRecord, ok := lo.Find(c.errorRecords, func(errRecord errorRecord) bool {
 		if errRecord.method == method && errRecord.objectKey.Namespace == namespace && errRecord.resourceGVK == objGVK {
 			// check if the error record has labels defined and passed labelSelector is not nil, then check for match.
-			if errRecord.labels != nil && len(errRecord.labels) > 0 && labelSelector != nil {
+			if len(errRecord.labels) > 0 && labelSelector != nil {
 				return labelSelector.Matches(errRecord.labels)
 			}
 			return true
