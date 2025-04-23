@@ -22,7 +22,7 @@ import (
 	"time"
 
 	configv1alpha1 "github.com/NVIDIA/grove/operator/api/config/v1alpha1"
-	"github.com/NVIDIA/grove/operator/internal/client"
+	groveclientscheme "github.com/NVIDIA/grove/operator/internal/client"
 	"github.com/NVIDIA/grove/operator/internal/webhook"
 
 	"k8s.io/client-go/rest"
@@ -54,7 +54,7 @@ func CreateAndInitializeManager(operatorCfg *configv1alpha1.OperatorConfiguratio
 
 func createManagerOptions(operatorCfg *configv1alpha1.OperatorConfiguration) ctrl.Options {
 	opts := ctrl.Options{
-		Scheme:                  client.Scheme,
+		Scheme:                  groveclientscheme.Scheme,
 		GracefulShutdownTimeout: ptr.To(5 * time.Second),
 		Metrics: ctrlmetricsserver.Options{
 			BindAddress: net.JoinHostPort(operatorCfg.Server.Metrics.BindAddress, strconv.Itoa(operatorCfg.Server.Metrics.Port)),

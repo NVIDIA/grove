@@ -1,0 +1,128 @@
+package podclique
+
+import (
+	"context"
+	grovecorev1alpha1 "github.com/NVIDIA/grove/operator/api/core/v1alpha1"
+	groveclientscheme "github.com/NVIDIA/grove/operator/internal/client"
+	"github.com/NVIDIA/grove/operator/internal/component"
+	groveerr "github.com/NVIDIA/grove/operator/internal/errors"
+	testutils "github.com/NVIDIA/grove/operator/test/utils"
+	"github.com/go-logr/logr"
+	"github.com/google/uuid"
+	"github.com/stretchr/testify/assert"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/utils/ptr"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+	"testing"
+)
+
+const (
+	testPGSetName    = "coyote"
+	testPGSNamespace = "cobalt-ns"
+)
+
+func TestGetExistingResourceNames(t *testing.T) {
+	testCases := []struct {
+		description                 string
+		pgsReplicas                 int32
+		podCliqueTemplateNames      []string
+		podCliqueNamesNotOwnedByPGS []string
+		expectedPodCliqueNames      []string
+		listErr                     *apierrors.StatusError
+		expectedErr                 *groveerr.GroveError
+	}{
+		{
+			description:            "PodGangSet has zero replicas and one PodClique",
+			pgsReplicas:            0,
+			podCliqueTemplateNames: []string{"howl"},
+			expectedPodCliqueNames: []string{},
+		},
+		{
+			description:            "PodGangSet has one replica and two PodCliques",
+			pgsReplicas:            1,
+			podCliqueTemplateNames: []string{"howl", "grin"},
+			expectedPodCliqueNames: []string{"coyote-0-howl", "coyote-0-grin"},
+		},
+		{
+			description:            "PodGangSet has two replicas and two PodCliques",
+			pgsReplicas:            3,
+			podCliqueTemplateNames: []string{"howl", "grin"},
+			expectedPodCliqueNames: []string{"coyote-0-howl", "coyote-0-grin", "coyote-1-howl", "coyote-1-grin", "coyote-2-howl", "coyote-2-grin"},
+		},
+		{
+			description:                 "PodGangSet has two replicas and two PodCliques with one not owned by the PodGangSet",
+			pgsReplicas:                 2,
+			podCliqueTemplateNames:      []string{"howl"},
+			podCliqueNamesNotOwnedByPGS: []string{"bandit"},
+			expectedPodCliqueNames:      []string{"coyote-0-howl", "coyote-1-howl"},
+		},
+		{
+			description:            "should return error when list fails",
+			pgsReplicas:            2,
+			podCliqueTemplateNames: []string{"howl"},
+			listErr:                testutils.TestAPIInternalErr,
+			expectedErr: &groveerr.GroveError{
+				Code:      errListPodClique,
+				Cause:     testutils.TestAPIInternalErr,
+				Operation: component.OperationGetExistingResourceNames,
+			},
+		},
+	}
+
+	t.Parallel()
+	for _, tc := range testCases {
+		t.Run(tc.description, func(t *testing.T) {
+			t.Parallel()
+			// Create a PodGangSet with the specified number of replicas and PodCliques
+			pgsBuilder := testutils.NewPodGangSetBuilder(testPGSetName, testPGSNamespace).
+				WithReplicas(tc.pgsReplicas).
+				WithCliqueStartupType(ptr.To(grovecorev1alpha1.CliqueStartupTypeAnyOrder))
+			for _, pclqTemplateName := range tc.podCliqueTemplateNames {
+				pgsBuilder.WithPodCliqueParameters(pclqTemplateName, 1, nil)
+			}
+			pgs := pgsBuilder.Build()
+			// Create existing objects
+			existingObjects := createExistingPodCliques(pgs, tc.podCliqueNamesNotOwnedByPGS)
+			// Create a fake client with PodCliques
+			cl := testutils.CreateFakeClientForObjectsMatchingLabels(nil, tc.listErr, pgs.Namespace, grovecorev1alpha1.SchemeGroupVersion.WithKind("PodClique"), getPodCliqueSelectorLabels(pgs.ObjectMeta), existingObjects...)
+			operator := New(cl, groveclientscheme.Scheme)
+			actualPCLQNames, err := operator.GetExistingResourceNames(context.Background(), logr.Discard(), pgs)
+			if tc.expectedErr == nil {
+				assert.NoError(t, err)
+				assert.ElementsMatch(t, tc.expectedPodCliqueNames, actualPCLQNames)
+			} else {
+				testutils.CheckGroveError(t, tc.expectedErr, err)
+			}
+		})
+	}
+}
+
+func createExistingPodCliques(pgs *grovecorev1alpha1.PodGangSet, podCliqueNamesNotOwnedByPGS []string) []client.Object {
+	existingPodCliques := make([]client.Object, 0, len(pgs.Spec.TemplateSpec.Cliques)*int(pgs.Spec.Replicas)+len(podCliqueNamesNotOwnedByPGS))
+	for replicaIndex := range pgs.Spec.Replicas {
+		for _, pclqTemplate := range pgs.Spec.TemplateSpec.Cliques {
+			pclq := testutils.NewPodCliqueBuilder(pgs.Name, pgs.UID, pclqTemplate.Name, pgs.Namespace, replicaIndex).
+				WithLabels(getPodCliqueSelectorLabels(pgs.ObjectMeta)).
+				WithStartsAfter(pclqTemplate.Spec.StartsAfter).
+				Build()
+			existingPodCliques = append(existingPodCliques, pclq)
+		}
+	}
+	// Add additional PodCliques not owned by the PodGangSet
+	nonExistingPGSName := "ebony"
+	for _, podCliqueName := range podCliqueNamesNotOwnedByPGS {
+		pclq := testutils.NewPodCliqueBuilder(nonExistingPGSName, types.UID(uuid.NewString()), podCliqueName, pgs.Namespace, 0).
+			WithOwnerReference(metav1.OwnerReference{
+				APIVersion:         grovecorev1alpha1.SchemeGroupVersion.String(),
+				Kind:               "PodGangSet",
+				Name:               nonExistingPGSName,
+				UID:                types.UID(uuid.NewString()),
+				Controller:         ptr.To(true),
+				BlockOwnerDeletion: ptr.To(true),
+			}).Build()
+		existingPodCliques = append(existingPodCliques, pclq)
+	}
+	return existingPodCliques
+}

@@ -1,0 +1,24 @@
+package utils
+
+import (
+	"errors"
+	groveerr "github.com/NVIDIA/grove/operator/internal/errors"
+	"github.com/stretchr/testify/assert"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	"testing"
+)
+
+var (
+	// TestAPIInternalErr is an API internal server error meant to be used to mimic HTTP response code 500 for tests.
+	TestAPIInternalErr = apierrors.NewInternalError(errors.New("fake internal error"))
+)
+
+// CheckGroveError checks that an actual error is a Grove error and further checks its underline cause, error code and operation.
+func CheckGroveError(t *testing.T, expectedError *groveerr.GroveError, actualErr error) {
+	assert.Error(t, expectedError)
+	var groveErr *groveerr.GroveError
+	assert.True(t, errors.As(actualErr, &groveErr))
+	assert.Equal(t, groveErr.Code, expectedError.Code)
+	assert.True(t, errors.Is(groveErr.Cause, expectedError.Cause))
+	assert.Equal(t, groveErr.Operation, expectedError.Operation)
+}

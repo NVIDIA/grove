@@ -1,0 +1,123 @@
+package utils
+
+import (
+	grovecorev1alpha1 "github.com/NVIDIA/grove/operator/api/core/v1alpha1"
+	"github.com/NVIDIA/grove/operator/internal/component"
+	k8sutils "github.com/NVIDIA/grove/operator/internal/utils/kubernetes"
+	"github.com/samber/lo"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/utils/ptr"
+)
+
+// PodCliqueBuilder is a builder for creating PodClique objects.
+// This should primarily be used for tests.
+type PodCliqueBuilder struct {
+	pgsName         string
+	pgsReplicaIndex int32
+	pclq            *grovecorev1alpha1.PodClique
+}
+
+// NewPodCliqueBuilder creates a new PodCliqueBuilder.
+func NewPodCliqueBuilder(pgsName string, pgsUID types.UID, pclqTemplateName, namespace string, pgsReplicaIndex int32) *PodCliqueBuilder {
+	return &PodCliqueBuilder{
+		pgsName:         pgsName,
+		pgsReplicaIndex: pgsReplicaIndex,
+		pclq:            createDefaultPodCliqueWithoutPodSpec(pgsName, pgsUID, pclqTemplateName, namespace, pgsReplicaIndex),
+	}
+}
+
+// WithLabels merges the passed labels with default labels.
+// Passed in labels will overwrite default labels with the same keys.
+func (b *PodCliqueBuilder) WithLabels(labels map[string]string) *PodCliqueBuilder {
+	b.pclq.Labels = lo.Assign(b.pclq.Labels, labels)
+	return b
+}
+
+// WithReplicas sets the number of replicas for the PodClique.
+// Default is set to 1.
+func (b *PodCliqueBuilder) WithReplicas(replicas int32) *PodCliqueBuilder {
+	b.pclq.Spec.Replicas = replicas
+	return b
+}
+
+// WithStartsAfter sets the StartsAfter field for the PodClique.
+func (b *PodCliqueBuilder) WithStartsAfter(pclqTemplateNames []string) *PodCliqueBuilder {
+	pclqDependencies := lo.Map(pclqTemplateNames, func(pclqTemplateName string, _ int) string {
+		return grovecorev1alpha1.GeneratePodCliqueName(b.pgsName, b.pgsReplicaIndex, pclqTemplateName)
+	})
+	b.pclq.Spec.StartsAfter = pclqDependencies
+	return b
+}
+
+// WithAutoScaleLimits sets the minimum and maximum replicas in ScaleConfig for the PodClique.
+func (b *PodCliqueBuilder) WithAutoScaleLimits(minimum, maximum int32) *PodCliqueBuilder {
+	b.pclq.Spec.ScaleConfig = &grovecorev1alpha1.AutoScalingConfig{
+		MinReplicas: lo.ToPtr(minimum),
+		MaxReplicas: maximum,
+	}
+	return b
+}
+
+// WithOwnerReference sets the owner reference for the PodClique.
+func (b *PodCliqueBuilder) WithOwnerReference(ownerRef metav1.OwnerReference) *PodCliqueBuilder {
+	b.pclq.OwnerReferences = []metav1.OwnerReference{ownerRef}
+	return b
+}
+
+// Build creates a PodClique object.
+func (b *PodCliqueBuilder) Build() *grovecorev1alpha1.PodClique {
+	b.withDefaultPodSpec()
+	return b.pclq
+}
+
+// BuildTemplateSpec creates a PodCliqueTemplateSpec object.
+func (b *PodCliqueBuilder) BuildTemplateSpec() *grovecorev1alpha1.PodCliqueTemplateSpec {
+	b.withDefaultPodSpec()
+	return &grovecorev1alpha1.PodCliqueTemplateSpec{
+		Name:   b.pclq.Name,
+		Labels: b.pclq.Labels,
+		Spec:   b.pclq.Spec,
+	}
+}
+
+func (b *PodCliqueBuilder) withDefaultPodSpec() *PodCliqueBuilder {
+	b.pclq.Spec.PodSpec = *NewPodBuilder().Build()
+	return b
+}
+
+func createDefaultPodCliqueWithoutPodSpec(pgsName string, pgsUID types.UID, pclqTemplateName, namespace string, pgsReplicaIndex int32) *grovecorev1alpha1.PodClique {
+	pclqName := grovecorev1alpha1.GeneratePodCliqueName(pgsName, pgsReplicaIndex, pclqTemplateName)
+	return &grovecorev1alpha1.PodClique{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      pclqName,
+			Namespace: namespace,
+			Labels:    getDefaultLabels(pgsName, pclqName),
+			OwnerReferences: []metav1.OwnerReference{
+				{
+					APIVersion:         grovecorev1alpha1.SchemeGroupVersion.String(),
+					Kind:               grovecorev1alpha1.PodGangSetKind,
+					Name:               pgsName,
+					UID:                pgsUID,
+					Controller:         ptr.To(true),
+					BlockOwnerDeletion: ptr.To(true),
+				},
+			},
+		},
+		Spec: grovecorev1alpha1.PodCliqueSpec{
+			Replicas: 1,
+		},
+	}
+}
+
+func getDefaultLabels(pgsName, pclqName string) map[string]string {
+	pclqComponentLabels := map[string]string{
+		grovecorev1alpha1.LabelAppNameKey:     pclqName,
+		grovecorev1alpha1.LabelComponentKey:   component.NamePodClique,
+		grovecorev1alpha1.LabelPodGangNameKey: pgsName,
+	}
+	return lo.Assign(
+		k8sutils.GetDefaultLabelsForPodGangSetManagedResources(pgsName),
+		pclqComponentLabels,
+	)
+}

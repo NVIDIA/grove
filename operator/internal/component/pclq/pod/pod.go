@@ -22,7 +22,7 @@ import (
 	"fmt"
 	"reflect"
 
-	"github.com/NVIDIA/grove/operator/api/core/v1alpha1"
+	grovecorev1alpha1 "github.com/NVIDIA/grove/operator/api/core/v1alpha1"
 	"github.com/NVIDIA/grove/operator/internal/component"
 	groveerr "github.com/NVIDIA/grove/operator/internal/errors"
 	"github.com/NVIDIA/grove/operator/internal/utils"
@@ -36,8 +36,8 @@ import (
 )
 
 const (
-	errSyncPod   v1alpha1.ErrorCode = "ERR_SYNC_POD"
-	errDeletePod v1alpha1.ErrorCode = "ERR_DELETE_POD"
+	errSyncPod   grovecorev1alpha1.ErrorCode = "ERR_SYNC_POD"
+	errDeletePod grovecorev1alpha1.ErrorCode = "ERR_DELETE_POD"
 )
 
 type _resource struct {
@@ -51,7 +51,7 @@ type podInfo struct {
 }
 
 // New creates an instance of Pod component operator.
-func New(client client.Client, scheme *runtime.Scheme) component.Operator[v1alpha1.PodClique] {
+func New(client client.Client, scheme *runtime.Scheme) component.Operator[grovecorev1alpha1.PodClique] {
 	return &_resource{
 		client: client,
 		scheme: scheme,
@@ -59,13 +59,13 @@ func New(client client.Client, scheme *runtime.Scheme) component.Operator[v1alph
 }
 
 // GetExistingResourceNames returns the names of all the existing resources that the Pod Operator manages.
-func (r _resource) GetExistingResourceNames(_ context.Context, _ logr.Logger, _ *v1alpha1.PodClique) ([]string, error) {
+func (r _resource) GetExistingResourceNames(_ context.Context, _ logr.Logger, _ *grovecorev1alpha1.PodClique) ([]string, error) {
 	//TODO Implement me
 	return nil, nil
 }
 
 // Sync synchronizes all resources that the Pod Operator manages.
-func (r _resource) Sync(ctx context.Context, logger logr.Logger, pclq *v1alpha1.PodClique) error {
+func (r _resource) Sync(ctx context.Context, logger logr.Logger, pclq *grovecorev1alpha1.PodClique) error {
 	info, err := r.listPods(ctx, logger, pclq.Name, pclq.Namespace)
 	if err != nil {
 		logger.Error(err, "failed to list pods")
@@ -115,7 +115,7 @@ func (r _resource) Delete(ctx context.Context, logger logr.Logger, pclqObjectMet
 	return nil
 }
 
-func (r _resource) doCreateOrUpdate(ctx context.Context, logger logr.Logger, pclq *v1alpha1.PodClique, podObjectKey client.ObjectKey, info *podInfo) error {
+func (r _resource) doCreateOrUpdate(ctx context.Context, logger logr.Logger, pclq *grovecorev1alpha1.PodClique, podObjectKey client.ObjectKey, info *podInfo) error {
 	logger.Info("Running CreateOrUpdate Pod", "podObjectKey", podObjectKey)
 	pod := emptyPod(podObjectKey)
 	opResult, err := controllerutil.CreateOrPatch(ctx, r.client, pod, func() error {
@@ -144,7 +144,7 @@ func (r _resource) doDelete(ctx context.Context, logger logr.Logger, pod *corev1
 	return nil
 }
 
-func (r _resource) buildResource(logger logr.Logger, pod *corev1.Pod, pclq *v1alpha1.PodClique, info *podInfo) error {
+func (r _resource) buildResource(logger logr.Logger, pod *corev1.Pod, pclq *grovecorev1alpha1.PodClique, info *podInfo) error {
 	podObjectKey, pclqObjectKey := client.ObjectKeyFromObject(pod), client.ObjectKeyFromObject(pclq)
 	if actual, ok := info.pods[pod.Name]; ok {
 		pod.Labels = actual.Labels
@@ -173,16 +173,16 @@ func (r _resource) buildResource(logger logr.Logger, pod *corev1.Pod, pclq *v1al
 	return nil
 }
 
-func findPodSpec(podObjectKey client.ObjectKey, pclq *v1alpha1.PodClique) *corev1.PodSpec {
+func findPodSpec(podObjectKey client.ObjectKey, pclq *grovecorev1alpha1.PodClique) *corev1.PodSpec {
 	for replicaID := range pclq.Spec.Replicas {
-		if createPodName(pclq.Name, replicaID) == podObjectKey.Name {
+		if grovecorev1alpha1.GeneratePodName(pclq.Name, replicaID) == podObjectKey.Name {
 			return &pclq.Spec.PodSpec
 		}
 	}
 	return nil
 }
 
-func getObjectKeys(pclq *v1alpha1.PodClique) []client.ObjectKey {
+func getObjectKeys(pclq *grovecorev1alpha1.PodClique) []client.ObjectKey {
 	podNames := getPodNames(pclq)
 	podObjKeys := make([]client.ObjectKey, 0, len(podNames))
 	for _, podName := range podNames {
@@ -194,19 +194,13 @@ func getObjectKeys(pclq *v1alpha1.PodClique) []client.ObjectKey {
 	return podObjKeys
 }
 
-func getPodNames(pclq *v1alpha1.PodClique) []string {
+func getPodNames(pclq *grovecorev1alpha1.PodClique) []string {
 	podPrefix := pclq.Name
 	podNames := make([]string, 0, pclq.Spec.Replicas)
 	for replicaID := range pclq.Spec.Replicas {
-		podNames = append(podNames, createPodName(podPrefix, replicaID))
+		podNames = append(podNames, grovecorev1alpha1.GeneratePodName(podPrefix, replicaID))
 	}
 	return podNames
-}
-
-// PC name : <PGS.Name>-<PGS.ReplicaID>-<PC.Name>
-// Pod name : <PC.Name>-<PC.ReplicaID>
-func createPodName(prefix string, suffix int32) string {
-	return fmt.Sprintf("%s-%d", prefix, suffix)
 }
 
 func emptyPod(objKey client.ObjectKey) *corev1.Pod {
@@ -229,7 +223,7 @@ func (r _resource) listPods(ctx context.Context, logger logr.Logger, pclqName, n
 	for i, pod := range podList.Items {
 		if len(pod.OwnerReferences) == 1 {
 			ref := pod.OwnerReferences[0]
-			if ref.Kind == v1alpha1.PodCliqueKind && ref.Name == pclqName {
+			if ref.Kind == grovecorev1alpha1.PodCliqueKind && ref.Name == pclqName {
 				logger.Info("Found existing pod", "name", pod.Name)
 				info.pods[pod.Name] = &podList.Items[i]
 			}
@@ -239,7 +233,7 @@ func (r _resource) listPods(ctx context.Context, logger logr.Logger, pclqName, n
 }
 
 // update the allowed pod fields with the new values only if they have changed
-func updatePod(pod *corev1.Pod, pclq *v1alpha1.PodClique) bool {
+func updatePod(pod *corev1.Pod, pclq *grovecorev1alpha1.PodClique) bool {
 	spec := &pclq.Spec.PodSpec
 	if len(pod.Spec.Containers) != len(spec.Containers) || len(pod.Spec.InitContainers) != len(spec.InitContainers) {
 		return false

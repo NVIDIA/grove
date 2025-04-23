@@ -196,7 +196,7 @@ func getObjectKeys(pgs *v1alpha1.PodGangSet) []client.ObjectKey {
 func getPodGangServiceNames(pgs *v1alpha1.PodGangSet) []string {
 	pgServiceNames := make([]string, 0, pgs.Spec.Replicas)
 	for replicaIndex := range pgs.Spec.Replicas {
-		pgServiceNames = append(pgServiceNames, component.GeneratePodGangName(pgs.Name, replicaIndex))
+		pgServiceNames = append(pgServiceNames, v1alpha1.GeneratePodGangName(pgs.Name, replicaIndex))
 	}
 	return pgServiceNames
 }
