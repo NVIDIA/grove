@@ -44,3 +44,8 @@ func GeneratePodRoleBindingName(pgsObjMeta metav1.ObjectMeta) string {
 func GeneratePodServiceAccountName(pgsObjMeta metav1.ObjectMeta) string {
 	return pgsObjMeta.Name
 }
+
+// GeneratePcHpaName generates a PodClique HPA name based on PodClique metadata.
+func GeneratePcHpaName(pclqObjMeta metav1.ObjectMeta) string {
+	return pclqObjMeta.Name + "-hpa"
+}

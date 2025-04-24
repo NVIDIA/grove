@@ -126,7 +126,7 @@ func (r _resource) doCreateOrUpdate(ctx context.Context, logger logr.Logger, pgs
 	logger.Info("Running CreateOrUpdate PodClique", "pclqObjectKey", pclqObjectKey)
 	pclq := emptyPodClique(pclqObjectKey)
 	opResult, err := controllerutil.CreateOrPatch(ctx, r.client, pclq, func() error {
-		return r.buildResource(logger, pclq, pgs, podGangName)
+		return r.buildResource(ctx, logger, pclq, pgs, podGangName)
 	})
 	if err != nil {
 		return groveerr.WrapError(err,
@@ -139,7 +139,7 @@ func (r _resource) doCreateOrUpdate(ctx context.Context, logger logr.Logger, pgs
 	return nil
 }
 
-func (r _resource) buildResource(logger logr.Logger, pclq *v1alpha1.PodClique, pgs *v1alpha1.PodGangSet, podGangName string) error {
+func (r _resource) buildResource(ctx context.Context, logger logr.Logger, pclq *v1alpha1.PodClique, pgs *v1alpha1.PodGangSet, podGangName string) error {
 	pclqObjectKey, pgsObjectKey := client.ObjectKeyFromObject(pclq), client.ObjectKeyFromObject(pgs)
 	pclqTemplateSpec := findPodCliqueTemplateSpec(pclqObjectKey, pgs)
 	if pclqTemplateSpec == nil {

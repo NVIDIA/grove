@@ -34,6 +34,7 @@ rules:
   resources:
   - pods
   - serviceaccounts
+  - hpa
   verbs:
   - create
   - get
@@ -76,4 +77,10 @@ rules:
     - list
     - watch
     - delete
+- apiGroups:
+  - autoscaling
+  resources:
+  - horizontalpodautoscalers
+  verbs:
+  - '*'
 

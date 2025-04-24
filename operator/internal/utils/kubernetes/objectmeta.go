@@ -27,3 +27,11 @@ func GetDefaultLabelsForPodGangSetManagedResources(pgsName string) map[string]st
 		v1alpha1.LabelPartOfKey:    pgsName,
 	}
 }
+
+// GetDefaultLabelsForPodCliqueManagedResources gets the default labels for resources managed by PodClique.
+func GetDefaultLabelsForPodCliqueManagedResources(pclqName string) map[string]string {
+	return map[string]string{
+		v1alpha1.LabelManagedByKey: v1alpha1.LabelManagedByValue,
+		v1alpha1.LabelAppNameKey:   pclqName,
+	}
+}
