@@ -24,9 +24,12 @@ import (
 	"github.com/NVIDIA/grove/operator/internal/component"
 	ctrlcommon "github.com/NVIDIA/grove/operator/internal/controller/common"
 	ctrlutils "github.com/NVIDIA/grove/operator/internal/controller/utils"
+	"github.com/samber/lo"
 
+	k8sutils "github.com/NVIDIA/grove/operator/internal/utils/kubernetes"
 	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )
@@ -127,6 +130,15 @@ func (r *Reconciler) updatePodCliqueStatus(ctx context.Context, logger logr.Logg
 	// TODO: fix UpdatedReplicas
 	pclq.Status.UpdatedReplicas = pclq.Status.Replicas
 	// TODO: set Selector, Conditions
+	labels := getPodCliqueLabels(pclq.Name)
+	selector, err := metav1.LabelSelectorAsSelector(&metav1.LabelSelector{MatchLabels: labels})
+	if err != nil {
+		logger.Error(err, "failed to get label selector")
+		return ctrlcommon.ReconcileWithErrors("error getting label selector", err)
+	}
+	selectorString := selector.String()
+	pclq.Status.Selector = &selectorString
+	fmt.Printf("Ritika: selector %v\n", selectorString)
 
 	if err := r.client.Status().Update(ctx, pclq); err != nil {
 		logger.Error(err, "failed to update pclq status")
@@ -149,5 +161,12 @@ func (r *Reconciler) updateObservedGeneration(ctx context.Context, logger logr.L
 func getOrderedKindsForSync() []component.Kind {
 	return []component.Kind{
 		component.KindPod,
+		component.KindHorizontalPodAutoscaler,
 	}
+}
+
+func getPodCliqueLabels(pclqName string) map[string]string {
+	return lo.Assign(
+		k8sutils.GetDefaultLabelsForPodCliqueManagedResources(pclqName),
+	)
 }
