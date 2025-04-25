@@ -6,24 +6,24 @@ build:
   local: { } # see https://skaffold.dev/docs/builders/build-environments/local/
   artifacts:
     - image: local-skaffold/kube-scheduler
-      context: ..
-      docker:
-        dockerfile: Dockerfile
-        buildArgs:
-          VERSION: "{{.VERSION}}"
+      # context: ..
+      # docker:
+      #   dockerfile: Dockerfile
+      #   buildArgs:
+      #     VERSION: "{{.VERSION}}"
     # ko does not work properly, somehow. Fix later as faster builds are a must
-      # ko:
-      #   dependencies:
-      #     paths:
-      #       - cmd
-      #       - grovescheduling
-      #       - internal
-      #       - VERSION
-      #   flags:
-      #     - -v
-      #   ldflags:
-      #     - '{{.LD_FLAGS}}'
-      #   main: ./cmd
+      ko:
+        dependencies:
+          paths:
+            - cmd
+            - grovescheduling
+            - internal
+            - VERSION
+        flags:
+          - -v
+        ldflags:
+          - '{{.LD_FLAGS}}'
+        main: ./cmd
 ---
 apiVersion: skaffold/v4beta12
 kind: Config

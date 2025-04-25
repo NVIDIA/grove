@@ -63,6 +63,8 @@ EOF
 }
 
 function generate_kube_scheduler_manifest() {
+  # the command that is run is /ko-app/cmd since the kube-scheduler binary
+  # is placed here by ko in the image. There is currently no way to configure this.
   cat >"${KIND_CONFIG_DIR}/kube-scheduler.yaml" <<EOF
 apiVersion: v1
 kind: Pod
@@ -76,7 +78,7 @@ metadata:
 spec:
   containers:
   - command:
-    - kube-scheduler
+    - /ko-app/cmd
     - --authentication-kubeconfig=/etc/kubernetes/scheduler.conf
     - --authorization-kubeconfig=/etc/kubernetes/scheduler.conf
     - --bind-address=127.0.0.1
