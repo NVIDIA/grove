@@ -18,6 +18,7 @@ package podclique
 
 import (
 	"context"
+	"fmt"
 	"testing"
 
 	grovecorev1alpha1 "github.com/NVIDIA/grove/operator/api/core/v1alpha1"
@@ -102,7 +103,7 @@ func TestGetExistingResourceNames(t *testing.T) {
 			}
 			pgs := pgsBuilder.Build()
 			// Create existing objects
-			existingObjects := createExistingPodCliques(pgs, tc.podCliqueNamesNotOwnedByPGS)
+			existingObjects := createExistingPodCliquesFromPGS(pgs, tc.podCliqueNamesNotOwnedByPGS)
 			// Create a fake client with PodCliques
 			cl := testutils.CreateFakeClientForObjectsMatchingLabels(nil, tc.listErr, pgs.Namespace, grovecorev1alpha1.SchemeGroupVersion.WithKind("PodClique"), getPodCliqueSelectorLabels(pgs.ObjectMeta), existingObjects...)
 			operator := New(cl, groveclientscheme.Scheme)
@@ -117,7 +118,78 @@ func TestGetExistingResourceNames(t *testing.T) {
 	}
 }
 
-func createExistingPodCliques(pgs *grovecorev1alpha1.PodGangSet, podCliqueNamesNotOwnedByPGS []string) []client.Object {
+func TestDelete(t *testing.T) {
+	testCases := []struct {
+		description           string
+		numExistingPodCliques int
+		deleteAllOfError      *apierrors.StatusError
+		expectedError         *groveerr.GroveError
+	}{
+		{
+			description:           "no-op when there are no existing PodCliques",
+			numExistingPodCliques: 0,
+			expectedError:         nil,
+		},
+		{
+			description:           "successfully delete all existing PodCliques",
+			numExistingPodCliques: 2,
+			expectedError:         nil,
+		},
+		{
+			description:           "error when deleting existing PodCliques",
+			numExistingPodCliques: 2,
+			deleteAllOfError:      testutils.TestAPIInternalErr,
+			expectedError: &groveerr.GroveError{
+				Code:      errDeletePodClique,
+				Cause:     testutils.TestAPIInternalErr,
+				Operation: component.OperationDelete,
+			},
+		},
+	}
+
+	t.Parallel()
+	pgsObjMeta := metav1.ObjectMeta{
+		Name:      testPGSetName,
+		Namespace: testPGSNamespace,
+		UID:       types.UID(uuid.NewString()),
+	}
+	for _, tc := range testCases {
+		t.Run(tc.description, func(t *testing.T) {
+			t.Parallel()
+			existingPodCliques := createDefaultPodCliques(pgsObjMeta, "howl", tc.numExistingPodCliques)
+			// Create a fake client with PodCliques
+			cl := testutils.CreateFakeClientForObjectsMatchingLabels(tc.deleteAllOfError, nil, testPGSNamespace, grovecorev1alpha1.SchemeGroupVersion.WithKind("PodClique"), getPodCliqueSelectorLabels(pgsObjMeta), existingPodCliques...)
+			operator := New(cl, groveclientscheme.Scheme)
+			err := operator.Delete(context.Background(), logr.Discard(), pgsObjMeta)
+			if tc.expectedError != nil {
+				testutils.CheckGroveError(t, tc.expectedError, err)
+			} else {
+				assert.NoError(t, err)
+				podCliquesPostDelete := getExistingPodCliques(t, cl, pgsObjMeta)
+				assert.Empty(t, podCliquesPostDelete)
+			}
+		})
+	}
+}
+
+func getExistingPodCliques(t *testing.T, cl client.Client, pgsObjMeta metav1.ObjectMeta) []grovecorev1alpha1.PodClique {
+	podCliqueList := &grovecorev1alpha1.PodCliqueList{}
+	assert.NoError(t, cl.List(context.Background(), podCliqueList, client.InNamespace(pgsObjMeta.Namespace), client.MatchingLabels(getPodCliqueSelectorLabels(pgsObjMeta))))
+	return podCliqueList.Items
+}
+
+func createDefaultPodCliques(pgsObjMeta metav1.ObjectMeta, pclqNamePrefix string, numPodCliques int) []client.Object {
+	podCliqueNames := make([]client.Object, 0, numPodCliques)
+	for i := 0; i < numPodCliques; i++ {
+		pclq := testutils.NewPodCliqueBuilder(pgsObjMeta.Name, types.UID(uuid.NewString()), fmt.Sprintf("%s-%d", pclqNamePrefix, i), pgsObjMeta.Namespace, 0).
+			WithLabels(getPodCliqueSelectorLabels(pgsObjMeta)).
+			Build()
+		podCliqueNames = append(podCliqueNames, pclq)
+	}
+	return podCliqueNames
+}
+
+func createExistingPodCliquesFromPGS(pgs *grovecorev1alpha1.PodGangSet, podCliqueNamesNotOwnedByPGS []string) []client.Object {
 	existingPodCliques := make([]client.Object, 0, len(pgs.Spec.TemplateSpec.Cliques)*int(pgs.Spec.Replicas)+len(podCliqueNamesNotOwnedByPGS))
 	for replicaIndex := range pgs.Spec.Replicas {
 		for _, pclqTemplate := range pgs.Spec.TemplateSpec.Cliques {
