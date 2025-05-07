@@ -63,8 +63,7 @@ Transition `PodGang.Status.SchedulingPhase` to `Scheduled`.
 
 * Operator creates pods belonging to one replica of PodGangSet with scheduling gate set.
 * Operator creates a new `PodGang` resource and sets `PodGang.Status.SchedulingPhase` to `Created`.
-* It optionally sets `PodGang.Spec.PreferredReuseReservationRef` to refer to the old `PodGang` resource. The predicate on which
-  this will be set will be described later.
+* It optionally sets `PodGang.Spec.PreferredReuseReservationRef` to refer to the old `PodGang` resource. The predicate on which this will be set will be described later.
 * Operator removes the scheduling gate from the pods in the new `PodGang` resource.
 
 ## Computing network placement score

@@ -63,7 +63,14 @@ func (v *pgsValidator) validate() ([]string, error) {
 
 func (v *pgsValidator) validateUpdate(oldPgs *v1alpha1.PodGangSet) error {
 	allErrs := field.ErrorList{}
-	allErrs = append(allErrs, validatePodGangSetSpecUpdate(field.NewPath("spec"), &v.pgs.Spec, &oldPgs.Spec)...)
+	fldPath := field.NewPath("spec")
+	if !reflect.DeepEqual(v.pgs.Spec.ReplicaSpreadConstraints, oldPgs.Spec.ReplicaSpreadConstraints) {
+		allErrs = append(allErrs, field.Forbidden(fldPath.Child("replicaSpreadConstraints"), "field is immutable"))
+	}
+	if v.pgs.Spec.PriorityClassName != oldPgs.Spec.PriorityClassName {
+		allErrs = append(allErrs, field.Forbidden(fldPath.Child("priorityClassName"), "field is immutable"))
+	}
+	allErrs = append(allErrs, validatePodGangSetSpecUpdate(fldPath, &v.pgs.Spec, &oldPgs.Spec)...)
 	return allErrs.ToAggregate()
 }
 
@@ -316,13 +323,6 @@ func validatePodGangSchedulingPolicyConfigUpdate(fldPath *field.Path, newConfig,
 
 	if *newConfig.NetworkPackStrategy != *oldConfig.NetworkPackStrategy {
 		allErrs = append(allErrs, field.Forbidden(fldPath.Child("networkPackStrategy"), "field is immutable"))
-	}
-	if !reflect.DeepEqual(newConfig.GangSpreadConstraints, oldConfig.GangSpreadConstraints) {
-		allErrs = append(allErrs, field.Forbidden(fldPath.Child("gangSpreadConstraints"), "field is immutable"))
-	}
-
-	if newConfig.PriorityClassName != oldConfig.PriorityClassName {
-		allErrs = append(allErrs, field.Forbidden(fldPath.Child("priorityClassName"), "field is immutable"))
 	}
 	return allErrs
 }

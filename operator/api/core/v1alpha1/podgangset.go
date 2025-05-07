@@ -17,6 +17,7 @@
 package v1alpha1
 
 import (
+	autoscalingv2 "k8s.io/api/autoscaling/v2"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
@@ -60,6 +61,17 @@ type PodGangSetSpec struct {
 	// UpdateStrategy defines the strategy to be used when updating the PodGangs.
 	// +optional
 	UpdateStrategy *GangUpdateStrategy `json:"updateStrategy,omitempty"`
+	// ReplicaSpreadConstraints defines the constraints for spreading each replica of PodGangSet across domains identified by a topology key.
+	// +optional
+	ReplicaSpreadConstraints []corev1.TopologySpreadConstraint `json:"replicaSpreadConstraints,omitempty"`
+	// PriorityClassName is the name of the PriorityClass to be used for the PodGangSet.
+	// If specified, indicates the priority of the PodGangSet. "system-node-critical" and
+	// "system-cluster-critical" are two special keywords which indicate the
+	// highest priorities with the former being the highest priority. Any other
+	// name must be defined by creating a PriorityClass object with that name.
+	// If not specified, the pod priority will be default or zero if there is no default.
+	// +optional
+	PriorityClassName string `json:"priorityClassName,omitempty"`
 }
 
 // PodGangSetStatus defines the status of a PodGangSet.
@@ -102,37 +114,8 @@ type PodGangTemplateSpec struct {
 	HeadlessServiceConfig *HeadlessServiceConfig `json:"headlessServiceConfig,omitempty"`
 	// SchedulingPolicyConfig defines the scheduling policy configuration for the PodGang.
 	SchedulingPolicyConfig *SchedulingPolicyConfig `json:"schedulingPolicyConfig,omitempty"`
-}
-
-// SchedulingPolicyConfig defines the scheduling policy configuration for the PodGang.
-type SchedulingPolicyConfig struct {
-	// NetworkPackStrategy defines the strategy for packing pods on nodes while minimizing network switch hops.
-	// +optional
-	NetworkPackStrategy *NetworkPackStrategy `json:"networkPackStrategy,omitempty"`
-	// GangSpreadConstraints defines the constraints for spreading PodGang's across domains identified by a topology.
-	// +optional
-	GangSpreadConstraints []corev1.TopologySpreadConstraint `json:"gangSpreadConstraints,omitempty"`
-	// PriorityClassName is the name of the PriorityClass to be used for the PodGangSet.
-	// If specified, indicates the priority of the PodGangSet. "system-node-critical" and
-	// "system-cluster-critical" are two special keywords which indicate the
-	// highest priorities with the former being the highest priority. Any other
-	// name must be defined by creating a PriorityClass object with that name.
-	// If not specified, the pod priority will be default or zero if there is no default.
-	// +optional
-	PriorityClassName string `json:"priorityClassName,omitempty"`
-	// TerminationDelay is the delay after which the gang termination will be triggered.
-	// A gang is a candidate for termination if number of running pods fall below a threshold for any PodClique.
-	// If a PodGang remains a candidate past TerminationDelay then it will be terminated. This allows additional time
-	// to the kube-scheduler to re-schedule sufficient pods in the PodGang that will result in having the total number of
-	// running pods go above the threshold.
-	// +optional
-	TerminationDelay *metav1.Duration `json:"terminationDelay,omitempty"`
-}
-
-// HeadlessServiceConfig defines the config options for the headless service.
-type HeadlessServiceConfig struct {
-	// PublishNotReadyAddresses if set to true will publish the DNS records of pods even if the pods are not ready.
-	PublishNotReadyAddresses bool `json:"publishNotReadyAddresses"`
+	// PodCliqueScalingGroups is a list of scaling groups for the PodGangSet.
+	PodCliqueScalingGroups []PodCliqueScalingGroup `json:"podCliqueScalingGroups,omitempty"`
 }
 
 // PodCliqueTemplateSpec defines a template spec for a PodClique.
@@ -159,6 +142,47 @@ type PodCliqueTemplateSpec struct {
 	// Specification of the desired behavior of a PodClique.
 	// More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#spec-and-status
 	Spec PodCliqueSpec `json:"spec"`
+}
+
+// SchedulingPolicyConfig defines the scheduling policy configuration for the PodGang.
+type SchedulingPolicyConfig struct {
+	// NetworkPackStrategy defines the strategy for packing pods on nodes while minimizing network switch hops.
+	// +optional
+	NetworkPackStrategy *NetworkPackStrategy `json:"networkPackStrategy,omitempty"`
+	// TerminationDelay is the delay after which the gang termination will be triggered.
+	// A gang is a candidate for termination if number of running pods fall below a threshold for any PodClique.
+	// If a PodGang remains a candidate past TerminationDelay then it will be terminated. This allows additional time
+	// to the kube-scheduler to re-schedule sufficient pods in the PodGang that will result in having the total number of
+	// running pods go above the threshold.
+	// +optional
+	TerminationDelay *metav1.Duration `json:"terminationDelay,omitempty"`
+}
+
+// PodCliqueScalingGroup is a group of PodClique's that are scaled together.
+// Each member PodClique.Replicas will be computed as a product of PodCliqueScalingGroup.Replicas and PodCliqueTemplateSpec.Spec.Replicas.
+// NOTE: If a PodCliqueScalingGroup is defined, then for the member PodClique's, individual AutoScalingConfig cannot be defined.
+type PodCliqueScalingGroup struct {
+	// Replicas is the desired number of replicas for the scaling group.
+	Replicas int32 `json:"replicas"`
+	// CliqueNames is the list of names of the PodClique's that are part of the scaling group.
+	CliqueNames []string `json:"cliqueReferences"`
+	// Metrics contains the specifications for which to use to calculate the
+	// desired replica count (the maximum replica count across all metrics will
+	// be used).  The desired replica count is calculated multiplying the
+	// ratio between the target value and the current value by the current
+	// number of pods.  Ergo, metrics used must decrease as the pod count is
+	// increased, and vice versa.  See the individual metric source types for
+	// more information about how each type of metric must respond.
+	// If not set, the default metric will be set to 80% average CPU utilization.
+	// +listType=atomic
+	// +optional
+	Metrics []autoscalingv2.MetricSpec `json:"metrics,omitempty"`
+}
+
+// HeadlessServiceConfig defines the config options for the headless service.
+type HeadlessServiceConfig struct {
+	// PublishNotReadyAddresses if set to true will publish the DNS records of pods even if the pods are not ready.
+	PublishNotReadyAddresses bool `json:"publishNotReadyAddresses"`
 }
 
 // CliqueStartupType defines the order in which each PodClique is started.

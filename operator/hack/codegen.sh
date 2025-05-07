@@ -33,6 +33,9 @@ function setup() {
   mkdir -p ${MODULE_ROOT}/hack/tools/bin/
   cp -f ${TOOLS_BIN_DIR}/kube_codegen.sh ${MODULE_ROOT}/hack/tools/bin/
   source "${MODULE_ROOT}/hack/tools/bin/kube_codegen.sh"
+  # ensure that the version of code-generator used is the same as that of k8s.io/api
+  k8s_api_version=$(go list -mod=mod -f '{{ .Version }}' -m k8s.io/api)
+  go get -tool k8s.io/code-generator@${k8s_api_version}
 }
 
 function cleanup() {
