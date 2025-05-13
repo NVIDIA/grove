@@ -20,7 +20,29 @@ set -o nounset
 set -o pipefail
 
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
-OPERATOR_GO_MODULE_ROOT="$(dirname "$SCRIPT_DIR")"
+MODULE_ROOT="$(dirname "$SCRIPT_DIR")"
+REPO_ROOT="$(dirname "$MODULE_ROOT")"
+REPO_HACK_DIR=${REPO_ROOT}/hack
+TOOLS_BIN_DIR="${REPO_HACK_DIR}/tools/bin"
+
+source "${TOOLS_BIN_DIR}/kube_codegen.sh"
+
+trap cleanup EXIT
+
+function setup() {
+  # kube_codegen.sh NEEDS to run from inside the Go module, as it uses go.mod for dependency versions.
+  # Symbolic linking does not work either, since it uses `pwd -P` inside. Only copying will work.
+  mkdir -p ${MODULE_ROOT}/hack/tools/bin/
+  cp -f ${TOOLS_BIN_DIR}/kube_codegen.sh ${MODULE_ROOT}/hack/tools/bin/
+  source "${MODULE_ROOT}/hack/tools/bin/kube_codegen.sh"
+  # ensure that the version of code-generator used is the same as that of k8s.io/api
+  k8s_api_version=$(go list -mod=mod -f '{{ .Version }}' -m k8s.io/api)
+  go get -tool k8s.io/code-generator@${k8s_api_version}
+}
+
+function cleanup() {
+  rm -rf ${MODULE_ROOT}/hack/tools
+}
 
 function check_controller_gen_prereq() {
   if ! command -v controller-gen &>/dev/null; then
@@ -29,9 +51,15 @@ function check_controller_gen_prereq() {
   fi
 }
 
+function generate_deepcopy_defaulter() {
+  kube::codegen::gen_helpers \
+    --boilerplate "${REPO_HACK_DIR}/boilerplate.go.txt" \
+    "${MODULE_ROOT}"
+}
+
 function generate_crds() {
-  local output_dir="${OPERATOR_GO_MODULE_ROOT}/api/core/crds"
-  local package="github.com/NVIDIA/grove/operator/api/core/v1alpha1"
+  local output_dir="${MODULE_ROOT}/core/v1alpha1/crds"
+  local package="github.com/NVIDIA/grove/operator-api/core/v1alpha1"
   local package_path="$(go list -f '{{.Dir}}' "${package}")"
 
   if [ -z "${package_path}" ]; then
@@ -52,11 +80,17 @@ function generate_crds() {
 }
 
 function main() {
+  setup
+
+  echo "> Generate..."
+  go generate "${MODULE_ROOT}/..."
+
+  echo "> Generating DeepCopy and Defaulting functions..."
+  generate_deepcopy_defaulter
+
   check_controller_gen_prereq
   echo "> Generate CRDs..."
   generate_crds
 }
 
 main
-
-

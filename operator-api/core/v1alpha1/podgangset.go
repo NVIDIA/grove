@@ -17,7 +17,6 @@
 package v1alpha1
 
 import (
-	autoscalingv2 "k8s.io/api/autoscaling/v2"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
@@ -114,8 +113,8 @@ type PodGangTemplateSpec struct {
 	HeadlessServiceConfig *HeadlessServiceConfig `json:"headlessServiceConfig,omitempty"`
 	// SchedulingPolicyConfig defines the scheduling policy configuration for the PodGang.
 	SchedulingPolicyConfig *SchedulingPolicyConfig `json:"schedulingPolicyConfig,omitempty"`
-	// PodCliqueScalingGroups is a list of scaling groups for the PodGangSet.
-	PodCliqueScalingGroups []PodCliqueScalingGroup `json:"podCliqueScalingGroups,omitempty"`
+	// PodCliqueScalingGroupConfigs is a list of scaling groups for the PodGangSet.
+	PodCliqueScalingGroupConfigs []PodCliqueScalingGroupConfig `json:"podCliqueScalingGroups,omitempty"`
 }
 
 // PodCliqueTemplateSpec defines a template spec for a PodClique.
@@ -158,25 +157,14 @@ type SchedulingPolicyConfig struct {
 	TerminationDelay *metav1.Duration `json:"terminationDelay,omitempty"`
 }
 
-// PodCliqueScalingGroup is a group of PodClique's that are scaled together.
-// Each member PodClique.Replicas will be computed as a product of PodCliqueScalingGroup.Replicas and PodCliqueTemplateSpec.Spec.Replicas.
-// NOTE: If a PodCliqueScalingGroup is defined, then for the member PodClique's, individual AutoScalingConfig cannot be defined.
-type PodCliqueScalingGroup struct {
-	// Replicas is the desired number of replicas for the scaling group.
-	Replicas int32 `json:"replicas"`
+// PodCliqueScalingGroupConfig is a group of PodClique's that are scaled together.
+// Each member PodClique.Replicas will be computed as a product of PodCliqueScalingGroupConfig.Replicas and PodCliqueTemplateSpec.Spec.Replicas.
+// NOTE: If a PodCliqueScalingGroupConfig is defined, then for the member PodClique's, individual AutoScalingConfig cannot be defined.
+type PodCliqueScalingGroupConfig struct {
 	// CliqueNames is the list of names of the PodClique's that are part of the scaling group.
-	CliqueNames []string `json:"cliqueReferences"`
-	// Metrics contains the specifications for which to use to calculate the
-	// desired replica count (the maximum replica count across all metrics will
-	// be used).  The desired replica count is calculated multiplying the
-	// ratio between the target value and the current value by the current
-	// number of pods.  Ergo, metrics used must decrease as the pod count is
-	// increased, and vice versa.  See the individual metric source types for
-	// more information about how each type of metric must respond.
-	// If not set, the default metric will be set to 80% average CPU utilization.
-	// +listType=atomic
-	// +optional
-	Metrics []autoscalingv2.MetricSpec `json:"metrics,omitempty"`
+	CliqueNames []string `json:"cliqueNames"`
+	// ScaleConfig is the horizontal pod autoscaler configuration for the pod clique scaling group.
+	ScaleConfig AutoScalingConfig `json:"scaleConfig,omitempty"`
 }
 
 // HeadlessServiceConfig defines the config options for the headless service.

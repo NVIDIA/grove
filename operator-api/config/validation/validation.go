@@ -17,8 +17,8 @@
 package validation
 
 import (
-	configv1alpha1 "github.com/NVIDIA/grove/operator/api/config/v1alpha1"
-	"github.com/NVIDIA/grove/operator/internal/utils"
+	configv1alpha1 "github.com/NVIDIA/grove/operator-api/config/v1alpha1"
+	"strings"
 
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/apimachinery/pkg/util/validation/field"
@@ -35,10 +35,10 @@ func ValidateOperatorConfiguration(config *configv1alpha1.OperatorConfiguration)
 
 func validateLogConfiguration(config *configv1alpha1.OperatorConfiguration) field.ErrorList {
 	allErrs := field.ErrorList{}
-	if !utils.IsEmptyStringType(config.LogLevel) && !sets.New(configv1alpha1.AllLogLevels...).Has(config.LogLevel) {
+	if len(strings.TrimSpace(string(config.LogLevel))) > 0 && !sets.New(configv1alpha1.AllLogLevels...).Has(config.LogLevel) {
 		allErrs = append(allErrs, field.NotSupported(field.NewPath("logLevel"), config.LogLevel, configv1alpha1.AllLogLevels))
 	}
-	if !utils.IsEmptyStringType(config.LogFormat) && !sets.New(configv1alpha1.AllLogFormats...).Has(config.LogFormat) {
+	if len(strings.TrimSpace(string(config.LogFormat))) > 0 && !sets.New(configv1alpha1.AllLogFormats...).Has(config.LogFormat) {
 		allErrs = append(allErrs, field.NotSupported(field.NewPath("logFormat"), config.LogFormat, configv1alpha1.AllLogFormats))
 	}
 	return allErrs
