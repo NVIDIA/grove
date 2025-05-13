@@ -32,6 +32,10 @@ func (c *FakeGroveV1alpha1) PodCliques(namespace string) v1alpha1.PodCliqueInter
 	return newFakePodCliques(c, namespace)
 }
 
+func (c *FakeGroveV1alpha1) PodCliqueScalingGroups(namespace string) v1alpha1.PodCliqueScalingGroupInterface {
+	return newFakePodCliqueScalingGroups(c, namespace)
+}
+
 func (c *FakeGroveV1alpha1) PodGangSets(namespace string) v1alpha1.PodGangSetInterface {
 	return newFakePodGangSets(c, namespace)
 }

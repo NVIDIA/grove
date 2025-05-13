@@ -17,7 +17,7 @@
 package podgangset
 
 import (
-	"github.com/NVIDIA/grove/operator-api/core/v1alpha1"
+	"github.com/NVIDIA/grove/operator/api/core/v1alpha1"
 	grovectrlutils "github.com/NVIDIA/grove/operator/internal/controller/utils"
 
 	"sigs.k8s.io/controller-runtime/pkg/builder"
@@ -37,7 +37,7 @@ func (r *Reconciler) RegisterWithManager(mgr manager.Manager) error {
 	return builder.ControllerManagedBy(mgr).
 		Named(controllerName).
 		WithOptions(controller.Options{
-			MaxConcurrentReconciles: *r.config,
+			MaxConcurrentReconciles: *r.config.ConcurrentSyncs,
 		}).
 		For(&v1alpha1.PodGangSet{}).
 		WithEventFilter(predicate.GenerationChangedPredicate{}).
@@ -59,10 +59,7 @@ func podCliquePredicate() predicate.Predicate {
 		DeleteFunc: func(deleteEvent event.DeleteEvent) bool {
 			return isManagedClique(deleteEvent.Object)
 		},
-		UpdateFunc: func(updateEvent event.UpdateEvent) bool {
-			// Only allow update event if the PodClique is managed by Grove and the spec has not changed.
-			return false
-		},
+		UpdateFunc:  func(_ event.UpdateEvent) bool { return false },
 		GenericFunc: func(_ event.GenericEvent) bool { return false },
 	}
 }

@@ -20,4 +20,6 @@ package v1alpha1
 
 type PodCliqueExpansion interface{}
 
+type PodCliqueScalingGroupExpansion interface{}
+
 type PodGangSetExpansion interface{}

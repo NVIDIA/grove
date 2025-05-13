@@ -37,12 +37,10 @@ format:
 # Generates code and CRDs for the entire codebase (all relevant modules)
 .PHONY: generate
 generate:
-	@echo "> Generating code for operator-api"
-	@make --directory=operator-api generate
-	@echo "> Generating code for operator"
-	@make --directory=operator generate
-	@echo "> Generating code for scheduler-api"
-	@make --directory=scheduler-api generate
+	@echo "> Generating code for operator api"
+	@make --directory=operator/api generate
+	@echo "> Generating code for scheduler api"
+	@make --directory=scheduler/api generate
 
 # Add license headers to all files (all modules)
 .PHONY: add-license-headers

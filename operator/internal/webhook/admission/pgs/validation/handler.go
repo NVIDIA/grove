@@ -20,7 +20,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/NVIDIA/grove/operator-api/core/v1alpha1"
+	"github.com/NVIDIA/grove/operator/api/core/v1alpha1"
 	"github.com/NVIDIA/grove/operator/internal/errors"
 
 	"github.com/go-logr/logr"

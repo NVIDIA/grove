@@ -23,7 +23,7 @@ import (
 	"strconv"
 	"strings"
 
-	grovecorev1alpha1 "github.com/NVIDIA/grove/operator-api/core/v1alpha1"
+	grovecorev1alpha1 "github.com/NVIDIA/grove/operator/api/core/v1alpha1"
 	"github.com/NVIDIA/grove/operator/internal/component"
 	groveerr "github.com/NVIDIA/grove/operator/internal/errors"
 	"github.com/NVIDIA/grove/operator/internal/utils"

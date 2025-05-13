@@ -33,13 +33,11 @@ go.work.sum
 hack/tools/*
 operator/hack/tools/*
 operator/hack/kind/*
-scheduler-plugins/hack/tools/*
-scheduler-api/hack/tools/*
+scheduler/api/hack/tools/*
 
 # binary directory for locally produced dev scheduler binaries
 operator/bin/*
-scheduler-plugins/bin/*
-scheduler-api/bin/*
+scheduler/bin/*
 
 # generated/copied chart resources
 operator/charts/pki-resources/*

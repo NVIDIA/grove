@@ -21,7 +21,8 @@ set -o pipefail
 
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
 MODULE_ROOT="$(dirname "$SCRIPT_DIR")"
-REPO_ROOT="$(dirname "$MODULE_ROOT")"
+OPERATOR_ROOT="$(dirname "$MODULE_ROOT")"
+REPO_ROOT="$(dirname "$OPERATOR_ROOT")"
 REPO_HACK_DIR=${REPO_ROOT}/hack
 TOOLS_BIN_DIR="${REPO_HACK_DIR}/tools/bin"
 
@@ -59,7 +60,7 @@ function generate_deepcopy_defaulter() {
 
 function generate_crds() {
   local output_dir="${MODULE_ROOT}/core/v1alpha1/crds"
-  local package="github.com/NVIDIA/grove/operator-api/core/v1alpha1"
+  local package="github.com/NVIDIA/grove/operator/api/core/v1alpha1"
   local package_path="$(go list -f '{{.Dir}}' "${package}")"
 
   if [ -z "${package_path}" ]; then
@@ -79,6 +80,15 @@ function generate_crds() {
   controller-gen crd paths="${package_path}" output:crd:dir="${output_dir}" output:stdout
 }
 
+function generate_clientset() {
+  kube::codegen::gen_client \
+    --with-watch \
+    --output-dir "${OPERATOR_ROOT}/client" \
+    --output-pkg "github.com/NVIDIA/grove/operator/client" \
+    --boilerplate "${REPO_HACK_DIR}/boilerplate.go.txt" \
+    "${MODULE_ROOT}"
+}
+
 function main() {
   setup
 
@@ -91,6 +101,9 @@ function main() {
   check_controller_gen_prereq
   echo "> Generate CRDs..."
   generate_crds
+
+  echo "> Generating ClientSet..."
+  generate_clientset
 }
 
 main

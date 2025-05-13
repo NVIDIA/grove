@@ -20,7 +20,7 @@ import (
 	"reflect"
 	"strings"
 
-	"github.com/NVIDIA/grove/operator-api/core/v1alpha1"
+	"github.com/NVIDIA/grove/operator/api/core/v1alpha1"
 	"github.com/NVIDIA/grove/operator/internal/utils"
 
 	"github.com/samber/lo"

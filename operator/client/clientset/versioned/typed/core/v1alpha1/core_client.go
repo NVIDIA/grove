@@ -29,6 +29,7 @@ import (
 type GroveV1alpha1Interface interface {
 	RESTClient() rest.Interface
 	PodCliquesGetter
+	PodCliqueScalingGroupsGetter
 	PodGangSetsGetter
 }
 
@@ -39,6 +40,10 @@ type GroveV1alpha1Client struct {
 
 func (c *GroveV1alpha1Client) PodCliques(namespace string) PodCliqueInterface {
 	return newPodCliques(c, namespace)
+}
+
+func (c *GroveV1alpha1Client) PodCliqueScalingGroups(namespace string) PodCliqueScalingGroupInterface {
+	return newPodCliqueScalingGroups(c, namespace)
 }
 
 func (c *GroveV1alpha1Client) PodGangSets(namespace string) PodGangSetInterface {

@@ -16,7 +16,7 @@
 
 MODULE_ROOT     := $(shell dirname "$(realpath $(lastword $(MAKEFILE_LIST)))")
 MODULE_HACK_DIR := $(MODULE_ROOT)/hack
-REPO_ROOT       := $(shell dirname "$(MODULE_ROOT)")
+REPO_ROOT       := $(shell dirname $(shell dirname "$(MODULE_ROOT)"))
 REPO_HACK_DIR   := $(REPO_ROOT)/hack
 
 # Include tools targets

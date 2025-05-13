@@ -26,6 +26,14 @@ type PodCliqueListerExpansion interface{}
 // PodCliqueNamespaceLister.
 type PodCliqueNamespaceListerExpansion interface{}
 
+// PodCliqueScalingGroupListerExpansion allows custom methods to be added to
+// PodCliqueScalingGroupLister.
+type PodCliqueScalingGroupListerExpansion interface{}
+
+// PodCliqueScalingGroupNamespaceListerExpansion allows custom methods to be added to
+// PodCliqueScalingGroupNamespaceLister.
+type PodCliqueScalingGroupNamespaceListerExpansion interface{}
+
 // PodGangSetListerExpansion allows custom methods to be added to
 // PodGangSetLister.
 type PodGangSetListerExpansion interface{}

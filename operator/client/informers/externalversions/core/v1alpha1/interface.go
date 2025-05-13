@@ -26,6 +26,8 @@ import (
 type Interface interface {
 	// PodCliques returns a PodCliqueInformer.
 	PodCliques() PodCliqueInformer
+	// PodCliqueScalingGroups returns a PodCliqueScalingGroupInformer.
+	PodCliqueScalingGroups() PodCliqueScalingGroupInformer
 	// PodGangSets returns a PodGangSetInformer.
 	PodGangSets() PodGangSetInformer
 }
@@ -44,6 +46,11 @@ func New(f internalinterfaces.SharedInformerFactory, namespace string, tweakList
 // PodCliques returns a PodCliqueInformer.
 func (v *version) PodCliques() PodCliqueInformer {
 	return &podCliqueInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
+}
+
+// PodCliqueScalingGroups returns a PodCliqueScalingGroupInformer.
+func (v *version) PodCliqueScalingGroups() PodCliqueScalingGroupInformer {
+	return &podCliqueScalingGroupInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
 }
 
 // PodGangSets returns a PodGangSetInformer.
