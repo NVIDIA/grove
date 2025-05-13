@@ -21,7 +21,7 @@ import (
 	"strconv"
 	"time"
 
-	configv1alpha1 "github.com/NVIDIA/grove/operator/api/config/v1alpha1"
+	configv1alpha1 "github.com/NVIDIA/grove/operator-api/config/v1alpha1"
 	groveclientscheme "github.com/NVIDIA/grove/operator/internal/client"
 	"github.com/NVIDIA/grove/operator/internal/webhook"
 

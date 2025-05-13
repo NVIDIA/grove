@@ -19,8 +19,8 @@ package podclique
 import (
 	"context"
 
-	configv1alpha1 "github.com/NVIDIA/grove/operator/api/config/v1alpha1"
-	"github.com/NVIDIA/grove/operator/api/core/v1alpha1"
+	configv1alpha1 "github.com/NVIDIA/grove/operator-api/config/v1alpha1"
+	"github.com/NVIDIA/grove/operator-api/core/v1alpha1"
 	"github.com/NVIDIA/grove/operator/internal/component"
 	pclqComponent "github.com/NVIDIA/grove/operator/internal/component/pclq"
 	ctrlcommon "github.com/NVIDIA/grove/operator/internal/controller/common"

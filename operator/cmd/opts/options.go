@@ -21,8 +21,8 @@ import (
 	"fmt"
 	"os"
 
-	configv1alpha1 "github.com/NVIDIA/grove/operator/api/config/v1alpha1"
-	operatorvalidation "github.com/NVIDIA/grove/operator/api/config/validation"
+	configv1alpha1 "github.com/NVIDIA/grove/operator-api/config/v1alpha1"
+	operatorvalidation "github.com/NVIDIA/grove/operator-api/config/validation"
 
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/serializer"

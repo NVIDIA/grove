@@ -17,7 +17,7 @@
 package kubernetes
 
 import (
-	"github.com/NVIDIA/grove/operator/api/core/v1alpha1"
+	"github.com/NVIDIA/grove/operator-api/core/v1alpha1"
 )
 
 // GetDefaultLabelsForPodGangSetManagedResources gets the default labels for resources managed by PodGangset.

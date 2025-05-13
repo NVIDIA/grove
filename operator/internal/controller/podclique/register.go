@@ -17,7 +17,7 @@
 package podclique
 
 import (
-	"github.com/NVIDIA/grove/operator/api/core/v1alpha1"
+	"github.com/NVIDIA/grove/operator-api/core/v1alpha1"
 	grovectrlutils "github.com/NVIDIA/grove/operator/internal/controller/utils"
 
 	corev1 "k8s.io/api/core/v1"

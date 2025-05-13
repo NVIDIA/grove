@@ -37,6 +37,8 @@ format:
 # Generates code and CRDs for the entire codebase (all relevant modules)
 .PHONY: generate
 generate:
+	@echo "> Generating code for operator-api"
+	@make --directory=operator-api generate
 	@echo "> Generating code for operator"
 	@make --directory=operator generate
 	@echo "> Generating code for scheduler-api"

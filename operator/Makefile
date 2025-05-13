@@ -48,7 +48,6 @@ format: $(GOIMPORTS_REVISER)
 .PHONY: generate
 generate: $(CODE_GENERATOR) $(CONTROLLER_GEN)
 	@$(MODULE_HACK_DIR)/codegen.sh
-	@$(MODULE_HACK_DIR)/generate-crds.sh
 
 # Add license headers to all files
 .PHONY: add-license-headers
