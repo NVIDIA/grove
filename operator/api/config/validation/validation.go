@@ -17,8 +17,9 @@
 package validation
 
 import (
-	configv1alpha1 "github.com/NVIDIA/grove/operator/api/config/v1alpha1"
 	"strings"
+
+	configv1alpha1 "github.com/NVIDIA/grove/operator/api/config/v1alpha1"
 
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/apimachinery/pkg/util/validation/field"

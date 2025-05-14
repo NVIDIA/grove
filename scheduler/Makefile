@@ -46,7 +46,7 @@ lint: $(GOLANGCI_LINT)
 # Formats the codebase
 .PHONY: format
 format: $(GOIMPORTS_REVISER)
-	@$(REPO_HACK_DIR)/format.sh  ./cmd/ ./grovescheduling/ ./internal/
+	@$(REPO_HACK_DIR)/format.sh  ./api/ ./cmd/ ./internal/ ./plugins/
 
 # Add license headers to all files
 .PHONY: add-license-headers
