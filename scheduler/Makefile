@@ -18,16 +18,25 @@ MODULE_ROOT     := $(shell dirname "$(realpath $(lastword $(MAKEFILE_LIST)))")
 MODULE_HACK_DIR := $(MODULE_ROOT)/hack
 REPO_ROOT       := $(shell dirname "$(MODULE_ROOT)")
 REPO_HACK_DIR   := $(REPO_ROOT)/hack
+KUBECONFIG_PATH := $(MODULE_HACK_DIR)/kind/kubeconfig
 
 include $(REPO_HACK_DIR)/tools.mk
 
-KUBERNETES_VERSION=$(call version_gomod,k8s.io/kubernetes)
-SCHEDULER_DEV_VERSION=$(KUBERNETES_VERSION)-dev
+kind-up kind-down deploy-local-second deploy-local-replace: export KUBECONFIG = $(KUBECONFIG_PATH)
+
+# the scheduler version should be different, not the same as the k8s version
 
 # Builds the scheduler with the Grove plugin
 .PHONY: build
 build:
-	@go build -ldflags '-X k8s.io/component-base/version.gitVersion=$(SCHEDULER_DEV_VERSION)' -o bin/kube-scheduler cmd/main.go
+	@$(MODULE_HACK_DIR)/build.sh
+
+# Builds grove-kube-scheduler for the specified platform.
+# Usage: make build-<os>-<arch>
+# Example: make build-linux-amd64, make build-darwin-amd64, make build-darwin-arm64, make build-linux-arm64
+.PHONY: build-%
+build-%:
+	@GOOS=$$(echo $* | cut -d- -f 1) GOARCH=$$(echo $* | cut -d- -f 2) $(MODULE_HACK_DIR)/build.sh
 
 # Lints the codebase using GOLANGCI_LINT.
 .PHONY: lint
@@ -43,3 +52,39 @@ format: $(GOIMPORTS_REVISER)
 .PHONY: add-license-headers
 add-license-headers: $(GO_ADD_LICENSE)
 	@$(REPO_HACK_DIR)/add-license-headers.sh
+
+# Make targets for local development and testing
+# -------------------------------------------------------------
+# Starts a local k8s cluster using kind.
+.PHONY: kind-up
+kind-up: $(KIND) $(YQ)
+	@$(MODULE_HACK_DIR)/kind-up.sh
+
+# Stops the local k8s cluster.
+.PHONY: kind-down
+kind-down: $(KIND)
+	@$(MODULE_HACK_DIR)/kind-down.sh
+
+# Make targets for docker images
+# -------------------------------------------------------------
+
+# Builds the docker image for the specified platform.
+# Usage: make docker-build-<arch>
+# Example: make docker-build-amd64, make docker-build-arm64
+.PHONY: docker-build-%
+docker-build-%:
+	@GOARCH=$$(echo $* | cut -d- -f 1) $(MODULE_HACK_DIR)/docker-build.sh
+
+# Make targets for deploying kube-scheduler to a local k8s cluster via skaffold (when applicable)
+# -------------------------------------------------------------
+
+# Deploys grove-kube-scheduler to a local k8s cluster using skaffold.
+.PHONY: deploy-local-second
+deploy-local-second: $(SKAFFOLD)
+	@$(MODULE_HACK_DIR)/deploy-local.sh
+
+# deploys kube-scheduler by replacing the vanilla kube-scheduler in kind
+# The kube-scheduler configuration is maintained in this script
+.PHONY: deploy-local-replace
+deploy-local-replace: $(SKAFFOLD) $(YQ)
+	@$(MODULE_HACK_DIR)/replace-scheduler.sh

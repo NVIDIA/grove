@@ -18,9 +18,12 @@ MODULE_ROOT     := $(shell dirname "$(realpath $(lastword $(MAKEFILE_LIST)))")
 MODULE_HACK_DIR := $(MODULE_ROOT)/hack
 REPO_ROOT       := $(shell dirname "$(MODULE_ROOT)")
 REPO_HACK_DIR   := $(REPO_ROOT)/hack
+KUBECONFIG_PATH := $(MODULE_HACK_DIR)/kind/kubeconfig
 
 # Include tools targets
 include $(REPO_HACK_DIR)/tools.mk
+
+kind-up kind-down deploy-local deploy-local-dev deploy-local-debug undeploy-local deploy-addons: export KUBECONFIG = $(KUBECONFIG_PATH)
 
 # Builds grove-operator for the current platform.
 .PHONY: build

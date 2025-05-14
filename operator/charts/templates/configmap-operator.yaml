@@ -4,7 +4,7 @@ metadata:
   name: {{ include "operator.config.name" . }}
   namespace: {{ .Release.Namespace }}
   labels:
-{{- include "operator.config.lables" . | nindent 4 }}
+{{- include "operator.config.labels" . | nindent 4 }}
 immutable: true
 data:
 {{- include "operator.config.data" . | nindent 2 }}

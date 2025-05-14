@@ -34,6 +34,7 @@ hack/tools/*
 operator/hack/tools/*
 operator/hack/kind/*
 scheduler/api/hack/tools/*
+scheduler/hack/kind/*
 
 # binary directory for locally produced dev scheduler binaries
 operator/bin/*

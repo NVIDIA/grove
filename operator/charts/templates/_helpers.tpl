@@ -49,7 +49,7 @@ chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
 release: "{{ .Release.Name }}"
 {{- end -}}
 
-{{- define "operator.config.lables" -}}
+{{- define "operator.config.labels" -}}
 {{- include "common.chart.labels" . }}
 {{- range $key, $val := .Values.configMap.labels }}
 {{ $key }}: {{ $val }}
