@@ -9063,6 +9063,11 @@ spec:
                           items:
                             type: string
                           type: array
+                        name:
+                          description: |-
+                            Name is the name of the PodCliqueScalingGroupConfig. This should be unique within the PodGangSet.
+                            It allows consumers to give a semantic name to a group of PodCliques that needs to be scaled together.
+                          type: string
                         scaleConfig:
                           description: ScaleConfig is the horizontal pod autoscaler
                             configuration for the pod clique scaling group.
@@ -9571,6 +9576,7 @@ spec:
                           type: object
                       required:
                       - cliqueNames
+                      - name
                       type: object
                     type: array
                   schedulingPolicyConfig:

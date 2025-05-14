@@ -52,6 +52,12 @@ func defaultPodGangTemplateSpec(spec *v1alpha1.PodGangTemplateSpec) {
 	if spec.SchedulingPolicyConfig.NetworkPackStrategy == nil {
 		spec.SchedulingPolicyConfig.NetworkPackStrategy = ptr.To(v1alpha1.BestEffort)
 	}
+	// default PodCliqueScalingGroupConfig if defined
+	if len(spec.PodCliqueScalingGroupConfigs) > 0 {
+		for _, pclqScalingGroupConfig := range spec.PodCliqueScalingGroupConfigs {
+			defaultPodCliqueScalingGroupConfig(pclqScalingGroupConfig)
+		}
+	}
 }
 
 func defaultUpdateStrategy(spec *v1alpha1.PodGangSetSpec) {
@@ -84,6 +90,12 @@ func defaultPodCliqueTemplateSpecs(cliqueSpecs []*v1alpha1.PodCliqueTemplateSpec
 		defaultedCliqueSpecs = append(defaultedCliqueSpecs, defaultedCliqueSpec)
 	}
 	return defaultedCliqueSpecs
+}
+
+func defaultPodCliqueScalingGroupConfig(pclqScalingGroupConfig v1alpha1.PodCliqueScalingGroupConfig) {
+	if pclqScalingGroupConfig.ScaleConfig.MinReplicas == nil {
+		pclqScalingGroupConfig.ScaleConfig.MinReplicas = ptr.To[int32](1)
+	}
 }
 
 // defaultPodSpec adds defaults to PodSpec.

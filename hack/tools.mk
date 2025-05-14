@@ -24,7 +24,6 @@ SETUP_ENVTEST     := $(TOOLS_BIN_DIR)/setup-envtest
 KIND              := $(TOOLS_BIN_DIR)/kind
 GOLANGCI_LINT     := $(TOOLS_BIN_DIR)/golangci-lint
 GOIMPORTS_REVISER := $(TOOLS_BIN_DIR)/goimports-reviser
-CODE_GENERATOR    := $(TOOLS_BIN_DIR)/code-generator
 YQ                := $(TOOLS_BIN_DIR)/yq
 GO_ADD_LICENSE    := $(TOOLS_BIN_DIR)/addlicense
 SKAFFOLD          := $(TOOLS_BIN_DIR)/skaffold
@@ -35,7 +34,6 @@ CONTROLLER_GEN_VERSION    ?= $(call version_gomod,sigs.k8s.io/controller-tools)
 KIND_VERSION              ?= v0.27.0
 GOLANGCI_LINT_VERSION     ?= v2.1.1
 GOIMPORTS_REVISER_VERSION ?= v3.9.1
-CODE_GENERATOR_VERSION    ?= $(call version_gomod,k8s.io/api)
 YQ_VERSION                ?= v4.45.1
 GO_ADD_LICENSE_VERSION    ?= v1.1.1
 SKAFFOLD_VERSION          ?= v2.14.0
@@ -53,7 +51,6 @@ clean-tools-bin:
 
 # Tools
 # -------------------------------------------------------------------------
-
 $(CONTROLLER_GEN):
 	GOBIN=$(abspath $(TOOLS_BIN_DIR)) go install sigs.k8s.io/controller-tools/cmd/controller-gen@$(CONTROLLER_GEN_VERSION)
 
@@ -67,11 +64,6 @@ $(GOLANGCI_LINT):
 
 $(GOIMPORTS_REVISER):
 	GOBIN=$(abspath $(TOOLS_BIN_DIR)) go install github.com/incu6us/goimports-reviser/v3@$(GOIMPORTS_REVISER_VERSION)
-
-CODE_GENERATOR_ROOT = $(shell go env GOMODCACHE)/k8s.io/code-generator@$(CODE_GENERATOR_VERSION)
-$(CODE_GENERATOR):
-	GOBIN=$(abspath $(TOOLS_BIN_DIR)) GO111MODULE=on go install k8s.io/code-generator/cmd/client-gen@$(CODE_GENERATOR_VERSION)
-	cp -f $(CODE_GENERATOR_ROOT)/kube_codegen.sh $(TOOLS_BIN_DIR)/
 
 $(KIND):
 	curl -Lo $(KIND) https://kind.sigs.k8s.io/dl/$(KIND_VERSION)/kind-$(SYSTEM_NAME)-$(SYSTEM_ARCH)

@@ -24,7 +24,7 @@ include $(REPO_HACK_DIR)/tools.mk
 
 # Generates code and CRDs.
 .PHONY: generate
-generate: $(CODE_GENERATOR) $(CONTROLLER_GEN)
+generate: $(CONTROLLER_GEN)
 	@$(MODULE_HACK_DIR)/generate.sh
 
 # Lints the codebase using GOLANGCI_LINT.

@@ -161,6 +161,9 @@ type SchedulingPolicyConfig struct {
 // Each member PodClique.Replicas will be computed as a product of PodCliqueScalingGroupConfig.Replicas and PodCliqueTemplateSpec.Spec.Replicas.
 // NOTE: If a PodCliqueScalingGroupConfig is defined, then for the member PodClique's, individual AutoScalingConfig cannot be defined.
 type PodCliqueScalingGroupConfig struct {
+	// Name is the name of the PodCliqueScalingGroupConfig. This should be unique within the PodGangSet.
+	// It allows consumers to give a semantic name to a group of PodCliques that needs to be scaled together.
+	Name string `json:"name"`
 	// CliqueNames is the list of names of the PodClique's that are part of the scaling group.
 	CliqueNames []string `json:"cliqueNames"`
 	// ScaleConfig is the horizontal pod autoscaler configuration for the pod clique scaling group.
