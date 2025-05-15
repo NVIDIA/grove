@@ -17,6 +17,12 @@ release: "{{ .Release.Name }}"
 {{- end }}
 {{- end -}}
 
+{{- define "kube-scheduler.config.schedulerConfiguration" -}}
+{{- range $key, $val := .Values.config.schedulerConfiguration }}
+{{ $key }}: {{ $val }}
+{{- end }}
+{{- end -}}
+
 {{- define "kube-scheduler.config.labels" -}}
 {{- include "common.chart.labels" . }}
 {{- range $key, $val := .Values.configMap.labels }}

@@ -18,27 +18,27 @@ spec:
       serviceAccountName: {{ required ".Values.serviceAccount.name is required" .Values.serviceAccount.name }}
       containers:
       - args:
-        - --config=/etc/kubernetes/grove-kube-scheduler/scheduler-configuration.yaml
+        - --config={{ required ".Values.config.configFile.mountPath" .Values.config.configFile.mountPath}}/{{ required ".Values.config.configFile.name" .Values.config.configFile.name }}
         image: {{ include "image" .Values.image }}
         livenessProbe:
           httpGet:
             path: /healthz
-            port: 10259
+            port: {{ required ".Values.config.livenessProbe.port is required" .Values.config.livenessProbe.port }}
             scheme: HTTPS
           initialDelaySeconds: 15
         name: {{ required ".Values.schedulerName is required" .Values.schedulerName }}
         readinessProbe:
           httpGet:
             path: /healthz
-            port: 10259
+            port: {{ required ".Values.config.readinessProbe.port is required" .Values.config.readinessProbe.port }}
             scheme: HTTPS
         resources:
-{{- toYaml .Values.resources | nindent 12 }}
+{{- toYaml .Values.config.resources | nindent 12 }}
         securityContext:
           privileged: false
         volumeMounts:
           - name: scheduler-configuration-volume
-            mountPath: /etc/kubernetes/grove-kube-scheduler
+            mountPath: {{ required ".Values.config.configFile.mountPath" .Values.config.configFile.mountPath}}
       hostNetwork: false
       hostPID: false
       volumes:
