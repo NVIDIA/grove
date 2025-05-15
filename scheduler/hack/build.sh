@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # /*
-# Copyright 2024 The Grove Authors.
+# Copyright 2025 The Grove Authors.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -22,37 +22,29 @@ set -o pipefail
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
 MODULE_ROOT="$(dirname $SCRIPT_DIR)"
 REPO_ROOT="$(dirname $MODULE_ROOT)"
+GOOS=${GOOS:-$(go env GOOS)}
+GOARCH=${GOARCH:-$(go env GOARCH)}
+BINARY_DIR="${MODULE_ROOT}/bin"
 
 # Specify the variables necessary for the generation of the ldflags before sourcing the function
 PACKAGE_PATH=${PACKAGE_PATH}
 PROGRAM_NAME=${PROGRAM_NAME}
-VERSION="$(cat "${MODULE_ROOT}/VERSION")"
 
 source $REPO_ROOT/hack/ld-flags.sh
 
-function check_prereq() {
-  if ! command -v skaffold &>/dev/null; then
-    echo >&2 "skaffold is not installed, please install skaffold from https://skaffold.dev/docs/install/"
-    exit 1
-  fi
-  if ! command -v kubectl &>/dev/null; then
-    echo >&2 "kubectl is not installed, please install kubectl from https://kubernetes.io/docs/tasks/tools/install-kubectl/"
-    exit 1
-  fi
-}
-
-function skaffold_deploy() {
+function build_kube_scheduler() {
   local ld_flags=$(build_ld_flags)
-  export LD_FLAGS="${ld_flags}"
-  skaffold "$@"
+  printf '%s\n' "Building kube-scheduler with:
+   GOOS: $GOOS
+   GOARCH: $GOARCH
+   ldflags: $ld_flags ..."
+
+  CGO_ENABLED=0 GOOS=${GOOS} GOARCH=${GOARCH} GO111MODULE=on \
+    go build \
+    -o "${BINARY_DIR}/kube-scheduler" \
+    -ldflags "${ld_flags}" \
+    cmd/main.go
 }
 
-function main() {
-  echo "Checking prerequisites..."
-  check_prereq
-  echo "Skaffolding grove operator..."
-  skaffold_deploy "$@"
-}
-
-main "$@"
-
+mkdir -p ${BINARY_DIR}
+build_kube_scheduler

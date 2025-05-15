@@ -1,0 +1,6 @@
+apiVersion: v2
+name: charts
+description: A Helm chart for Grove's kube-scheduler distribution.
+type: application
+version: v0.1.0
+appVersion: "v0.1.0-dev"

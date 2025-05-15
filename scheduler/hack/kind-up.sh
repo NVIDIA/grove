@@ -22,9 +22,9 @@ set -o pipefail
 
 
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
-OPERATOR_GO_MODULE_ROOT="$(dirname "$SCRIPT_DIR")"
+MODULE_ROOT="$(dirname "$SCRIPT_DIR")"
 KIND_CONFIG_DIR="${SCRIPT_DIR}/kind"
-CLUSTER_NAME="grove-test-cluster"
+CLUSTER_NAME="scheduler-test-cluster"
 DEPLOY_REGISTRY=true
 RECREATE_CLUSTER=false
 FEATURE_GATES=()
@@ -34,7 +34,7 @@ function kind::create_usage() {
   usage=$(printf '%s\n' "
   usage: $(basename $0) [Options]
   Options:
-    -n | --cluster-name  <cluster-name>   Name of the kind cluster to create. Default value is 'grove-test-cluster'
+    -n | --cluster-name  <cluster-name>   Name of the kind cluster to create. Default value is 'scheduler-test-cluster'
     -s | --skip-registry                  Skip creating a local docker registry. Default value is false.
     -r | --recreate                       If this flag is specified then it will recreate the cluster if it already exists.
     -g | --feature-gates <feature-gates>  Comma separated list of feature gates to enable on the cluster.

@@ -35,6 +35,10 @@ operator/hack/tools/*
 operator/hack/kind/*
 scheduler/api/hack/tools/*
 
+# kubeconfig files
+operator/hack/kind/kubeconfig
+scheduler/hack/kind/kubeconfig
+
 # binary directory for locally produced dev scheduler binaries
 operator/bin/*
 scheduler/bin/*

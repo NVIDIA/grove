@@ -30,6 +30,10 @@ VERSION="$(cat "${MODULE_ROOT}/VERSION")"
 
 source $REPO_ROOT/hack/ld-flags.sh
 
+GOARCH=${GOARCH:-$(go env GOARCH)}
+PLATFORM=${PLATFORM:-linux/${GOARCH}}
+REG_PORT='5001'
+
 function check_prereq() {
   if ! command -v skaffold &>/dev/null; then
     echo >&2 "skaffold is not installed, please install skaffold from https://skaffold.dev/docs/install/"
@@ -44,7 +48,7 @@ function check_prereq() {
 function skaffold_deploy() {
   local ld_flags=$(build_ld_flags)
   export LD_FLAGS="${ld_flags}"
-  skaffold "$@"
+  skaffold run --module scheduler --platform=linux/$GOARCH --default-repo localhost:$REG_PORT
 }
 
 function main() {
@@ -55,4 +59,3 @@ function main() {
 }
 
 main "$@"
-

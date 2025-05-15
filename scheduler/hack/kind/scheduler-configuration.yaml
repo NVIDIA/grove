@@ -1,0 +1,8 @@
+# this is the configuration file that is passed the grove-kube-scheduler that replaces the vanilla kube-scheduler
+apiVersion: kubescheduler.config.k8s.io/v1
+kind: KubeSchedulerConfiguration
+leaderElection:
+  # (Optional) Change true to false if you are not running a HA control-plane.
+  leaderElect: false
+clientConnection:
+  kubeconfig: /etc/kubernetes/scheduler.conf
