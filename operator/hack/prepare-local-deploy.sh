@@ -38,7 +38,7 @@ function copy_crds() {
   echo "Creating ${target_path} to copy the CRDs if not present..."
   mkdir -p ${target_path}
   for crd in "${crds[@]}"; do
-    local crd_path="${OPERATOR_GO_MODULE_ROOT}/api/core/crds/${crd}"
+    local crd_path="${OPERATOR_GO_MODULE_ROOT}/api/core/v1alpha1/crds/${crd}"
     if [ ! -f ${crd_path} ]; then
       echo "CRD ${crd} not found in ${OPERATOR_GO_MODULE_ROOT}/api/core/crds, running 'make generate' first"
       make generate
