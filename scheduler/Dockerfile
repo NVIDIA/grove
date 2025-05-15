@@ -1,7 +1,5 @@
 # builder
 FROM --platform=$BUILDPLATFORM golang:1.24.2 AS builder
-ARG GOPROXY=https://proxy.golang.org,direct
-ENV GOPROXY=$GOPROXY
 WORKDIR /go/src/github.com/NVIDIA/grove
 COPY ../. .
 
@@ -21,7 +19,7 @@ FROM gcr.io/distroless/static-debian11:nonroot AS kube-scheduler
 ARG VERSION
 
 LABEL org.opencontainers.image.title="Grove kube-scheduler"
-LABEL org.opencontainers.image.description="Kubernetes scheduler which supports PodGang and PodGangSet custom resources"
+LABEL org.opencontainers.image.description="Kubernetes scheduler which supports network optimized Gang scheduling"
 LABEL org.opencontainers.image.source="https://github.com/NVIDIA/grove/tree/main/scheduler"
 LABEL org.opencontainers.image.version=${VERSION}
 

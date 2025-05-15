@@ -1,7 +1,5 @@
 # builder
 FROM --platform=$BUILDPLATFORM golang:1.24.2 AS builder
-ARG GOPROXY=https://proxy.golang.org,direct
-ENV GOPROXY=$GOPROXY
 WORKDIR /go/src/github.com/NVIDIA/grove
 COPY ../. .
 
