@@ -19,11 +19,19 @@ set -o errexit
 set -o nounset
 set -o pipefail
 
-source $(dirname $0)/ld-flags.sh
-
-BINARY_DIR="${MODULE_ROOT}/bin"
+SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
+MODULE_ROOT="$(dirname $SCRIPT_DIR)"
+REPO_ROOT="$(dirname $MODULE_ROOT)"
 GOOS=${GOOS:-$(go env GOOS)}
 GOARCH=${GOARCH:-$(go env GOARCH)}
+BINARY_DIR="${MODULE_ROOT}/bin"
+
+# Specify the variables necessary for the generation of the ldflags before sourcing the function
+PACKAGE_PATH=${PACKAGE_PATH}
+PROGRAM_NAME=${PROGRAM_NAME}
+VERSION="$(cat "${MODULE_ROOT}/VERSION")"
+
+source $REPO_ROOT/hack/ld-flags.sh
 
 function build_grove_operator() {
   local ld_flags=$(build_ld_flags)

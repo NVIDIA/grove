@@ -19,24 +19,28 @@ MODULE_HACK_DIR := $(MODULE_ROOT)/hack
 REPO_ROOT       := $(shell dirname "$(MODULE_ROOT)")
 REPO_HACK_DIR   := $(REPO_ROOT)/hack
 KUBECONFIG_PATH := $(MODULE_HACK_DIR)/kind/kubeconfig
+# Path of the package that ld-flags writes to
+LD_PACKAGE_PATH := "k8s.io/component-base"
+PROGRAM_NAME    := "kube-scheduler"
 
+# Include tools targets
 include $(REPO_HACK_DIR)/tools.mk
 
-kind-up kind-down deploy-local-second deploy-local-replace: export KUBECONFIG = $(KUBECONFIG_PATH)
+kind-up kind-down deploy-second-scheduler replace-default-scheduler: export KUBECONFIG = $(KUBECONFIG_PATH)
 
 # the scheduler version should be different, not the same as the k8s version
 
 # Builds the scheduler with the Grove plugin
 .PHONY: build
 build:
-	@$(MODULE_HACK_DIR)/build.sh
+	@PACKAGE_PATH=${LD_PACKAGE_PATH} PROGRAM_NAME=${PROGRAM_NAME} $(MODULE_HACK_DIR)/build.sh
 
 # Builds grove-kube-scheduler for the specified platform.
 # Usage: make build-<os>-<arch>
 # Example: make build-linux-amd64, make build-darwin-amd64, make build-darwin-arm64, make build-linux-arm64
 .PHONY: build-%
 build-%:
-	@GOOS=$$(echo $* | cut -d- -f 1) GOARCH=$$(echo $* | cut -d- -f 2) $(MODULE_HACK_DIR)/build.sh
+	@GOOS=$$(echo $* | cut -d- -f 1) GOARCH=$$(echo $* | cut -d- -f 2) PACKAGE_PATH=${LD_PACKAGE_PATH} PROGRAM_NAME=${PROGRAM_NAME} $(MODULE_HACK_DIR)/build.sh
 
 # Lints the codebase using GOLANGCI_LINT.
 .PHONY: lint
@@ -79,12 +83,12 @@ docker-build-%:
 # -------------------------------------------------------------
 
 # Deploys grove-kube-scheduler to a local k8s cluster using skaffold.
-.PHONY: deploy-local-second
-deploy-local-second: $(SKAFFOLD)
-	@$(MODULE_HACK_DIR)/deploy-local.sh
+.PHONY: deploy-second-scheduler
+deploy-second-scheduler: $(SKAFFOLD)
+	@PACKAGE_PATH=${LD_PACKAGE_PATH} PROGRAM_NAME=${PROGRAM_NAME} $(MODULE_HACK_DIR)/deploy-local.sh
 
 # deploys kube-scheduler by replacing the vanilla kube-scheduler in kind
 # The kube-scheduler configuration is maintained in this script
-.PHONY: deploy-local-replace
-deploy-local-replace: $(SKAFFOLD) $(YQ)
-	@$(MODULE_HACK_DIR)/replace-scheduler.sh
+.PHONY: replace-default-scheduler
+replace-default-scheduler: $(SKAFFOLD) $(YQ)
+	@PACKAGE_PATH=${LD_PACKAGE_PATH} PROGRAM_NAME=${PROGRAM_NAME} $(MODULE_HACK_DIR)/replace-scheduler.sh
