@@ -82,13 +82,17 @@ docker-build-%:
 # Make targets for deploying kube-scheduler to a local k8s cluster via skaffold (when applicable)
 # -------------------------------------------------------------
 
-# Deploys grove-kube-scheduler to a local k8s cluster using skaffold.
+# Deploys the grove plugin enabled kube-scheduler to a local k8s cluster using skaffold.
 .PHONY: deploy-second-scheduler
 deploy-second-scheduler: $(SKAFFOLD)
 	@PACKAGE_PATH=${LD_PACKAGE_PATH} PROGRAM_NAME=${PROGRAM_NAME} $(MODULE_HACK_DIR)/deploy-local.sh
 
-# deploys kube-scheduler by replacing the vanilla kube-scheduler in kind
-# The kube-scheduler configuration is maintained in this script
+# Replaces the default kube-scheduler in kind, with the grove plugin enabled kube-scheduler.
 .PHONY: replace-default-scheduler
 replace-default-scheduler: $(SKAFFOLD) $(YQ)
 	@PACKAGE_PATH=${LD_PACKAGE_PATH} PROGRAM_NAME=${PROGRAM_NAME} $(MODULE_HACK_DIR)/replace-scheduler.sh
+
+# Resets the kube-scheduler in kind with the default scheduler. Run after `replace-default-scheduler`.
+.PHONY: reset-scheduler
+reset-scheduler:
+	@$(MODULE_HACK_DIR)/reset-scheduler.sh

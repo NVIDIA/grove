@@ -44,6 +44,10 @@ function check_prereq() {
     echo >&2 "yq is not installed, please install yq from https://github.com/mikefarah/yq/releases"
     exit 1
   fi
+  if ! command -v docker &>/dev/null; then
+    echo >&2 "docker is not installed, please install the docker CLI"
+    exit 1
+  fi
 }
 
 function skaffold_build() {
@@ -56,12 +60,17 @@ function skaffold_build() {
 }
 
 function copy_kube_scheduler_configuration() {
+  # Write the custom kube-scheduler configuration.
   docker cp ${KIND_CONFIG_DIR}/scheduler-configuration.yaml $CLUSTER_NAME-control-plane:/etc/kubernetes/scheduler-configuration.yaml
   docker exec $CLUSTER_NAME-control-plane chmod a+r /etc/kubernetes/scheduler-configuration.yaml
 }
 
 function replace_kube_scheduler_manifest() {
   docker exec $CLUSTER_NAME-control-plane chmod a+r /etc/kubernetes/scheduler.conf
+  # Store the default static pod manifest at /etc/kubernetes/kube-scheduler.yaml.
+  docker exec $CLUSTER_NAME-control-plane cp /etc/kubernetes/manifests/kube-scheduler.yaml /etc/kubernetes/kube-scheduler.yaml
+  # Replace the kube-scheduler image with the grove plugin enabled scheduler built above using skaffold,
+  # and copy it to the static pod manifest directory.
   yq '.spec.containers[0].image = "'"$IMAGE"'"' ${KIND_CONFIG_DIR}/kube-scheduler.yaml | \
     docker exec -i $CLUSTER_NAME-control-plane tee /etc/kubernetes/manifests/kube-scheduler.yaml > /dev/null
 }
