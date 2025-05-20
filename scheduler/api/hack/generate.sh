@@ -21,7 +21,8 @@ set -o pipefail
 
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
 MODULE_ROOT="$(dirname "$SCRIPT_DIR")"
-REPO_ROOT="$(dirname $(dirname "$MODULE_ROOT"))"
+SCHEDULER_ROOT="$(dirname "$MODULE_ROOT")"
+REPO_ROOT="$(dirname "$SCHEDULER_ROOT")"
 REPO_HACK_DIR=${REPO_ROOT}/hack
 TOOLS_BIN_DIR="${REPO_HACK_DIR}/tools/bin"
 
@@ -76,6 +77,15 @@ function generate_crds() {
   controller-gen crd:allowDangerousTypes=true paths="${package_path}" output:crd:dir="${output_dir}" output:stdout
 }
 
+function generate_clientset() {
+  kube::codegen::gen_client \
+    --with-watch \
+    --output-dir "${SCHEDULER_ROOT}/client" \
+    --output-pkg "github.com/NVIDIA/grove/scheduler/client" \
+    --boilerplate "${REPO_HACK_DIR}/boilerplate.go.txt" \
+    "${MODULE_ROOT}"
+}
+
 function main() {
   setup
 
@@ -88,6 +98,9 @@ function main() {
   check_controller_gen_prereq
   echo "> Generate CRDs..."
   generate_crds
+
+  echo "> Generating ClientSet..."
+  generate_clientset
 }
 
 main
