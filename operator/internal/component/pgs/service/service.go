@@ -20,6 +20,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strconv"
 
 	"github.com/NVIDIA/grove/operator/api/core/v1alpha1"
 	"github.com/NVIDIA/grove/operator/internal/component"
@@ -37,8 +38,8 @@ import (
 )
 
 const (
-	errSyncPodGangService   v1alpha1.ErrorCode = "ERR_SYNC_PODGANG_SERVICE"
-	errDeletePodGangService v1alpha1.ErrorCode = "ERR_DELETE_PODGANG_SERVICE"
+	errSyncPodGangSetService   v1alpha1.ErrorCode = "ERR_SYNC_PODGANGSET_SERVICE"
+	errDeletePodGangSetService v1alpha1.ErrorCode = "ERR_DELETE_PODGANGSET_SERVICE"
 )
 
 type _resource struct {
@@ -66,7 +67,7 @@ func (r _resource) GetExistingResourceNames(ctx context.Context, logger logr.Log
 		client.MatchingLabels(getSelectorLabelsForAllHeadlessServices(pgs.Name)),
 	); err != nil {
 		return nil, groveerr.WrapError(err,
-			errSyncPodGangService,
+			errSyncPodGangSetService,
 			component.OperationGetExistingResourceNames,
 			fmt.Sprintf("Error listing PodGangSet Headless Services: %v", client.ObjectKeyFromObject(pgs)),
 		)
@@ -85,13 +86,13 @@ func (r _resource) Sync(ctx context.Context, logger logr.Logger, pgs *v1alpha1.P
 	if pgs.Spec.TemplateSpec.HeadlessServiceConfig == nil {
 		return nil
 	}
-	objectKeys := getObjectKeys(pgs)
-	tasks := make([]utils.Task, 0, len(objectKeys))
-	for _, objectKey := range objectKeys {
+	replicaIndexToObjectKeys := getObjectKeys(pgs)
+	tasks := make([]utils.Task, 0, len(replicaIndexToObjectKeys))
+	for replicaIndex, objectKey := range replicaIndexToObjectKeys {
 		createOrUpdateTask := utils.Task{
-			Name: fmt.Sprintf("CreateOrUpdatePodGangService-%s", objectKey),
+			Name: fmt.Sprintf("CreateOrUpdatePodGangSetService-%s", objectKey),
 			Fn: func(ctx context.Context) error {
-				return r.doCreateOrUpdate(ctx, logger, pgs, objectKey)
+				return r.doCreateOrUpdate(ctx, logger, pgs, replicaIndex, objectKey)
 			},
 		}
 		tasks = append(tasks, createOrUpdateTask)
@@ -99,46 +100,47 @@ func (r _resource) Sync(ctx context.Context, logger logr.Logger, pgs *v1alpha1.P
 	if errs := utils.RunConcurrently(ctx, tasks); len(errs) > 0 {
 		return errors.Join(errs...)
 	}
+	logger.Info("Successfully synced Headless Services")
 	return nil
 }
 
 func (r _resource) Delete(ctx context.Context, logger logr.Logger, pgObjMeta metav1.ObjectMeta) error {
-	logger.Info("Deleting PodGangSet Headless Services")
+	logger.Info("Deleting Headless Services")
 	if err := r.client.DeleteAllOf(ctx,
 		&corev1.Service{},
 		client.InNamespace(pgObjMeta.Namespace),
 		client.MatchingLabels(getSelectorLabelsForAllHeadlessServices(pgObjMeta.Name))); err != nil {
 		return groveerr.WrapError(err,
-			errDeletePodGangService,
+			errDeletePodGangSetService,
 			component.OperationDelete,
-			fmt.Sprintf("Failed to delete PodGang Headless Services for PodGangSet: %v", client.ObjectKey{Name: pgObjMeta.Name, Namespace: pgObjMeta.Namespace}),
+			"Failed to delete Headless Services",
 		)
 	}
-	logger.Info("Deleted PodGangSet Headless Services", "name", pgObjMeta.Name)
+	logger.Info("Deleted Headless Services")
 	return nil
 }
 
-func (r _resource) doCreateOrUpdate(ctx context.Context, logger logr.Logger, pgs *v1alpha1.PodGangSet, pgServiceObjectKey client.ObjectKey) error {
-	logger.Info("Running CreateOrUpdate PodGang Headless Service", "objectKey", pgServiceObjectKey)
+func (r _resource) doCreateOrUpdate(ctx context.Context, logger logr.Logger, pgs *v1alpha1.PodGangSet, pgsReplicaIndex int, pgServiceObjectKey client.ObjectKey) error {
+	logger.Info("Running CreateOrUpdate PodGangSet Headless Service", "pgsReplicaIndex", pgsReplicaIndex, "objectKey", pgServiceObjectKey)
 	pgService := emptyPGService(pgServiceObjectKey)
 	opResult, err := controllerutil.CreateOrPatch(ctx, r.client, pgService, func() error {
-		return r.buildResource(pgService, pgs)
+		return r.buildResource(pgService, pgs, pgsReplicaIndex)
 	})
 	if err != nil {
 		return groveerr.WrapError(err,
-			errSyncPodGangService,
+			errSyncPodGangSetService,
 			component.OperationSync,
-			fmt.Sprintf("Error syncing Headless Service: %v for PodGang: %v", pgServiceObjectKey, client.ObjectKeyFromObject(pgs)),
+			fmt.Sprintf("Error syncing Headless Service: %v for PodGangSet: %v", pgServiceObjectKey, client.ObjectKeyFromObject(pgs)),
 		)
 	}
-	logger.Info("triggered create or update of PodGang Headless Service", "pgServiceObjectKey", pgServiceObjectKey, "result", opResult)
+	logger.Info("Triggered create or update of PodGang Headless Service", "pgServiceObjectKey", pgServiceObjectKey, "result", opResult)
 	return nil
 }
 
-func (r _resource) buildResource(svc *corev1.Service, pgs *v1alpha1.PodGangSet) error {
-	svc.Labels = getLabels(pgs.Name, client.ObjectKeyFromObject(svc))
+func (r _resource) buildResource(svc *corev1.Service, pgs *v1alpha1.PodGangSet, pgsReplicaIndex int) error {
+	svc.Labels = getLabels(pgs.Name, client.ObjectKeyFromObject(svc), pgsReplicaIndex)
 	svc.Spec = corev1.ServiceSpec{
-		Selector:                 getLabelSelectorForPodsInAGang(pgs.Name, svc.Name),
+		Selector:                 getLabelSelectorForPodsInAPodGangSetReplica(pgs.Name, pgsReplicaIndex),
 		ClusterIP:                "None",
 		PublishNotReadyAddresses: pgs.Spec.TemplateSpec.HeadlessServiceConfig.PublishNotReadyAddresses,
 	}
@@ -150,11 +152,11 @@ func (r _resource) buildResource(svc *corev1.Service, pgs *v1alpha1.PodGangSet) 
 	return nil
 }
 
-func getLabels(pgsName string, svcObjectKey client.ObjectKey) map[string]string {
+func getLabels(pgsName string, svcObjectKey client.ObjectKey, pgsReplicaIndex int) map[string]string {
 	svcLabels := map[string]string{
-		v1alpha1.LabelAppNameKey:     svcObjectKey.Name,
-		v1alpha1.LabelComponentKey:   component.NamePodGangHeadlessService,
-		v1alpha1.LabelPodGangNameKey: svcObjectKey.Name,
+		v1alpha1.LabelAppNameKey:             svcObjectKey.Name,
+		v1alpha1.LabelComponentKey:           component.NamePodGangHeadlessService,
+		v1alpha1.LabelPodGangSetReplicaIndex: strconv.Itoa(pgsReplicaIndex),
 	}
 	return lo.Assign(
 		k8sutils.GetDefaultLabelsForPodGangSetManagedResources(pgsName),
@@ -162,11 +164,11 @@ func getLabels(pgsName string, svcObjectKey client.ObjectKey) map[string]string 
 	)
 }
 
-func getLabelSelectorForPodsInAGang(pgsName, podGangName string) map[string]string {
+func getLabelSelectorForPodsInAPodGangSetReplica(pgsName string, pgsReplicaIndex int) map[string]string {
 	return lo.Assign(
 		k8sutils.GetDefaultLabelsForPodGangSetManagedResources(pgsName),
 		map[string]string{
-			v1alpha1.LabelPodGangNameKey: podGangName,
+			v1alpha1.LabelPodGangSetReplicaIndex: strconv.Itoa(pgsReplicaIndex),
 		},
 	)
 }
@@ -182,23 +184,15 @@ func getSelectorLabelsForAllHeadlessServices(pgsName string) map[string]string {
 }
 
 func getObjectKeys(pgs *v1alpha1.PodGangSet) []client.ObjectKey {
-	pgServiceNames := getPodGangServiceNames(pgs)
-	serviceObjKeys := make([]client.ObjectKey, 0, pgs.Spec.Replicas)
-	for _, pgServiceName := range pgServiceNames {
-		serviceObjKeys = append(serviceObjKeys, client.ObjectKey{
-			Name:      pgServiceName,
+	objectKeys := make([]client.ObjectKey, 0, pgs.Spec.Replicas)
+	for replicaIndex := range pgs.Spec.Replicas {
+		serviceName := v1alpha1.GenerateHeadlessServiceName(pgs.Name, replicaIndex)
+		objectKeys = append(objectKeys, client.ObjectKey{
+			Name:      serviceName,
 			Namespace: pgs.Namespace,
 		})
 	}
-	return serviceObjKeys
-}
-
-func getPodGangServiceNames(pgs *v1alpha1.PodGangSet) []string {
-	pgServiceNames := make([]string, 0, pgs.Spec.Replicas)
-	for replicaIndex := range pgs.Spec.Replicas {
-		pgServiceNames = append(pgServiceNames, v1alpha1.GeneratePodGangName(pgs.Name, replicaIndex))
-	}
-	return pgServiceNames
+	return objectKeys
 }
 
 func emptyPGService(objKey client.ObjectKey) *corev1.Service {

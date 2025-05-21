@@ -28,8 +28,8 @@ const (
 	LabelManagedByValue = "grove-operator"
 	// LabelComponentKey is a key for a label that sets the component type on resources provisioned for a PodGangSet.
 	LabelComponentKey = "app.kubernetes.io/component"
-	// LabelPodGangNameKey is a key for a label that sets the name of the PodGang on resources provisioned for a PodGang.
-	LabelPodGangNameKey = "grove.io/podgang-name"
+	// LabelPodGangSetReplicaIndex is a key for a label that sets the replica index of a PodGangSet.
+	LabelPodGangSetReplicaIndex = "grove.io/podgangset/replica-index"
 )
 
 // Constants for finalizers.
