@@ -87,7 +87,6 @@ func (r _resource) Sync(ctx context.Context, logger logr.Logger, pgs *grovecorev
 	tasks := make([]utils.Task, 0, numTasks)
 
 	for replicaIndex := range pgs.Spec.Replicas {
-		podGangName := grovecorev1alpha1.GeneratePodGangName(pgs.Name, replicaIndex)
 		for _, pclqTemplateSpec := range pgs.Spec.TemplateSpec.Cliques {
 			pclqObjectKey := client.ObjectKey{
 				Name:      grovecorev1alpha1.GeneratePodCliqueName(pgs.Name, replicaIndex, pclqTemplateSpec.Name),
@@ -96,7 +95,7 @@ func (r _resource) Sync(ctx context.Context, logger logr.Logger, pgs *grovecorev
 			createOrUpdateTask := utils.Task{
 				Name: fmt.Sprintf("CreateOrUpdatePodClique-%s", pclqObjectKey),
 				Fn: func(ctx context.Context) error {
-					return r.doCreateOrUpdate(ctx, logger, pgs, pclqObjectKey, podGangName)
+					return r.doCreateOrUpdate(ctx, logger, pgs, pclqObjectKey)
 				},
 			}
 			tasks = append(tasks, createOrUpdateTask)
@@ -124,11 +123,11 @@ func (r _resource) Delete(ctx context.Context, logger logr.Logger, pgsObjectMeta
 	return nil
 }
 
-func (r _resource) doCreateOrUpdate(ctx context.Context, logger logr.Logger, pgs *grovecorev1alpha1.PodGangSet, pclqObjectKey client.ObjectKey, podGangName string) error {
+func (r _resource) doCreateOrUpdate(ctx context.Context, logger logr.Logger, pgs *grovecorev1alpha1.PodGangSet, pclqObjectKey client.ObjectKey) error {
 	logger.Info("Running CreateOrUpdate PodClique", "pclqObjectKey", pclqObjectKey)
 	pclq := emptyPodClique(pclqObjectKey)
 	opResult, err := controllerutil.CreateOrPatch(ctx, r.client, pclq, func() error {
-		return r.buildResource(logger, pclq, pgs, podGangName)
+		return r.buildResource(logger, pclq, pgs)
 	})
 	if err != nil {
 		return groveerr.WrapError(err,
@@ -141,7 +140,7 @@ func (r _resource) doCreateOrUpdate(ctx context.Context, logger logr.Logger, pgs
 	return nil
 }
 
-func (r _resource) buildResource(logger logr.Logger, pclq *grovecorev1alpha1.PodClique, pgs *grovecorev1alpha1.PodGangSet, podGangName string) error {
+func (r _resource) buildResource(logger logr.Logger, pclq *grovecorev1alpha1.PodClique, pgs *grovecorev1alpha1.PodGangSet) error {
 	var err error
 	pclqObjectKey, pgsObjectKey := client.ObjectKeyFromObject(pclq), client.ObjectKeyFromObject(pgs)
 	pclqTemplateSpec := findPodCliqueTemplateSpec(pclqObjectKey, pgs)
@@ -157,7 +156,7 @@ func (r _resource) buildResource(logger logr.Logger, pclq *grovecorev1alpha1.Pod
 	if err = controllerutil.SetControllerReference(pgs, pclq, r.scheme); err != nil {
 		return err
 	}
-	pclq.Labels = getLabels(pgs.Name, pclqObjectKey, pclqTemplateSpec, podGangName)
+	pclq.Labels = getLabels(pgs.Name, pclqObjectKey, pclqTemplateSpec)
 	pclq.Annotations = pclqTemplateSpec.Annotations
 	// set PodCliqueSpec
 	// ------------------------------------
@@ -237,11 +236,10 @@ func getPodCliqueSelectorLabels(pgsObjectMeta metav1.ObjectMeta) map[string]stri
 	)
 }
 
-func getLabels(pgsName string, pclqObjectKey client.ObjectKey, pclqTemplateSpec *grovecorev1alpha1.PodCliqueTemplateSpec, podGangName string) map[string]string {
+func getLabels(pgsName string, pclqObjectKey client.ObjectKey, pclqTemplateSpec *grovecorev1alpha1.PodCliqueTemplateSpec) map[string]string {
 	pclqComponentLabels := map[string]string{
-		grovecorev1alpha1.LabelAppNameKey:     pclqObjectKey.Name,
-		grovecorev1alpha1.LabelComponentKey:   component.NamePodClique,
-		grovecorev1alpha1.LabelPodGangNameKey: podGangName,
+		grovecorev1alpha1.LabelAppNameKey:   pclqObjectKey.Name,
+		grovecorev1alpha1.LabelComponentKey: component.NamePodClique,
 	}
 	return lo.Assign(
 		pclqTemplateSpec.Labels,

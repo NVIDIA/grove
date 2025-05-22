@@ -118,9 +118,8 @@ func createDefaultPodCliqueWithoutPodSpec(pgsName string, pgsUID types.UID, pclq
 
 func getDefaultLabels(pgsName, pclqName string) map[string]string {
 	pclqComponentLabels := map[string]string{
-		grovecorev1alpha1.LabelAppNameKey:     pclqName,
-		grovecorev1alpha1.LabelComponentKey:   component.NamePodClique,
-		grovecorev1alpha1.LabelPodGangNameKey: pgsName,
+		grovecorev1alpha1.LabelAppNameKey:   pclqName,
+		grovecorev1alpha1.LabelComponentKey: component.NamePodClique,
 	}
 	return lo.Assign(
 		k8sutils.GetDefaultLabelsForPodGangSetManagedResources(pgsName),
