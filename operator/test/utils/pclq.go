@@ -60,7 +60,7 @@ func (b *PodCliqueBuilder) WithReplicas(replicas int32) *PodCliqueBuilder {
 // WithStartsAfter sets the StartsAfter field for the PodClique.
 func (b *PodCliqueBuilder) WithStartsAfter(pclqTemplateNames []string) *PodCliqueBuilder {
 	pclqDependencies := lo.Map(pclqTemplateNames, func(pclqTemplateName string, _ int) string {
-		return grovecorev1alpha1.GeneratePodCliqueName(b.pgsName, b.pgsReplicaIndex, pclqTemplateName)
+		return grovecorev1alpha1.GeneratePodCliqueName(b.pgsName, int(b.pgsReplicaIndex), pclqTemplateName)
 	})
 	b.pclq.Spec.StartsAfter = pclqDependencies
 	return b
@@ -93,7 +93,7 @@ func (b *PodCliqueBuilder) withDefaultPodSpec() *PodCliqueBuilder {
 }
 
 func createDefaultPodCliqueWithoutPodSpec(pgsName string, pgsUID types.UID, pclqTemplateName, namespace string, pgsReplicaIndex int32) *grovecorev1alpha1.PodClique {
-	pclqName := grovecorev1alpha1.GeneratePodCliqueName(pgsName, pgsReplicaIndex, pclqTemplateName)
+	pclqName := grovecorev1alpha1.GeneratePodCliqueName(pgsName, int(pgsReplicaIndex), pclqTemplateName)
 	return &grovecorev1alpha1.PodClique{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      pclqName,

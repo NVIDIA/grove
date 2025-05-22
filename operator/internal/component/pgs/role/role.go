@@ -138,7 +138,7 @@ func getAllPodCliqueNames(pgs *v1alpha1.PodGangSet) []string {
 	cliqueNames := make([]string, 0, int(pgs.Spec.Replicas)*len(pgs.Spec.TemplateSpec.Cliques))
 	for replicaIndex := range pgs.Spec.Replicas {
 		for _, pclqTemplateSpec := range pgs.Spec.TemplateSpec.Cliques {
-			cliqueNames = append(cliqueNames, v1alpha1.GeneratePodCliqueName(pgs.Name, replicaIndex, pclqTemplateSpec.Name))
+			cliqueNames = append(cliqueNames, v1alpha1.GeneratePodCliqueName(pgs.Name, int(replicaIndex), pclqTemplateSpec.Name))
 		}
 	}
 	return cliqueNames
