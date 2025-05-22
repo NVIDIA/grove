@@ -35,8 +35,8 @@ import (
 )
 
 var (
-	allowedStartupTypes          = sets.New[grovecorev1alpha1.CliqueStartupType](grovecorev1alpha1.CliqueStartupTypeInOrder, grovecorev1alpha1.CliqueStartupTypeAnyOrder, grovecorev1alpha1.CliqueStartupTypeExplicit)
-	allowedNetworkPackStrategies = sets.New[grovecorev1alpha1.NetworkPackStrategy](grovecorev1alpha1.BestEffort, grovecorev1alpha1.Strict)
+	allowedStartupTypes          = sets.New(grovecorev1alpha1.CliqueStartupTypeInOrder, grovecorev1alpha1.CliqueStartupTypeAnyOrder, grovecorev1alpha1.CliqueStartupTypeExplicit)
+	allowedNetworkPackStrategies = sets.New(grovecorev1alpha1.BestEffort, grovecorev1alpha1.Strict)
 )
 
 type pgsValidator struct {

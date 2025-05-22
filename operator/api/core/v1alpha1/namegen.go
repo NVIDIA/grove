@@ -44,7 +44,7 @@ func GeneratePodServiceAccountName(pgsObjMeta metav1.ObjectMeta) string {
 }
 
 // GeneratePodCliqueName generates a PodClique name based on the PodGangSet name, replica index, and PodCliqueTemplate name.
-func GeneratePodCliqueName(pgsName string, pgsReplicaIndex int32, pclqTemplateName string) string {
+func GeneratePodCliqueName(pgsName string, pgsReplicaIndex int, pclqTemplateName string) string {
 	return fmt.Sprintf("%s-%d-%s", pgsName, pgsReplicaIndex, pclqTemplateName)
 }
 

@@ -19,6 +19,7 @@ package serviceaccount
 import (
 	"context"
 	"fmt"
+	"k8s.io/utils/ptr"
 
 	"github.com/NVIDIA/grove/operator/api/core/v1alpha1"
 	"github.com/NVIDIA/grove/operator/internal/component"
@@ -92,7 +93,7 @@ func (r _resource) Sync(ctx context.Context, logger logr.Logger, pgs *v1alpha1.P
 			fmt.Sprintf("Error syncing ServiceAccount: %v for PodGangSet: %v", objectKey, client.ObjectKeyFromObject(pgs)),
 		)
 	}
-	logger.Info("triggered create or update of ServiceAccount", "objectKey", objectKey, "result", opResult)
+	logger.Info("Triggered create or update of ServiceAccount", "objectKey", objectKey, "result", opResult)
 	return nil
 }
 
@@ -110,7 +111,7 @@ func (r _resource) Delete(ctx context.Context, logger logr.Logger, pgsObjMeta me
 			fmt.Sprintf("Error deleting ServiceAccount: %v for PodGangSet: %v", objectKey, pgsObjMeta),
 		)
 	}
-	logger.Info("deleted ServiceAccount", "objectKey", objectKey)
+	logger.Info("Deleted ServiceAccount", "objectKey", objectKey)
 	return nil
 }
 
@@ -123,7 +124,7 @@ func (r _resource) buildResource(pgs *v1alpha1.PodGangSet, sa *corev1.ServiceAcc
 			fmt.Sprintf("Error setting controller reference for ServiceAccount: %v", client.ObjectKeyFromObject(sa)),
 		)
 	}
-	// TODO: Check if we need to make sa.AutomountServiceAccountToken configurable. This will enable use to use ServiceAccount projected tokens.
+	sa.AutomountServiceAccountToken = ptr.To(true)
 	return nil
 }
 
