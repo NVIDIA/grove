@@ -167,7 +167,8 @@ type PodCliqueScalingGroupConfig struct {
 	// CliqueNames is the list of names of the PodClique's that are part of the scaling group.
 	CliqueNames []string `json:"cliqueNames"`
 	// ScaleConfig is the horizontal pod autoscaler configuration for the pod clique scaling group.
-	ScaleConfig AutoScalingConfig `json:"scaleConfig,omitempty"`
+	// +optional
+	ScaleConfig *AutoScalingConfig `json:"scaleConfig,omitempty"`
 }
 
 // HeadlessServiceConfig defines the config options for the headless service.

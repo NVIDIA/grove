@@ -524,16 +524,17 @@ spec:
                       type: object
                     type: array
                     x-kubernetes-list-type: atomic
-                  minReplicas:
-                    description: |-
-                      minReplicas is the lower limit for the number of replicas to which the autoscaler
-                      can scale down. It defaults to PodCliqueSpec.Replicas if not defined. minReplicas is not allowed to be 0.
-                      Scaling is active as long as at least one metric value is available.
-                    format: int32
-                    type: integer
                 required:
                 - maxReplicas
                 type: object
+              minReplicas:
+                description: |-
+                  MinReplicas is the lower limit for the number of replicas for this PodClique.
+                  It will serve dual purpose:
+                  1. It will be used by the horizontal pod autoscaler to determine the minimum number of replicas to scale-in to.
+                  2. For gang scheduling, it will be used to determine the minimum number of pods that must be scheduled together.
+                format: int32
+                type: integer
               podSpec:
                 description: Spec is the spec of the pods in the clique.
                 properties:

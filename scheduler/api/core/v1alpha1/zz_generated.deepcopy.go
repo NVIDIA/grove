@@ -131,11 +131,6 @@ func (in *PodGangSpec) DeepCopyInto(out *PodGangSpec) {
 		*out = new(metav1.Duration)
 		**out = **in
 	}
-	if in.Affinity != nil {
-		in, out := &in.Affinity, &out.Affinity
-		*out = new(metav1.LabelSelector)
-		(*in).DeepCopyInto(*out)
-	}
 	if in.ReuseReservationRef != nil {
 		in, out := &in.ReuseReservationRef, &out.ReuseReservationRef
 		*out = new(NamespacedName)

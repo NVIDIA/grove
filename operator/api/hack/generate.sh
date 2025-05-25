@@ -26,8 +26,6 @@ REPO_ROOT="$(dirname "$OPERATOR_ROOT")"
 REPO_HACK_DIR=${REPO_ROOT}/hack
 TOOLS_BIN_DIR="${REPO_HACK_DIR}/tools/bin"
 
-source "${TOOLS_BIN_DIR}/kube_codegen.sh"
-
 trap cleanup EXIT
 
 function setup() {

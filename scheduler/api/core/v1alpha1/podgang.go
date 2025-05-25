@@ -73,8 +73,6 @@ type PodGangSpec struct {
 	// running pods go above the threshold.
 	// +optional
 	TerminationDelay *metav1.Duration `json:"terminationDelay,omitempty"`
-	// Affinity defines the preferred affinity criteria to another PodGang.
-	Affinity *metav1.LabelSelector `json:"affinity,omitempty"`
 	// ReuseReservationRef holds the reference to another PodGang resource scheduled previously.
 	// During updates, an operator can suggest to reuse the reservation of the previous PodGang for a newer version of the
 	// PodGang resource. This is a suggestion for the scheduler and not a requirement that must be met. If the scheduler plugin
