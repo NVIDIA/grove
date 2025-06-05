@@ -241,20 +241,6 @@ func (v *pgsValidator) validatePodCliqueSpec(name string, cliqueSpec grovecorev1
 
 func validateScaleConfig(scaleConfig *grovecorev1alpha1.AutoScalingConfig, fldPath *field.Path) field.ErrorList {
 	allErrs := field.ErrorList{}
-
-	// Ideally this should never happen, the defaulting webhook will always set the default value for minReplicas.
-	if scaleConfig.MinReplicas == nil {
-		return append(allErrs, field.Required(fldPath.Child("minReplicas"), "field is required"))
-	}
-
-	if *scaleConfig.MinReplicas <= 0 {
-		allErrs = append(allErrs, field.Invalid(fldPath.Child("minReplicas"), *scaleConfig.MinReplicas, "must be greater than 0"))
-	}
-
-	if scaleConfig.MaxReplicas < *scaleConfig.MinReplicas {
-		allErrs = append(allErrs, field.Invalid(fldPath.Child("maxReplicas"), scaleConfig.MaxReplicas, "must be greater than or equal to minReplicas"))
-	}
-
 	return allErrs
 }
 
@@ -309,7 +295,9 @@ func validateCliqueDependencies(cliques []*grovecorev1alpha1.PodCliqueTemplateSp
 
 func validatePodGangSchedulingPolicyConfig(config *grovecorev1alpha1.SchedulingPolicyConfig, fldPath *field.Path) field.ErrorList {
 	allErrs := field.ErrorList{}
-	allErrs = append(allErrs, validateEnumType(config.NetworkPackStrategy, allowedNetworkPackStrategies, fldPath.Child("networkPackStrategy"))...)
+	if config != nil {
+		allErrs = append(allErrs, validateEnumType(config.NetworkPackStrategy, allowedNetworkPackStrategies, fldPath.Child("networkPackStrategy"))...)
+	}
 	return allErrs
 }
 
@@ -329,7 +317,7 @@ func (v *pgsValidator) validatePodCliqueScalingGroupConfigs(scalingGroupConfigs 
 		// validate that scaling groups only contains clique names that are defined in the PodGangSet.
 		allErrs = append(allErrs, v.validateScalingGroupPodCliqueNames(allPodGangSetCliqueNames, scalingGroupConfig.CliqueNames, fldPath.Child("cliqueNames"))...)
 		// validate the AutoScalingConfig for the scaling group.
-		allErrs = append(allErrs, validateScaleConfig(&scalingGroupConfig.ScaleConfig, fldPath.Child("scaleConfig"))...)
+		allErrs = append(allErrs, validateScaleConfig(scalingGroupConfig.ScaleConfig, fldPath.Child("scaleConfig"))...)
 	}
 
 	// validate that the scaling group names are unique
@@ -388,7 +376,7 @@ func validatePodGangTemplateSpecUpdate(newSpec, oldSpec *grovecorev1alpha1.PodGa
 func validatePodGangSchedulingPolicyConfigUpdate(newConfig, oldConfig *grovecorev1alpha1.SchedulingPolicyConfig, fldPath *field.Path) field.ErrorList {
 	allErrs := field.ErrorList{}
 
-	if *newConfig.NetworkPackStrategy != *oldConfig.NetworkPackStrategy {
+	if newConfig != oldConfig && *newConfig.NetworkPackStrategy != *oldConfig.NetworkPackStrategy {
 		allErrs = append(allErrs, field.Forbidden(fldPath.Child("networkPackStrategy"), "field is immutable"))
 	}
 	return allErrs

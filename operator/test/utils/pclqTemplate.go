@@ -18,7 +18,6 @@ package utils
 
 import (
 	grovecorev1alpha1 "github.com/NVIDIA/grove/operator/api/core/v1alpha1"
-	"github.com/samber/lo"
 )
 
 // PodCliqueTemplateSpecBuilder is a builder for creating PodCliqueTemplateSpec objects.
@@ -54,7 +53,6 @@ func (b *PodCliqueTemplateSpecBuilder) WithStartsAfter(startsAfter []string) *Po
 // WithAutoScaleLimits sets the minimum and maximum replicas in ScaleConfig for the PodClique.
 func (b *PodCliqueTemplateSpecBuilder) WithAutoScaleLimits(minimum, maximum int32) *PodCliqueTemplateSpecBuilder {
 	b.pclqTemplateSpec.Spec.ScaleConfig = &grovecorev1alpha1.AutoScalingConfig{
-		MinReplicas: lo.ToPtr(minimum),
 		MaxReplicas: maximum,
 	}
 	return b
