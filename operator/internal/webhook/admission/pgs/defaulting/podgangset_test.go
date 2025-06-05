@@ -45,7 +45,6 @@ func TestDefaultPodGangSet(t *testing.T) {
 							TerminationGracePeriodSeconds: ptr.To[int64](30),
 						},
 						ScaleConfig: &grovecorev1alpha1.AutoScalingConfig{
-							MinReplicas: ptr.To[int32](1),
 							MaxReplicas: 3,
 						},
 					},

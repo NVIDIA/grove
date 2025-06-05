@@ -49,3 +49,14 @@ type PodCliqueScalingGroupStatus struct {
 	// Selector is the selector used to identify the pods that belong to this scaling group.
 	Selector *string `json:"selector"`
 }
+
+// +kubebuilder:object:root=true
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+
+// PodCliqueScalingGroupList is a list of PodCliqueScalingGroups.
+type PodCliqueScalingGroupList struct {
+	metav1.TypeMeta `json:",inline"`
+	metav1.ListMeta `json:"metadata,omitempty"`
+	// Items is a slice of PodCliqueScalingGroup.
+	Items []PodCliqueScalingGroup `json:"items"`
+}

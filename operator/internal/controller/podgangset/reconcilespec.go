@@ -33,8 +33,8 @@ import (
 func (r *Reconciler) reconcileSpec(ctx context.Context, logger logr.Logger, pgs *v1alpha1.PodGangSet) ctrlcommon.ReconcileStepResult {
 	rLog := logger.WithValues("operation", "spec-reconcile")
 	reconcileStepFns := []ctrlcommon.ReconcileStepFn[v1alpha1.PodGangSet]{
-		r.ensureFinalizer,
 		r.recordReconcileStart,
+		r.ensureFinalizer,
 		r.syncPodGangSetResources,
 		r.recordReconcileSuccess,
 		r.updateObservedGeneration,
