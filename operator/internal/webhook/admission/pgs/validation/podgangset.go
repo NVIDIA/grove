@@ -306,7 +306,9 @@ func validateCliqueDependencies(cliques []*grovecorev1alpha1.PodCliqueTemplateSp
 
 func validatePodGangSchedulingPolicyConfig(config *grovecorev1alpha1.SchedulingPolicyConfig, fldPath *field.Path) field.ErrorList {
 	allErrs := field.ErrorList{}
-	allErrs = append(allErrs, validateEnumType(config.NetworkPackStrategy, allowedNetworkPackStrategies, fldPath.Child("networkPackStrategy"))...)
+	if config != nil {
+		allErrs = append(allErrs, validateEnumType(config.NetworkPackStrategy, allowedNetworkPackStrategies, fldPath.Child("networkPackStrategy"))...)
+	}
 	return allErrs
 }
 
@@ -382,7 +384,7 @@ func validatePodGangTemplateSpecUpdate(newSpec, oldSpec *grovecorev1alpha1.PodGa
 func validatePodGangSchedulingPolicyConfigUpdate(newConfig, oldConfig *grovecorev1alpha1.SchedulingPolicyConfig, fldPath *field.Path) field.ErrorList {
 	allErrs := field.ErrorList{}
 
-	if *newConfig.NetworkPackStrategy != *oldConfig.NetworkPackStrategy {
+	if newConfig != oldConfig && *newConfig.NetworkPackStrategy != *oldConfig.NetworkPackStrategy {
 		allErrs = append(allErrs, field.Forbidden(fldPath.Child("networkPackStrategy"), "field is immutable"))
 	}
 	return allErrs

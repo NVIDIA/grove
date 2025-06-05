@@ -63,11 +63,11 @@ type PodCliqueSpec struct {
 	// +optional
 	MinReplicas *int32 `json:"minReplicas,omitempty"`
 	// StartsAfter provides you a way to explicitly define the startup dependencies amongst cliques.
-	// If CliqueStartupType in PodGang has been set to 'CliqueStartupTypeExplicit', then to create an ordered start amongst PorClique's StartsAfter can be used.
+	// If CliqueStartupType in PodGang has been set to 'CliqueStartupTypeExplicit', then to create an ordered start amongst PodClique's StartsAfter can be used.
 	// A forest of DAG's can be defined to model any start order dependencies. If there are more than one PodClique's defined and StartsAfter is not set for any of them,
 	// then their startup order is random at best and must not be relied upon.
 	// Validations:
-	// 1. If a StarsAfter has been defined and one or more cycles are detected in DAG's then it will be flagged as validation error.
+	// 1. If a StartsAfter has been defined and one or more cycles are detected in DAG's then it will be flagged as validation error.
 	// 2. If StartsAfter is defined and does not identify any PodClique then it will be flagged as a validation error.
 	// +optional
 	StartsAfter []string `json:"startsAfter,omitempty"`

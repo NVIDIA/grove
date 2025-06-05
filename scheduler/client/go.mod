@@ -1,6 +1,6 @@
 module github.com/NVIDIA/grove/scheduler/client
 
-go 1.24.3
+go 1.24.0
 
 require (
 	github.com/NVIDIA/grove/scheduler/api v0.0.0
