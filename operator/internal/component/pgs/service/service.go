@@ -18,7 +18,6 @@ package service
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"strconv"
 
@@ -58,7 +57,6 @@ func New(client client.Client, scheme *runtime.Scheme) component.Operator[v1alph
 // GetExistingResourceNames returns the names of all the existing resources that the Service Operator manages.
 func (r _resource) GetExistingResourceNames(ctx context.Context, logger logr.Logger, pgs *v1alpha1.PodGangSet) ([]string, error) {
 	logger.Info("Looking for existing PodGangSet Headless Services", "objectKey", client.ObjectKeyFromObject(pgs))
-	existingServiceNames := make([]string, 0, int(pgs.Spec.Replicas))
 	objMetaList := &metav1.PartialObjectMetadataList{}
 	objMetaList.SetGroupVersionKind(corev1.SchemeGroupVersion.WithKind("Service"))
 	if err := r.client.List(ctx,
@@ -72,12 +70,7 @@ func (r _resource) GetExistingResourceNames(ctx context.Context, logger logr.Log
 			fmt.Sprintf("Error listing PodGangSet Headless Services: %v", client.ObjectKeyFromObject(pgs)),
 		)
 	}
-	for _, serviceObjMeta := range objMetaList.Items {
-		if metav1.IsControlledBy(&serviceObjMeta, &pgs.ObjectMeta) {
-			existingServiceNames = append(existingServiceNames, serviceObjMeta.Name)
-		}
-	}
-	return existingServiceNames, nil
+	return k8sutils.FilterMapOwnedResourceNames(pgs.ObjectMeta, objMetaList.Items), nil
 }
 
 // Sync synchronizes all resources that the Service Operator manages.
@@ -97,8 +90,12 @@ func (r _resource) Sync(ctx context.Context, logger logr.Logger, pgs *v1alpha1.P
 		}
 		tasks = append(tasks, createOrUpdateTask)
 	}
-	if errs := utils.RunConcurrently(ctx, tasks); len(errs) > 0 {
-		return errors.Join(errs...)
+	if runResult := utils.RunConcurrently(ctx, logger, tasks); runResult.HasErrors() {
+		return groveerr.WrapError(runResult.GetAggregatedError(),
+			errSyncPodGangSetService,
+			component.OperationSync,
+			fmt.Sprintf("Error creating or updating PodGangSet Headless Services for PodGangSet: %v, run summary: %s", client.ObjectKeyFromObject(pgs), runResult.GetSummary()),
+		)
 	}
 	logger.Info("Successfully synced Headless Services")
 	return nil

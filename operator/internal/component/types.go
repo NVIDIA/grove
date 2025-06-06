@@ -36,21 +36,25 @@ const (
 	OperationDelete = "Delete"
 )
 
-// Following components provide a name for each managed component whose lifecycle
+// Following constants provide a name for each managed component whose lifecycle
 // is managed by grove operator and are provisioned as part of a PodGangSet
 // These component names will be set against v1alpha1.LabelComponentKey label key on
 // respective components.
 const (
-	// NamePodClique is the value for v1alpha1.LabelComponentKey for a PodClique resource.
+	// NamePodClique is the component name for a PodClique resource.
 	NamePodClique = "pgs-podclique"
-	// NamePodGangHeadlessService is the value for v1alpha1.LabelComponentKey for a Headless service for a Pod Gang.
+	// NamePodGangHeadlessService is the component name for a Headless service for a Pod Gang.
 	NamePodGangHeadlessService = "pgs-headless-service"
-	// NamePodRole is the role that is associated to all Pods that are created for a PodGangSet.
+	// NamePodRole is the component name for a role that is associated to all Pods that are created for a PodGangSet.
 	NamePodRole = "pod-role"
-	// NamePodRoleBinding is the RoleBinding to a Role that is associated to all Pods that are created for a PodGangSet.
+	// NamePodRoleBinding is the component name for a RoleBinding to a Role that is associated to all Pods that are created for a PodGangSet.
 	NamePodRoleBinding = "pod-role-binding"
-	// NamePodServiceAccount is the ServiceAccount that is used by all Pods that are created for a PodGangSet.
+	// NamePodServiceAccount is the component name for a ServiceAccount that is used by all Pods that are created for a PodGangSet.
 	NamePodServiceAccount = "pod-service-account"
+	// NamePodCliqueScalingGroup is the component name for a PodCliqueScalingGroup resource.
+	NamePodCliqueScalingGroup = "pgs-pod-clique-scaling-group"
+	// NameHorizontalPodAutoscaler is the component name for a HorizontalPodAutoscaler that is created for a PodGangSet.
+	NameHorizontalPodAutoscaler = "pgs-hpa"
 )
 
 // GroveCustomResourceType defines a type bound for generic types.
@@ -94,6 +98,8 @@ const (
 	KindPod Kind = "Pod"
 	// KindPersistentVolumeClaim indicates that the resource is a PersistentVolumeClaim.
 	KindPersistentVolumeClaim Kind = "PersistentVolumeClaim"
+	// KindPodCliqueScalingGroup indicates that the resource is a PodCliqueScalingGroup.
+	KindPodCliqueScalingGroup Kind = "PodCliqueScalingGroup"
 )
 
 // OperatorRegistry is a facade that gives access to all component operators.

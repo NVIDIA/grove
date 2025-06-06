@@ -52,3 +52,9 @@ func GeneratePodCliqueName(pgsName string, pgsReplicaIndex int, pclqTemplateName
 func GeneratePodName(pclqName string, pclqReplicaIndex int32) string {
 	return fmt.Sprintf("%s-%d", pclqName, pclqReplicaIndex)
 }
+
+// GeneratePodCliqueScalingGroupName generates a PodCliqueScalingGroup name based on the PodGangSet name, replicaIndex and PodCliqueScalingGroup name.
+// PodCliqueScalingGroup name is only guaranteed to be unique within the PodGangSet, so it is prefixed with the PodGangSet name and its replica index.
+func GeneratePodCliqueScalingGroupName(pgsName string, pgsReplicaIndex int32, pclqScalingGroupName string) string {
+	return fmt.Sprintf("%s-%d-%s", pgsName, pgsReplicaIndex, pclqScalingGroupName)
+}

@@ -21,7 +21,6 @@ import (
 	grovectrlutils "github.com/NVIDIA/grove/operator/internal/controller/utils"
 
 	"sigs.k8s.io/controller-runtime/pkg/builder"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
@@ -47,17 +46,10 @@ func (r *Reconciler) RegisterWithManager(mgr manager.Manager) error {
 
 // podCliquesPredicate returns a predicate that filters out PodClique resources that are not managed by Grove.
 func podCliquePredicate() predicate.Predicate {
-	isManagedClique := func(obj client.Object) bool {
-		podClique, ok := obj.(*v1alpha1.PodClique)
-		if !ok {
-			return false
-		}
-		return grovectrlutils.IsManagedByGrove(podClique.GetLabels())
-	}
 	return predicate.Funcs{
 		CreateFunc: func(_ event.CreateEvent) bool { return false },
 		DeleteFunc: func(deleteEvent event.DeleteEvent) bool {
-			return isManagedClique(deleteEvent.Object)
+			return grovectrlutils.IsManagedPodClique(deleteEvent.Object)
 		},
 		UpdateFunc:  func(_ event.UpdateEvent) bool { return false },
 		GenericFunc: func(_ event.GenericEvent) bool { return false },

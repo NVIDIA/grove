@@ -39,13 +39,12 @@ func TestDefaultPodGangSet(t *testing.T) {
 				Cliques: []*grovecorev1alpha1.PodCliqueTemplateSpec{{
 					Name: "test",
 					Spec: grovecorev1alpha1.PodCliqueSpec{
-						Replicas: 1,
+						Replicas: 2,
 						PodSpec: corev1.PodSpec{
 							RestartPolicy:                 corev1.RestartPolicyAlways,
 							TerminationGracePeriodSeconds: ptr.To[int64](30),
 						},
 						ScaleConfig: &grovecorev1alpha1.AutoScalingConfig{
-							MinReplicas: ptr.To[int32](1),
 							MaxReplicas: 3,
 						},
 					},
@@ -75,6 +74,8 @@ func TestDefaultPodGangSet(t *testing.T) {
 				Cliques: []*grovecorev1alpha1.PodCliqueTemplateSpec{{
 					Name: "test",
 					Spec: grovecorev1alpha1.PodCliqueSpec{
+						Replicas:    2,
+						MinReplicas: ptr.To[int32](2),
 						ScaleConfig: &grovecorev1alpha1.AutoScalingConfig{
 							MaxReplicas: 3,
 						},

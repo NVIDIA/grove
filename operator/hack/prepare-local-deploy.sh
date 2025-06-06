@@ -33,7 +33,7 @@ function check_prereq() {
 }
 
 function copy_crds() {
-  declare -a crds=("grove.io_podgangsets.yaml" "grove.io_podcliques.yaml")
+  declare -a crds=("grove.io_podgangsets.yaml" "grove.io_podcliques.yaml", "grove.io_podcliquescalinggroups.yaml")
   target_path="${OPERATOR_GO_MODULE_ROOT}/charts/crds"
   echo "Creating ${target_path} to copy the CRDs if not present..."
   mkdir -p ${target_path}

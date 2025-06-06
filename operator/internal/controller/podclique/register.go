@@ -40,9 +40,18 @@ func (r *Reconciler) RegisterWithManager(mgr ctrl.Manager) error {
 		WithOptions(controller.Options{
 			MaxConcurrentReconciles: *r.config.ConcurrentSyncs,
 		}).
-		For(&v1alpha1.PodClique{}, builder.WithPredicates(predicate.GenerationChangedPredicate{})).
+		For(&v1alpha1.PodClique{}, builder.WithPredicates(managedPodCliquePredicate(), predicate.GenerationChangedPredicate{})).
 		Owns(&corev1.Pod{}, builder.WithPredicates(podPredicate())).
 		Complete(r)
+}
+
+func managedPodCliquePredicate() predicate.Predicate {
+	return predicate.Funcs{
+		CreateFunc:  func(e event.CreateEvent) bool { return grovectrlutils.IsManagedPodClique(e.Object) },
+		DeleteFunc:  func(e event.DeleteEvent) bool { return grovectrlutils.IsManagedPodClique(e.Object) },
+		UpdateFunc:  func(e event.UpdateEvent) bool { return grovectrlutils.IsManagedPodClique(e.ObjectOld) },
+		GenericFunc: func(_ event.GenericEvent) bool { return false },
+	}
 }
 
 // podPredicate returns a predicate that filters out pods that are not managed by Grove.

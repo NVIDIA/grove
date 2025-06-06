@@ -29,6 +29,8 @@ const (
 	PodCliqueKind = "PodClique"
 	// PodGangSetKind is the kind for a PodGangSet resource.
 	PodGangSetKind = "PodGangSet"
+	// PodCliqueScalingGroupKind is the kind for a PodCliqueScalingGroup resource.
+	PodCliqueScalingGroupKind = "PodCliqueScalingGroup"
 )
 
 var (
@@ -56,6 +58,8 @@ func addKnownTypes(scheme *runtime.Scheme) error {
 		&PodGangSetList{},
 		&PodClique{},
 		&PodCliqueList{},
+		&PodCliqueScalingGroup{},
+		&PodCliqueScalingGroupList{},
 	)
 	metav1.AddToGroupVersion(scheme, SchemeGroupVersion)
 	return nil

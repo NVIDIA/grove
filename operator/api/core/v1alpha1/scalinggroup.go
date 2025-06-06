@@ -36,9 +36,21 @@ type PodCliqueScalingGroup struct {
 	Status PodCliqueScalingGroupStatus `json:"status,omitempty"`
 }
 
+// +kubebuilder:object:root=true
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+
+// PodCliqueScalingGroupList is a slice of PodCliqueScalingGroup's.
+type PodCliqueScalingGroupList struct {
+	metav1.TypeMeta `json:",inline"`
+	metav1.ListMeta `json:"metadata,omitempty"`
+	// Items is a slice of PodCliqueScalingGroup.
+	Items []PodCliqueScalingGroup `json:"items"`
+}
+
 // PodCliqueScalingGroupSpec is the specification of the PodCliqueScalingGroup.
 type PodCliqueScalingGroupSpec struct {
 	// Replicas is the desired number of replicas for the PodCliqueScalingGroup.
+	// +kubebuilder:default=1
 	Replicas int32 `json:"replicas"`
 }
 

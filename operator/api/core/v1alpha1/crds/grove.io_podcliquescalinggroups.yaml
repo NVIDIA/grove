@@ -44,6 +44,7 @@ spec:
             description: Spec is the specification of the PodCliqueScalingGroup.
             properties:
               replicas:
+                default: 1
                 description: Replicas is the desired number of replicas for the PodCliqueScalingGroup.
                 format: int32
                 type: integer

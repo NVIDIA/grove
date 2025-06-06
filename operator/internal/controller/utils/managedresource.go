@@ -18,6 +18,7 @@ package utils
 
 import (
 	"github.com/NVIDIA/grove/operator/api/core/v1alpha1"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -37,4 +38,13 @@ func IsManagedByGrove(labels map[string]string) bool {
 		return v1alpha1.LabelManagedByValue == val
 	}
 	return false
+}
+
+// IsManagedPodClique checks if the PodClique is managed by Grove.
+func IsManagedPodClique(obj client.Object) bool {
+	podClique, ok := obj.(*v1alpha1.PodClique)
+	if !ok {
+		return false
+	}
+	return IsManagedByGrove(podClique.GetLabels())
 }

@@ -18,6 +18,8 @@ package kubernetes
 
 import (
 	"github.com/NVIDIA/grove/operator/api/core/v1alpha1"
+	"github.com/samber/lo"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 // GetDefaultLabelsForPodGangSetManagedResources gets the default labels for resources managed by PodGangset.
@@ -26,4 +28,14 @@ func GetDefaultLabelsForPodGangSetManagedResources(pgsName string) map[string]st
 		v1alpha1.LabelManagedByKey: v1alpha1.LabelManagedByValue,
 		v1alpha1.LabelPartOfKey:    pgsName,
 	}
+}
+
+// FilterMapOwnedResourceNames filters the candidate resources and returns the names of those that are owned by the given owner object meta.
+func FilterMapOwnedResourceNames(ownerObjMeta metav1.ObjectMeta, candidateResources []metav1.PartialObjectMetadata) []string {
+	return lo.FilterMap(candidateResources, func(objMeta metav1.PartialObjectMetadata, _ int) (string, bool) {
+		if metav1.IsControlledBy(&objMeta, &ownerObjMeta) {
+			return objMeta.Name, true
+		}
+		return "", false
+	})
 }

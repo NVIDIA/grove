@@ -18,7 +18,6 @@ package podclique
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"strconv"
 	"strings"
@@ -59,7 +58,6 @@ func New(client client.Client, scheme *runtime.Scheme) component.Operator[grovec
 // GetExistingResourceNames returns the names of all the existing resources that the PodClique Operator manages.
 func (r _resource) GetExistingResourceNames(ctx context.Context, logger logr.Logger, pgs *grovecorev1alpha1.PodGangSet) ([]string, error) {
 	logger.Info("Looking for existing PodCliques")
-	existingPCLQNames := make([]string, 0, int(pgs.Spec.Replicas)*len(pgs.Spec.TemplateSpec.Cliques))
 	objMetaList := &metav1.PartialObjectMetadataList{}
 	objMetaList.SetGroupVersionKind(grovecorev1alpha1.SchemeGroupVersion.WithKind("PodClique"))
 	if err := r.client.List(ctx,
@@ -73,12 +71,7 @@ func (r _resource) GetExistingResourceNames(ctx context.Context, logger logr.Log
 			fmt.Sprintf("Error listing PodCliques for PodGangSet: %v", client.ObjectKeyFromObject(pgs)),
 		)
 	}
-	for _, pclqObjMeta := range objMetaList.Items {
-		if metav1.IsControlledBy(&pclqObjMeta, &pgs.ObjectMeta) {
-			existingPCLQNames = append(existingPCLQNames, pclqObjMeta.Name)
-		}
-	}
-	return existingPCLQNames, nil
+	return k8sutils.FilterMapOwnedResourceNames(pgs.ObjectMeta, objMetaList.Items), nil
 }
 
 // Sync synchronizes all resources that the PodClique Operator manages.
@@ -101,8 +94,12 @@ func (r _resource) Sync(ctx context.Context, logger logr.Logger, pgs *grovecorev
 			tasks = append(tasks, createOrUpdateTask)
 		}
 	}
-	if errs := utils.RunConcurrently(ctx, tasks); len(errs) > 0 {
-		return errors.Join(errs...)
+	if runResult := utils.RunConcurrently(ctx, logger, tasks); runResult.HasErrors() {
+		return groveerr.WrapError(runResult.GetAggregatedError(),
+			errSyncPodClique,
+			component.OperationSync,
+			fmt.Sprintf("Error CreateOrUpdate of PodCliques for PodGangSet: %v, run summary: %s", client.ObjectKeyFromObject(pgs), runResult.GetSummary()),
+		)
 	}
 	return nil
 }

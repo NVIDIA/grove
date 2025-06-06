@@ -147,7 +147,7 @@ func (v *pgsValidator) validatePodGangTemplateSpec(fldPath *field.Path) ([]strin
 		allErrs = append(allErrs, errs...)
 	}
 	allErrs = append(allErrs, validatePodGangSchedulingPolicyConfig(v.pgs.Spec.TemplateSpec.SchedulingPolicyConfig, fldPath.Child("schedulingPolicyConfig"))...)
-	allErrs = append(allErrs, v.validatePodCliqueScalingGroupConfigs(v.pgs.Spec.TemplateSpec.PodCliqueScalingGroupConfigs, fldPath.Child("podCliqueScalingGroups"))...)
+	allErrs = append(allErrs, v.validatePodCliqueScalingGroupConfigs(fldPath.Child("podCliqueScalingGroups"))...)
 
 	return warnings, allErrs
 }
@@ -208,6 +208,14 @@ func (v *pgsValidator) validatePodCliqueSpec(name string, cliqueSpec grovecorev1
 		allErrs = append(allErrs, field.Invalid(fldPath.Child("replicas"), cliqueSpec.Replicas, "must be greater than 0"))
 	}
 
+	// Ideally this should never happen, the defaulting webhook will always set the default value for minReplicas.
+	if cliqueSpec.MinReplicas == nil {
+		allErrs = append(allErrs, field.Required(fldPath.Child("minReplicas"), "field is required"))
+	}
+	if cliqueSpec.MinReplicas != nil && *cliqueSpec.MinReplicas <= 0 {
+		allErrs = append(allErrs, field.Invalid(fldPath.Child("minReplicas"), *cliqueSpec.MinReplicas, "must be greater than 0"))
+	}
+
 	if v.isStartupTypeExplicit() && len(cliqueSpec.StartsAfter) > 0 {
 		for _, dep := range cliqueSpec.StartsAfter {
 			if utils.IsEmptyStringType(dep) {
@@ -225,7 +233,7 @@ func (v *pgsValidator) validatePodCliqueSpec(name string, cliqueSpec grovecorev1
 	}
 
 	if cliqueSpec.ScaleConfig != nil {
-		allErrs = append(allErrs, validateScaleConfig(cliqueSpec.ScaleConfig, fldPath.Child("autoScalingConfig"))...)
+		allErrs = append(allErrs, validateScaleConfig(cliqueSpec.ScaleConfig, *cliqueSpec.MinReplicas, fldPath.Child("autoScalingConfig"))...)
 		if cliqueSpec.ScaleConfig.MaxReplicas < cliqueSpec.Replicas {
 			allErrs = append(allErrs, field.Invalid(fldPath.Child("autoScalingConfig", "maxReplicas"), cliqueSpec.ScaleConfig.MaxReplicas, "must be greater than or equal to replicas"))
 		}
@@ -239,22 +247,11 @@ func (v *pgsValidator) validatePodCliqueSpec(name string, cliqueSpec grovecorev1
 	return warnings, allErrs
 }
 
-func validateScaleConfig(scaleConfig *grovecorev1alpha1.AutoScalingConfig, fldPath *field.Path) field.ErrorList {
+func validateScaleConfig(scaleConfig *grovecorev1alpha1.AutoScalingConfig, minReplicas int32, fldPath *field.Path) field.ErrorList {
 	allErrs := field.ErrorList{}
-
-	// Ideally this should never happen, the defaulting webhook will always set the default value for minReplicas.
-	if scaleConfig.MinReplicas == nil {
-		return append(allErrs, field.Required(fldPath.Child("minReplicas"), "field is required"))
+	if scaleConfig.MaxReplicas < minReplicas {
+		allErrs = append(allErrs, field.Invalid(fldPath.Child("maxReplicas"), scaleConfig.MaxReplicas, "must be greater than or equal to podCliqueSpec.minReplicas"))
 	}
-
-	if *scaleConfig.MinReplicas <= 0 {
-		allErrs = append(allErrs, field.Invalid(fldPath.Child("minReplicas"), *scaleConfig.MinReplicas, "must be greater than 0"))
-	}
-
-	if scaleConfig.MaxReplicas < *scaleConfig.MinReplicas {
-		allErrs = append(allErrs, field.Invalid(fldPath.Child("maxReplicas"), scaleConfig.MaxReplicas, "must be greater than or equal to minReplicas"))
-	}
-
 	return allErrs
 }
 
@@ -313,23 +310,20 @@ func validatePodGangSchedulingPolicyConfig(config *grovecorev1alpha1.SchedulingP
 	return allErrs
 }
 
-func (v *pgsValidator) validatePodCliqueScalingGroupConfigs(scalingGroupConfigs []grovecorev1alpha1.PodCliqueScalingGroupConfig, fldPath *field.Path) field.ErrorList {
+func (v *pgsValidator) validatePodCliqueScalingGroupConfigs(fldPath *field.Path) field.ErrorList {
 	allErrs := field.ErrorList{}
 
 	allPodGangSetCliqueNames := lo.Map(v.pgs.Spec.TemplateSpec.Cliques, func(cliqueTemplateSpec *grovecorev1alpha1.PodCliqueTemplateSpec, _ int) string {
 		return cliqueTemplateSpec.Name
 	})
-	pclqScalingGroupNames := make([]string, 0, len(scalingGroupConfigs))
+	pclqScalingGroupNames := make([]string, 0, len(v.pgs.Spec.TemplateSpec.PodCliqueScalingGroupConfigs))
 	var cliqueNamesAcrossAllScalingGroups []string
 
-	for _, scalingGroupConfig := range scalingGroupConfigs {
+	for _, scalingGroupConfig := range v.pgs.Spec.TemplateSpec.PodCliqueScalingGroupConfigs {
 		pclqScalingGroupNames = append(pclqScalingGroupNames, scalingGroupConfig.Name)
-		// validate that the length of scaling group name does not exceed the allowed limit for a label value. The names will be used as valies.
 		cliqueNamesAcrossAllScalingGroups = append(cliqueNamesAcrossAllScalingGroups, scalingGroupConfig.CliqueNames...)
 		// validate that scaling groups only contains clique names that are defined in the PodGangSet.
-		allErrs = append(allErrs, v.validateScalingGroupPodCliqueNames(allPodGangSetCliqueNames, scalingGroupConfig.CliqueNames, fldPath.Child("cliqueNames"))...)
-		// validate the AutoScalingConfig for the scaling group.
-		allErrs = append(allErrs, validateScaleConfig(&scalingGroupConfig.ScaleConfig, fldPath.Child("scaleConfig"))...)
+		allErrs = append(allErrs, validateScalingGroupPodCliqueNames(allPodGangSetCliqueNames, scalingGroupConfig.CliqueNames, fldPath.Child("cliqueNames"))...)
 	}
 
 	// validate that the scaling group names are unique
@@ -356,7 +350,7 @@ func (v *pgsValidator) validatePodCliqueScalingGroupConfigs(scalingGroupConfigs 
 }
 
 // checks if the PodClique names specified in PodCliqueScalingGroupConfig refer to a defined clique in the PodGangSet.
-func (v *pgsValidator) validateScalingGroupPodCliqueNames(allPclqNames, pclqNameInScalingGrp []string, fldPath *field.Path) field.ErrorList {
+func validateScalingGroupPodCliqueNames(allPclqNames, pclqNameInScalingGrp []string, fldPath *field.Path) field.ErrorList {
 	allErrs := field.ErrorList{}
 
 	_, unidentifiedPclqNames := lo.Difference(allPclqNames, lo.Uniq(pclqNameInScalingGrp))
