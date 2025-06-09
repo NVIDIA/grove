@@ -27,6 +27,7 @@ type _resource struct {
 	scheme *runtime.Scheme
 }
 
+// New creates an instance of PodCliqueScalingGroup component operator.
 func New(client client.Client, scheme *runtime.Scheme) component.Operator[v1alpha1.PodGangSet] {
 	return &_resource{
 		client: client,
@@ -34,6 +35,7 @@ func New(client client.Client, scheme *runtime.Scheme) component.Operator[v1alph
 	}
 }
 
+// GetExistingResourceNames returns the names of all the existing resources that the PodCliqueScalingGroup Operator manages.
 func (r _resource) GetExistingResourceNames(ctx context.Context, _ logr.Logger, pgs *v1alpha1.PodGangSet) ([]string, error) {
 	objMetaList := &metav1.PartialObjectMetadataList{}
 	objMetaList.SetGroupVersionKind(v1alpha1.SchemeGroupVersion.WithKind("PodCliqueScalingGroup"))
@@ -50,6 +52,7 @@ func (r _resource) GetExistingResourceNames(ctx context.Context, _ logr.Logger, 
 	return k8sutils.FilterMapOwnedResourceNames(pgs.ObjectMeta, objMetaList.Items), nil
 }
 
+// Sync synchronizes all resources that the PodCliqueScalingGroup Operator manages.
 func (r _resource) Sync(ctx context.Context, logger logr.Logger, pgs *v1alpha1.PodGangSet) error {
 	tasks := make([]utils.Task, 0, int(pgs.Spec.Replicas)*len(pgs.Spec.TemplateSpec.PodCliqueScalingGroupConfigs))
 	for replicaIndex := range pgs.Spec.Replicas {
@@ -78,6 +81,7 @@ func (r _resource) Sync(ctx context.Context, logger logr.Logger, pgs *v1alpha1.P
 	return nil
 }
 
+// Delete deletes all resources that the PodCliqueScalingGroup Operator manages.
 func (r _resource) Delete(ctx context.Context, logger logr.Logger, pgsObjMeta metav1.ObjectMeta) error {
 	logger.Info("Triggering delete of PodCliqueScalingGroups")
 	if err := r.client.DeleteAllOf(ctx,

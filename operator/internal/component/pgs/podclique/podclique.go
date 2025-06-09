@@ -104,6 +104,7 @@ func (r _resource) Sync(ctx context.Context, logger logr.Logger, pgs *grovecorev
 	return nil
 }
 
+// Delete deletes all resources that the PodClique Operator manages.
 func (r _resource) Delete(ctx context.Context, logger logr.Logger, pgsObjectMeta metav1.ObjectMeta) error {
 	logger.Info("Triggering deletion of PodCliques")
 	if err := r.client.DeleteAllOf(ctx,
