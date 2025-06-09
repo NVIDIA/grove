@@ -33,14 +33,14 @@ function check_prereq() {
 }
 
 function copy_crds() {
-  declare -a crds=("grove.io_podgangsets.yaml" "grove.io_podcliques.yaml", "grove.io_podcliquescalinggroups.yaml")
+  declare -a crds=("grove.io_podgangsets.yaml" "grove.io_podcliques.yaml" "grove.io_podcliquescalinggroups.yaml")
   target_path="${OPERATOR_GO_MODULE_ROOT}/charts/crds"
   echo "Creating ${target_path} to copy the CRDs if not present..."
   mkdir -p ${target_path}
   for crd in "${crds[@]}"; do
     local crd_path="${OPERATOR_GO_MODULE_ROOT}/api/core/v1alpha1/crds/${crd}"
     if [ ! -f ${crd_path} ]; then
-      echo "CRD ${crd} not found in ${OPERATOR_GO_MODULE_ROOT}/api/core/crds, running 'make generate' first"
+      echo "CRD ${crd} not found in ${crd_path}, run 'make generate' first"
       make generate
     fi
     echo "Copying CRD ${crd} to ${target_path}"

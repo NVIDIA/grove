@@ -67,8 +67,10 @@ func (r *Reconciler) deletePodGangSetResources(ctx context.Context, logger logr.
 		})
 	}
 	logger.Info("Triggering delete of PodGangSet resources")
-	if errs := utils.RunConcurrently(ctx, deleteTasks); len(errs) > 0 {
-		return ctrlcommon.ReconcileWithErrors("error deleting managed resources", errs...)
+	if runResult := utils.RunConcurrently(ctx, logger, deleteTasks); runResult.HasErrors() {
+		deletionErr := runResult.GetAggregatedError()
+		logger.Error(deletionErr, "Error deleting managed resources", "summary", runResult.GetSummary())
+		return ctrlcommon.ReconcileWithErrors("error deleting managed resources", deletionErr)
 	}
 	return ctrlcommon.ContinueReconcile()
 }

@@ -148,6 +148,6 @@ func (r *Reconciler) updateObservedGeneration(ctx context.Context, logger logr.L
 
 func getOrderedKindsForSync() []component.Kind {
 	return []component.Kind{
-		component.KindPod,
+		//component.KindPod,
 	}
 }
