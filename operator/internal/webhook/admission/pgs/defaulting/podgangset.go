@@ -17,7 +17,7 @@
 package defaulting
 
 import (
-	"github.com/NVIDIA/grove/operator/api/core/v1alpha1"
+	grovecorev1alpha1 "github.com/NVIDIA/grove/operator/api/core/v1alpha1"
 	"github.com/NVIDIA/grove/operator/internal/utils"
 
 	corev1 "k8s.io/api/core/v1"
@@ -26,7 +26,7 @@ import (
 )
 
 // defaultPodGangSet adds defaults to a PodGangSet.
-func defaultPodGangSet(pgs *v1alpha1.PodGangSet) {
+func defaultPodGangSet(pgs *grovecorev1alpha1.PodGangSet) {
 	if utils.IsEmptyStringType(pgs.Namespace) {
 		pgs.Namespace = "default"
 	}
@@ -34,31 +34,35 @@ func defaultPodGangSet(pgs *v1alpha1.PodGangSet) {
 }
 
 // defaultPodGangSetSpec adds defaults to the specification of a PodGangSet.
-func defaultPodGangSetSpec(spec *v1alpha1.PodGangSetSpec) {
+func defaultPodGangSetSpec(spec *grovecorev1alpha1.PodGangSetSpec) {
 	// default PodGangTemplateSpec
 	defaultPodGangTemplateSpec(&spec.TemplateSpec)
 	// default UpdateStrategy
 	defaultUpdateStrategy(spec)
 }
 
-func defaultPodGangTemplateSpec(spec *v1alpha1.PodGangTemplateSpec) {
+func defaultPodGangTemplateSpec(spec *grovecorev1alpha1.PodGangTemplateSpec) {
 	// default PodCliqueTemplateSpecs
 	spec.Cliques = defaultPodCliqueTemplateSpecs(spec.Cliques)
 	// default startup type
 	if spec.StartupType == nil {
-		spec.StartupType = ptr.To(v1alpha1.CliqueStartupTypeInOrder)
+		spec.StartupType = ptr.To(grovecorev1alpha1.CliqueStartupTypeInOrder)
 	}
 	// default NetworkPackStrategy
-	if spec.SchedulingPolicyConfig != nil && spec.SchedulingPolicyConfig.NetworkPackStrategy == nil {
-		spec.SchedulingPolicyConfig.NetworkPackStrategy = ptr.To(v1alpha1.BestEffort)
+	if spec.SchedulingPolicyConfig == nil {
+		spec.SchedulingPolicyConfig = &grovecorev1alpha1.SchedulingPolicyConfig{
+			NetworkPackStrategy: ptr.To(grovecorev1alpha1.BestEffort),
+		}
+	} else if spec.SchedulingPolicyConfig.NetworkPackStrategy == nil {
+		spec.SchedulingPolicyConfig.NetworkPackStrategy = ptr.To(grovecorev1alpha1.BestEffort)
 	}
 }
 
-func defaultUpdateStrategy(spec *v1alpha1.PodGangSetSpec) {
+func defaultUpdateStrategy(spec *grovecorev1alpha1.PodGangSetSpec) {
 	updateStrategy := spec.UpdateStrategy.DeepCopy()
 	if updateStrategy == nil || updateStrategy.RollingUpdateConfig == nil {
-		updateStrategy = &v1alpha1.GangUpdateStrategy{
-			RollingUpdateConfig: &v1alpha1.RollingUpdateConfiguration{},
+		updateStrategy = &grovecorev1alpha1.GangUpdateStrategy{
+			RollingUpdateConfig: &grovecorev1alpha1.RollingUpdateConfiguration{},
 		}
 	}
 	if updateStrategy.RollingUpdateConfig.MaxSurge == nil {
@@ -70,8 +74,8 @@ func defaultUpdateStrategy(spec *v1alpha1.PodGangSetSpec) {
 	spec.UpdateStrategy = updateStrategy
 }
 
-func defaultPodCliqueTemplateSpecs(cliqueSpecs []*v1alpha1.PodCliqueTemplateSpec) []*v1alpha1.PodCliqueTemplateSpec {
-	defaultedCliqueSpecs := make([]*v1alpha1.PodCliqueTemplateSpec, 0, len(cliqueSpecs))
+func defaultPodCliqueTemplateSpecs(cliqueSpecs []*grovecorev1alpha1.PodCliqueTemplateSpec) []*grovecorev1alpha1.PodCliqueTemplateSpec {
+	defaultedCliqueSpecs := make([]*grovecorev1alpha1.PodCliqueTemplateSpec, 0, len(cliqueSpecs))
 	for _, cliqueSpec := range cliqueSpecs {
 		defaultedCliqueSpec := cliqueSpec.DeepCopy()
 		defaultedCliqueSpec.Spec.PodSpec = *defaultPodSpec(&cliqueSpec.Spec.PodSpec)
@@ -79,7 +83,7 @@ func defaultPodCliqueTemplateSpecs(cliqueSpecs []*v1alpha1.PodCliqueTemplateSpec
 			defaultedCliqueSpec.Spec.Replicas = 1
 		}
 		if cliqueSpec.Spec.MinReplicas == nil {
-			cliqueSpec.Spec.MinReplicas = ptr.To(defaultedCliqueSpec.Spec.Replicas)
+			defaultedCliqueSpec.Spec.MinReplicas = ptr.To(cliqueSpec.Spec.Replicas)
 		}
 		defaultedCliqueSpecs = append(defaultedCliqueSpecs, defaultedCliqueSpec)
 	}

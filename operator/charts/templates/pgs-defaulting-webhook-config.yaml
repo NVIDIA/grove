@@ -34,4 +34,4 @@ webhooks:
         scope: '*'
     sideEffects: None
     timeoutSeconds: 10
-  {{- end }}
+{{- end }}
