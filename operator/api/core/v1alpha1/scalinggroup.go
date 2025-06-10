@@ -50,7 +50,7 @@ type PodCliqueScalingGroupList struct {
 // PodCliqueScalingGroupSpec is the specification of the PodCliqueScalingGroup.
 type PodCliqueScalingGroupSpec struct {
 	// Replicas is the desired number of replicas for the PodCliqueScalingGroup.
-	// +kubebuilder:default=1
+	// If not specified, it defaults to 1.
 	Replicas int32 `json:"replicas"`
 }
 

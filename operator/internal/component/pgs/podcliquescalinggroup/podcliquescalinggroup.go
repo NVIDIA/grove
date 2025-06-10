@@ -14,6 +14,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
+	"slices"
 )
 
 const (
@@ -55,16 +56,25 @@ func (r _resource) GetExistingResourceNames(ctx context.Context, _ logr.Logger, 
 // Sync synchronizes all resources that the PodCliqueScalingGroup Operator manages.
 func (r _resource) Sync(ctx context.Context, logger logr.Logger, pgs *v1alpha1.PodGangSet) error {
 	tasks := make([]utils.Task, 0, int(pgs.Spec.Replicas)*len(pgs.Spec.TemplateSpec.PodCliqueScalingGroupConfigs))
+	existingPCLQScalingGrpNames, err := r.GetExistingResourceNames(ctx, logger, pgs)
+	if err != nil {
+		return groveerr.WrapError(err,
+			errListPodCliqueScalingGroup,
+			component.OperationSync,
+			fmt.Sprintf("Error listing PodCliqueScalingGroup for PodGangSet: %v", client.ObjectKeyFromObject(pgs)),
+		)
+	}
 	for replicaIndex := range pgs.Spec.Replicas {
 		for _, pclqScalingGrpConfig := range pgs.Spec.TemplateSpec.PodCliqueScalingGroupConfigs {
 			pclqScalingGrpConfigObjKey := client.ObjectKey{
 				Name:      v1alpha1.GeneratePodCliqueScalingGroupName(pgs.Name, replicaIndex, pclqScalingGrpConfig.Name),
 				Namespace: pgs.Namespace,
 			}
+			exists := slices.Contains(existingPCLQScalingGrpNames, pclqScalingGrpConfigObjKey.Name)
 			createTask := utils.Task{
 				Name: fmt.Sprintf("CreateOrUpdatePodCliqueScalingGroup-%s", pclqScalingGrpConfigObjKey),
 				Fn: func(ctx context.Context) error {
-					return r.doCreateOrUpdate(ctx, logger, pgs, pclqScalingGrpConfigObjKey)
+					return r.doCreateOrUpdate(ctx, logger, pgs, pclqScalingGrpConfigObjKey, exists)
 				},
 			}
 			tasks = append(tasks, createTask)
@@ -98,11 +108,11 @@ func (r _resource) Delete(ctx context.Context, logger logr.Logger, pgsObjMeta me
 	return nil
 }
 
-func (r _resource) doCreateOrUpdate(ctx context.Context, logger logr.Logger, pgs *v1alpha1.PodGangSet, pclqScalingGrpObjectKey client.ObjectKey) error {
+func (r _resource) doCreateOrUpdate(ctx context.Context, logger logr.Logger, pgs *v1alpha1.PodGangSet, pclqScalingGrpObjectKey client.ObjectKey, exists bool) error {
 	logger.Info("CreateOrUpdate PodCliqueScalingGroup", "objectKey", pclqScalingGrpObjectKey)
 	pclqScalingGrp := emptyPodCliqueScalingGroup(pclqScalingGrpObjectKey)
 	opResult, err := controllerutil.CreateOrPatch(ctx, r.client, pclqScalingGrp, func() error {
-		return r.buildResource(pclqScalingGrp, pgs)
+		return r.buildResource(pclqScalingGrp, pgs, exists)
 	})
 	if err != nil {
 		return groveerr.WrapError(err,
@@ -115,7 +125,7 @@ func (r _resource) doCreateOrUpdate(ctx context.Context, logger logr.Logger, pgs
 	return nil
 }
 
-func (r _resource) buildResource(pclqScalingGroup *v1alpha1.PodCliqueScalingGroup, pgs *v1alpha1.PodGangSet) error {
+func (r _resource) buildResource(pclqScalingGroup *v1alpha1.PodCliqueScalingGroup, pgs *v1alpha1.PodGangSet, exists bool) error {
 	if err := controllerutil.SetControllerReference(pgs, pclqScalingGroup, r.scheme); err != nil {
 		return groveerr.WrapError(err,
 			errSyncPodCliqueScalingGroup,
@@ -123,9 +133,9 @@ func (r _resource) buildResource(pclqScalingGroup *v1alpha1.PodCliqueScalingGrou
 			fmt.Sprintf("Error setting controller reference for PodCliqueScalingGroup: %v", client.ObjectKeyFromObject(pclqScalingGroup)),
 		)
 	}
-	// NOTE: If the resource is created for the first time then there is no need to explicitly set the replicas as it will
-	// be defaulted to 1 as the defaults are captured as part of the generated OpenAPIv3 specification for the resource.
-	// If there is an update event for PodGangSet then replicas
+	if !exists {
+		pclqScalingGroup.Spec.Replicas = 1 // default to 1 replica if creating the resource.
+	}
 	pclqScalingGroup.Labels = getLabels(pgs.Name, client.ObjectKeyFromObject(pclqScalingGroup))
 	return nil
 }
