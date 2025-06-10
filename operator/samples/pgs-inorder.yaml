@@ -1,0 +1,70 @@
+apiVersion: grove.io/v1alpha1
+kind: PodGangSet
+metadata:
+  name: inference
+  labels:
+    app: inference
+spec:
+  replicas: 1
+  templateSpec:
+    cliques:
+    - name: decode
+      spec:
+        replicas: 3
+        podSpec:
+          containers:
+          - name: decode
+            image: ubuntu
+            command: ["/bin/bash", "-c", "--" ]
+            args: [ "while true; do sleep 30; done;" ]
+            resources:
+              requests:
+                cpu: 10m
+        autoScalingConfig:
+          maxReplicas: 5
+          metrics:
+          - type: Resource
+            resource:
+              name: cpu
+              target:
+                type: Utilization
+                averageUtilization: 80
+    - name: prefillleader
+      spec:
+        replicas: 2
+        podSpec:
+          containers:
+          - name: prefillleader
+            image: ubuntu
+            command: [ "/bin/bash", "-c", "--" ]
+            args: [ "while true; do sleep 30; done;" ]
+            resources:
+              requests:
+                cpu: 10m
+    - name: prefillworker
+      spec:
+        replicas: 2
+        podSpec:
+          containers:
+          - name: prefillworker
+            image: ubuntu
+            command: [ "/bin/bash", "-c", "--" ]
+            args: [ "while true; do sleep 30; done;" ]
+            resources:
+              requests:
+                cpu: 10m
+    podCliqueScalingGroups:
+      - name: prefill
+        cliqueNames:
+          - prefillleader
+          - prefillworker
+        scaleConfig:
+          maxReplicas: 6
+          metrics:
+          - type: Resource
+            resource:
+              name: cpu
+              target:
+                type: Utilization
+                averageUtilization: 80
+          
