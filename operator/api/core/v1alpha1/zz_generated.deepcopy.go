@@ -300,6 +300,23 @@ func (in *PodCliqueScalingGroupStatus) DeepCopyInto(out *PodCliqueScalingGroupSt
 		*out = new(string)
 		**out = **in
 	}
+	if in.ObservedGeneration != nil {
+		in, out := &in.ObservedGeneration, &out.ObservedGeneration
+		*out = new(int64)
+		**out = **in
+	}
+	if in.LastOperation != nil {
+		in, out := &in.LastOperation, &out.LastOperation
+		*out = new(LastOperation)
+		(*in).DeepCopyInto(*out)
+	}
+	if in.LastErrors != nil {
+		in, out := &in.LastErrors, &out.LastErrors
+		*out = make([]LastError, len(*in))
+		for i := range *in {
+			(*in)[i].DeepCopyInto(&(*out)[i])
+		}
+	}
 	return
 }
 
