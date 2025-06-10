@@ -12,6 +12,8 @@ rules:
   - podgangsets/status
   - podcliques
   - podcliques/status
+  - podcliquescalinggroups
+  - podcliquescalinggroups/status
   verbs:
   - create
   - get
@@ -43,7 +45,7 @@ rules:
   - patch
   - update
 - apiGroups:
-    - ""
+  - ""
   resources:
   - services
   verbs:
@@ -66,14 +68,27 @@ rules:
   - watch
   - patch
 - apiGroups:
-    - rbac.authorization.k8s.io
+  - rbac.authorization.k8s.io
   resources:
-    - roles
-    - rolebindings
+  - roles
+  - rolebindings
   verbs:
-    - create
-    - get
-    - list
-    - watch
-    - delete
+  - create
+  - get
+  - list
+  - watch
+  - delete
+- apiGroups:
+  - autoscaling
+  resources:
+  - horizontalpodautoscalers
+  verbs:
+  - create
+  - get
+  - list
+  - delete
+  - deletecollection
+  - patch
+  - update
+  - watch
 
