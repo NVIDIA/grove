@@ -43,6 +43,12 @@ spec:
           spec:
             description: Spec is the specification of the PodCliqueScalingGroup.
             properties:
+              cliqueNames:
+                description: CliqueNames is the fully qualified list of PodClique
+                  names that are a part of this scaling group.
+                items:
+                  type: string
+                type: array
               replicas:
                 description: |-
                   Replicas is the desired number of replicas for the PodCliqueScalingGroup.
@@ -50,6 +56,7 @@ spec:
                 format: int32
                 type: integer
             required:
+            - cliqueNames
             - replicas
             type: object
           status:
