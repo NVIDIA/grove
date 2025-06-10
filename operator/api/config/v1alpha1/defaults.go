@@ -107,3 +107,10 @@ func SetDefaults_PodCliqueControllerConfiguration(obj *PodCliqueControllerConfig
 		obj.ConcurrentSyncs = ptr.To(1)
 	}
 }
+
+// SetDefaults_PodCliqueScalingGroupControllerConfiguration sets defaults for the PodCliqueScalignGroupControllerConfiguration.
+func SetDefaults_PodCliqueScalingGroupControllerConfiguration(obj *PodCliqueScalingGroupControllerConfiguration) {
+	if obj.ConcurrentSyncs == nil {
+		obj.ConcurrentSyncs = ptr.To(1)
+	}
+}

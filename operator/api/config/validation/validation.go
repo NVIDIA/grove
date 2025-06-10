@@ -48,12 +48,19 @@ func validateLogConfiguration(config *configv1alpha1.OperatorConfiguration) fiel
 func validateControllerConfiguration(controllerCfg configv1alpha1.ControllerConfiguration, fldPath *field.Path) field.ErrorList {
 	allErrs := field.ErrorList{}
 	allErrs = append(allErrs, validatePodGangSetControllerConfiguration(controllerCfg.PodGangSet, fldPath.Child("podGangSet"))...)
+	allErrs = append(allErrs, validatePodCliqueScalingGroupConfiguration(controllerCfg.PodCliqueScalingGroup, fldPath.Child("podGangSet"))...)
 	return allErrs
 }
 
 func validatePodGangSetControllerConfiguration(pgsCfg configv1alpha1.PodGangSetControllerConfiguration, fldPath *field.Path) field.ErrorList {
 	allErrs := field.ErrorList{}
 	allErrs = append(allErrs, validateConcurrentSyncs(pgsCfg.ConcurrentSyncs, fldPath)...)
+	return allErrs
+}
+
+func validatePodCliqueScalingGroupConfiguration(pcsgCfg configv1alpha1.PodCliqueScalingGroupControllerConfiguration, fldPath *field.Path) field.ErrorList {
+	allErrs := field.ErrorList{}
+	allErrs = append(allErrs, validateConcurrentSyncs(pcsgCfg.ConcurrentSyncs, fldPath)...)
 	return allErrs
 }
 

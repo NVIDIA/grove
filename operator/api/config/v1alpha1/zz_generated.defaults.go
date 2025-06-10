@@ -40,4 +40,5 @@ func SetObjectDefaults_OperatorConfiguration(in *OperatorConfiguration) {
 	SetDefaults_ServerConfiguration(&in.Server)
 	SetDefaults_PodGangSetControllerConfiguration(&in.Controllers.PodGangSet)
 	SetDefaults_PodCliqueControllerConfiguration(&in.Controllers.PodClique)
+	SetDefaults_PodCliqueScalingGroupControllerConfiguration(&in.Controllers.PodCliqueScalingGroup)
 }
