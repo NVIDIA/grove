@@ -19,6 +19,7 @@ package controller
 import (
 	configv1alpha1 "github.com/NVIDIA/grove/operator/api/config/v1alpha1"
 	"github.com/NVIDIA/grove/operator/internal/controller/podclique"
+	"github.com/NVIDIA/grove/operator/internal/controller/podcliquescalinggroup"
 	"github.com/NVIDIA/grove/operator/internal/controller/podgangset"
 
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -32,6 +33,10 @@ func RegisterControllers(mgr ctrl.Manager, controllerConfig configv1alpha1.Contr
 	}
 	pcReconciler := podclique.NewReconciler(mgr, controllerConfig.PodClique)
 	if err := pcReconciler.RegisterWithManager(mgr); err != nil {
+		return err
+	}
+	pcsgReconciler := podcliquescalinggroup.NewReconciler(mgr, controllerConfig.PodCliqueScalingGroup)
+	if err := pcsgReconciler.RegisterWithManager(mgr); err != nil {
 		return err
 	}
 	return nil

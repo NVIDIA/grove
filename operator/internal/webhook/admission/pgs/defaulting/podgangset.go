@@ -79,7 +79,7 @@ func defaultPodCliqueTemplateSpecs(cliqueSpecs []*grovecorev1alpha1.PodCliqueTem
 	for _, cliqueSpec := range cliqueSpecs {
 		defaultedCliqueSpec := cliqueSpec.DeepCopy()
 		defaultedCliqueSpec.Spec.PodSpec = *defaultPodSpec(&cliqueSpec.Spec.PodSpec)
-		if defaultedCliqueSpec.Spec.Replicas < 1 {
+		if defaultedCliqueSpec.Spec.Replicas == 0 {
 			defaultedCliqueSpec.Spec.Replicas = 1
 		}
 		if cliqueSpec.Spec.MinReplicas == nil {

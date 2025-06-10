@@ -53,6 +53,18 @@ func GetPodClique(ctx context.Context, cl client.Client, logger logr.Logger, obj
 	return grovectrl.ContinueReconcile()
 }
 
+// GetPodCliqueScalingGroup gets the latest PodCliqueScalingGroup object. It will usually hit the informer cache. If the object is not found, it will log a message and return DoNotRequeue.
+func GetPodCliqueScalingGroup(ctx context.Context, cl client.Client, logger logr.Logger, objectKey client.ObjectKey, pcsg *v1alpha1.PodCliqueScalingGroup) grovectrl.ReconcileStepResult {
+	if err := cl.Get(ctx, objectKey, pcsg); err != nil {
+		if apierrors.IsNotFound(err) {
+			logger.Info("PodCliqueScalingGroup not found", "objectKey", objectKey)
+			return grovectrl.DoNotRequeue()
+		}
+		return grovectrl.ReconcileWithErrors("error getting PodCliqueScalingGroup", err)
+	}
+	return grovectrl.ContinueReconcile()
+}
+
 // VerifyNoResourceAwaitsCleanup ensures no resources that are to be cleaned up are still present in the cluster.
 func VerifyNoResourceAwaitsCleanup[T component.GroveCustomResourceType](ctx context.Context, logger logr.Logger, operatorRegistry component.OperatorRegistry[T], obj *T) grovectrl.ReconcileStepResult {
 	operators := operatorRegistry.GetAllOperators()

@@ -139,7 +139,6 @@ func (r _resource) buildResource(pclqScalingGroup *grovecorev1alpha1.PodCliqueSc
 		})
 		pclqScalingGroup.Spec.Replicas = 1 // default to 1 replica if creating the resource.
 		pclqScalingGroup.Spec.CliqueNames = cliqueNameFQNs
-
 	}
 	pclqScalingGroup.Labels = getLabels(pgs.Name, client.ObjectKeyFromObject(pclqScalingGroup))
 	return nil
