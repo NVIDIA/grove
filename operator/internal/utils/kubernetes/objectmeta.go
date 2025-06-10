@@ -39,3 +39,11 @@ func FilterMapOwnedResourceNames(ownerObjMeta metav1.ObjectMeta, candidateResour
 		return "", false
 	})
 }
+
+// GetOwnerName returns the name of the first owner reference of the resource object meta.
+func GetOwnerName(resourceObjMeta metav1.ObjectMeta) string {
+	if len(resourceObjMeta.OwnerReferences) == 0 {
+		return ""
+	}
+	return resourceObjMeta.OwnerReferences[0].Name
+}
