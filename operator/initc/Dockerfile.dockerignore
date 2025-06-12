@@ -1,0 +1,18 @@
+# Ignore everyting
+**
+
+# Exclude folders/files that are relevant for build
+!.git
+!hack/
+!operator/Dockerfile.dockerignore
+!operator/api
+!operator/client/
+!operator/hack/
+!operator/go.mod
+!operator/go.sum
+!operator/Makefile
+!operator/VERSION
+!operator/initc/
+
+# Ignore kind's setup files
+operator/hack/kind/

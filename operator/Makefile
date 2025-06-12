@@ -21,7 +21,9 @@ REPO_HACK_DIR   := $(REPO_ROOT)/hack
 KUBECONFIG_PATH := $(MODULE_HACK_DIR)/kind/kubeconfig
 # Path of the package that ld-flags writes to
 LD_PACKAGE_PATH := "github.com/NVIDIA/grove/operator/internal"
-PROGRAM_NAME    := "grove-operator"
+INITC_LD_PATH   := "github.com/NVIDIA/grove/operator/initc"
+OPERATOR_NAME   := "grove-operator"
+INITC_NAME      := "grove-initc"
 
 # Include tools targets
 include $(REPO_HACK_DIR)/tools.mk
@@ -29,16 +31,28 @@ include $(REPO_HACK_DIR)/tools.mk
 kind-up kind-down deploy-local deploy-local-dev deploy-local-debug undeploy-local deploy-addons: export KUBECONFIG = $(KUBECONFIG_PATH)
 
 # Builds grove-operator for the current platform.
-.PHONY: build
-build:
-	@PACKAGE_PATH=${LD_PACKAGE_PATH} PROGRAM_NAME=${PROGRAM_NAME} $(MODULE_HACK_DIR)/build.sh
+.PHONY: operator
+operator:
+	@PACKAGE_PATH=${LD_PACKAGE_PATH} PROGRAM_NAME=${OPERATOR_NAME} $(MODULE_HACK_DIR)/build-operator.sh
 
 # Builds grove-operator for the specified platform.
-# Usage: make build-<os>-<arch>
-# Example: make build-linux-amd64, make build-darwin-amd64, make build-darwin-arm64, make build-linux-arm64
-.PHONY: build-%
-build-%:
-	@GOOS=$$(echo $* | cut -d- -f 1) GOARCH=$$(echo $* | cut -d- -f 2) PACKAGE_PATH=${LD_PACKAGE_PATH} PROGRAM_NAME=${PROGRAM_NAME} $(MODULE_HACK_DIR)/build.sh
+# Usage: make operator-<os>-<arch>
+# Example: make operator-linux-amd64, make operator-darwin-amd64, make operator-darwin-arm64, make operator-linux-arm64
+.PHONY: operator-%
+operator-%:
+	@GOOS=$$(echo $* | cut -d- -f 1) GOARCH=$$(echo $* | cut -d- -f 2) PACKAGE_PATH=${LD_PACKAGE_PATH} PROGRAM_NAME=${OPERATOR_NAME} $(MODULE_HACK_DIR)/build-operator.sh
+
+# Builds grove-initc for the current platform.
+.PHONY: initc
+initc:
+	@PACKAGE_PATH=${INITC_LD_PATH} PROGRAM_NAME=${INITC_NAME} $(MODULE_HACK_DIR)/build-initc.sh
+
+# Builds grove-initc for the specified platform.
+# Usage: make initc-<os>-<arch>
+# Example: make initc-linux-amd64, make initc-darwin-amd64, make initc-darwin-arm64, make initc-linux-arm64
+.PHONY: initc-%
+initc-%:
+	@GOOS=$$(echo $* | cut -d- -f 1) GOARCH=$$(echo $* | cut -d- -f 2) PACKAGE_PATH=${INITC_LD_PATH} PROGRAM_NAME=${INITC_NAME} $(MODULE_HACK_DIR)/build-initc.sh
 
 # Lints the codebase using GOLANGCI_LINT.
 .PHONY: lint
@@ -71,11 +85,18 @@ kind-down: $(KIND)
 # -------------------------------------------------------------
 
 # Builds the docker image for the specified platform.
-# Usage: make docker-build-<arch>
-# Example: make docker-build-amd64, make docker-build-arm64
-.PHONY: docker-build-%
-docker-build-%:
-	@GOARCH=$$(echo $* | cut -d- -f 1) $(MODULE_HACK_DIR)/docker-build.sh
+# Usage: make docker-operator-<arch>
+# Example: make docker-operator-amd64, make docker-operator-arm64
+.PHONY: docker-operator-%
+docker-operator-%:
+	@GOARCH=$$(echo $* | cut -d- -f 1) $(MODULE_HACK_DIR)/docker-build-operator.sh
+
+# Builds the docker image for the specified platform.
+# Usage: make docker-initc-<arch>
+# Example: make docker-initc-amd64, make docker-initc-arm64
+.PHONY: docker-initc-%
+docker-initc-%:
+	@GOARCH=$$(echo $* | cut -d- -f 1) $(MODULE_HACK_DIR)/docker-build-initc.sh
 
 # Make targets for deploying grove-operator to a local k8s cluster via skaffold
 # -------------------------------------------------------------
@@ -91,19 +112,19 @@ endif
 .PHONY: deploy-local
 deploy-local: $(SKAFFOLD)
 	@$(MODULE_HACK_DIR)/prepare-local-deploy.sh $(NAMESPACE) $(CERT_EXPIRY)
-	@PACKAGE_PATH=${LD_PACKAGE_PATH} PROGRAM_NAME=${PROGRAM_NAME} $(MODULE_HACK_DIR)/deploy-local.sh run -m grove-operator -n $(NAMESPACE)
+	@PACKAGE_PATH=${LD_PACKAGE_PATH} PROGRAM_NAME=${OPERATOR_NAME} $(MODULE_HACK_DIR)/deploy-local.sh run -m grove-operator -n $(NAMESPACE)
 
 # Deploys grove-operator to a local k8s cluster using skaffold in dev mode.
 .PHONY: deploy-local-dev
 deploy-local-dev: $(SKAFFOLD)
 	@$(MODULE_HACK_DIR)/prepare-local-deploy.sh $(NAMESPACE) $(CERT_EXPIRY)
-	@PACKAGE_PATH=${LD_PACKAGE_PATH} PROGRAM_NAME=${PROGRAM_NAME} $(MODULE_HACK_DIR)/deploy-local.sh dev --cleanup=false --keep-running-on-failure -m grove-operator --trigger='manual' -n $(NAMESPACE)
+	@PACKAGE_PATH=${LD_PACKAGE_PATH} PROGRAM_NAME=${OPERATOR_NAME} $(MODULE_HACK_DIR)/deploy-local.sh dev --cleanup=false --keep-running-on-failure -m grove-operator --trigger='manual' -n $(NAMESPACE)
 
 # Deploys grove-operator to a local k8s cluster using skaffold in debug mode.
 .PHONY: deploy-local-debug
 deploy-local-debug: $(SKAFFOLD)
 	@$(MODULE_HACK_DIR)/prepare-local-deploy.sh $(NAMESPACE) $(CERT_EXPIRY)
-	@PACKAGE_PATH=${LD_PACKAGE_PATH} PROGRAM_NAME=${PROGRAM_NAME} $(MODULE_HACK_DIR)/deploy-local.sh debug --cleanup=false -m grove-operator -p debug -n $(NAMESPACE)
+	@PACKAGE_PATH=${LD_PACKAGE_PATH} PROGRAM_NAME=${OPERATOR_NAME} $(MODULE_HACK_DIR)/deploy-local.sh debug --cleanup=false -m grove-operator -p debug -n $(NAMESPACE)
 
 # Undeploys grove-operator from a local k8s cluster using skaffold.
 .PHONY: undeploy-local

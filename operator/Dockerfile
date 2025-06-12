@@ -1,5 +1,5 @@
 # builder
-FROM --platform=$BUILDPLATFORM golang:1.24.2 AS builder
+FROM --platform=$BUILDPLATFORM golang:1.24.3 AS builder
 WORKDIR /go/src/github.com/NVIDIA/grove
 COPY ../. .
 
@@ -8,7 +8,7 @@ COPY ../. .
 ARG TARGETOS
 ARG TARGETARCH
 
-RUN make --directory=operator build-${TARGETOS}-${TARGETARCH}
+RUN make --directory=operator operator-${TARGETOS}-${TARGETARCH}
 
 # All image label keys are as per the OCI recommendations.
 # Reference: https://github.com/opencontainers/image-spec/blob/main/annotations.md#pre-defined-annotation-keys
