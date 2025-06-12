@@ -59,26 +59,28 @@ type recorder struct {
 
 func (r *recorder) RecordStart(ctx context.Context, obj ReconciledObject, operationType grovecorev1alpha1.LastOperationType) error {
 	eventReason := lo.Ternary[string](operationType == grovecorev1alpha1.LastOperationTypeReconcile, grovecorev1alpha1.EventReconciling, grovecorev1alpha1.EventDeleting)
-	r.eventRecorder.Event(obj, v1.EventTypeNormal, eventReason, "Reconciling PodGangSet")
-	description := lo.Ternary(operationType == grovecorev1alpha1.LastOperationTypeReconcile, "PodGangSet reconciliation is in progress", "PodGangSet deletion is in progress")
+	resourceKind := obj.GetObjectKind().GroupVersionKind().Kind
+	r.eventRecorder.Event(obj, v1.EventTypeNormal, eventReason, fmt.Sprintf("Reconciling %s", resourceKind))
+	description := lo.Ternary(operationType == grovecorev1alpha1.LastOperationTypeReconcile, fmt.Sprintf("%s reconciliation is in progress", resourceKind), fmt.Sprintf("%s deletion is in progress", resourceKind))
 	return r.recordLastOperationAndLastErrors(ctx, obj, operationType, grovecorev1alpha1.LastOperationStateProcessing, description)
 }
 
-func (r *recorder) RecordCompletion(ctx context.Context, obj ReconciledObject, operationType grovecorev1alpha1.LastOperationType, operationResult *ReconcileStepResult) error {
-	r.recordCompletionEvent(obj, operationType, operationResult)
-	description := getLastOperationCompletionDescription(operationType, operationResult)
+func (r *recorder) RecordCompletion(ctx context.Context, obj ReconciledObject, operationType grovecorev1alpha1.LastOperationType, errResult *ReconcileStepResult) error {
+	r.recordCompletionEvent(obj, operationType, errResult)
+	resourceKind := obj.GetObjectKind().GroupVersionKind().Kind
+	description := getLastOperationCompletionDescription(operationType, resourceKind, errResult)
 	var (
 		lastErrors  []grovecorev1alpha1.LastError
 		lastOpState = grovecorev1alpha1.LastOperationStateSucceeded
 	)
-	if operationResult != nil && operationResult.HasErrors() {
-		lastErrors = groveerr.MapToLastErrors(operationResult.GetErrors())
+	if errResult != nil && errResult.HasErrors() {
+		lastErrors = groveerr.MapToLastErrors(errResult.GetErrors())
 		lastOpState = grovecorev1alpha1.LastOperationStateError
 	}
 	return r.recordLastOperationAndLastErrors(ctx, obj, operationType, lastOpState, description, lastErrors...)
 }
 
-// NewReconcileStatusRecorder returns a new reconcile status recorder for PodGangSet.
+// NewReconcileStatusRecorder returns a new reconcile status recorder.
 func NewReconcileStatusRecorder(client client.Client, eventRecorder record.EventRecorder) ReconcileStatusRecorder {
 	return &recorder{
 		client:        client,
@@ -89,7 +91,8 @@ func NewReconcileStatusRecorder(client client.Client, eventRecorder record.Event
 func (r *recorder) recordCompletionEvent(obj ReconciledObject, operationType grovecorev1alpha1.LastOperationType, operationResult *ReconcileStepResult) {
 	eventReason := getCompletionEventReason(operationType, operationResult)
 	eventType := lo.Ternary(operationResult != nil && operationResult.HasErrors(), v1.EventTypeWarning, v1.EventTypeNormal)
-	message := getCompletionEventMessage(operationType, operationResult)
+	resourceKind := obj.GetObjectKind().GroupVersionKind().Kind
+	message := getCompletionEventMessage(operationType, operationResult, resourceKind)
 	r.eventRecorder.Event(obj, eventType, eventReason, message)
 }
 
@@ -100,18 +103,18 @@ func getCompletionEventReason(operationType grovecorev1alpha1.LastOperationType,
 	return lo.Ternary[string](operationType == grovecorev1alpha1.LastOperationTypeReconcile, grovecorev1alpha1.EventReconciled, grovecorev1alpha1.EventDeleted)
 }
 
-func getCompletionEventMessage(operationType grovecorev1alpha1.LastOperationType, operationResult *ReconcileStepResult) string {
+func getCompletionEventMessage(operationType grovecorev1alpha1.LastOperationType, operationResult *ReconcileStepResult, resourceKind string) string {
 	if operationResult != nil && operationResult.HasErrors() {
 		return operationResult.GetDescription()
 	}
-	return lo.Ternary(operationType == grovecorev1alpha1.LastOperationTypeReconcile, "Reconciled PodGangSet", "Deleted PodGangSet")
+	return lo.Ternary(operationType == grovecorev1alpha1.LastOperationTypeReconcile, fmt.Sprintf("Reconciled %s", resourceKind), fmt.Sprintf("Deleted %s", resourceKind))
 }
 
-func getLastOperationCompletionDescription(operationType grovecorev1alpha1.LastOperationType, operationResult *ReconcileStepResult) string {
+func getLastOperationCompletionDescription(operationType grovecorev1alpha1.LastOperationType, resourceKind string, operationResult *ReconcileStepResult) string {
 	if operationResult != nil && operationResult.HasErrors() {
 		return fmt.Sprintf("%s. Operation will be retried.", operationResult.GetDescription())
 	}
-	return lo.Ternary(operationType == grovecorev1alpha1.LastOperationTypeReconcile, "PodGangSet has been successfully reconciled", "PodGangSet has been successfully deleted")
+	return lo.Ternary(operationType == grovecorev1alpha1.LastOperationTypeReconcile, fmt.Sprintf("%s has been successfully reconciled", resourceKind), fmt.Sprintf("%s has been successfully deleted", resourceKind))
 }
 
 func (r *recorder) recordLastOperationAndLastErrors(ctx context.Context,

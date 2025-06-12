@@ -44,7 +44,7 @@ func (r *Reconciler) reconcileSpec(ctx context.Context, logger logr.Logger, pclq
 
 	for _, fn := range reconcileStepFns {
 		if stepResult := fn(ctx, rLog, pclq); ctrlcommon.ShortCircuitReconcileFlow(stepResult) {
-			return stepResult
+			return r.recordIncompleteReconcile(ctx, logger, pclq, &stepResult)
 		}
 	}
 	logger.Info("Finished spec reconciliation flow", "PodClique", client.ObjectKeyFromObject(pclq))
@@ -75,7 +75,7 @@ func (r *Reconciler) syncPodCliqueResources(ctx context.Context, logger logr.Log
 		if err != nil {
 			return ctrlcommon.ReconcileWithErrors(fmt.Sprintf("error getting operator for kind: %s", kind), err)
 		}
-		logger.Info("Syncing PodGangSet resources", "kind", kind)
+		logger.Info("Syncing PodClique resources", "kind", kind)
 		if err = operator.Sync(ctx, logger, pclq); err != nil {
 			return ctrlcommon.ReconcileWithErrors("error syncing managed resources", fmt.Errorf("failed to sync %s: %w", kind, err))
 		}
@@ -144,6 +144,16 @@ func (r *Reconciler) updateObservedGeneration(ctx context.Context, logger logr.L
 	}
 	logger.Info("patched status.ObservedGeneration", "ObservedGeneration", pclq.Generation)
 	return ctrlcommon.ContinueReconcile()
+}
+
+func (r *Reconciler) recordIncompleteReconcile(ctx context.Context, logger logr.Logger, pclq *grovecorev1alpha1.PodClique, errResult *ctrlcommon.ReconcileStepResult) ctrlcommon.ReconcileStepResult {
+	if err := r.reconcileStatusRecorder.RecordCompletion(ctx, pclq, grovecorev1alpha1.LastOperationTypeReconcile, errResult); err != nil {
+		logger.Error(err, "failed to record incomplete reconcile operation")
+		// combine all errors
+		allErrs := append(errResult.GetErrors(), err)
+		return ctrlcommon.ReconcileWithErrors("error recording incomplete reconciliation", allErrs...)
+	}
+	return *errResult
 }
 
 func getOrderedKindsForSync() []component.Kind {

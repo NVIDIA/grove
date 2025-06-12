@@ -125,9 +125,6 @@ spec:
                 description: Selector is the selector used to identify the pods that
                   belong to this scaling group.
                 type: string
-            required:
-            - replicas
-            - selector
             type: object
         required:
         - spec

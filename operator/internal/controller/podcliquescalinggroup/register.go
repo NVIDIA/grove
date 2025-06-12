@@ -51,7 +51,10 @@ func (r *Reconciler) RegisterWithManager(mgr manager.Manager) error {
 
 func podCliqueScalingGroupUpdatePredicate() predicate.Predicate {
 	return predicate.Funcs{
-		CreateFunc: func(_ event.CreateEvent) bool { return false },
+		CreateFunc: func(createEvent event.CreateEvent) bool {
+			return ctrlutils.IsManagedByGrove(createEvent.Object.GetLabels()) &&
+				ctrlutils.HasExpectedOwner(grovecorev1alpha1.PodGangSetKind, createEvent.Object.GetOwnerReferences())
+		},
 		DeleteFunc: func(_ event.DeleteEvent) bool { return false },
 		UpdateFunc: func(updateEvent event.UpdateEvent) bool {
 			return ctrlutils.IsManagedByGrove(updateEvent.ObjectOld.GetLabels()) &&

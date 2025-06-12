@@ -59,9 +59,9 @@ type PodCliqueScalingGroupSpec struct {
 // PodCliqueScalingGroupStatus is the status of the PodCliqueScalingGroup.
 type PodCliqueScalingGroupStatus struct {
 	// Replicas is the observed number of replicas for the PodCliqueScalingGroup.
-	Replicas int32 `json:"replicas"`
+	Replicas int32 `json:"replicas,omitempty"`
 	// Selector is the selector used to identify the pods that belong to this scaling group.
-	Selector *string `json:"selector"`
+	Selector *string `json:"selector,omitempty"`
 	// ObservedGeneration is the most recent generation observed by the controller.
 	ObservedGeneration *int64 `json:"observedGeneration,omitempty"`
 	// LastOperation captures the last operation done by the respective reconciler on the PodClique.
