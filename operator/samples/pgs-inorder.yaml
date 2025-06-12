@@ -29,24 +29,24 @@ spec:
               target:
                 type: Utilization
                 averageUtilization: 80
-    - name: prefillleader
+    - name: prefill-leader
       spec:
         replicas: 2
         podSpec:
           containers:
-          - name: prefillleader
+          - name: prefill-leader
             image: ubuntu
             command: [ "/bin/bash", "-c", "--" ]
             args: [ "while true; do sleep 30; done;" ]
             resources:
               requests:
                 cpu: 10m
-    - name: prefillworker
+    - name: prefill-worker
       spec:
         replicas: 2
         podSpec:
           containers:
-          - name: prefillworker
+          - name: prefill-worker
             image: ubuntu
             command: [ "/bin/bash", "-c", "--" ]
             args: [ "while true; do sleep 30; done;" ]
@@ -56,8 +56,8 @@ spec:
     podCliqueScalingGroups:
       - name: prefill
         cliqueNames:
-          - prefillleader
-          - prefillworker
+          - prefill-leader
+          - prefill-worker
         scaleConfig:
           maxReplicas: 6
           metrics:

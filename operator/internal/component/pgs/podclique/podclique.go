@@ -152,16 +152,8 @@ func (r _resource) doCreateOrUpdate(ctx context.Context, logger logr.Logger, pgs
 func (r _resource) buildResource(logger logr.Logger, pclq *grovecorev1alpha1.PodClique, pgs *grovecorev1alpha1.PodGangSet, exists bool) error {
 	var err error
 	pclqObjectKey, pgsObjectKey := client.ObjectKeyFromObject(pclq), client.ObjectKeyFromObject(pgs)
-	pclqNameParts, err := getPodCliqueNameParts(pclq.Name)
-	if err != nil {
-		return groveerr.WrapError(err,
-			errSyncPodClique,
-			component.OperationSync,
-			fmt.Sprintf("Failed to extract parts from a fully qualified name: %s", pclq.Name),
-		)
-	}
 	pclqTemplateSpec, foundAtIndex, ok := lo.FindIndexOf(pgs.Spec.TemplateSpec.Cliques, func(pclqTemplateSpec *grovecorev1alpha1.PodCliqueTemplateSpec) bool {
-		return pclqTemplateSpec.Name == pclqNameParts.C
+		return strings.HasSuffix(pclq.Name, pclqTemplateSpec.Name)
 	})
 	if !ok {
 		logger.Info("PodClique template spec not found in PodGangSet", "podCliqueObjectKey", pclqObjectKey, "podGangSetObjectKey", pgsObjectKey)
@@ -192,7 +184,15 @@ func (r _resource) buildResource(logger logr.Logger, pclq *grovecorev1alpha1.Pod
 		pclq.Spec = pclqTemplateSpec.Spec
 	}
 	var dependentPclqNames []string
-	if dependentPclqNames, err = identifyFullyQualifiedStartupDependencyNames(pgs, pclq, pclqNameParts.B, foundAtIndex); err != nil {
+	pgsReplicaIndex, err := getPGSReplicaIndex(pclq.Name, pgs.Name)
+	if err != nil {
+		return groveerr.WrapError(err,
+			errSyncPodClique,
+			component.OperationSync,
+			fmt.Sprintf("Failed to extract PodGangSet replica index from PodClique name: %s", pclq.Name),
+		)
+	}
+	if dependentPclqNames, err = identifyFullyQualifiedStartupDependencyNames(pgs, pclq, pgsReplicaIndex, foundAtIndex); err != nil {
 		return err
 	}
 	pclq.Spec.StartsAfter = dependentPclqNames
@@ -255,17 +255,10 @@ func getLabels(pgsName string, pclqObjectKey client.ObjectKey, pclqTemplateSpec 
 	)
 }
 
-func getPodCliqueNameParts(qualifiedPCLQName string) (lo.Tuple3[string, int, string], error) {
-	parts := strings.Split(qualifiedPCLQName, "-")
-	errTuple := lo.T3("", -1, "")
-	if len(parts) != 3 {
-		return errTuple, fmt.Errorf("invalid PodClique name. Failed to extract parts from a fully qualified name: %s", qualifiedPCLQName)
-	}
-	replicaIndex, err := strconv.Atoi(parts[1])
-	if err != nil {
-		return errTuple, err
-	}
-	return lo.T3[string, int, string](parts[0], replicaIndex, parts[2]), nil
+func getPGSReplicaIndex(pclqFQNName, pgsName string) (int, error) {
+	replicaStartIndex := len(pgsName) + 1 // +1 for the hyphen
+	replicaEndIndex := replicaStartIndex + strings.Index(pclqFQNName[replicaStartIndex:], "-")
+	return strconv.Atoi(pclqFQNName[replicaStartIndex:replicaEndIndex])
 }
 
 func emptyPodClique(objKey client.ObjectKey) *grovecorev1alpha1.PodClique {
