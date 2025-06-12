@@ -69,3 +69,13 @@ type PodCliqueScalingGroupStatus struct {
 	// LastErrors captures the last errors observed by the controller when reconciling the PodClique.
 	LastErrors []LastError `json:"lastErrors,omitempty"`
 }
+
+// SetLastErrors sets the last errors observed by the controller when reconciling the PodCliqueScalingGroup.
+func (pcsg *PodCliqueScalingGroup) SetLastErrors(lastErrs ...LastError) {
+	pcsg.Status.LastErrors = lastErrs
+}
+
+// SetLastOperation sets the last operation done by the respective reconciler on the PodCliqueScalingGroup.
+func (pcsg *PodCliqueScalingGroup) SetLastOperation(lastOp *LastOperation) {
+	pcsg.Status.LastOperation = lastOp
+}

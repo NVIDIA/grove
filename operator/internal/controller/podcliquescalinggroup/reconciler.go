@@ -18,39 +18,38 @@ package podcliquescalinggroup
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
-	"time"
 
 	groveconfigv1alpha1 "github.com/NVIDIA/grove/operator/api/config/v1alpha1"
 	grovecorev1alpha1 "github.com/NVIDIA/grove/operator/api/core/v1alpha1"
-	ctrlcommon "github.com/NVIDIA/grove/operator/internal/controller/common"
+	"github.com/NVIDIA/grove/operator/internal/controller/common"
 	ctrlutils "github.com/NVIDIA/grove/operator/internal/controller/utils"
 	k8sutils "github.com/NVIDIA/grove/operator/internal/utils/kubernetes"
-	"github.com/samber/lo"
 
 	"github.com/go-logr/logr"
-	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/client-go/tools/record"
+	"github.com/samber/lo"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	ctrlclient "sigs.k8s.io/controller-runtime/pkg/client"
 	ctrllogger "sigs.k8s.io/controller-runtime/pkg/log"
 )
 
+var undefinedPodCliqueName = errors.New("podclique is not defined in PodGangSet")
+
 // Reconciler reconciles PodCliqueScalingGroup objects.
 type Reconciler struct {
-	config        groveconfigv1alpha1.PodCliqueScalingGroupControllerConfiguration
-	client        ctrlclient.Client
-	eventRecorder record.EventRecorder
+	config                  groveconfigv1alpha1.PodCliqueScalingGroupControllerConfiguration
+	client                  client.Client
+	reconcileStatusRecorder common.ReconcileStatusRecorder
 }
 
 // NewReconciler creates a new instance of the PodClique Reconciler.
 func NewReconciler(mgr ctrl.Manager, controllerCfg groveconfigv1alpha1.PodCliqueScalingGroupControllerConfiguration) *Reconciler {
 	return &Reconciler{
-		config:        controllerCfg,
-		client:        mgr.GetClient(),
-		eventRecorder: mgr.GetEventRecorderFor(controllerName),
+		config:                  controllerCfg,
+		client:                  mgr.GetClient(),
+		reconcileStatusRecorder: common.NewReconcileStatusRecorder(mgr.GetClient(), mgr.GetEventRecorderFor(controllerName)),
 	}
 }
 
@@ -60,22 +59,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		WithValues("pcsg-name", req.Name, "pcsg-namespace", req.Namespace)
 
 	pcsg := &grovecorev1alpha1.PodCliqueScalingGroup{}
-	if result := ctrlutils.GetPodCliqueScalingGroup(ctx, r.client, logger, req.NamespacedName, pcsg); ctrlcommon.ShortCircuitReconcileFlow(result) {
-		return result.Result()
-	}
-
-	pgs := &grovecorev1alpha1.PodGangSet{}
-	pgsName := k8sutils.GetOwnerName(pcsg.ObjectMeta)
-	if pgsName == "" {
-		logger.Info("Skipping reconcile for this PodCliqueScalingGroup as PodGangSet is not the owner")
-		return ctrl.Result{}, nil
-	}
-
-	pgsObjectKey := client.ObjectKey{
-		Namespace: pcsg.Namespace,
-		Name:      pgsName,
-	}
-	if result := ctrlutils.GetPodGangSet(ctx, r.client, logger, pgsObjectKey, pgs); ctrlcommon.ShortCircuitReconcileFlow(result) {
+	if result := ctrlutils.GetPodCliqueScalingGroup(ctx, r.client, logger, req.NamespacedName, pcsg); common.ShortCircuitReconcileFlow(result) {
 		return result.Result()
 	}
 
@@ -84,39 +68,108 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		return ctrl.Result{}, nil
 	}
 
-	return r.reconcileUpdate(ctx, logger, pgs, pcsg).Result()
+	return r.reconcileSpec(ctx, logger, pcsg).Result()
 }
 
-// List existing pclqs that belong to the scaling group
-func (r *Reconciler) reconcileUpdate(ctx context.Context, logger logr.Logger, pgs *grovecorev1alpha1.PodGangSet, pcsg *grovecorev1alpha1.PodCliqueScalingGroup) ctrlcommon.ReconcileStepResult {
-	pclq := &grovecorev1alpha1.PodClique{}
+func (r *Reconciler) reconcileSpec(ctx context.Context, logger logr.Logger, pcsg *grovecorev1alpha1.PodCliqueScalingGroup) common.ReconcileStepResult {
+	rLog := logger.WithValues("operation", "spec-reconcile")
+	reconcileStepFns := []common.ReconcileStepFn[grovecorev1alpha1.PodCliqueScalingGroup]{
+		r.recordReconcileStart,
+		r.updatePodCliques,
+		r.recordReconcileSuccess,
+		r.updateObservedGeneration,
+	}
+
+	for _, fn := range reconcileStepFns {
+		if stepResult := fn(ctx, rLog, pcsg); common.ShortCircuitReconcileFlow(stepResult) {
+			return r.recordIncompleteReconcile(ctx, logger, pcsg, &stepResult)
+		}
+	}
+	logger.Info("Finished spec reconciliation flow")
+	return common.ContinueReconcile()
+}
+
+func (r *Reconciler) recordReconcileStart(ctx context.Context, logger logr.Logger, pcsg *grovecorev1alpha1.PodCliqueScalingGroup) common.ReconcileStepResult {
+	if err := r.reconcileStatusRecorder.RecordStart(ctx, pcsg, grovecorev1alpha1.LastOperationTypeReconcile); err != nil {
+		logger.Error(err, "failed to record reconcile start operation")
+		return common.ReconcileWithErrors("error recoding reconcile start", err)
+	}
+	return common.ContinueReconcile()
+}
+
+func (r *Reconciler) updatePodCliques(ctx context.Context, logger logr.Logger, pcsg *grovecorev1alpha1.PodCliqueScalingGroup) common.ReconcileStepResult {
+	// Get the owner PodGangSet for the PodCliqueScalingGroup
+	pgs := &grovecorev1alpha1.PodGangSet{}
+	pgsObjectKey := client.ObjectKey{
+		Namespace: pcsg.Namespace,
+		Name:      k8sutils.GetFirstOwnerName(pcsg.ObjectMeta),
+	}
+	if result := ctrlutils.GetPodGangSet(ctx, r.client, logger, pgsObjectKey, pgs); common.ShortCircuitReconcileFlow(result) {
+		return result
+	}
+
 	for _, fullyQualifiedCliqueName := range pcsg.Spec.CliqueNames {
-		namespacedName := types.NamespacedName{
+		pclqObjectKey := client.ObjectKey{
 			Namespace: pcsg.Namespace,
 			Name:      fullyQualifiedCliqueName,
 		}
-
-		if result := ctrlutils.GetPodClique(ctx, r.client, logger, namespacedName, pclq); ctrlcommon.ShortCircuitReconcileFlow(result) {
-			return result
-		}
-
-		matchPclqTemplateSpec, ok := lo.Find(pgs.Spec.TemplateSpec.Cliques, func(pclqTemplateSpec *grovecorev1alpha1.PodCliqueTemplateSpec) bool {
+		matchingPCLQTemplateSpec, ok := lo.Find(pgs.Spec.TemplateSpec.Cliques, func(pclqTemplateSpec *grovecorev1alpha1.PodCliqueTemplateSpec) bool {
 			return strings.HasSuffix(fullyQualifiedCliqueName, pclqTemplateSpec.Name)
 		})
 		if !ok {
-			logger.Error(fmt.Errorf("error finding the PodClique in the PodGangSet"), "Unable to find the PodClique specified in the PodCliqueScalingGroup in the PodGangSet")
-			return ctrlcommon.DoNotRequeue()
+			logger.Error(undefinedPodCliqueName, "podclique is not defined in PodGangSet, will skip updating podclique replicas", "pclqObjectKey", pclqObjectKey, "podGangSetObjectKey", pgsObjectKey)
+			return common.RecordErrorAndDDoNotRequeue(fmt.Sprintf("podclique %s is not defined in PodGangSet %s", fullyQualifiedCliqueName, pgsObjectKey), undefinedPodCliqueName)
 		}
-
-		// update the spec
-		if pcsg.Spec.Replicas*matchPclqTemplateSpec.Spec.Replicas != pclq.Spec.Replicas {
-			patch := ctrlclient.MergeFrom(pclq.DeepCopy())
-			pclq.Spec.Replicas = pcsg.Spec.Replicas * matchPclqTemplateSpec.Spec.Replicas
-			if err := r.client.Patch(ctx, pclq, patch); err != nil {
-				return ctrlcommon.ReconcileAfter(time.Duration(10*time.Second), "Unable to patch the resource")
-			}
+		if result := r.updatePodCliqueReplicas(ctx, logger, pcsg, matchingPCLQTemplateSpec, pclqObjectKey); common.ShortCircuitReconcileFlow(result) {
+			return result
 		}
-		// update the status
 	}
-	return ctrlcommon.ReconcileStepResult{}
+
+	return common.ContinueReconcile()
+}
+
+func (r *Reconciler) updatePodCliqueReplicas(ctx context.Context, logger logr.Logger, pcsg *grovecorev1alpha1.PodCliqueScalingGroup, pclqTemplateSpec *grovecorev1alpha1.PodCliqueTemplateSpec, pclqObjectKey client.ObjectKey) common.ReconcileStepResult {
+	pclq := &grovecorev1alpha1.PodClique{}
+	if result := ctrlutils.GetPodClique(ctx, r.client, logger, pclqObjectKey, pclq); common.ShortCircuitReconcileFlow(result) {
+		return result
+	}
+	// update the spec
+	expectedReplicas := pcsg.Spec.Replicas * pclqTemplateSpec.Spec.Replicas
+	if expectedReplicas != pclq.Spec.Replicas {
+		patch := client.MergeFrom(pclq.DeepCopy())
+		pclq.Spec.Replicas = expectedReplicas
+		if err := r.client.Patch(ctx, pclq, patch); err != nil {
+			return common.ReconcileWithErrors("error patching PodClique replicas", err)
+		}
+	}
+	return common.ContinueReconcile()
+}
+
+func (r *Reconciler) recordReconcileSuccess(ctx context.Context, logger logr.Logger, pcsg *grovecorev1alpha1.PodCliqueScalingGroup) common.ReconcileStepResult {
+	if err := r.reconcileStatusRecorder.RecordCompletion(ctx, pcsg, grovecorev1alpha1.LastOperationTypeReconcile, nil); err != nil {
+		logger.Error(err, "failed to record reconcile success operation")
+		return common.ReconcileWithErrors("error recording reconcile success", err)
+	}
+	return common.ContinueReconcile()
+}
+
+func (r *Reconciler) recordIncompleteReconcile(ctx context.Context, logger logr.Logger, pcsg *grovecorev1alpha1.PodCliqueScalingGroup, errStepResult *common.ReconcileStepResult) common.ReconcileStepResult {
+	if err := r.reconcileStatusRecorder.RecordCompletion(ctx, pcsg, grovecorev1alpha1.LastOperationTypeReconcile, errStepResult); err != nil {
+		logger.Error(err, "failed to record incomplete reconcile operation")
+		// combine all errors
+		allErrs := append(errStepResult.GetErrors(), err)
+		return common.ReconcileWithErrors("error recording incomplete reconciliation", allErrs...)
+	}
+	return *errStepResult
+}
+
+func (r *Reconciler) updateObservedGeneration(ctx context.Context, logger logr.Logger, pcsg *grovecorev1alpha1.PodCliqueScalingGroup) common.ReconcileStepResult {
+	original := pcsg.DeepCopy()
+	pcsg.Status.ObservedGeneration = &pcsg.Generation
+	if err := r.client.Status().Patch(ctx, pcsg, client.MergeFrom(original)); err != nil {
+		logger.Error(err, "failed to patch status.ObservedGeneration")
+		return common.ReconcileWithErrors("error updating observed generation", err)
+	}
+	logger.Info("patched status.ObservedGeneration", "ObservedGeneration", pcsg.Generation)
+	return common.ContinueReconcile()
 }

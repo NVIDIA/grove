@@ -318,3 +318,13 @@ type LastError struct {
 	// ObservedAt is the time at which the error was observed.
 	ObservedAt metav1.Time `json:"observedAt"`
 }
+
+// SetLastErrors sets the last errors observed by the controller when reconciling the PodGangSet.
+func (pgs *PodGangSet) SetLastErrors(lastErrs ...LastError) {
+	pgs.Status.LastErrors = lastErrs
+}
+
+// SetLastOperation sets the last operation done by the respective reconciler on the PodGangSet.
+func (pgs *PodGangSet) SetLastOperation(operation *LastOperation) {
+	pgs.Status.LastOperation = operation
+}

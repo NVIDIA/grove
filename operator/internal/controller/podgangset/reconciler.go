@@ -37,7 +37,7 @@ import (
 type Reconciler struct {
 	config                  configv1alpha1.PodGangSetControllerConfiguration
 	client                  ctrlclient.Client
-	reconcileStatusRecorder ctrlcommon.ReconcileStatusRecorder[v1alpha1.PodGangSet]
+	reconcileStatusRecorder ctrlcommon.ReconcileStatusRecorder
 	operatorRegistry        component.OperatorRegistry[v1alpha1.PodGangSet]
 }
 
@@ -46,7 +46,7 @@ func NewReconciler(mgr ctrl.Manager, controllerCfg configv1alpha1.PodGangSetCont
 	return &Reconciler{
 		config:                  controllerCfg,
 		client:                  mgr.GetClient(),
-		reconcileStatusRecorder: NewReconcileStatusRecorder(mgr.GetClient(), mgr.GetEventRecorderFor(controllerName)),
+		reconcileStatusRecorder: ctrlcommon.NewReconcileStatusRecorder(mgr.GetClient(), mgr.GetEventRecorderFor(controllerName)),
 		operatorRegistry:        pgsComponent.CreateOperatorRegistry(mgr),
 	}
 }

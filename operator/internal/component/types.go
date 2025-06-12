@@ -20,7 +20,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/NVIDIA/grove/operator/api/core/v1alpha1"
+	grovecorev1alpha1 "github.com/NVIDIA/grove/operator/api/core/v1alpha1"
 
 	"github.com/go-logr/logr"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -38,7 +38,7 @@ const (
 
 // Following constants provide a name for each managed component whose lifecycle
 // is managed by grove operator and are provisioned as part of a PodGangSet
-// These component names will be set against v1alpha1.LabelComponentKey label key on
+// These component names will be set against grovecorev1alpha1.LabelComponentKey label key on
 // respective components.
 const (
 	// NamePodClique is the component name for a PodClique resource.
@@ -59,7 +59,7 @@ const (
 
 // GroveCustomResourceType defines a type bound for generic types.
 type GroveCustomResourceType interface {
-	v1alpha1.PodGangSet | v1alpha1.PodClique
+	grovecorev1alpha1.PodGangSet | grovecorev1alpha1.PodClique | grovecorev1alpha1.PodCliqueScalingGroup
 }
 
 // Operator is a facade that manages one or more resources that are provisioned for a PodGangSet.

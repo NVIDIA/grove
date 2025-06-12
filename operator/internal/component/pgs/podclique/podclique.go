@@ -184,6 +184,7 @@ func (r _resource) buildResource(logger logr.Logger, pclq *grovecorev1alpha1.Pod
 	// set PodCliqueSpec
 	// ------------------------------------
 	if exists {
+		// If an HPA is mutating the number of replicas, then it should not be overwritten by the template spec replicas.
 		currentPCLQReplicas := pclq.Spec.Replicas
 		pclq.Spec = pclqTemplateSpec.Spec
 		pclq.Spec.Replicas = currentPCLQReplicas

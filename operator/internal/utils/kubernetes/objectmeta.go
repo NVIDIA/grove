@@ -18,6 +18,7 @@ package kubernetes
 
 import (
 	"github.com/NVIDIA/grove/operator/api/core/v1alpha1"
+
 	"github.com/samber/lo"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -40,8 +41,8 @@ func FilterMapOwnedResourceNames(ownerObjMeta metav1.ObjectMeta, candidateResour
 	})
 }
 
-// GetOwnerName returns the name of the first owner reference of the resource object meta.
-func GetOwnerName(resourceObjMeta metav1.ObjectMeta) string {
+// GetFirstOwnerName returns the name of the first owner reference of the resource object meta.
+func GetFirstOwnerName(resourceObjMeta metav1.ObjectMeta) string {
 	if len(resourceObjMeta.OwnerReferences) == 0 {
 		return ""
 	}

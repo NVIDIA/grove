@@ -17,10 +17,10 @@
 package utils
 
 import (
-	"github.com/NVIDIA/grove/operator/api/core/v1alpha1"
-	"sigs.k8s.io/controller-runtime/pkg/client"
+	grovecorev1alpha1 "github.com/NVIDIA/grove/operator/api/core/v1alpha1"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 // HasExpectedOwner checks if the owner references of a resource match the expected owner kind.
@@ -34,17 +34,17 @@ func HasExpectedOwner(expectedOwnerKind string, ownerRefs []metav1.OwnerReferenc
 // IsManagedByGrove checks if the pod is managed by Grove by inspecting its labels.
 // All grove managed resources will have a standard set of default labels.
 func IsManagedByGrove(labels map[string]string) bool {
-	if val, ok := labels[v1alpha1.LabelManagedByKey]; ok {
-		return v1alpha1.LabelManagedByValue == val
+	if val, ok := labels[grovecorev1alpha1.LabelManagedByKey]; ok {
+		return grovecorev1alpha1.LabelManagedByValue == val
 	}
 	return false
 }
 
 // IsManagedPodClique checks if the PodClique is managed by Grove.
 func IsManagedPodClique(obj client.Object) bool {
-	podClique, ok := obj.(*v1alpha1.PodClique)
+	podClique, ok := obj.(*grovecorev1alpha1.PodClique)
 	if !ok {
 		return false
 	}
-	return IsManagedByGrove(podClique.GetLabels())
+	return IsManagedByGrove(podClique.GetLabels()) && HasExpectedOwner(grovecorev1alpha1.PodGangSetKind, podClique.GetOwnerReferences())
 }

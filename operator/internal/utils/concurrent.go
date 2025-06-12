@@ -20,10 +20,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/go-logr/logr"
-	"github.com/samber/lo"
 	"runtime/debug"
 	"sync"
+
+	"github.com/go-logr/logr"
+	"github.com/samber/lo"
 )
 
 // Task is a named closure.

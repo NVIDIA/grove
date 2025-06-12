@@ -17,8 +17,8 @@
 package podcliquescalinggroup
 
 import (
-	"github.com/NVIDIA/grove/operator/api/core/v1alpha1"
-	// grovectrlutils "github.com/NVIDIA/grove/operator/internal/controller/utils"
+	grovecorev1alpha1 "github.com/NVIDIA/grove/operator/api/core/v1alpha1"
+	ctrlutils "github.com/NVIDIA/grove/operator/internal/controller/utils"
 
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
@@ -31,16 +31,19 @@ const (
 	controllerName = "podcliquescalingroup-controller"
 )
 
-// RegisterWithManager registers the PodGangSet Reconciler with the manager.
+// RegisterWithManager registers the PodCliqueScalingGroup Reconciler with the manager.
+// This reconciler will only be called when the PodCliqueScalingGroup resource is updated. The resource can either be
+// updated by an HPA or an equivalent external component.
 func (r *Reconciler) RegisterWithManager(mgr manager.Manager) error {
 	return builder.ControllerManagedBy(mgr).
 		Named(controllerName).
 		WithOptions(controller.Options{
 			MaxConcurrentReconciles: *r.config.ConcurrentSyncs,
 		}).
-		For(&v1alpha1.PodCliqueScalingGroup{}).
+		For(&grovecorev1alpha1.PodCliqueScalingGroup{}).
 		WithEventFilter(
-			predicate.And(predicate.GenerationChangedPredicate{},
+			predicate.And(
+				predicate.GenerationChangedPredicate{},
 				podCliqueScalingGroupUpdatePredicate(),
 			)).
 		Complete(r)
@@ -48,9 +51,12 @@ func (r *Reconciler) RegisterWithManager(mgr manager.Manager) error {
 
 func podCliqueScalingGroupUpdatePredicate() predicate.Predicate {
 	return predicate.Funcs{
-		CreateFunc:  func(_ event.CreateEvent) bool { return false },
-		DeleteFunc:  func(_ event.DeleteEvent) bool { return false },
-		UpdateFunc:  func(_ event.UpdateEvent) bool { return true },
+		CreateFunc: func(_ event.CreateEvent) bool { return false },
+		DeleteFunc: func(_ event.DeleteEvent) bool { return false },
+		UpdateFunc: func(updateEvent event.UpdateEvent) bool {
+			return ctrlutils.IsManagedByGrove(updateEvent.ObjectOld.GetLabels()) &&
+				ctrlutils.HasExpectedOwner(grovecorev1alpha1.PodGangSetKind, updateEvent.ObjectOld.GetOwnerReferences())
+		},
 		GenericFunc: func(_ event.GenericEvent) bool { return false },
 	}
 }

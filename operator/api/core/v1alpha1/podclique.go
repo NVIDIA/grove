@@ -114,3 +114,13 @@ type PodCliqueStatus struct {
 	// Conditions represents the latest available observations of the clique by its controller.
 	Conditions []metav1.Condition `json:"conditions,omitempty"`
 }
+
+// SetLastErrors sets the last errors observed by the controller when reconciling the PodClique.
+func (pclq *PodClique) SetLastErrors(lastErrs ...LastError) {
+	pclq.Status.LastErrors = lastErrs
+}
+
+// SetLastOperation sets the last operation done by the respective reconciler on the PodClique.
+func (pclq *PodClique) SetLastOperation(operation *LastOperation) {
+	pclq.Status.LastOperation = operation
+}

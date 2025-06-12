@@ -23,7 +23,7 @@ import (
 	"time"
 
 	"github.com/NVIDIA/grove/operator/api/core/v1alpha1"
-	ctrlcommon "github.com/NVIDIA/grove/operator/internal/controller/common"
+	"github.com/NVIDIA/grove/operator/internal/controller/common"
 	groveerr "github.com/NVIDIA/grove/operator/internal/errors"
 
 	"github.com/samber/lo"
@@ -39,7 +39,7 @@ type recorder struct {
 }
 
 // NewReconcileStatusRecorder returns a new reconcile status recorder for PodClique.
-func NewReconcileStatusRecorder(client client.Client, eventRecorder record.EventRecorder) ctrlcommon.ReconcileStatusRecorder[v1alpha1.PodClique] {
+func NewReconcileStatusRecorder(client client.Client, eventRecorder record.EventRecorder) common.ReconcileStatusRecorder[v1alpha1.PodClique] {
 	return &recorder{
 		client:        client,
 		eventRecorder: eventRecorder,
@@ -54,7 +54,7 @@ func (r *recorder) RecordStart(ctx context.Context, pclq *v1alpha1.PodClique, op
 	return r.recordLastOperationAndLastErrors(ctx, pclq, operationType, v1alpha1.LastOperationStateProcessing, description)
 }
 
-func (r *recorder) RecordCompletion(ctx context.Context, pclq *v1alpha1.PodClique, operationType v1alpha1.LastOperationType, operationResult *ctrlcommon.ReconcileStepResult) error {
+func (r *recorder) RecordCompletion(ctx context.Context, pclq *v1alpha1.PodClique, operationType v1alpha1.LastOperationType, operationResult *common.ReconcileStepResult) error {
 	r.recordCompletionEvent(pclq, operationType, operationResult)
 	description := getLastOperationCompletionDescription(operationType, operationResult)
 	var (
@@ -68,7 +68,7 @@ func (r *recorder) RecordCompletion(ctx context.Context, pclq *v1alpha1.PodCliqu
 	return r.recordLastOperationAndLastErrors(ctx, pclq, operationType, lastOpState, description, lastErrors...)
 }
 
-func (r *recorder) recordCompletionEvent(pclq *v1alpha1.PodClique, operationType v1alpha1.LastOperationType, operationResult *ctrlcommon.ReconcileStepResult) {
+func (r *recorder) recordCompletionEvent(pclq *v1alpha1.PodClique, operationType v1alpha1.LastOperationType, operationResult *common.ReconcileStepResult) {
 	slog.Info("recording completion", "pclq", pclq.Name, "operationType", operationType)
 	eventReason := getCompletionEventReason(operationType, operationResult)
 	eventType := lo.Ternary(operationResult != nil && operationResult.HasErrors(), v1.EventTypeWarning, v1.EventTypeNormal)
@@ -76,21 +76,21 @@ func (r *recorder) recordCompletionEvent(pclq *v1alpha1.PodClique, operationType
 	r.eventRecorder.Event(pclq, eventType, eventReason, message)
 }
 
-func getCompletionEventReason(operationType v1alpha1.LastOperationType, operationResult *ctrlcommon.ReconcileStepResult) string {
+func getCompletionEventReason(operationType v1alpha1.LastOperationType, operationResult *common.ReconcileStepResult) string {
 	if operationResult != nil && operationResult.HasErrors() {
 		return lo.Ternary[string](operationType == v1alpha1.LastOperationTypeReconcile, v1alpha1.EventReconcileError, v1alpha1.EventDeleteError)
 	}
 	return lo.Ternary[string](operationType == v1alpha1.LastOperationTypeReconcile, v1alpha1.EventReconciled, v1alpha1.EventDeleted)
 }
 
-func getCompletionEventMessage(operationType v1alpha1.LastOperationType, operationResult *ctrlcommon.ReconcileStepResult) string {
+func getCompletionEventMessage(operationType v1alpha1.LastOperationType, operationResult *common.ReconcileStepResult) string {
 	if operationResult != nil && operationResult.HasErrors() {
 		return operationResult.GetDescription()
 	}
 	return lo.Ternary(operationType == v1alpha1.LastOperationTypeReconcile, "Reconciled PodClique", "Deleted PodClique")
 }
 
-func getLastOperationCompletionDescription(operationType v1alpha1.LastOperationType, operationResult *ctrlcommon.ReconcileStepResult) string {
+func getLastOperationCompletionDescription(operationType v1alpha1.LastOperationType, operationResult *common.ReconcileStepResult) string {
 	if operationResult != nil && operationResult.HasErrors() {
 		return fmt.Sprintf("%s. Operation will be retried.", operationResult.GetDescription())
 	}

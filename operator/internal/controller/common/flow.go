@@ -21,25 +21,14 @@ import (
 	"errors"
 	"time"
 
-	"github.com/NVIDIA/grove/operator/api/core/v1alpha1"
 	"github.com/NVIDIA/grove/operator/internal/component"
 
 	"github.com/go-logr/logr"
 	ctrl "sigs.k8s.io/controller-runtime"
 )
 
-// ReconcileStatusRecorder is an interface that defines the methods to record the start and completion of a reconcile operation.
-// Reconcile progress will be recorded both as events and as <resource>.Status.LastOperation and <resource>.Status.LastErrors.
-type ReconcileStatusRecorder[T component.GroveCustomResourceType] interface {
-	// RecordStart records the start of a reconcile operation.
-	RecordStart(ctx context.Context, obj *T, operationType v1alpha1.LastOperationType) error
-	// RecordCompletion records the completion of a reconcile operation.
-	// If the last reconciliation completed with errors then it will additionally record <resource>.Status.LastErrors.
-	RecordCompletion(ctx context.Context, obj *T, operationType v1alpha1.LastOperationType, operationResult *ReconcileStepResult) error
-}
-
 // ReconcileStepFn is a function that performs a step in the reconcile flow.
-type ReconcileStepFn[T component.GroveCustomResourceType] func(ctx context.Context, logger logr.Logger, obj *T) ReconcileStepResult
+type ReconcileStepFn[T component.GroveCustomResourceType] func(ctx context.Context, log logr.Logger, obj *T) ReconcileStepResult
 
 // ReconcileStepResult holds the result of a reconcile step.
 type ReconcileStepResult struct {
@@ -80,6 +69,15 @@ func DoNotRequeue() ReconcileStepResult {
 	return ReconcileStepResult{
 		continueReconcile: false,
 		result:            ctrl.Result{Requeue: false},
+	}
+}
+
+func RecordErrorAndDDoNotRequeue(description string, errs ...error) ReconcileStepResult {
+	return ReconcileStepResult{
+		continueReconcile: false,
+		result:            ctrl.Result{Requeue: false},
+		errs:              errs,
+		description:       description,
 	}
 }
 
