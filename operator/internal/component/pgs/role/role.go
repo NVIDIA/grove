@@ -125,23 +125,12 @@ func (r _resource) buildResource(pgs *v1alpha1.PodGangSet, role *rbacv1.Role) er
 	}
 	role.Rules = []rbacv1.PolicyRule{
 		{
-			APIGroups:     []string{v1alpha1.GroupName},
-			Resources:     []string{"podcliques", "podcliques/status"},
-			Verbs:         []string{"get", "list", "watch"},
-			ResourceNames: getAllPodCliqueNames(pgs),
+			APIGroups: []string{v1alpha1.GroupName},
+			Resources: []string{"podcliques", "podcliques/status"},
+			Verbs:     []string{"get", "list", "watch"},
 		},
 	}
 	return nil
-}
-
-func getAllPodCliqueNames(pgs *v1alpha1.PodGangSet) []string {
-	cliqueNames := make([]string, 0, int(pgs.Spec.Replicas)*len(pgs.Spec.TemplateSpec.Cliques))
-	for replicaIndex := range pgs.Spec.Replicas {
-		for _, pclqTemplateSpec := range pgs.Spec.TemplateSpec.Cliques {
-			cliqueNames = append(cliqueNames, v1alpha1.GeneratePodCliqueName(pgs.Name, int(replicaIndex), pclqTemplateSpec.Name))
-		}
-	}
-	return cliqueNames
 }
 
 func getLabels(pgsObjMeta metav1.ObjectMeta) map[string]string {

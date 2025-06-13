@@ -8,21 +8,21 @@ COPY ../. .
 ARG TARGETOS
 ARG TARGETARCH
 
-RUN make --directory=scheduler build-${TARGETOS}-${TARGETARCH}
+RUN make --directory=operator initc-${TARGETOS}-${TARGETARCH}
 
 # All image label keys are as per the OCI recommendations.
 # Reference: https://github.com/opencontainers/image-spec/blob/main/annotations.md#pre-defined-annotation-keys
 
-# scheduler
-FROM gcr.io/distroless/static-debian11:nonroot AS kube-scheduler
+# grove-initc
+FROM gcr.io/distroless/static-debian11:nonroot AS grove-initc
 # Version should be passed as a build argument.
 ARG VERSION
 
-LABEL org.opencontainers.image.title="Grove kube-scheduler"
-LABEL org.opencontainers.image.description="Kubernetes scheduler which supports network optimized Gang scheduling"
-LABEL org.opencontainers.image.source="https://github.com/NVIDIA/grove/tree/main/scheduler"
+LABEL org.opencontainers.image.title="Grove Init Container"
+LABEL org.opencontainers.image.description="Init Container to establish the correct startup order in a PodClique"
+LABEL org.opencontainers.image.source="https://github.com/NVIDIA/grove/tree/main/operator/initc"
 LABEL org.opencontainers.image.version=${VERSION}
 
-WORKDIR /bin
-COPY --from=builder /go/src/github.com/NVIDIA/grove/scheduler/bin/kube-scheduler /bin/kube-scheduler
-ENTRYPOINT ["/bin/kube-scheduler"]
+WORKDIR /
+COPY --from=builder /go/src/github.com/NVIDIA/grove/operator/bin/grove-initc /grove-initc
+ENTRYPOINT ["/grove-initc"]
