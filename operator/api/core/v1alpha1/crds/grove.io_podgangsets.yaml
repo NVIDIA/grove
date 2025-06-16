@@ -237,6 +237,7 @@ spec:
                   that will be created in the PodGangSet.
                 properties:
                   cliqueStartupType:
+                    default: CliqueStartupTypeInOrder
                     description: |-
                       StartupType defines the type of startup dependency amongst the cliques within a PodGang.
                       If it is not defined then default of CliqueStartupTypeInOrder is used.

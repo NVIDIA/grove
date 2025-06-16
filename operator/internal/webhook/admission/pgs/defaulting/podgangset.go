@@ -44,10 +44,6 @@ func defaultPodGangSetSpec(spec *grovecorev1alpha1.PodGangSetSpec) {
 func defaultPodGangTemplateSpec(spec *grovecorev1alpha1.PodGangTemplateSpec) {
 	// default PodCliqueTemplateSpecs
 	spec.Cliques = defaultPodCliqueTemplateSpecs(spec.Cliques)
-	// default startup type
-	if spec.StartupType == nil {
-		spec.StartupType = ptr.To(grovecorev1alpha1.CliqueStartupTypeInOrder)
-	}
 	// default NetworkPackStrategy
 	if spec.SchedulingPolicyConfig == nil {
 		spec.SchedulingPolicyConfig = &grovecorev1alpha1.SchedulingPolicyConfig{

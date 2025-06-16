@@ -105,6 +105,7 @@ type PodGangTemplateSpec struct {
 	Cliques []*PodCliqueTemplateSpec `json:"cliques"`
 	// StartupType defines the type of startup dependency amongst the cliques within a PodGang.
 	// If it is not defined then default of CliqueStartupTypeInOrder is used.
+	// +kubebuilder:default=CliqueStartupTypeInOrder
 	// +optional
 	StartupType *CliqueStartupType `json:"cliqueStartupType,omitempty"`
 	// HeadlessServiceConfig defines the config options for the headless service.
@@ -179,7 +180,6 @@ type HeadlessServiceConfig struct {
 
 // CliqueStartupType defines the order in which each PodClique is started.
 // +kubebuilder:validation:Enum={CliqueStartupTypeInOrder,CliqueStartupTypeAnyOrder,CliqueStartupTypeExplicit}
-// +kubebuilder:default=CliqueStartupTypeInOrder
 type CliqueStartupType string
 
 const (
