@@ -68,16 +68,10 @@ func (v *pgsValidator) validate() ([]string, error) {
 // validateUpdate validates the update to a PodGangSet object. It compares the old and new PodGangSet objects and validates that the changes done are allowed/valid.
 func (v *pgsValidator) validateUpdate(oldPgs *grovecorev1alpha1.PodGangSet) error {
 	allErrs := field.ErrorList{}
-
 	fldPath := field.NewPath("spec")
-	if !reflect.DeepEqual(v.pgs.Spec.ReplicaSpreadConstraints, oldPgs.Spec.ReplicaSpreadConstraints) {
-		allErrs = append(allErrs, field.Forbidden(fldPath.Child("replicaSpreadConstraints"), "field is immutable"))
-	}
-	if v.pgs.Spec.PriorityClassName != oldPgs.Spec.PriorityClassName {
-		allErrs = append(allErrs, field.Forbidden(fldPath.Child("priorityClassName"), "field is immutable"))
-	}
+	allErrs = append(allErrs, apivalidation.ValidateImmutableField(v.pgs.Spec.ReplicaSpreadConstraints, oldPgs.Spec.ReplicaSpreadConstraints, fldPath.Child("replicaSpreadConstraints"))...)
+	allErrs = append(allErrs, apivalidation.ValidateImmutableField(v.pgs.Spec.PriorityClassName, oldPgs.Spec.PriorityClassName, fldPath.Child("priorityClassName"))...)
 	allErrs = append(allErrs, validatePodGangSetSpecUpdate(&v.pgs.Spec, &oldPgs.Spec, fldPath)...)
-
 	return allErrs.ToAggregate()
 }
 
@@ -373,9 +367,7 @@ func validatePodGangTemplateSpecUpdate(newSpec, oldSpec *grovecorev1alpha1.PodGa
 	allErrs := field.ErrorList{}
 
 	allErrs = append(allErrs, validatePodCliqueUpdate(newSpec.Cliques, oldSpec.Cliques, fldPath.Child("cliques"))...)
-	if *newSpec.StartupType != *oldSpec.StartupType {
-		allErrs = append(allErrs, field.Forbidden(fldPath.Child("cliqueStartupType"), "field is immutable"))
-	}
+	allErrs = append(allErrs, apivalidation.ValidateImmutableField(newSpec.StartupType, oldSpec.StartupType, fldPath.Child("cliqueStartupType"))...)
 	allErrs = append(allErrs, validatePodGangSchedulingPolicyConfigUpdate(newSpec.SchedulingPolicyConfig, newSpec.SchedulingPolicyConfig, fldPath.Child("schedulingPolicyConfig"))...)
 
 	return allErrs
@@ -383,10 +375,7 @@ func validatePodGangTemplateSpecUpdate(newSpec, oldSpec *grovecorev1alpha1.PodGa
 
 func validatePodGangSchedulingPolicyConfigUpdate(newConfig, oldConfig *grovecorev1alpha1.SchedulingPolicyConfig, fldPath *field.Path) field.ErrorList {
 	allErrs := field.ErrorList{}
-
-	if newConfig != oldConfig && *newConfig.NetworkPackStrategy != *oldConfig.NetworkPackStrategy {
-		allErrs = append(allErrs, field.Forbidden(fldPath.Child("networkPackStrategy"), "field is immutable"))
-	}
+	allErrs = append(allErrs, apivalidation.ValidateImmutableField(newConfig, oldConfig, fldPath.Child("networkPackStrategy"))...)
 	return allErrs
 }
 
@@ -434,9 +423,7 @@ func validatePodSpecUpdate(newSpec, oldSpec *corev1.PodSpec, fldPath *field.Path
 	spec1.Tolerations, spec2.Tolerations = []corev1.Toleration{}, []corev1.Toleration{}
 	spec1.TerminationGracePeriodSeconds, spec2.TerminationGracePeriodSeconds = nil, nil
 
-	if !reflect.DeepEqual(spec1, spec2) {
-		allErrs = append(allErrs, field.Forbidden(fldPath, "not allowed to change immutable pod fields"))
-	}
+	allErrs = append(allErrs, apivalidation.ValidateImmutableField(spec1, spec2, fldPath)...)
 
 	return allErrs
 }
