@@ -44,14 +44,6 @@ func defaultPodGangSetSpec(spec *grovecorev1alpha1.PodGangSetSpec) {
 func defaultPodGangTemplateSpec(spec *grovecorev1alpha1.PodGangTemplateSpec) {
 	// default PodCliqueTemplateSpecs
 	spec.Cliques = defaultPodCliqueTemplateSpecs(spec.Cliques)
-	// default NetworkPackStrategy
-	if spec.SchedulingPolicyConfig == nil {
-		spec.SchedulingPolicyConfig = &grovecorev1alpha1.SchedulingPolicyConfig{
-			NetworkPackStrategy: ptr.To(grovecorev1alpha1.BestEffort),
-		}
-	} else if spec.SchedulingPolicyConfig.NetworkPackStrategy == nil {
-		spec.SchedulingPolicyConfig.NetworkPackStrategy = ptr.To(grovecorev1alpha1.BestEffort)
-	}
 }
 
 func defaultUpdateStrategy(spec *grovecorev1alpha1.PodGangSetSpec) {

@@ -9575,6 +9575,8 @@ spec:
                       type: object
                     type: array
                   schedulingPolicyConfig:
+                    default:
+                      networkPackStrategy: BestEffort
                     description: SchedulingPolicyConfig defines the scheduling policy
                       configuration for the PodGang.
                     properties:

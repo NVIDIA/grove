@@ -113,6 +113,9 @@ type PodGangTemplateSpec struct {
 	// +optional
 	HeadlessServiceConfig *HeadlessServiceConfig `json:"headlessServiceConfig,omitempty"`
 	// SchedulingPolicyConfig defines the scheduling policy configuration for the PodGang.
+	// Defaulting only works for optional fields.
+	// See https://github.com/kubernetes-sigs/controller-tools/issues/893#issuecomment-1991256368
+	// +kubebuilder:default:={networkPackStrategy:BestEffort}
 	SchedulingPolicyConfig *SchedulingPolicyConfig `json:"schedulingPolicyConfig,omitempty"`
 	// PodCliqueScalingGroupConfigs is a list of scaling groups for the PodGangSet.
 	PodCliqueScalingGroupConfigs []PodCliqueScalingGroupConfig `json:"podCliqueScalingGroups,omitempty"`
