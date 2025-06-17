@@ -158,6 +158,6 @@ func (r *Reconciler) recordIncompleteReconcile(ctx context.Context, logger logr.
 
 func getOrderedKindsForSync() []component.Kind {
 	return []component.Kind{
-		//component.KindPod,
+		component.KindPod,
 	}
 }

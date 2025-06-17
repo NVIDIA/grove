@@ -18,6 +18,7 @@ package kubernetes
 
 import (
 	"github.com/NVIDIA/grove/operator/api/core/v1alpha1"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/samber/lo"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -47,4 +48,12 @@ func GetFirstOwnerName(resourceObjMeta metav1.ObjectMeta) string {
 		return ""
 	}
 	return resourceObjMeta.OwnerReferences[0].Name
+}
+
+// GetObjectKeyFromObjectMeta creates a client.ObjectKey from the given ObjectMeta.
+func GetObjectKeyFromObjectMeta(objMeta metav1.ObjectMeta) client.ObjectKey {
+	return client.ObjectKey{
+		Namespace: objMeta.Namespace,
+		Name:      objMeta.Name,
+	}
 }

@@ -75,10 +75,6 @@ func (r _resource) GetExistingResourceNames(ctx context.Context, logger logr.Log
 
 // Sync synchronizes all resources that the Service Operator manages.
 func (r _resource) Sync(ctx context.Context, logger logr.Logger, pgs *v1alpha1.PodGangSet) error {
-	// Do not create headless service if service spec is not defined.
-	if pgs.Spec.TemplateSpec.HeadlessServiceConfig == nil {
-		return nil
-	}
 	replicaIndexToObjectKeys := getObjectKeys(pgs)
 	tasks := make([]utils.Task, 0, len(replicaIndexToObjectKeys))
 	for replicaIndex, objectKey := range replicaIndexToObjectKeys {
@@ -110,7 +106,7 @@ func (r _resource) Delete(ctx context.Context, logger logr.Logger, pgObjMeta met
 		return groveerr.WrapError(err,
 			errDeletePodGangSetService,
 			component.OperationDelete,
-			"Failed to delete Headless Services",
+			fmt.Sprintf("Failed to delete Headless Services for PodGangSet: %v", k8sutils.GetObjectKeyFromObjectMeta(pgObjMeta)),
 		)
 	}
 	logger.Info("Deleted Headless Services")
@@ -136,10 +132,14 @@ func (r _resource) doCreateOrUpdate(ctx context.Context, logger logr.Logger, pgs
 
 func (r _resource) buildResource(svc *corev1.Service, pgs *v1alpha1.PodGangSet, pgsReplicaIndex int) error {
 	svc.Labels = getLabels(pgs.Name, client.ObjectKeyFromObject(svc), pgsReplicaIndex)
+	var publishNotReadyAddresses bool
+	if pgs.Spec.TemplateSpec.HeadlessServiceConfig != nil {
+		publishNotReadyAddresses = pgs.Spec.TemplateSpec.HeadlessServiceConfig.PublishNotReadyAddresses
+	}
 	svc.Spec = corev1.ServiceSpec{
 		Selector:                 getLabelSelectorForPodsInAPodGangSetReplica(pgs.Name, pgsReplicaIndex),
 		ClusterIP:                "None",
-		PublishNotReadyAddresses: pgs.Spec.TemplateSpec.HeadlessServiceConfig.PublishNotReadyAddresses,
+		PublishNotReadyAddresses: publishNotReadyAddresses,
 	}
 
 	if err := controllerutil.SetControllerReference(pgs, svc, r.scheme); err != nil {

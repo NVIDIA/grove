@@ -107,7 +107,7 @@ func (r _resource) Delete(ctx context.Context, logger logr.Logger, pgsObjMeta me
 		return groveerr.WrapError(err,
 			errDeleteRole,
 			component.OperationDelete,
-			fmt.Sprintf("Error deleting Role: %v for PodGangSet: %v", objectKey, pgsObjMeta),
+			fmt.Sprintf("Error deleting Role: %v for PodGangSet: %v", objectKey, k8sutils.GetObjectKeyFromObjectMeta(pgsObjMeta)),
 		)
 	}
 	logger.Info("deleted Role", "objectKey", objectKey)

@@ -20,7 +20,6 @@ import (
 	"context"
 	"fmt"
 	"slices"
-	"strconv"
 	"strings"
 
 	grovecorev1alpha1 "github.com/NVIDIA/grove/operator/api/core/v1alpha1"
@@ -125,7 +124,7 @@ func (r _resource) Delete(ctx context.Context, logger logr.Logger, pgsObjectMeta
 		return groveerr.WrapError(err,
 			errDeletePodClique,
 			component.OperationDelete,
-			fmt.Sprintf("Failed to delete PodCliques for PodGangSet: %v", client.ObjectKey{Name: pgsObjectMeta.Name, Namespace: pgsObjectMeta.Namespace}),
+			fmt.Sprintf("Failed to delete PodCliques for PodGangSet: %v", k8sutils.GetObjectKeyFromObjectMeta(pgsObjectMeta)),
 		)
 	}
 	logger.Info("Deleted PodCliques")
@@ -184,7 +183,7 @@ func (r _resource) buildResource(logger logr.Logger, pclq *grovecorev1alpha1.Pod
 		pclq.Spec = pclqTemplateSpec.Spec
 	}
 	var dependentPclqNames []string
-	pgsReplicaIndex, err := getPGSReplicaIndex(pclq.Name, pgs.Name)
+	pgsReplicaIndex, err := utils.GetPodGangSetReplicaIndexFromPodCliqueFQN(pgs.Name, pclq.Name)
 	if err != nil {
 		return groveerr.WrapError(err,
 			errSyncPodClique,
@@ -253,12 +252,6 @@ func getLabels(pgsName string, pclqObjectKey client.ObjectKey, pclqTemplateSpec 
 		k8sutils.GetDefaultLabelsForPodGangSetManagedResources(pgsName),
 		pclqComponentLabels,
 	)
-}
-
-func getPGSReplicaIndex(pclqFQNName, pgsName string) (int, error) {
-	replicaStartIndex := len(pgsName) + 1 // +1 for the hyphen
-	replicaEndIndex := replicaStartIndex + strings.Index(pclqFQNName[replicaStartIndex:], "-")
-	return strconv.Atoi(pclqFQNName[replicaStartIndex:replicaEndIndex])
 }
 
 func emptyPodClique(objKey client.ObjectKey) *grovecorev1alpha1.PodClique {

@@ -29,9 +29,13 @@ const (
 	// LabelComponentKey is a key for a label that sets the component type on resources provisioned for a PodGangSet.
 	LabelComponentKey = "app.kubernetes.io/component"
 	// LabelPodGangSetReplicaIndex is a key for a label that sets the replica index of a PodGangSet.
-	LabelPodGangSetReplicaIndex = "grove.io/podgangset/replica-index"
+	LabelPodGangSetReplicaIndex = "grove.io/podgangset-replica-index"
 	// LabelPodCliqueScalingGroup is a key for a label that sets the PodCliqueScalingGroup name.
 	LabelPodCliqueScalingGroup = "grove.io/podcliquescalinggroup"
+	// LabelPodCliqueName is a key for a label that sets the PodClique name.
+	LabelPodCliqueName = "grove.io/podclique"
+	// LabelPodGangName is a key for a label that sets the PodGang name.
+	LabelPodGangName = "grove.io/podgang"
 )
 
 // Constants for finalizers.

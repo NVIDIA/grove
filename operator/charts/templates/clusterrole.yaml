@@ -42,6 +42,7 @@ rules:
   - list
   - watch
   - delete
+  - deletecollection
   - patch
   - update
 - apiGroups:

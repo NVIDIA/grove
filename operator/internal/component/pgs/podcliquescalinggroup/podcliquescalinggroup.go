@@ -119,7 +119,7 @@ func (r _resource) Delete(ctx context.Context, logger logr.Logger, pgsObjMeta me
 		return groveerr.WrapError(err,
 			errDeletePodCliqueScalingGroup,
 			component.OperationDelete,
-			fmt.Sprintf("Error deleting PodCliqueScalingGroup for PodGangSet: %v", pgsObjMeta.Name),
+			fmt.Sprintf("Error deleting PodCliqueScalingGroup for PodGangSet: %v", k8sutils.GetObjectKeyFromObjectMeta(pgsObjMeta)),
 		)
 	}
 	logger.Info("Deleted PodCliqueScalingGroups")

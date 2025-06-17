@@ -108,7 +108,7 @@ func (r _resource) Delete(ctx context.Context, logger logr.Logger, pgsObjMeta me
 		return groveerr.WrapError(err,
 			errDeleteServiceAccount,
 			component.OperationDelete,
-			fmt.Sprintf("Error deleting ServiceAccount: %v for PodGangSet: %v", objectKey, pgsObjMeta),
+			fmt.Sprintf("Error deleting ServiceAccount: %v for PodGangSet: %v", objectKey, k8sutils.GetObjectKeyFromObjectMeta(pgsObjMeta)),
 		)
 	}
 	logger.Info("Deleted ServiceAccount", "objectKey", objectKey)

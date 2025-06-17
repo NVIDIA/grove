@@ -45,12 +45,13 @@ type Reconciler struct {
 
 // NewReconciler creates a new instance of the PodClique Reconciler.
 func NewReconciler(mgr ctrl.Manager, controllerCfg configv1alpha1.PodCliqueControllerConfiguration) *Reconciler {
+	eventRecorder := mgr.GetEventRecorderFor(controllerName)
 	return &Reconciler{
 		config:                  controllerCfg,
 		client:                  mgr.GetClient(),
-		eventRecorder:           mgr.GetEventRecorderFor(controllerName),
+		eventRecorder:           eventRecorder,
 		reconcileStatusRecorder: ctrlcommon.NewReconcileStatusRecorder(mgr.GetClient(), mgr.GetEventRecorderFor(controllerName)),
-		operatorRegistry:        pclqComponent.CreateOperatorRegistry(mgr),
+		operatorRegistry:        pclqComponent.CreateOperatorRegistry(mgr, eventRecorder),
 	}
 }
 
@@ -59,7 +60,6 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	logger := ctrllogger.FromContext(ctx).
 		WithName(controllerName).
 		WithValues("pclq-name", req.Name, "pclq-namespace", req.Namespace)
-	logger.Info("starting reconciliation")
 
 	pclq := &grovecorev1alpha1.PodClique{}
 	if result := ctrlutils.GetPodClique(ctx, r.client, logger, req.NamespacedName, pclq); ctrlcommon.ShortCircuitReconcileFlow(result) {
