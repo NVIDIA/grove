@@ -66,8 +66,8 @@ func (b *PodCliqueBuilder) WithStartsAfter(pclqTemplateNames []string) *PodCliqu
 	return b
 }
 
-// WithAutoScaleLimits sets the minimum and maximum replicas in ScaleConfig for the PodClique.
-func (b *PodCliqueBuilder) WithAutoScaleLimits(minimum, maximum int32) *PodCliqueBuilder {
+// WithAutoScaleMaxReplicas sets the maximum replicas in ScaleConfig for the PodClique.
+func (b *PodCliqueBuilder) WithAutoScaleMaxReplicas(maximum int32) *PodCliqueBuilder {
 	b.pclq.Spec.ScaleConfig = &grovecorev1alpha1.AutoScalingConfig{
 		MaxReplicas: maximum,
 	}

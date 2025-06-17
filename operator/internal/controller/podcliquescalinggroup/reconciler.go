@@ -37,7 +37,7 @@ import (
 	ctrllogger "sigs.k8s.io/controller-runtime/pkg/log"
 )
 
-var undefinedPodCliqueName = errors.New("podclique is not defined in PodGangSet")
+var errUndefinedPodCliqueName = errors.New("podclique is not defined in PodGangSet")
 
 // Reconciler reconciles PodCliqueScalingGroup objects.
 type Reconciler struct {
@@ -55,6 +55,7 @@ func NewReconciler(mgr ctrl.Manager, controllerCfg groveconfigv1alpha1.PodClique
 	}
 }
 
+// Reconcile reconciles a PodCliqueScalingGroup resource.
 func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	logger := ctrllogger.FromContext(ctx).
 		WithName(controllerName).
@@ -74,7 +75,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		return reconcileSpecResult.Result()
 	}
 
-	return r.reconcileStatus(ctx, logger, pcsg).Result()
+	return r.reconcileStatus(ctx, pcsg).Result()
 }
 
 func (r *Reconciler) reconcileSpec(ctx context.Context, logger logr.Logger, pcsg *grovecorev1alpha1.PodCliqueScalingGroup) ctrlcommon.ReconcileStepResult {
@@ -95,7 +96,7 @@ func (r *Reconciler) reconcileSpec(ctx context.Context, logger logr.Logger, pcsg
 	return ctrlcommon.ContinueReconcile()
 }
 
-func (r *Reconciler) reconcileStatus(ctx context.Context, logger logr.Logger, pcsg *grovecorev1alpha1.PodCliqueScalingGroup) ctrlcommon.ReconcileStepResult {
+func (r *Reconciler) reconcileStatus(ctx context.Context, pcsg *grovecorev1alpha1.PodCliqueScalingGroup) ctrlcommon.ReconcileStepResult {
 	pcsg.Status.Replicas = pcsg.Spec.Replicas
 
 	pgsName := k8sutils.GetFirstOwnerName(pcsg.ObjectMeta)
@@ -144,8 +145,8 @@ func (r *Reconciler) updatePodCliques(ctx context.Context, logger logr.Logger, p
 			return strings.HasSuffix(fullyQualifiedCliqueName, pclqTemplateSpec.Name)
 		})
 		if !ok {
-			logger.Error(undefinedPodCliqueName, "podclique is not defined in PodGangSet, will skip updating podclique replicas", "pclqObjectKey", pclqObjectKey, "podGangSetObjectKey", pgsObjectKey)
-			return ctrlcommon.RecordErrorAndDDoNotRequeue(fmt.Sprintf("podclique %s is not defined in PodGangSet %s", fullyQualifiedCliqueName, pgsObjectKey), undefinedPodCliqueName)
+			logger.Error(errUndefinedPodCliqueName, "podclique is not defined in PodGangSet, will skip updating podclique replicas", "pclqObjectKey", pclqObjectKey, "podGangSetObjectKey", pgsObjectKey)
+			return ctrlcommon.RecordErrorAndDoNotRequeue(fmt.Sprintf("podclique %s is not defined in PodGangSet %s", fullyQualifiedCliqueName, pgsObjectKey), errUndefinedPodCliqueName)
 		}
 		if result := r.updatePodCliqueReplicas(ctx, logger, pcsg, matchingPCLQTemplateSpec, pclqObjectKey); ctrlcommon.ShortCircuitReconcileFlow(result) {
 			return result

@@ -19,8 +19,8 @@
 lint:
 	@echo "> Linting operator"
 	@make --directory=operator lint
-	@echo "> Linting scheduler-api"
-	@make --directory=scheduler-api lint
+	@echo "> Linting scheduler/api"
+	@make --directory=scheduler/api lint
 	@echo "> Linting scheduler"
 	@make --directory=scheduler lint
 
@@ -29,8 +29,6 @@ lint:
 format:
 	@echo "> Formatting operator"
 	@make --directory=operator format
-	@echo "> Formatting scheduler-api"
-	@make --directory=scheduler-api format
 	@echo "> Formatting scheduler"
 	@make --directory=scheduler format
 
@@ -47,8 +45,8 @@ generate:
 add-license-headers:
 	@echo "> Adding license headers to operator"
 	@make --directory=operator add-license-headers
-	@echo "> Adding license headers to scheduler-api"
-	@make --directory=scheduler-api add-license-headers
+	@echo "> Adding license headers to scheduler/api"
+	@make --directory=scheduler/api add-license-headers
 	@echo "> Adding license headers to scheduler"
 	@make --directory=scheduler add-license-headers
 

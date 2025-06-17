@@ -20,8 +20,8 @@ import (
 	"github.com/NVIDIA/grove/operator/api/core/v1alpha1"
 	"github.com/NVIDIA/grove/operator/internal/component"
 	"github.com/NVIDIA/grove/operator/internal/component/pclq/pod"
-	"k8s.io/client-go/tools/record"
 
+	"k8s.io/client-go/tools/record"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 )
 

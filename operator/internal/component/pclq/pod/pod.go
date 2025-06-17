@@ -1,13 +1,32 @@
+// /*
+// Copyright 2025 The Grove Authors.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+// */
+
 package pod
 
 import (
 	"context"
 	"fmt"
+	"strconv"
+
 	grovecorev1alpha1 "github.com/NVIDIA/grove/operator/api/core/v1alpha1"
 	"github.com/NVIDIA/grove/operator/internal/component"
 	groveerr "github.com/NVIDIA/grove/operator/internal/errors"
 	"github.com/NVIDIA/grove/operator/internal/utils"
 	k8sutils "github.com/NVIDIA/grove/operator/internal/utils/kubernetes"
+
 	"github.com/go-logr/logr"
 	"github.com/samber/lo"
 	corev1 "k8s.io/api/core/v1"
@@ -16,15 +35,14 @@ import (
 	"k8s.io/client-go/tools/record"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
-	"strconv"
 )
 
 const (
 	errGetPod                   grovecorev1alpha1.ErrorCode = "ERR_GET_POD"
 	errSyncPod                  grovecorev1alpha1.ErrorCode = "ERR_SYNC_POD"
 	errDeletePod                grovecorev1alpha1.ErrorCode = "ERR_DELETE_POD"
-	ReasonPodCreationSuccessful                             = "PodCreationSuccessful"
-	ReasonPodCreationFailed                                 = "PodCreationFailed"
+	reasonPodCreationSuccessful                             = "PodCreationSuccessful"
+	reasonPodCreationFailed                                 = "PodCreationFailed"
 )
 
 type _resource struct {
@@ -33,10 +51,12 @@ type _resource struct {
 	eventRecorder record.EventRecorder
 }
 
+// New creates an instance of Pod component operator.
 func New(client client.Client, scheme *runtime.Scheme, eventRecorder record.EventRecorder) component.Operator[grovecorev1alpha1.PodClique] {
 	return &_resource{
-		client: client,
-		scheme: scheme,
+		client:        client,
+		scheme:        scheme,
+		eventRecorder: eventRecorder,
 	}
 }
 
@@ -44,7 +64,7 @@ func New(client client.Client, scheme *runtime.Scheme, eventRecorder record.Even
 // NOTE: Since we do not currently support Jobs, therefore we do not have to filter the pods that are reached their final state.
 // Pods created for Jobs can reach corev1.PodSucceeded state or corev1.PodFailed state but these are not relevant for us at the moment.
 // In future when these states become relevant then we have to list the pods and filter on their status.Phase.
-func (r _resource) GetExistingResourceNames(ctx context.Context, log logr.Logger, pclq *grovecorev1alpha1.PodClique) ([]string, error) {
+func (r _resource) GetExistingResourceNames(ctx context.Context, _ logr.Logger, pclq *grovecorev1alpha1.PodClique) ([]string, error) {
 	podNames := make([]string, 0, pclq.Spec.Replicas)
 	objMetaList := &metav1.PartialObjectMetadataList{}
 	objMetaList.SetGroupVersionKind(corev1.SchemeGroupVersion.WithKind("Pod"))
@@ -93,9 +113,15 @@ func (r _resource) doCreatePods(ctx context.Context, logger logr.Logger, pclq *g
 			Name: fmt.Sprintf("CreatePod-%s-%d", pclq.Name, i),
 			Fn: func(ctx context.Context) error {
 				pod := &corev1.Pod{}
-				r.buildResource(pclq, pod)
+				if err := r.buildResource(pclq, pod); err != nil {
+					return groveerr.WrapError(err,
+						errSyncPod,
+						component.OperationSync,
+						fmt.Sprintf("failed to build Pod resource for PodClique %v", client.ObjectKeyFromObject(pclq)),
+					)
+				}
 				if err := r.client.Create(ctx, pod); err != nil {
-					r.eventRecorder.Eventf(pclq, corev1.EventTypeWarning, ReasonPodCreationFailed, "Error creating pod: %v", err)
+					r.eventRecorder.Eventf(pclq, corev1.EventTypeWarning, reasonPodCreationFailed, "Error creating pod: %v", err)
 					return groveerr.WrapError(err,
 						errSyncPod,
 						component.OperationSync,
@@ -103,7 +129,7 @@ func (r _resource) doCreatePods(ctx context.Context, logger logr.Logger, pclq *g
 					)
 				}
 				logger.Info("Created pod for PodClique", "pclqName", pclq.Name, "podName", pod.Name)
-				r.eventRecorder.Eventf(pclq, corev1.EventTypeNormal, ReasonPodCreationSuccessful, "Created Pod: %s", pod.Name)
+				r.eventRecorder.Eventf(pclq, corev1.EventTypeNormal, reasonPodCreationSuccessful, "Created Pod: %s", pod.Name)
 				return nil
 			},
 		}
