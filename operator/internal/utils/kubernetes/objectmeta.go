@@ -18,7 +18,6 @@ package kubernetes
 
 import (
 	"github.com/NVIDIA/grove/operator/api/core/v1alpha1"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/samber/lo"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
