@@ -156,6 +156,7 @@ func (v *pgsValidator) validatePodCliqueTemplates(fldPath *field.Path) ([]string
 	}
 
 	cliqueNames := make([]string, 0, len(cliqueTemplateSpecs))
+	schedulerNames := make([]string, 0, len(cliqueTemplateSpecs))
 	for _, cliqueTemplateSpec := range cliqueTemplateSpecs {
 		cliqueNames = append(cliqueNames, cliqueTemplateSpec.Name)
 		warns, errs := v.validatePodCliqueTemplateSpec(cliqueTemplateSpec, fldPath)
@@ -165,12 +166,23 @@ func (v *pgsValidator) validatePodCliqueTemplates(fldPath *field.Path) ([]string
 		if len(warns) != 0 {
 			warnings = append(warnings, warns...)
 		}
+		schedulerNames = append(schedulerNames, cliqueTemplateSpec.Spec.PodSpec.SchedulerName)
 	}
 
 	duplicateCliqueNames := lo.FindDuplicates(cliqueNames)
 	if len(duplicateCliqueNames) > 0 {
 		allErrs = append(allErrs, field.Invalid(fldPath.Child("name"),
 			strings.Join(duplicateCliqueNames, ","), "cliqueTemplateSpec names must be unique"))
+	}
+
+	uniqueSchedulerNames := lo.Uniq(lo.Map(schedulerNames, func(item string, _ int) string {
+		if item == "" {
+			return "default-scheduler"
+		}
+		return item
+	}))
+	if len(uniqueSchedulerNames) > 1 {
+		allErrs = append(allErrs, field.Invalid(fldPath.Child("spec").Child("podSpec").Child("schedulerName"), uniqueSchedulerNames[0], "the schedulerName for all pods have to be the same"))
 	}
 
 	if v.isStartupTypeExplicit() {
@@ -208,6 +220,9 @@ func (v *pgsValidator) validatePodCliqueSpec(name string, cliqueSpec grovecorev1
 	}
 	if cliqueSpec.MinReplicas != nil && *cliqueSpec.MinReplicas <= 0 {
 		allErrs = append(allErrs, field.Invalid(fldPath.Child("minReplicas"), *cliqueSpec.MinReplicas, "must be greater than 0"))
+	}
+	if *cliqueSpec.MinReplicas != cliqueSpec.Replicas {
+		allErrs = append(allErrs, field.Invalid(fldPath.Child("minReplicas"), *cliqueSpec.MinReplicas, "minReplicas and replicas must be equal for the initial iteration of grove operator"))
 	}
 
 	if v.isStartupTypeExplicit() && len(cliqueSpec.StartsAfter) > 0 {
