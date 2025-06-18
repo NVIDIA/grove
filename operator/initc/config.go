@@ -23,15 +23,15 @@ import (
 
 // InitConfig defines the configuration that is passed to the init container
 type InitConfig struct {
-	// podCliqueNames stores comma seperated parent PodClique names.
-	podCliqueNames string
+	// podCliqueFQNs stores comma seperated parent fully qualified PodClique names.
+	podCliqueFQNs string
 	// podCliqueNamespace contains the namespace that the parent PodCliques are present in.
 	podCliqueNamespace string
 }
 
 // RegisterFlags registers all the flags that are defined for the init container
 func (c *InitConfig) RegisterFlags(fs *flag.FlagSet) {
-	fs.StringVar(&c.podCliqueNames, "pod-cliques", "", "comma seperated namespaced names of PodCliques that the init container should wait for to be ready")
+	fs.StringVar(&c.podCliqueFQNs, "pod-cliques", "", "comma seperated namespaced names of PodCliques that the init container should wait for to be ready")
 	fs.StringVar(&c.podCliqueNamespace, "pod-clique-namespace", "default", "namespace that the PodClique are deployed in")
 	addVersionFlag(fs)
 }
@@ -39,12 +39,12 @@ func (c *InitConfig) RegisterFlags(fs *flag.FlagSet) {
 // PodCliqueNames returns a slice of PodClique names passed as the argument
 func (c *InitConfig) PodCliqueNames() []string {
 	var podCliquesNames []string
-	for clique := range strings.SplitSeq(c.podCliqueNames, ",") {
-		if len(clique) != 0 {
-			podCliquesNames = append(podCliquesNames, strings.Trim(clique, " "))
+	for cliqueFQN := range strings.SplitSeq(c.podCliqueFQNs, ",") {
+		trimmedCliqueFQN := strings.TrimSpace(cliqueFQN)
+		if trimmedCliqueFQN != "" {
+			podCliquesNames = append(podCliquesNames, trimmedCliqueFQN)
 		}
 	}
-
 	return podCliquesNames
 }
 

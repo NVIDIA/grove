@@ -8,7 +8,7 @@ COPY ../. .
 ARG TARGETOS
 ARG TARGETARCH
 
-RUN make --directory=operator initc-${TARGETOS}-${TARGETARCH}
+RUN make --directory=operator build-initc-${TARGETOS}-${TARGETARCH}
 
 # All image label keys are as per the OCI recommendations.
 # Reference: https://github.com/opencontainers/image-spec/blob/main/annotations.md#pre-defined-annotation-keys
