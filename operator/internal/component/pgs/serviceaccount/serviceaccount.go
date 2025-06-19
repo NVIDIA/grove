@@ -131,7 +131,7 @@ func (r _resource) buildResource(pgs *v1alpha1.PodGangSet, sa *corev1.ServiceAcc
 func getLabels(pgsObjMeta metav1.ObjectMeta) map[string]string {
 	roleLabels := map[string]string{
 		v1alpha1.LabelComponentKey: component.NamePodServiceAccount,
-		v1alpha1.LabelAppNameKey:   v1alpha1.GeneratePodServiceAccountName(pgsObjMeta),
+		v1alpha1.LabelAppNameKey:   v1alpha1.GeneratePodServiceAccountName(pgsObjMeta.Name),
 	}
 	return lo.Assign(
 		k8sutils.GetDefaultLabelsForPodGangSetManagedResources(pgsObjMeta.Name),
@@ -141,7 +141,7 @@ func getLabels(pgsObjMeta metav1.ObjectMeta) map[string]string {
 
 func getObjectKey(pgsObjMeta metav1.ObjectMeta) client.ObjectKey {
 	return client.ObjectKey{
-		Name:      v1alpha1.GeneratePodServiceAccountName(pgsObjMeta),
+		Name:      v1alpha1.GeneratePodServiceAccountName(pgsObjMeta.Name),
 		Namespace: pgsObjMeta.Namespace,
 	}
 }

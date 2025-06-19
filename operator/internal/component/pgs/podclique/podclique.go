@@ -91,7 +91,7 @@ func (r _resource) Sync(ctx context.Context, logger logr.Logger, pgs *grovecorev
 	for replicaIndex := range pgs.Spec.Replicas {
 		for _, pclqTemplateSpec := range pgs.Spec.TemplateSpec.Cliques {
 			pclqObjectKey := client.ObjectKey{
-				Name:      grovecorev1alpha1.GeneratePodCliqueName(pgs.Name, int(replicaIndex), pclqTemplateSpec.Name),
+				Name:      grovecorev1alpha1.GeneratePodCliqueName(grovecorev1alpha1.ResourceNameReplica{Name: pgs.Name, Replica: int(replicaIndex)}, pclqTemplateSpec.Name),
 				Namespace: pgs.Namespace,
 			}
 			exists := slices.Contains(existingPCLQNames, pclqObjectKey.Name)
@@ -221,14 +221,14 @@ func getInOrderStartupDependencies(pgs *grovecorev1alpha1.PodGangSet, pgsReplica
 	}
 	previousClique := pgs.Spec.TemplateSpec.Cliques[foundAtIndex-1]
 	// get the name of the previous PodCliqueTemplateSpec
-	previousPCLQName := grovecorev1alpha1.GeneratePodCliqueName(pgs.Name, pgsReplicaIndex, previousClique.Name)
+	previousPCLQName := grovecorev1alpha1.GeneratePodCliqueName(grovecorev1alpha1.ResourceNameReplica{Name: pgs.Name, Replica: pgsReplicaIndex}, previousClique.Name)
 	return []string{previousPCLQName}
 }
 
 func getExplicitStartupDependencies(pgsName string, pgsReplicaIndex int, pclq *grovecorev1alpha1.PodClique) []string {
 	dependencies := make([]string, 0, len(pclq.Spec.StartsAfter))
 	for _, dependency := range pclq.Spec.StartsAfter {
-		dependencies = append(dependencies, grovecorev1alpha1.GeneratePodCliqueName(pgsName, pgsReplicaIndex, dependency))
+		dependencies = append(dependencies, grovecorev1alpha1.GeneratePodCliqueName(grovecorev1alpha1.ResourceNameReplica{Name: pgsName, Replica: pgsReplicaIndex}, dependency))
 	}
 	return dependencies
 }

@@ -55,6 +55,8 @@ const (
 	NamePodCliqueScalingGroup = "pgs-pod-clique-scaling-group"
 	// NameHorizontalPodAutoscaler is the component name for a HorizontalPodAutoscaler that is created for a PodGangSet.
 	NameHorizontalPodAutoscaler = "pgs-hpa"
+	// NamePodGang is the component name for a PodGang resource.
+	NamePodGang = "podgang"
 )
 
 // GroveCustomResourceType defines a type bound for generic types.

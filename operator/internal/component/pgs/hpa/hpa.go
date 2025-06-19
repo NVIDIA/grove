@@ -133,7 +133,7 @@ func (r _resource) computeExpectedHPAs(pgs *grovecorev1alpha1.PodGangSet) []hpaI
 			if pclqTemplateSpec.Spec.ScaleConfig == nil {
 				continue
 			}
-			pclqFQN := grovecorev1alpha1.GeneratePodCliqueName(pgs.Name, int(replicaIndex), pclqTemplateSpec.Name)
+			pclqFQN := grovecorev1alpha1.GeneratePodCliqueName(grovecorev1alpha1.ResourceNameReplica{Name: pgs.Name, Replica: int(replicaIndex)}, pclqTemplateSpec.Name)
 			hpaObjectKey := client.ObjectKey{
 				Namespace: pgs.Namespace,
 				Name:      pclqFQN,
@@ -146,12 +146,11 @@ func (r _resource) computeExpectedHPAs(pgs *grovecorev1alpha1.PodGangSet) []hpaI
 				scaleConfig:             *pclqTemplateSpec.Spec.ScaleConfig,
 			})
 		}
-		// compute expected HPAs for PodCliques which are part of a PodCliqueScalingGroup
 		for _, pcsgConfig := range pgs.Spec.TemplateSpec.PodCliqueScalingGroupConfigs {
 			if pcsgConfig.ScaleConfig == nil {
 				continue
 			}
-			pcsgFQN := grovecorev1alpha1.GeneratePodCliqueScalingGroupName(pgs.Name, replicaIndex, pcsgConfig.Name)
+			pcsgFQN := grovecorev1alpha1.GeneratePodCliqueScalingGroupName(grovecorev1alpha1.ResourceNameReplica{Name: pgs.Name, Replica: int(replicaIndex)}, pcsgConfig.Name)
 			hpaObjectKey := client.ObjectKey{
 				Namespace: pgs.Namespace,
 				Name:      pcsgFQN,
