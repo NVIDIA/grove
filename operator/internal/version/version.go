@@ -45,7 +45,7 @@ var (
 
 // AddFlags adds the --version flag to the flag.FlagSet.
 func AddFlags(fs *flag.FlagSet) {
-	fs.BoolVar(&versionFlag, "version", false, "--version prints the version information and quits")
+	fs.BoolVar(&versionFlag, "version", false, "-version prints the version information and quits")
 }
 
 // Get returns the version details for the grove operator.

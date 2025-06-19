@@ -8,6 +8,7 @@
 !operator/api
 !operator/cmd/
 !operator/internal/
+!operator/initc/
 !operator/client/
 !operator/hack/
 !operator/go.mod

@@ -19,6 +19,19 @@ build:
         ldflags:
           - '{{.LD_FLAGS}}'
         main: ./cmd
+    - image: local-skaffold/grove-initc
+      ko: # see https://skaffold.dev/docs/builders/builder-types/ko/
+        dependencies: # configures which files should skaffold watch for changes in dev mode.
+          paths:
+            - api
+            - initc
+            - internal
+            - VERSION
+        flags:
+          - -v
+        ldflags:
+          - '{{.LD_FLAGS}}'
+        main: ./cmd
 deploy:
   helm: # see https://skaffold.dev/docs/deployers/helm/
     releases:

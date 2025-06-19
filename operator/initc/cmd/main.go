@@ -22,39 +22,36 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/go-logr/logr"
-	"github.com/go-logr/zapr"
-	"go.uber.org/zap"
+	configv1alpha1 "github.com/NVIDIA/grove/operator/api/config/v1alpha1"
+	"github.com/NVIDIA/grove/operator/initc/cmd/opts"
+	"github.com/NVIDIA/grove/operator/initc/internal"
+	"github.com/NVIDIA/grove/operator/internal/logger"
+	"github.com/NVIDIA/grove/operator/internal/version"
 )
 
-var l logr.Logger
+var (
+	log = logger.MustNewLogger(false, configv1alpha1.InfoLevel, configv1alpha1.LogFormatJSON).WithName("grove-initc")
+)
 
 func main() {
 	ctx := setupSignalHandler()
 
-	// TODO: @renormalize fix the logging
-	l1, err := zap.NewDevelopment()
+	config, err := opts.InitializeCLIOptions()
 	if err != nil {
-		panic("logging err")
+		log.Error(err, "failed to generate configuration for the init container from the flags")
+		os.Exit(1)
 	}
-	l = zapr.NewLogger(l1).WithName("grove-initc")
+	version.PrintVersionAndExitIfRequested()
 
-	l.Info("Starting grove init container", "version", getVersion())
+	log.Info("Starting grove init container", "version", version.Get())
 
-	config, err := initializeConfig()
-	if err != nil {
-		l.Error(err, "failed to generate configuration for the init container from the flags")
+	cliqueState := internal.NewCliqueState(config.PodCliqueNames(), config.PodCliqueNamespace(), log)
+	if err := cliqueState.WaitForReady(ctx); err != nil {
+		log.Error(err, "failed to wait for all PodCliques")
 		os.Exit(1)
 	}
 
-	printVersionAndExitIfRequested()
-
-	if err := run(ctx, config); err != nil {
-		l.Error(err, "failed to wait for all PodCliques")
-		os.Exit(1)
-	}
-
-	l.Info("Successfully waited for all dependent PodCliques to start up")
+	log.Info("Successfully waited for all dependent PodCliques to start up")
 }
 
 // setupSignalHandler sets up the context for the application. Handles the SIGTERM and SIGINT signals.

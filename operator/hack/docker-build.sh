@@ -25,16 +25,28 @@ REPO_ROOT="$(dirname "$MODULE_ROOT")"
 GOARCH=${GOARCH:-$(go env GOARCH)}
 PLATFORM=${PLATFORM:-linux/${GOARCH}}
 
-function build_docker_image() {
+function build_docker_images() {
   local version="$(cat "${MODULE_ROOT}/VERSION")"
+
+  printf '%s\n' "Building grove-initc:${version} with:
+   PLATFORM: ${PLATFORM}... "
+  docker buildx build \
+    --platform ${PLATFORM} \
+    --build-arg VERSION=${version} \
+    --tag grove-initc-${GOARCH}:${version} \
+    --target grove-initc \
+    --file ${MODULE_ROOT}/Dockerfile \
+    $REPO_ROOT # docker context is as the repository root to access `.git/`
+
   printf '%s\n' "Building grove-operator:${version} with:
    PLATFORM: ${PLATFORM}... "
   docker buildx build \
     --platform ${PLATFORM} \
     --build-arg VERSION=${version} \
     --tag grove-operator-${GOARCH}:${version} \
+    --target grove-operator \
     --file ${MODULE_ROOT}/Dockerfile \
     $REPO_ROOT # docker context is as the repository root to access `.git/`
 }
 
-build_docker_image
+build_docker_images

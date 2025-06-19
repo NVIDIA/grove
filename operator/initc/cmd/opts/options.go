@@ -14,15 +14,17 @@
 // limitations under the License.
 // */
 
-package main
+package opts
 
 import (
 	"flag"
 	"strings"
+
+	"github.com/NVIDIA/grove/operator/internal/version"
 )
 
-// InitConfig defines the configuration that is passed to the init container
-type InitConfig struct {
+// CLIOptions defines the configuration that is passed to the init container
+type CLIOptions struct {
 	// podCliqueFQNs stores comma seperated parent fully qualified PodClique names.
 	podCliqueFQNs string
 	// podCliqueNamespace contains the namespace that the parent PodCliques are present in.
@@ -30,14 +32,14 @@ type InitConfig struct {
 }
 
 // RegisterFlags registers all the flags that are defined for the init container
-func (c *InitConfig) RegisterFlags(fs *flag.FlagSet) {
+func (c *CLIOptions) RegisterFlags(fs *flag.FlagSet) {
 	fs.StringVar(&c.podCliqueFQNs, "pod-cliques", "", "comma seperated namespaced names of PodCliques that the init container should wait for to be ready")
 	fs.StringVar(&c.podCliqueNamespace, "pod-clique-namespace", "default", "namespace that the PodClique are deployed in")
-	addVersionFlag(fs)
+	version.AddFlags(fs)
 }
 
 // PodCliqueNames returns a slice of PodClique names passed as the argument
-func (c *InitConfig) PodCliqueNames() []string {
+func (c *CLIOptions) PodCliqueNames() []string {
 	var podCliquesNames []string
 	for cliqueFQN := range strings.SplitSeq(c.podCliqueFQNs, ",") {
 		trimmedCliqueFQN := strings.TrimSpace(cliqueFQN)
@@ -48,12 +50,12 @@ func (c *InitConfig) PodCliqueNames() []string {
 	return podCliquesNames
 }
 
-func (c *InitConfig) PodCliqueNamespace() string {
+func (c *CLIOptions) PodCliqueNamespace() string {
 	return c.podCliqueNamespace
 }
 
-func initializeConfig() (InitConfig, error) {
-	config := InitConfig{}
+func InitializeCLIOptions() (CLIOptions, error) {
+	config := CLIOptions{}
 	flagSet := flag.CommandLine
 
 	config.RegisterFlags(flagSet)

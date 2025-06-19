@@ -44,7 +44,7 @@ function build_grove_initc() {
     go build \
     -o "${BINARY_DIR}/grove-initc" \
     -ldflags "${ld_flags}" \
-    initc/*.go
+    initc/cmd/main.go
 }
 
 mkdir -p ${BINARY_DIR}
