@@ -95,7 +95,7 @@ func (r _resource) Sync(ctx context.Context, logger logr.Logger, pgs *grovecorev
 		if err != nil {
 			return err
 		}
-		if err := r.triggerDeletionOfExtraPodCliques(ctx, logger, pgs, deletionCandidateNames); err != nil {
+		if err := r.triggerDeletionOfExcessPodCliques(ctx, logger, pgs, deletionCandidateNames); err != nil {
 			return err
 		}
 	}
@@ -130,7 +130,7 @@ func (r _resource) Sync(ctx context.Context, logger logr.Logger, pgs *grovecorev
 	return nil
 }
 
-func (r _resource) triggerDeletionOfExtraPodCliques(ctx context.Context, logger logr.Logger, pgs *grovecorev1alpha1.PodGangSet, deletionCandidateNames []string) error {
+func (r _resource) triggerDeletionOfExcessPodCliques(ctx context.Context, logger logr.Logger, pgs *grovecorev1alpha1.PodGangSet, deletionCandidateNames []string) error {
 	deletionTasks := make([]utils.Task, 0, len(deletionCandidateNames))
 	for _, pclqName := range deletionCandidateNames {
 		pclqObjectKey := client.ObjectKey{
