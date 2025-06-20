@@ -76,17 +76,33 @@ func (r _resource) GetExistingResourceNames(ctx context.Context, logger logr.Log
 
 // Sync synchronizes all resources that the PodClique Operator manages.
 func (r _resource) Sync(ctx context.Context, logger logr.Logger, pgs *grovecorev1alpha1.PodGangSet) error {
-	numTasks := int(pgs.Spec.Replicas) * len(pgs.Spec.TemplateSpec.Cliques)
-	tasks := make([]utils.Task, 0, numTasks)
-
+	expectedPCLQs := int(pgs.Spec.Replicas) * len(pgs.Spec.TemplateSpec.Cliques)
 	existingPCLQNames, err := r.GetExistingResourceNames(ctx, logger, pgs)
 	if err != nil {
 		return groveerr.WrapError(err,
 			errSyncPodClique,
 			component.OperationSync,
-			"Unable to fetch existing PodClique names duing Sync",
+			fmt.Sprintf("Unable to fetch existing PodClique names for PodGangSet: %v", client.ObjectKeyFromObject(pgs)),
 		)
 	}
+	// Check if the number of existing PodCliques is greater than expected, if so, we need to delete the extra ones.
+	diff := len(existingPCLQNames) - expectedPCLQs
+	if diff > 0 {
+		logger.Info("Found more PodCliques than expected", "expected", expectedPCLQs, "existing", len(existingPCLQNames))
+		logger.Info("Triggering deletion of extra PodCliques", "count", diff)
+		// collect the names of the extra PodCliques to delete
+		deletionCandidateNames, err := getPodCliqueNamesToDelete(pgs.Name, int(pgs.Spec.Replicas), existingPCLQNames)
+		if err != nil {
+			return err
+		}
+		if err := r.triggerDeletionOfExtraPodCliques(ctx, logger, pgs, deletionCandidateNames); err != nil {
+			return err
+		}
+	}
+
+	// Update or create PodCliques
+	numTasks := int(pgs.Spec.Replicas) * len(pgs.Spec.TemplateSpec.Cliques)
+	tasks := make([]utils.Task, 0, numTasks)
 
 	for replicaIndex := range pgs.Spec.Replicas {
 		for _, pclqTemplateSpec := range pgs.Spec.TemplateSpec.Cliques {
@@ -112,6 +128,58 @@ func (r _resource) Sync(ctx context.Context, logger logr.Logger, pgs *grovecorev
 		)
 	}
 	return nil
+}
+
+func (r _resource) triggerDeletionOfExtraPodCliques(ctx context.Context, logger logr.Logger, pgs *grovecorev1alpha1.PodGangSet, deletionCandidateNames []string) error {
+	deletionTasks := make([]utils.Task, 0, len(deletionCandidateNames))
+	for _, pclqName := range deletionCandidateNames {
+		pclqObjectKey := client.ObjectKey{
+			Name:      pclqName,
+			Namespace: pgs.Namespace,
+		}
+		pclq := emptyPodClique(pclqObjectKey)
+		task := utils.Task{
+			Name: "DeleteExcessPodClique-" + pclqName,
+			Fn: func(ctx context.Context) error {
+				if err := client.IgnoreNotFound(r.client.Delete(ctx, pclq)); err != nil {
+					logger.Error(err, "failed to delete excess PodClique", "objectKey", pclqObjectKey)
+					return err
+				}
+				return nil
+			},
+		}
+		deletionTasks = append(deletionTasks, task)
+	}
+	if runResult := utils.RunConcurrently(ctx, logger, deletionTasks); runResult.HasErrors() {
+		logger.Error(runResult.GetAggregatedError(), "Error deleting excess PodCliques", "run summary", runResult.GetSummary())
+		return groveerr.WrapError(runResult.GetAggregatedError(),
+			errSyncPodClique,
+			component.OperationSync,
+			fmt.Sprintf("Error deleting excess PodCliques for PodGangSet: %v", client.ObjectKeyFromObject(pgs)),
+		)
+	}
+	logger.Info("Deleted excess PodCliques", "pclqNames", deletionCandidateNames)
+	return nil
+}
+
+func getPodCliqueNamesToDelete(pgsName string, pgsReplicas int, existingPCLQNames []string) ([]string, error) {
+	pclqsToDelete := make([]string, 0, len(existingPCLQNames))
+	for _, pclqName := range existingPCLQNames {
+		extractedPGSReplica, err := utils.GetPodGangSetReplicaIndexFromPodCliqueFQN(pgsName, pclqName)
+		if err != nil {
+			return nil, groveerr.WrapError(err,
+				errSyncPodClique,
+				component.OperationSync,
+				fmt.Sprintf("Failed to extract PodGangSet replica index from PodClique name: %s", pclqName),
+			)
+		}
+		if extractedPGSReplica >= pgsReplicas {
+			// If the extracted replica index is greater than or equal to the number of replicas in the PodGangSet,
+			// then this PodClique is an extra one that should be deleted.
+			pclqsToDelete = append(pclqsToDelete, pclqName)
+		}
+	}
+	return pclqsToDelete, nil
 }
 
 // Delete deletes all resources that the PodClique Operator manages.
