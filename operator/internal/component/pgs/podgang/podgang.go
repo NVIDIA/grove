@@ -17,8 +17,15 @@ import (
 )
 
 const (
-	errCodeGetPodGangSetPodGangs grovecorev1alpha1.ErrorCode = "ERR_GET_PODGANGSET_PODGANGS"
-	errCodeDeletePodGangs        grovecorev1alpha1.ErrorCode = "ERR_DELETE_PODGANGS"
+	errCodeListPodGangs            grovecorev1alpha1.ErrorCode = "ERR_LIST_PODGANGS"
+	errCodeDeletePodGangs          grovecorev1alpha1.ErrorCode = "ERR_DELETE_PODGANGS"
+	errCodeDeleteExcessPodGang     grovecorev1alpha1.ErrorCode = "ERR_DELETE_EXCESS_PODGANG"
+	errCodeSyncPodGangs            grovecorev1alpha1.ErrorCode = "ERR_SYNC_PODGANGS"
+	errCodeGetPodClique            grovecorev1alpha1.ErrorCode = "ERR_GET_PODCLIQUE_FOR_PODGANG"
+	errCodeListPods                grovecorev1alpha1.ErrorCode = "ERR_LIST_PODS_FOR_PODGANGSET"
+	errCodeListPodCliques          grovecorev1alpha1.ErrorCode = "ERR_LIST_PODCLIQUES_FOR_PODGANGSET"
+	errCodePatchPodLabel           grovecorev1alpha1.ErrorCode = "ERR_PATCH_POD_LABELS_FOR_PODGANG"
+	errCodeComputeExistingPodGangs grovecorev1alpha1.ErrorCode = "ERR_COMPUTE_EXISTING_PODGANG"
 )
 
 type _resource struct {
@@ -45,7 +52,7 @@ func (r _resource) GetExistingResourceNames(ctx context.Context, logger logr.Log
 		client.MatchingLabels(getPodGangSelectorLabels(pgs.ObjectMeta)),
 	); err != nil {
 		return nil, groveerr.WrapError(err,
-			errCodeGetPodGangSetPodGangs,
+			errCodeListPodGangs,
 			component.OperationGetExistingResourceNames,
 			fmt.Sprintf("Error listing PodGang for PodGangSet: %v", client.ObjectKeyFromObject(pgs)),
 		)
@@ -53,7 +60,7 @@ func (r _resource) GetExistingResourceNames(ctx context.Context, logger logr.Log
 	return k8sutils.FilterMapOwnedResourceNames(pgs.ObjectMeta, objMetaList.Items), nil
 }
 
-func (r _resource) Sync(ctx context.Context, logger logr.Logger, obj *grovecorev1alpha1.PodGangSet) error {
+func (r _resource) Sync(ctx context.Context, logger logr.Logger, pgs *grovecorev1alpha1.PodGangSet) error {
 	return nil
 }
 
@@ -73,9 +80,30 @@ func (r _resource) Delete(ctx context.Context, logger logr.Logger, pgsObjectMeta
 	return nil
 }
 
+func buildResource(podGang *groveschedulerv1alpha1.PodGang, pgs *grovecorev1alpha1.PodGangSet) error {
+	return nil
+}
+
 func getPodGangSelectorLabels(pgsObjMeta metav1.ObjectMeta) map[string]string {
 	return lo.Assign(
 		k8sutils.GetDefaultLabelsForPodGangSetManagedResources(pgsObjMeta.Name),
+		map[string]string{
+			grovecorev1alpha1.LabelComponentKey: component.NamePodGang,
+		})
+}
+
+func emptyPodGang(objKey client.ObjectKey) *groveschedulerv1alpha1.PodGang {
+	return &groveschedulerv1alpha1.PodGang{
+		ObjectMeta: metav1.ObjectMeta{
+			Namespace: objKey.Namespace,
+			Name:      objKey.Name,
+		},
+	}
+}
+
+func getLabels(pgsName string) map[string]string {
+	return lo.Assign(
+		k8sutils.GetDefaultLabelsForPodGangSetManagedResources(pgsName),
 		map[string]string{
 			grovecorev1alpha1.LabelComponentKey: component.NamePodGang,
 		})
