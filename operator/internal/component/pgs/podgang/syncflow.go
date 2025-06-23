@@ -2,7 +2,6 @@ package podgang
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"slices"
@@ -118,7 +117,7 @@ func (sc syncContext) getPodCliques(podGang podGangInfo) []grovecorev1alpha1.Pod
 	return constituentPCLQs
 }
 
-func (sc syncContext) updatePCLQPods(pgi podGangInfo, pclqName string, newlyAssociatedPods ...string) {
+func (sc syncContext) updatePCLQPods(pgi *podGangInfo, pclqName string, newlyAssociatedPods ...string) {
 	pgi.updateAssociatedPCLQPods(pclqName, newlyAssociatedPods...)
 	sc.unassignedPodsByPCLQ[pclqName] = lo.Filter(sc.unassignedPodsByPCLQ[pclqName], func(pod corev1.Pod, _ int) bool {
 		return !slices.Contains(newlyAssociatedPods, pod.Name)
@@ -153,6 +152,10 @@ func (sfr syncFlowResult) recordPodGangCreation(podGangName string) {
 	sfr.createdPodGangNames = append(sfr.createdPodGangNames, podGangName)
 }
 
+func (sfr syncFlowResult) canCreatePodGang(podGangName string) bool {
+	return !slices.Contains(sfr.podsGangsPendingCreation, podGangName)
+}
+
 func (sfr syncFlowResult) getAggregatedError() error {
 	return errors.Join(sfr.errs...)
 }
@@ -177,7 +180,7 @@ type podGangInfo struct {
 	pclqs []pclqInfo
 }
 
-func (pgi podGangInfo) computePendingPodsToAssociate(pclqFQN string, numAssociatedPods int) int {
+func (pgi *podGangInfo) computePendingPodsToAssociate(pclqFQN string, numAssociatedPods int) int {
 	matchingPCLQConstituent, ok := lo.Find(pgi.pclqs, func(p pclqInfo) bool {
 		return p.fqn == pclqFQN
 	})
@@ -187,11 +190,12 @@ func (pgi podGangInfo) computePendingPodsToAssociate(pclqFQN string, numAssociat
 	return int(matchingPCLQConstituent.replicas) - numAssociatedPods
 }
 
-func (pgi podGangInfo) updateAssociatedPCLQPods(pclqName string, newlyAssociatedPods ...string) {
-	pclq, _ := lo.Find(pgi.pclqs, func(pclq pclqInfo) bool {
-		return pclq.fqn == pclqName
-	})
-	pclq.associatedPodNames = append(pclq.associatedPodNames, newlyAssociatedPods...)
+func (pgi *podGangInfo) updateAssociatedPCLQPods(pclqName string, newlyAssociatedPods ...string) {
+	for i := range pgi.pclqs {
+		if pgi.pclqs[i].fqn == pclqName {
+			pgi.pclqs[i].associatedPodNames = append(pgi.pclqs[i].associatedPodNames, newlyAssociatedPods...)
+		}
+	}
 }
 
 // pclqInfo represents a groveschedulerv1alpha1.PodGroup and captures information relative to the PodGang of which
@@ -296,15 +300,17 @@ func (r _resource) createNonExistingPodGangs(sc *syncContext) syncFlowResult {
 					result.recordError(err)
 					return result
 				}
-				sc.updatePCLQPods(pendingPodGang, pclq.Name, assignedPodNames...)
+				sc.updatePCLQPods(&pendingPodGang, pclq.Name, assignedPodNames...)
 			}
 		}
-		if err := r.createPodGang(sc, pendingPodGang.fqn); err != nil {
-			sc.logger.Error(err, "Failed to create PodGang", "PodGangName", pendingPodGang.fqn)
-			result.recordError(err)
-			return result
+		if result.canCreatePodGang(pendingPodGang.fqn) {
+			if err := r.createPodGang(sc, pendingPodGang.fqn); err != nil {
+				sc.logger.Error(err, "Failed to create PodGang", "PodGangName", pendingPodGang.fqn)
+				result.recordError(err)
+				return result
+			}
+			result.recordPodGangCreation(pendingPodGang.fqn)
 		}
-		result.recordPodGangCreation(pendingPodGang.fqn)
 	}
 	return result
 }
@@ -340,7 +346,7 @@ func (r _resource) createPodGang(sc *syncContext, podGangName string) error {
 			fmt.Sprintf("failed to set the controller reference on PodGang %s to PodGangSet %v", podGangName, client.ObjectKeyFromObject(sc.pgs)),
 		)
 	}
-	pg.Spec.PodGroups = sc.createPodGroupsForPodGang(podGangName, pg.Namespace)
+	pg.Spec.PodGroups = sc.createPodGroupsForPodGang(pg.Namespace, podGangName)
 	pg.Spec.PriorityClassName = sc.pgs.Spec.PriorityClassName
 	pg.Spec.TerminationDelay = sc.pgs.Spec.TemplateSpec.SchedulingPolicyConfig.TerminationDelay
 
@@ -382,7 +388,6 @@ func (r _resource) computeExpectedPodGangs(sc *syncContext) error {
 
 	// For each PodGangSet replica there is going to be a PodGang. Add all pending PodGangs that should be created for each replica.
 	expectedPodGangs = append(expectedPodGangs, getExpectedPodGangForPGSReplicas(sc)...)
-	fmt.Printf("%#v", expectedPodGangs)
 	// For each replica of PodGangSet, get the pending PodGangs for each PodCliqueScalingGroup.
 	for pgsReplica := range sc.pgs.Spec.Replicas {
 		expectedPodGangsForPCSG, err := r.getExpectedPodGangsForPCSG(sc.ctx, sc.logger, sc.pgs, pgsReplica)
@@ -391,7 +396,6 @@ func (r _resource) computeExpectedPodGangs(sc *syncContext) error {
 		}
 		expectedPodGangs = append(expectedPodGangs, expectedPodGangsForPCSG...)
 	}
-	fmt.Printf("%#v", expectedPodGangs)
 	sc.expectedPodGangs = expectedPodGangs
 	return nil
 }
