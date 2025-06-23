@@ -18,7 +18,10 @@ package podgangset
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	groveerr "github.com/NVIDIA/grove/operator/internal/errors"
+	"time"
 
 	"github.com/NVIDIA/grove/operator/api/core/v1alpha1"
 	"github.com/NVIDIA/grove/operator/internal/component"
@@ -29,6 +32,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )
+
+const componentSyncRetryInterval = 3 * time.Second
 
 func (r *Reconciler) reconcileSpec(ctx context.Context, logger logr.Logger, pgs *v1alpha1.PodGangSet) ctrlcommon.ReconcileStepResult {
 	rLog := logger.WithValues("operation", "spec-reconcile")
@@ -75,6 +80,11 @@ func (r *Reconciler) syncPodGangSetResources(ctx context.Context, logger logr.Lo
 		}
 		logger.Info("Syncing PodGangSet resource", "kind", kind)
 		if err = operator.Sync(ctx, logger, pgs); err != nil {
+			groveErr := &groveerr.GroveError{}
+			if errors.As(err, &groveErr) {
+				logger.Info("retrying sync due to component", "kind", kind, "syncRetryInterval", componentSyncRetryInterval)
+				return ctrlcommon.ReconcileAfter(componentSyncRetryInterval, fmt.Sprintf("requeueing sync due to component %s after %s", kind, componentSyncRetryInterval))
+			}
 			return ctrlcommon.ReconcileWithErrors("error syncing managed resources", fmt.Errorf("failed to sync %s: %w", kind, err))
 		}
 	}

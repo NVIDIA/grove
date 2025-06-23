@@ -74,7 +74,10 @@ func (r _resource) Sync(ctx context.Context, logger logr.Logger, pgs *grovecorev
 		return result.getAggregatedError()
 	}
 	if result.hasPodGangsPendingCreation() {
-		return groveerr.New(groveerr.ErrCodeRequeueAfter, component.OperationSync, fmt.Sprintf("PodGangs pending creation: %v", result.podsGangsPendingCreation))
+		return groveerr.New(groveerr.ErrCodeRequeueAfter,
+			component.OperationSync,
+			fmt.Sprintf("PodGangs pending creation: %v", result.podsGangsPendingCreation),
+		)
 	}
 	return errors.Join(result.errs...)
 }
