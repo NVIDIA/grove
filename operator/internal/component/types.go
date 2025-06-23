@@ -102,6 +102,8 @@ const (
 	KindPersistentVolumeClaim Kind = "PersistentVolumeClaim"
 	// KindPodCliqueScalingGroup indicates that the resource is a PodCliqueScalingGroup.
 	KindPodCliqueScalingGroup Kind = "PodCliqueScalingGroup"
+	// KindPodGang indicates that the resource is a PodGang.
+	KindPodGang Kind = "PodGang"
 )
 
 // OperatorRegistry is a facade that gives access to all component operators.

@@ -23,7 +23,7 @@ import (
 )
 
 // GroupName is the name of the Grove API group.
-const GroupName = "scheduler.grove.io"
+const GroupName = "grove.io"
 
 var (
 	// SchemeGroupVersion is group version used to register these objects.

@@ -2,7 +2,9 @@ package podgang
 
 import (
 	"context"
+	"errors"
 	"fmt"
+
 	grovecorev1alpha1 "github.com/NVIDIA/grove/operator/api/core/v1alpha1"
 	"github.com/NVIDIA/grove/operator/internal/component"
 	groveerr "github.com/NVIDIA/grove/operator/internal/errors"
@@ -12,7 +14,6 @@ import (
 	"github.com/samber/lo"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/client-go/tools/record"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -26,19 +27,22 @@ const (
 	errCodeListPodCliques          grovecorev1alpha1.ErrorCode = "ERR_LIST_PODCLIQUES_FOR_PODGANGSET"
 	errCodePatchPodLabel           grovecorev1alpha1.ErrorCode = "ERR_PATCH_POD_LABELS_FOR_PODGANG"
 	errCodeComputeExistingPodGangs grovecorev1alpha1.ErrorCode = "ERR_COMPUTE_EXISTING_PODGANG"
+	errCodeSetControllerReference  grovecorev1alpha1.ErrorCode = "ERR_SET_CONTROLLER_REFERENCE"
+	errCodeCreatePodGang           grovecorev1alpha1.ErrorCode = "ERR_CREATE_PODGANG"
 )
 
 type _resource struct {
-	client        client.Client
-	scheme        *runtime.Scheme
-	eventRecorder record.EventRecorder
+	client client.Client
+	scheme *runtime.Scheme
+	// eventRecorder record.EventRecorder
 }
 
-func New(client client.Client, scheme *runtime.Scheme, eventRecorder record.EventRecorder) component.Operator[grovecorev1alpha1.PodGangSet] {
+// func New(client client.Client, scheme *runtime.Scheme, eventRecorder record.EventRecorder) component.Operator[grovecorev1alpha1.PodGangSet] {
+func New(client client.Client, scheme *runtime.Scheme) component.Operator[grovecorev1alpha1.PodGangSet] {
 	return &_resource{
-		client:        client,
-		scheme:        scheme,
-		eventRecorder: eventRecorder,
+		client: client,
+		scheme: scheme,
+		// eventRecorder: eventRecorder,
 	}
 }
 
@@ -61,7 +65,18 @@ func (r _resource) GetExistingResourceNames(ctx context.Context, logger logr.Log
 }
 
 func (r _resource) Sync(ctx context.Context, logger logr.Logger, pgs *grovecorev1alpha1.PodGangSet) error {
-	return nil
+	sc, err := r.prepareSyncFlow(ctx, logger, pgs)
+	if err != nil {
+		return err
+	}
+	result := r.runSyncFlow(sc)
+	if result.hasErrors() {
+		return result.getAggregatedError()
+	}
+	if result.hasPodGangsPendingCreation() {
+		return groveerr.New(groveerr.ErrCodeRequeueAfter, component.OperationSync, fmt.Sprintf("PodGangs pending creation: %v", result.podsGangsPendingCreation))
+	}
+	return errors.Join(result.errs...)
 }
 
 func (r _resource) Delete(ctx context.Context, logger logr.Logger, pgsObjectMeta metav1.ObjectMeta) error {

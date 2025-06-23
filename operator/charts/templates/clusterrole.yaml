@@ -8,6 +8,7 @@ rules:
 - apiGroups:
   - grove.io
   resources:
+  - podgangs
   - podgangsets
   - podgangsets/status
   - podcliques
