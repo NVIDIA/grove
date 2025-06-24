@@ -16,6 +16,6 @@
 
 // +k8s:deepcopy-gen=package
 // +kubebuilder:object:generate=true
-// +groupName=grove.io
+// +groupName=scheduler.grove.io
 
 package v1alpha1

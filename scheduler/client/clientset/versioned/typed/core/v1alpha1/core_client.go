@@ -26,24 +26,24 @@ import (
 	rest "k8s.io/client-go/rest"
 )
 
-type GroveV1alpha1Interface interface {
+type SchedulerV1alpha1Interface interface {
 	RESTClient() rest.Interface
 	PodGangsGetter
 }
 
-// GroveV1alpha1Client is used to interact with features provided by the grove.io group.
-type GroveV1alpha1Client struct {
+// SchedulerV1alpha1Client is used to interact with features provided by the scheduler.grove.io group.
+type SchedulerV1alpha1Client struct {
 	restClient rest.Interface
 }
 
-func (c *GroveV1alpha1Client) PodGangs(namespace string) PodGangInterface {
+func (c *SchedulerV1alpha1Client) PodGangs(namespace string) PodGangInterface {
 	return newPodGangs(c, namespace)
 }
 
-// NewForConfig creates a new GroveV1alpha1Client for the given config.
+// NewForConfig creates a new SchedulerV1alpha1Client for the given config.
 // NewForConfig is equivalent to NewForConfigAndClient(c, httpClient),
 // where httpClient was generated with rest.HTTPClientFor(c).
-func NewForConfig(c *rest.Config) (*GroveV1alpha1Client, error) {
+func NewForConfig(c *rest.Config) (*SchedulerV1alpha1Client, error) {
 	config := *c
 	setConfigDefaults(&config)
 	httpClient, err := rest.HTTPClientFor(&config)
@@ -53,21 +53,21 @@ func NewForConfig(c *rest.Config) (*GroveV1alpha1Client, error) {
 	return NewForConfigAndClient(&config, httpClient)
 }
 
-// NewForConfigAndClient creates a new GroveV1alpha1Client for the given config and http client.
+// NewForConfigAndClient creates a new SchedulerV1alpha1Client for the given config and http client.
 // Note the http client provided takes precedence over the configured transport values.
-func NewForConfigAndClient(c *rest.Config, h *http.Client) (*GroveV1alpha1Client, error) {
+func NewForConfigAndClient(c *rest.Config, h *http.Client) (*SchedulerV1alpha1Client, error) {
 	config := *c
 	setConfigDefaults(&config)
 	client, err := rest.RESTClientForConfigAndClient(&config, h)
 	if err != nil {
 		return nil, err
 	}
-	return &GroveV1alpha1Client{client}, nil
+	return &SchedulerV1alpha1Client{client}, nil
 }
 
-// NewForConfigOrDie creates a new GroveV1alpha1Client for the given config and
+// NewForConfigOrDie creates a new SchedulerV1alpha1Client for the given config and
 // panics if there is an error in the config.
-func NewForConfigOrDie(c *rest.Config) *GroveV1alpha1Client {
+func NewForConfigOrDie(c *rest.Config) *SchedulerV1alpha1Client {
 	client, err := NewForConfig(c)
 	if err != nil {
 		panic(err)
@@ -75,9 +75,9 @@ func NewForConfigOrDie(c *rest.Config) *GroveV1alpha1Client {
 	return client
 }
 
-// New creates a new GroveV1alpha1Client for the given RESTClient.
-func New(c rest.Interface) *GroveV1alpha1Client {
-	return &GroveV1alpha1Client{c}
+// New creates a new SchedulerV1alpha1Client for the given RESTClient.
+func New(c rest.Interface) *SchedulerV1alpha1Client {
+	return &SchedulerV1alpha1Client{c}
 }
 
 func setConfigDefaults(config *rest.Config) {
@@ -93,7 +93,7 @@ func setConfigDefaults(config *rest.Config) {
 
 // RESTClient returns a RESTClient that is used to communicate
 // with API server by this client implementation.
-func (c *GroveV1alpha1Client) RESTClient() rest.Interface {
+func (c *SchedulerV1alpha1Client) RESTClient() rest.Interface {
 	if c == nil {
 		return nil
 	}

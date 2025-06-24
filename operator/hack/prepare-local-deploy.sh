@@ -52,7 +52,7 @@ function copy_crds() {
   done
 
   echo "Copying scheduler CRDS..."
-  declare -a crds=("grove.io_podgangs.yaml")
+  declare -a crds=("scheduler.grove.io_podgangs.yaml")
   for crd in "${crds[@]}"; do
     local src_crd_path="${SCHEDULER_GO_MODULE_ROOT}/api/core/v1alpha1/crds/${crd}"
     if [ ! -f ${src_crd_path} ]; then
