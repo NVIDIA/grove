@@ -19,7 +19,7 @@ package crds
 import _ "embed"
 
 var (
-	//go:embed grove.io_podgangs.yaml
+	//go:embed scheduler.grove.io_podgangs.yaml
 	podGangCRD string
 )
 
