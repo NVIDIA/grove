@@ -19,12 +19,16 @@ package pod
 import (
 	"context"
 	"fmt"
+	"slices"
+	"strconv"
+	"strings"
+
 	groveschedulerv1alpha1 "github.com/NVIDIA/grove/scheduler/api/core/v1alpha1"
 	"k8s.io/apimachinery/pkg/api/errors"
-	"strconv"
 
 	grovecorev1alpha1 "github.com/NVIDIA/grove/operator/api/core/v1alpha1"
 	"github.com/NVIDIA/grove/operator/internal/component"
+	componentutils "github.com/NVIDIA/grove/operator/internal/component/utils"
 	groveerr "github.com/NVIDIA/grove/operator/internal/errors"
 	"github.com/NVIDIA/grove/operator/internal/utils"
 	k8sutils "github.com/NVIDIA/grove/operator/internal/utils/kubernetes"
@@ -41,21 +45,32 @@ import (
 
 // constants for error codes
 const (
-	errCodeGetPod                    grovecorev1alpha1.ErrorCode = "ERR_GET_POD"
-	errCodeSyncPod                   grovecorev1alpha1.ErrorCode = "ERR_SYNC_POD"
-	errCodeDeletePod                 grovecorev1alpha1.ErrorCode = "ERR_DELETE_POD"
-	errCodeCreatePodGangNameFromPCLQ grovecorev1alpha1.ErrorCode = "ERR_CREATE_POD_GANG_NAME"
-	errCodeGetPodGangMetadata        grovecorev1alpha1.ErrorCode = "ERR_GET_PODGANG_METADATA"
+	errCodeGetPod                       grovecorev1alpha1.ErrorCode = "ERR_GET_POD"
+	errCodeSyncPod                      grovecorev1alpha1.ErrorCode = "ERR_SYNC_POD"
+	errCodeDeletePod                    grovecorev1alpha1.ErrorCode = "ERR_DELETE_POD"
+	errCodeCreatePodGangNameFromPCLQ    grovecorev1alpha1.ErrorCode = "ERR_CREATE_POD_GANG_NAME"
+	errCodeGetPodGangMetadata           grovecorev1alpha1.ErrorCode = "ERR_GET_PODGANG_METADATA"
+	errCodeGetPodGangSet                grovecorev1alpha1.ErrorCode = "ERR_GET_PODGANGSET"
+	errCodeListPodGang                  grovecorev1alpha1.ErrorCode = "ERR_LIST_PODGANG"
+	errCodeExtractPGSReplicaFromPCLQFQN grovecorev1alpha1.ErrorCode = "ERR_EXTRACT_PODGANSET_REPLICA_FROM_PODCLIQUE_FQN"
+	errCodeListPod                      grovecorev1alpha1.ErrorCode = "ERR_LIST_POD"
 )
 
 // constants used for pod events
 const (
 	reasonPodCreationSuccessful = "PodCreationSuccessful"
 	reasonPodCreationFailed     = "PodCreationFailed"
+	reasonPodDeletionSuccessful = "PodDeletionSuccessful"
+	reasonPodDeletionFailed     = "PodDeletionFailed"
 )
 
 const (
 	podGangSchedulingGate = "grove.io/podgang-pending-creation"
+)
+
+const (
+	// TODO: @renormalize check if this is duplicate
+	noPodGangAssigned = "__no_pod_gang_assigned__"
 )
 
 type _resource struct {
@@ -101,38 +116,164 @@ func (r _resource) GetExistingResourceNames(ctx context.Context, _ logr.Logger, 
 }
 
 func (r _resource) Sync(ctx context.Context, logger logr.Logger, pclq *grovecorev1alpha1.PodClique) error {
-	existingPodNames, err := r.GetExistingResourceNames(ctx, logger, pclq)
+	pgs, err := r.getOwnerPodGangSet(ctx, &pclq.ObjectMeta)
 	if err != nil {
+		return err
+	}
+
+	pclqPods, err := componentutils.GetPCLQPods(ctx, r.client, pgs.Name, pclq)
+	if err != nil {
+		logger.Error(err, "Failed to list pods that belong to PodClique %v", client.ObjectKeyFromObject(pclq))
 		return groveerr.WrapError(err,
-			errCodeSyncPod,
+			errCodeListPod,
 			component.OperationSync,
-			fmt.Sprintf("failed to get existing pods for PodClique %v", k8sutils.GetObjectKeyFromObjectMeta(pclq.ObjectMeta)),
+			fmt.Sprintf("failed to list pods that belong to the PodClique %v", client.ObjectKeyFromObject(pclq)),
 		)
 	}
-	addSchedulingGate, err := r.shouldCreatePodsWithSchedulingGate(ctx, pclq)
-	diff := len(existingPodNames) - int(pclq.Spec.Replicas)
+
+	existingPodGangNames, err := r.getExistingPodGangs(ctx, pgs, pclq.ObjectMeta)
+	if err != nil {
+		return err
+	}
+	podGangToExistingPods, _, orphanedPods := segregateExistingPodsByPodGang(existingPodGangNames, pclqPods)
+	podsCreated, podsDeleted, err := r.syncPodGangPods(ctx, logger, pgs, pclq, podGangToExistingPods)
+	if err != nil {
+		return err
+	}
+
+	diff := len(pclqPods) + podsCreated - podsDeleted - int(pclq.Spec.Replicas) - len(orphanedPods)
 	if diff < 0 {
-		diff *= -1 // we only care about the absolute value of the difference
-		logger.Info("Too few replicas for PodClique, creating new pods", "need", pclq.Spec.Replicas, "existing", len(existingPodNames), "creating", diff)
-		if err != nil {
-			return err
-		}
-		return r.doCreatePods(ctx, logger, pclq, addSchedulingGate, diff)
+		logger.Info("Too few replicas for PodClique, creating new pods", "need", pclq.Spec.Replicas, "existing", len(pclqPods), "creating", diff)
+		return r.doCreatePods(ctx, logger, pclq, nil, -diff)
 	} else {
 		// delete excess pods
 	}
-	//
+
+	if err := r.doDeletePods(ctx, logger, pclq, orphanedPods); err != nil {
+		return err
+	}
+
 	return nil
 }
 
-func (r _resource) doCreatePods(ctx context.Context, logger logr.Logger, pclq *grovecorev1alpha1.PodClique, addSchedulingGate bool, numPods int) error {
+func (r _resource) getOwnerPodGangSet(ctx context.Context, pclqObjectMeta *metav1.ObjectMeta) (*grovecorev1alpha1.PodGangSet, error) {
+	pgsName := k8sutils.GetFirstOwnerName(*pclqObjectMeta)
+	pgs := &grovecorev1alpha1.PodGangSet{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      pgsName,
+			Namespace: pclqObjectMeta.Namespace,
+		},
+	}
+	if err := r.client.Get(ctx, client.ObjectKeyFromObject(pgs), pgs); err != nil {
+		return nil, groveerr.WrapError(err,
+			errCodeGetPodGangSet,
+			component.OperationSync,
+			fmt.Sprintf("failed to get owner PodGangSet %s ", pgsName),
+		)
+	}
+	return pgs, nil
+}
+
+// getExistingPodGangs returns the existing PodGangs that correspond to the PodClique
+func (r _resource) getExistingPodGangs(ctx context.Context, pgs *grovecorev1alpha1.PodGangSet, pclqObjectMeta metav1.ObjectMeta) ([]string, error) {
+	podGangNames, err := componentutils.GetExistingPodGangNames(ctx, r.client, pgs)
+	if err != nil {
+		return nil, groveerr.WrapError(err,
+			errCodeListPodGang,
+			component.OperationSync,
+			fmt.Sprintf("failed to list existing PodGangs for PodGangSet %v", client.ObjectKeyFromObject(pgs)),
+		)
+	}
+
+	pgsReplicaIndex, err := utils.GetPodGangSetReplicaIndexFromPodCliqueFQN(pgs.Name, pclqObjectMeta.Name)
+	if err != nil {
+		return nil, groveerr.WrapError(err,
+			errCodeExtractPGSReplicaFromPCLQFQN,
+			component.OperationSync,
+			fmt.Sprintf("failed to extra PGS %s replica from PCLQ FQN %s", pgs.Name, pclqObjectMeta.Name),
+		)
+	}
+	pgsReplicaPodGangName := grovecorev1alpha1.GeneratePodGangName(grovecorev1alpha1.ResourceNameReplica{
+		Name:    pgs.Name,
+		Replica: pgsReplicaIndex,
+	}, nil)
+	pcsgName, ok := pclqObjectMeta.GetLabels()[grovecorev1alpha1.LabelPodCliqueScalingGroup]
+
+	filteredPodGangNames := lo.Filter(podGangNames, func(podGangName string, _ int) bool {
+		return podGangName == pgsReplicaPodGangName || (ok && strings.HasPrefix(podGangName, pcsgName))
+	})
+
+	return filteredPodGangNames, nil
+}
+
+func (r _resource) syncPodGangPods(ctx context.Context, logger logr.Logger, pgs *grovecorev1alpha1.PodGangSet, pclq *grovecorev1alpha1.PodClique, podGangPods map[string][]*corev1.Pod) (int, int, error) {
+	// compute expected number of pods in the PodGang from a particualr PodClique
+	// 1. If PodClique is a part of a PCSG, then number expected in the PodGang is pgs.spec.templateSpec.cliques[x].spec.replicas
+	// 2. If PodClique has its own scaleConfig, then number expected in the PodGang is pclq.spec.replicas <pgs-name>-<replica-index> : INDIVIDUAL HPA
+	// 3. If PodClique has no autoscaling config, then number expected in the PodGang is pclq.spec.replicas
+	var podsCreated, podsDeleted int
+	expectedPodGangReplicas := computeExpectedPodGangReplicas(pgs, pclq)
+	for podGangName, pods := range podGangPods {
+		diff := len(pods) - int(expectedPodGangReplicas)
+		if diff < 0 {
+			if err := r.doCreatePods(ctx, logger, pclq, &podGangName, -diff); err != nil {
+				return podsCreated, podsDeleted, err
+			}
+			podsCreated++
+		} else if diff > 0 {
+			// delete the pods based on TBD alg
+			podsDeleted++
+		}
+	}
+	return podsCreated, podsDeleted, nil
+}
+
+func computeExpectedPodGangReplicas(pgs *grovecorev1alpha1.PodGangSet, pclq *grovecorev1alpha1.PodClique) int32 {
+	_, ok := lo.Find(pgs.Spec.TemplateSpec.PodCliqueScalingGroupConfigs, func(pcsgConfig grovecorev1alpha1.PodCliqueScalingGroupConfig) bool {
+		_, ok := lo.Find(pcsgConfig.CliqueNames, func(unqualifiedPCLQName string) bool {
+			return strings.Contains(pclq.Name, unqualifiedPCLQName)
+		})
+		return ok
+	})
+	if ok {
+		cliqueTemplateSpec, _ := lo.Find(pgs.Spec.TemplateSpec.Cliques, func(cliqueTemplateSpec *grovecorev1alpha1.PodCliqueTemplateSpec) bool {
+			return strings.Contains(pclq.Name, cliqueTemplateSpec.Name)
+		})
+		return cliqueTemplateSpec.Spec.Replicas
+	}
+	return pclq.Spec.Replicas
+}
+
+func segregateExistingPodsByPodGang(existingPodGangNames []string, pods []*corev1.Pod) (map[string][]*corev1.Pod, []*corev1.Pod, []*corev1.Pod) {
+	podGangToPod := make(map[string][]*corev1.Pod)
+	unassignedPods := make([]*corev1.Pod, 20) // TODO: @renormalize decide on a better value
+	// orphanedPods holds Pods whose PodGang was deleted
+	orphanedPods := make([]*corev1.Pod, 20)
+	for _, existingPodGangName := range existingPodGangNames {
+		podGangToPod[existingPodGangName] = make([]*corev1.Pod, 0)
+	}
+	for _, pod := range pods {
+		podGangName, ok := pod.GetLabels()[grovecorev1alpha1.LabelPodGangName]
+		if !ok {
+			unassignedPods = append(unassignedPods, pod)
+		}
+		if slices.Contains(existingPodGangNames, podGangName) {
+			podGangToPod[podGangName] = append(podGangToPod[podGangName], pod)
+		} else {
+			orphanedPods = append(orphanedPods, pod)
+		}
+	}
+	return podGangToPod, unassignedPods, orphanedPods
+}
+
+func (r _resource) doCreatePods(ctx context.Context, logger logr.Logger, pclq *grovecorev1alpha1.PodClique, podGangName *string, numPods int) error {
 	createTasks := make([]utils.Task, 0, numPods)
-	for i := 0; i < numPods; i++ {
+	for i := range numPods {
 		createTask := utils.Task{
 			Name: fmt.Sprintf("CreatePod-%s-%d", pclq.Name, i),
 			Fn: func(ctx context.Context) error {
 				pod := &corev1.Pod{}
-				if err := r.buildResource(pclq, pod, addSchedulingGate); err != nil {
+				if err := r.buildResource(pclq, pod, podGangName); err != nil {
 					return groveerr.WrapError(err,
 						errCodeSyncPod,
 						component.OperationSync,
@@ -161,6 +302,39 @@ func (r _resource) doCreatePods(ctx context.Context, logger logr.Logger, pclq *g
 			errCodeSyncPod,
 			component.OperationSync,
 			fmt.Sprintf("failed to create pods for PodClique %v", client.ObjectKeyFromObject(pclq)),
+		)
+	}
+	return nil
+}
+
+func (r _resource) doDeletePods(ctx context.Context, logger logr.Logger, pclq *grovecorev1alpha1.PodClique, orphanedPods []*corev1.Pod) error {
+	deleteTasks := make([]utils.Task, 0, len(orphanedPods))
+	for i, pod := range orphanedPods {
+		deleteTask := utils.Task{
+			Name: fmt.Sprintf("DeletePod-%s-%d", pod.Name, i),
+			Fn: func(ctx context.Context) error {
+				logger.Info("Initiating delete of Pod", "Pod", client.ObjectKeyFromObject(pod))
+				if err := r.client.Delete(ctx, pod); err != nil {
+					return groveerr.WrapError(err,
+						errCodeDeletePod,
+						component.OperationSync,
+						fmt.Sprintf("failed to delete Pod %v", client.ObjectKeyFromObject(pod)),
+					)
+				}
+				logger.Info("Deleted pod for PodClique", "Pod", client.ObjectKeyFromObject(pod))
+				r.eventRecorder.Eventf(pclq, corev1.EventTypeNormal, reasonPodDeletionSuccessful, "Deleted Pod: %s", pod.Name)
+				return nil
+			},
+		}
+		deleteTasks = append(deleteTasks, deleteTask)
+	}
+	if runResult := utils.RunConcurrentlyWithSlowStart(ctx, logger, 1, deleteTasks); runResult.HasErrors() {
+		err := runResult.GetAggregatedError()
+		logger.Error(err, "Error deleting pods for PodClique", "pclqName", pclq.Name, "run summary", runResult.GetSummary())
+		return groveerr.WrapError(runResult.GetAggregatedError(),
+			errCodeSyncPod,
+			component.OperationSync,
+			fmt.Sprintf("failed to delete pods for PodClique %v", client.ObjectKeyFromObject(pclq)),
 		)
 	}
 	return nil
@@ -210,8 +384,13 @@ func (r _resource) checkPodGangExists(ctx context.Context, namespace, pgsName, p
 	return k8sutils.GetFirstOwnerName(pgPartialObjMeta.ObjectMeta) == pgsName, nil
 }
 
-func (r _resource) buildResource(pclq *grovecorev1alpha1.PodClique, pod *corev1.Pod, addSchedulingGate bool) error {
+func (r _resource) buildResource(pclq *grovecorev1alpha1.PodClique, pod *corev1.Pod, podGangName *string) error {
 	labels, err := getLabels(pclq.ObjectMeta)
+	if podGangName != nil {
+		labels[grovecorev1alpha1.LabelPodGangName] = *podGangName
+	} else {
+		pod.Spec.SchedulingGates = []corev1.PodSchedulingGate{{Name: podGangSchedulingGate}}
+	}
 	if err != nil {
 		return groveerr.WrapError(err,
 			errCodeSyncPod,
@@ -232,7 +411,6 @@ func (r _resource) buildResource(pclq *grovecorev1alpha1.PodClique, pod *corev1.
 		)
 	}
 	pod.Spec = *pclq.Spec.PodSpec.DeepCopy()
-	pod.Spec.SchedulingGates = []corev1.PodSchedulingGate{{Name: podGangSchedulingGate}}
 	// TODO: Add init container as part of the PodSpec once it is ready.
 
 	return nil

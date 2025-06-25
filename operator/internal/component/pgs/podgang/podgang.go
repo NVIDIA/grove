@@ -7,6 +7,7 @@ import (
 
 	grovecorev1alpha1 "github.com/NVIDIA/grove/operator/api/core/v1alpha1"
 	"github.com/NVIDIA/grove/operator/internal/component"
+	componentutils "github.com/NVIDIA/grove/operator/internal/component/utils"
 	groveerr "github.com/NVIDIA/grove/operator/internal/errors"
 	k8sutils "github.com/NVIDIA/grove/operator/internal/utils/kubernetes"
 	groveschedulerv1alpha1 "github.com/NVIDIA/grove/scheduler/api/core/v1alpha1"
@@ -48,20 +49,15 @@ func New(client client.Client, scheme *runtime.Scheme) component.Operator[grovec
 
 func (r _resource) GetExistingResourceNames(ctx context.Context, logger logr.Logger, pgs *grovecorev1alpha1.PodGangSet) ([]string, error) {
 	logger.Info("Looking for existing PodGang resources created per replica of PodGangSet")
-	objMetaList := &metav1.PartialObjectMetadataList{}
-	objMetaList.SetGroupVersionKind(groveschedulerv1alpha1.SchemeGroupVersion.WithKind("PodGang"))
-	if err := r.client.List(ctx,
-		objMetaList,
-		client.InNamespace(pgs.Namespace),
-		client.MatchingLabels(getPodGangSelectorLabels(pgs.ObjectMeta)),
-	); err != nil {
+	podGangNames, err := componentutils.GetExistingPodGangNames(ctx, r.client, pgs)
+	if err != nil {
 		return nil, groveerr.WrapError(err,
 			errCodeListPodGangs,
 			component.OperationGetExistingResourceNames,
 			fmt.Sprintf("Error listing PodGang for PodGangSet: %v", client.ObjectKeyFromObject(pgs)),
 		)
 	}
-	return k8sutils.FilterMapOwnedResourceNames(pgs.ObjectMeta, objMetaList.Items), nil
+	return podGangNames, nil
 }
 
 func (r _resource) Sync(ctx context.Context, logger logr.Logger, pgs *grovecorev1alpha1.PodGangSet) error {

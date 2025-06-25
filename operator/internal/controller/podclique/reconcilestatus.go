@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	grovecorev1alpha1 "github.com/NVIDIA/grove/operator/api/core/v1alpha1"
+	componentutils "github.com/NVIDIA/grove/operator/internal/component/utils"
 	ctrlcommon "github.com/NVIDIA/grove/operator/internal/controller/common"
 	k8sutils "github.com/NVIDIA/grove/operator/internal/utils/kubernetes"
 	"github.com/go-logr/logr"
@@ -16,7 +17,7 @@ import (
 
 func (r *Reconciler) reconcileStatus(ctx context.Context, logger logr.Logger, pclq *grovecorev1alpha1.PodClique) ctrlcommon.ReconcileStepResult {
 	pgsName := k8sutils.GetFirstOwnerName(pclq.ObjectMeta)
-	pods, err := r.getPCLQPods(ctx, pgsName, pclq)
+	pods, err := componentutils.GetPCLQPods(ctx, r.client, pgsName, pclq)
 	if err != nil {
 		logger.Error(err, "failed to get pod list for PodClique")
 		ctrlcommon.ReconcileWithErrors(fmt.Sprintf("failed to list pods for PodClique %v", client.ObjectKeyFromObject(pclq)), err)
@@ -54,7 +55,7 @@ func updateSelector(pgsName string, pclq *grovecorev1alpha1.PodClique) error {
 	)
 	selector, err := metav1.LabelSelectorAsSelector(&metav1.LabelSelector{MatchLabels: labels})
 	if err != nil {
-		return fmt.Errorf("%w: failed to create label selector for PodClique %v", client.ObjectKeyFromObject(pclq))
+		return fmt.Errorf("%w: failed to create label selector for PodClique %v", err, client.ObjectKeyFromObject(pclq))
 	}
 	pclq.Status.Selector = ptr.To(selector.String())
 	return nil
@@ -71,28 +72,4 @@ func getReadyAndScheduleGatedPods(pods []*corev1.Pod) (readyPods []*corev1.Pod, 
 		}
 	}
 	return
-}
-
-func (r *Reconciler) getPCLQPods(ctx context.Context, pgsName string, pclq *grovecorev1alpha1.PodClique) ([]*corev1.Pod, error) {
-	podList := &corev1.PodList{}
-	if err := r.client.List(ctx,
-		podList,
-		client.InNamespace(pclq.Namespace),
-		client.MatchingLabels(
-			lo.Assign(
-				k8sutils.GetDefaultLabelsForPodGangSetManagedResources(pgsName),
-				map[string]string{
-					grovecorev1alpha1.LabelPodCliqueName: pclq.Name,
-				},
-			),
-		)); err != nil {
-		return nil, err
-	}
-	ownedPods := make([]*corev1.Pod, 0, len(podList.Items))
-	for _, pod := range podList.Items {
-		if metav1.IsControlledBy(&pod, pclq) {
-			ownedPods = append(ownedPods, &pod)
-		}
-	}
-	return ownedPods, nil
 }
