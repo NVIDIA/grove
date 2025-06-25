@@ -100,9 +100,12 @@ func (r *Reconciler) reconcileStatus(ctx context.Context, pcsg *grovecorev1alpha
 	pcsg.Status.Replicas = pcsg.Spec.Replicas
 
 	pgsName := k8sutils.GetFirstOwnerName(pcsg.ObjectMeta)
-	labels := lo.Assign(k8sutils.GetDefaultLabelsForPodGangSetManagedResources(pgsName), map[string]string{
-		grovecorev1alpha1.LabelPodCliqueScalingGroup: pcsg.Name,
-	})
+	labels := lo.Assign(
+		k8sutils.GetDefaultLabelsForPodGangSetManagedResources(pgsName),
+		map[string]string{
+			grovecorev1alpha1.LabelAppNameKey: pcsg.Name,
+		},
+	)
 
 	selector, err := metav1.LabelSelectorAsSelector(&metav1.LabelSelector{MatchLabels: labels})
 	if err != nil {

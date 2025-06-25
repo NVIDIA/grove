@@ -19,6 +19,7 @@ package podclique
 import (
 	"context"
 	"fmt"
+	"k8s.io/utils/ptr"
 	"slices"
 	"strings"
 
@@ -238,7 +239,9 @@ func (r _resource) buildResource(logger logr.Logger, pclq *grovecorev1alpha1.Pod
 			fmt.Sprintf("Error setting controller reference for PodClique: %v", client.ObjectKeyFromObject(pclq)),
 		)
 	}
-	pclq.Labels = getLabels(pgs.Name, pclqObjectKey, pclqTemplateSpec)
+	pgsReplica, err := utils.GetPodGangSetReplicaIndexFromPodCliqueFQN(pgs.Name, pclq.Name)
+	pcsgName := getPCSGForPodClique(pgs, pgsReplica, pclqTemplateSpec.Name)
+	pclq.Labels = getLabels(pgs.Name, pcsgName, pclqObjectKey, pclqTemplateSpec)
 	pclq.Annotations = pclqTemplateSpec.Annotations
 	// set PodCliqueSpec
 	// ------------------------------------
@@ -251,7 +254,6 @@ func (r _resource) buildResource(logger logr.Logger, pclq *grovecorev1alpha1.Pod
 		pclq.Spec = pclqTemplateSpec.Spec
 	}
 	var dependentPclqNames []string
-	pgsReplicaIndex, err := utils.GetPodGangSetReplicaIndexFromPodCliqueFQN(pgs.Name, pclq.Name)
 	if err != nil {
 		return groveerr.WrapError(err,
 			errSyncPodClique,
@@ -259,11 +261,21 @@ func (r _resource) buildResource(logger logr.Logger, pclq *grovecorev1alpha1.Pod
 			fmt.Sprintf("Failed to extract PodGangSet replica index from PodClique name: %s", pclq.Name),
 		)
 	}
-	if dependentPclqNames, err = identifyFullyQualifiedStartupDependencyNames(pgs, pclq, pgsReplicaIndex, foundAtIndex); err != nil {
+	if dependentPclqNames, err = identifyFullyQualifiedStartupDependencyNames(pgs, pclq, pgsReplica, foundAtIndex); err != nil {
 		return err
 	}
 	pclq.Spec.StartsAfter = dependentPclqNames
 	return nil
+}
+
+func getPCSGForPodClique(pgs *grovecorev1alpha1.PodGangSet, pgsReplica int, pclqTemplateName string) *string {
+	pcsg, ok := lo.Find(pgs.Spec.TemplateSpec.PodCliqueScalingGroupConfigs, func(pcsg grovecorev1alpha1.PodCliqueScalingGroupConfig) bool {
+		return slices.Contains(pcsg.CliqueNames, pclqTemplateName)
+	})
+	if !ok {
+		return nil
+	}
+	return ptr.To(grovecorev1alpha1.GeneratePodCliqueScalingGroupName(grovecorev1alpha1.ResourceNameReplica{Name: pgs.Name, Replica: pgsReplica}, pcsg.Name))
 }
 
 func identifyFullyQualifiedStartupDependencyNames(pgs *grovecorev1alpha1.PodGangSet, pclq *grovecorev1alpha1.PodClique, pgsReplicaIndex, foundAtIndex int) ([]string, error) {
@@ -310,10 +322,13 @@ func getPodCliqueSelectorLabels(pgsObjectMeta metav1.ObjectMeta) map[string]stri
 	)
 }
 
-func getLabels(pgsName string, pclqObjectKey client.ObjectKey, pclqTemplateSpec *grovecorev1alpha1.PodCliqueTemplateSpec) map[string]string {
+func getLabels(pgsName string, pcsgName *string, pclqObjectKey client.ObjectKey, pclqTemplateSpec *grovecorev1alpha1.PodCliqueTemplateSpec) map[string]string {
 	pclqComponentLabels := map[string]string{
 		grovecorev1alpha1.LabelAppNameKey:   pclqObjectKey.Name,
 		grovecorev1alpha1.LabelComponentKey: component.NamePodClique,
+	}
+	if pcsgName != nil {
+		pclqComponentLabels[component.NamePodCliqueScalingGroup] = *pcsgName
 	}
 	return lo.Assign(
 		pclqTemplateSpec.Labels,

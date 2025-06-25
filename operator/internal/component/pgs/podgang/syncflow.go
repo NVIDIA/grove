@@ -272,7 +272,6 @@ func (r _resource) runSyncFlow(sc *syncContext) (result syncFlowResult) {
 		result.errs = append(result.errs, err)
 		return
 	}
-
 	result = r.createNonExistingPodGangs(sc)
 	return
 }
@@ -287,7 +286,7 @@ func (r _resource) createNonExistingPodGangs(sc *syncContext) syncFlowResult {
 		pclqs := sc.getPodCliques(pendingPodGang)
 		// check the health of each podclique
 		for _, pclq := range pclqs {
-			if pclq.Spec.Replicas != pclq.Status.ReadyReplicas {
+			if pclq.Spec.Replicas > pclq.Status.ReadyReplicas+pclq.Status.ScheduleGatedReplicas {
 				result.recordSkippedPodGang(pendingPodGang.fqn)
 				break
 			}

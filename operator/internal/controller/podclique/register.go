@@ -17,20 +17,25 @@
 package podclique
 
 import (
+	"context"
 	"github.com/NVIDIA/grove/operator/api/core/v1alpha1"
 	grovectrlutils "github.com/NVIDIA/grove/operator/internal/controller/utils"
-
+	groveschedulerv1alpha1 "github.com/NVIDIA/grove/scheduler/api/core/v1alpha1"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/event"
+	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
+	"sigs.k8s.io/controller-runtime/pkg/reconcile"
+	"strings"
 )
 
 const (
 	controllerName = "podclique-controller"
-	finalizerName  = "podclique.grove.io"
 )
 
 // RegisterWithManager registers the PodClique controller with the given controller manager.
@@ -42,7 +47,48 @@ func (r *Reconciler) RegisterWithManager(mgr ctrl.Manager) error {
 		}).
 		For(&v1alpha1.PodClique{}, builder.WithPredicates(managedPodCliquePredicate(), predicate.GenerationChangedPredicate{})).
 		Owns(&corev1.Pod{}, builder.WithPredicates(podPredicate())).
+		Watches(
+			&groveschedulerv1alpha1.PodGang{},
+			handler.EnqueueRequestsFromMapFunc(mapPodGangToPCLQs()),
+			builder.WithPredicates(podGangPredicate()),
+		).
 		Complete(r)
+}
+
+// mapPodGangToPCLQs maps a PodGang to one or more reconcile.Request(s) for its constituent PodClique's.
+func mapPodGangToPCLQs() handler.MapFunc {
+	return func(_ context.Context, obj client.Object) []reconcile.Request {
+		podGang, ok := obj.(*groveschedulerv1alpha1.PodGang)
+		if !ok {
+			return nil
+		}
+		requests := make([]reconcile.Request, 0, len(podGang.Spec.PodGroups))
+		for _, podGroup := range podGang.Spec.PodGroups {
+			if len(podGroup.PodReferences) == 0 {
+				continue
+			}
+			podRefName := podGroup.PodReferences[0].Name
+			pclqFQN := extractPCLQNameFromPodName(podRefName)
+			requests = append(requests, reconcile.Request{
+				NamespacedName: types.NamespacedName{Name: pclqFQN, Namespace: podGang.Namespace},
+			})
+		}
+		return requests
+	}
+}
+
+func podGangPredicate() predicate.Predicate {
+	return predicate.Funcs{
+		CreateFunc:  func(_ event.CreateEvent) bool { return true },
+		DeleteFunc:  func(_ event.DeleteEvent) bool { return true },
+		UpdateFunc:  func(_ event.UpdateEvent) bool { return false },
+		GenericFunc: func(_ event.GenericEvent) bool { return false },
+	}
+}
+
+func extractPCLQNameFromPodName(podName string) string {
+	endIndex := strings.LastIndex(podName, "-")
+	return podName[:endIndex]
 }
 
 func managedPodCliquePredicate() predicate.Predicate {

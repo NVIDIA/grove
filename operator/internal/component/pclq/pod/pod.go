@@ -109,17 +109,19 @@ func (r _resource) Sync(ctx context.Context, logger logr.Logger, pclq *grovecore
 			fmt.Sprintf("failed to get existing pods for PodClique %v", k8sutils.GetObjectKeyFromObjectMeta(pclq.ObjectMeta)),
 		)
 	}
+	addSchedulingGate, err := r.shouldCreatePodsWithSchedulingGate(ctx, pclq)
 	diff := len(existingPodNames) - int(pclq.Spec.Replicas)
 	if diff < 0 {
 		diff *= -1 // we only care about the absolute value of the difference
 		logger.Info("Too few replicas for PodClique, creating new pods", "need", pclq.Spec.Replicas, "existing", len(existingPodNames), "creating", diff)
-		addSchedulingGate, err := r.shouldCreatePodsWithSchedulingGate(ctx, pclq)
 		if err != nil {
 			return err
 		}
 		return r.doCreatePods(ctx, logger, pclq, addSchedulingGate, diff)
+	} else {
+		// delete excess pods
 	}
-
+	//
 	return nil
 }
 
@@ -164,6 +166,7 @@ func (r _resource) doCreatePods(ctx context.Context, logger logr.Logger, pclq *g
 	return nil
 }
 
+// shouldCreatePodsWithSchedulingGate
 func (r _resource) shouldCreatePodsWithSchedulingGate(ctx context.Context, pclq *grovecorev1alpha1.PodClique) (bool, error) {
 	pgsName := k8sutils.GetFirstOwnerName(pclq.ObjectMeta)
 	podGangName, err := constructPodGangNameFromPCLQ(pgsName, pclq)
