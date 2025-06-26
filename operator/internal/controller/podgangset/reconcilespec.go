@@ -20,13 +20,13 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	groveerr "github.com/NVIDIA/grove/operator/internal/errors"
 	"time"
 
 	"github.com/NVIDIA/grove/operator/api/core/v1alpha1"
 	"github.com/NVIDIA/grove/operator/internal/component"
 	ctrlcommon "github.com/NVIDIA/grove/operator/internal/controller/common"
 	ctrlutils "github.com/NVIDIA/grove/operator/internal/controller/utils"
+	groveerr "github.com/NVIDIA/grove/operator/internal/errors"
 
 	"github.com/go-logr/logr"
 	"sigs.k8s.io/controller-runtime/pkg/client"

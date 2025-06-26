@@ -1,22 +1,40 @@
+// /*
+// Copyright 2025 The Grove Authors.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+// */
+
 package pod
 
 import (
 	"context"
 	"fmt"
+	"slices"
+	"strconv"
+	"strings"
+
 	grovecorev1alpha1 "github.com/NVIDIA/grove/operator/api/core/v1alpha1"
 	"github.com/NVIDIA/grove/operator/internal/component"
 	componentutils "github.com/NVIDIA/grove/operator/internal/component/utils"
 	groveerr "github.com/NVIDIA/grove/operator/internal/errors"
 	"github.com/NVIDIA/grove/operator/internal/utils"
 	k8sutils "github.com/NVIDIA/grove/operator/internal/utils/kubernetes"
+
 	"github.com/go-logr/logr"
 	"github.com/samber/lo"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"slices"
-	"strconv"
-	"strings"
 )
 
 type syncContext struct {
@@ -76,7 +94,7 @@ func (r _resource) runSyncFlow(sc *syncContext, logger logr.Logger) error {
 	if err != nil {
 		return err
 	}
-	diff := sc.numExistingPods - int(sc.pclq.Spec.Replicas) - numCreatedPods + numDeletedPods
+	diff := sc.numExistingPods - int(sc.pclq.Spec.Replicas) + numCreatedPods - numDeletedPods
 	// create pods without any gang associated with them
 	if diff < 0 {
 		diff *= -1
@@ -328,6 +346,11 @@ func (r _resource) createPods(ctx context.Context, logger logr.Logger, pclq *gro
 
 // deletePods deletes the extra pods corresponding to the PodGang. TODO: the logic here can be significantly improved, by checking health of the Pods, and so on.
 func (r _resource) deletePods(ctx context.Context, logger logr.Logger, pclq *grovecorev1alpha1.PodClique, existingPods []*corev1.Pod, expectedPodsNum int) (int, error) {
+	// TODO: @renormalize below deletes the newly created pods first, this can be improved to delete based on health, etc.
+	// If this is not done, the list calls made by reconciliations in other routines delete extra pods, as List's order varies.
+	slices.SortFunc(existingPods, func(pod1, pod2 *corev1.Pod) int {
+		return (pod1.CreationTimestamp.Time).Compare(pod2.CreationTimestamp.Time)
+	})
 	podsToDelete := existingPods[expectedPodsNum:]
 	deleteTasks := make([]utils.Task, 0, len(podsToDelete))
 	for i, pod := range podsToDelete {
