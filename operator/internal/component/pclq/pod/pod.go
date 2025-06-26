@@ -19,12 +19,9 @@ package pod
 import (
 	"context"
 	"fmt"
-	"slices"
-	"strconv"
-	"strings"
-
 	groveschedulerv1alpha1 "github.com/NVIDIA/grove/scheduler/api/core/v1alpha1"
 	"k8s.io/apimachinery/pkg/api/errors"
+	"strconv"
 
 	grovecorev1alpha1 "github.com/NVIDIA/grove/operator/api/core/v1alpha1"
 	"github.com/NVIDIA/grove/operator/internal/component"
@@ -45,15 +42,19 @@ import (
 
 // constants for error codes
 const (
-	errCodeGetPod                       grovecorev1alpha1.ErrorCode = "ERR_GET_POD"
-	errCodeSyncPod                      grovecorev1alpha1.ErrorCode = "ERR_SYNC_POD"
-	errCodeDeletePod                    grovecorev1alpha1.ErrorCode = "ERR_DELETE_POD"
-	errCodeCreatePodGangNameFromPCLQ    grovecorev1alpha1.ErrorCode = "ERR_CREATE_POD_GANG_NAME"
-	errCodeGetPodGangMetadata           grovecorev1alpha1.ErrorCode = "ERR_GET_PODGANG_METADATA"
-	errCodeGetPodGangSet                grovecorev1alpha1.ErrorCode = "ERR_GET_PODGANGSET"
-	errCodeListPodGang                  grovecorev1alpha1.ErrorCode = "ERR_LIST_PODGANG"
-	errCodeExtractPGSReplicaFromPCLQFQN grovecorev1alpha1.ErrorCode = "ERR_EXTRACT_PODGANSET_REPLICA_FROM_PODCLIQUE_FQN"
-	errCodeListPod                      grovecorev1alpha1.ErrorCode = "ERR_LIST_POD"
+	errCodeGetPod                             grovecorev1alpha1.ErrorCode = "ERR_GET_POD"
+	errCodeSyncPod                            grovecorev1alpha1.ErrorCode = "ERR_SYNC_POD"
+	errCodeDeletePod                          grovecorev1alpha1.ErrorCode = "ERR_DELETE_POD"
+	errCodeCreatePodGangNameFromPCLQ          grovecorev1alpha1.ErrorCode = "ERR_CREATE_POD_GANG_NAME"
+	errCodeGetPodGangMetadata                 grovecorev1alpha1.ErrorCode = "ERR_GET_PODGANG_METADATA"
+	errCodeGetPodGangSet                      grovecorev1alpha1.ErrorCode = "ERR_GET_PODGANGSET"
+	errCodeListPodGang                        grovecorev1alpha1.ErrorCode = "ERR_LIST_PODGANG"
+	errCodeExtractPGSReplicaFromPCLQFQN       grovecorev1alpha1.ErrorCode = "ERR_EXTRACT_PODGANSET_REPLICA_FROM_PODCLIQUE_FQN"
+	errCodeListPod                            grovecorev1alpha1.ErrorCode = "ERR_LIST_POD"
+	errCodeGetPodCliqueScalingGroup           grovecorev1alpha1.ErrorCode = "ERR_GET_PODCLIQUESCALINGGROUP"
+	errCodeMissingPodGangSetReplicaIndexLabel grovecorev1alpha1.ErrorCode = "ERR_MISSING_PODGANGSET_REPLICA_INDEX_LABEL"
+	errCodeInvalidPodGangSetReplicaLabelValue grovecorev1alpha1.ErrorCode = "ERR_INVALID_PODGANGSET_REPLICA_LABEL_VALUE"
+	errCodeRemovePodSchedulingGate            grovecorev1alpha1.ErrorCode = "ERR_REMOVE_POD_SCHEDULING_GATE"
 )
 
 // constants used for pod events
@@ -116,6 +117,14 @@ func (r _resource) GetExistingResourceNames(ctx context.Context, _ logr.Logger, 
 }
 
 func (r _resource) Sync(ctx context.Context, logger logr.Logger, pclq *grovecorev1alpha1.PodClique) error {
+
+	sc, err := r.prepareSyncFlow(ctx, logger, pclq)
+	if err != nil {
+		return err
+	}
+
+	r.runSyncFlow(sc, logger)
+
 	pgs, err := r.getOwnerPodGangSet(ctx, &pclq.ObjectMeta)
 	if err != nil {
 		return err
@@ -131,7 +140,7 @@ func (r _resource) Sync(ctx context.Context, logger logr.Logger, pclq *grovecore
 		)
 	}
 
-	existingPodGangNames, err := r.getExistingPodGangs(ctx, pgs, pclq.ObjectMeta)
+	existingPodGangNames, err := r.getExistingPodGangNamesAssociatedWithPCLQ(ctx, pgs, pclq.ObjectMeta)
 	if err != nil {
 		return err
 	}
@@ -156,56 +165,6 @@ func (r _resource) Sync(ctx context.Context, logger logr.Logger, pclq *grovecore
 	return nil
 }
 
-func (r _resource) getOwnerPodGangSet(ctx context.Context, pclqObjectMeta *metav1.ObjectMeta) (*grovecorev1alpha1.PodGangSet, error) {
-	pgsName := k8sutils.GetFirstOwnerName(*pclqObjectMeta)
-	pgs := &grovecorev1alpha1.PodGangSet{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      pgsName,
-			Namespace: pclqObjectMeta.Namespace,
-		},
-	}
-	if err := r.client.Get(ctx, client.ObjectKeyFromObject(pgs), pgs); err != nil {
-		return nil, groveerr.WrapError(err,
-			errCodeGetPodGangSet,
-			component.OperationSync,
-			fmt.Sprintf("failed to get owner PodGangSet %s ", pgsName),
-		)
-	}
-	return pgs, nil
-}
-
-// getExistingPodGangs returns the existing PodGangs that correspond to the PodClique
-func (r _resource) getExistingPodGangs(ctx context.Context, pgs *grovecorev1alpha1.PodGangSet, pclqObjectMeta metav1.ObjectMeta) ([]string, error) {
-	podGangNames, err := componentutils.GetExistingPodGangNames(ctx, r.client, pgs)
-	if err != nil {
-		return nil, groveerr.WrapError(err,
-			errCodeListPodGang,
-			component.OperationSync,
-			fmt.Sprintf("failed to list existing PodGangs for PodGangSet %v", client.ObjectKeyFromObject(pgs)),
-		)
-	}
-
-	pgsReplicaIndex, err := utils.GetPodGangSetReplicaIndexFromPodCliqueFQN(pgs.Name, pclqObjectMeta.Name)
-	if err != nil {
-		return nil, groveerr.WrapError(err,
-			errCodeExtractPGSReplicaFromPCLQFQN,
-			component.OperationSync,
-			fmt.Sprintf("failed to extra PGS %s replica from PCLQ FQN %s", pgs.Name, pclqObjectMeta.Name),
-		)
-	}
-	pgsReplicaPodGangName := grovecorev1alpha1.GeneratePodGangName(grovecorev1alpha1.ResourceNameReplica{
-		Name:    pgs.Name,
-		Replica: pgsReplicaIndex,
-	}, nil)
-	pcsgName, ok := pclqObjectMeta.GetLabels()[grovecorev1alpha1.LabelPodCliqueScalingGroup]
-
-	filteredPodGangNames := lo.Filter(podGangNames, func(podGangName string, _ int) bool {
-		return podGangName == pgsReplicaPodGangName || (ok && strings.HasPrefix(podGangName, pcsgName))
-	})
-
-	return filteredPodGangNames, nil
-}
-
 func (r _resource) syncPodGangPods(ctx context.Context, logger logr.Logger, pgs *grovecorev1alpha1.PodGangSet, pclq *grovecorev1alpha1.PodClique, podGangPods map[string][]*corev1.Pod) (int, int, error) {
 	// compute expected number of pods in the PodGang from a particualr PodClique
 	// 1. If PodClique is a part of a PCSG, then number expected in the PodGang is pgs.spec.templateSpec.cliques[x].spec.replicas
@@ -228,43 +187,27 @@ func (r _resource) syncPodGangPods(ctx context.Context, logger logr.Logger, pgs 
 	return podsCreated, podsDeleted, nil
 }
 
-func computeExpectedPodGangReplicas(pgs *grovecorev1alpha1.PodGangSet, pclq *grovecorev1alpha1.PodClique) int32 {
-	_, ok := lo.Find(pgs.Spec.TemplateSpec.PodCliqueScalingGroupConfigs, func(pcsgConfig grovecorev1alpha1.PodCliqueScalingGroupConfig) bool {
-		_, ok := lo.Find(pcsgConfig.CliqueNames, func(unqualifiedPCLQName string) bool {
-			return strings.Contains(pclq.Name, unqualifiedPCLQName)
-		})
-		return ok
-	})
-	if ok {
-		cliqueTemplateSpec, _ := lo.Find(pgs.Spec.TemplateSpec.Cliques, func(cliqueTemplateSpec *grovecorev1alpha1.PodCliqueTemplateSpec) bool {
-			return strings.Contains(pclq.Name, cliqueTemplateSpec.Name)
-		})
-		return cliqueTemplateSpec.Spec.Replicas
-	}
-	return pclq.Spec.Replicas
-}
-
-func segregateExistingPodsByPodGang(existingPodGangNames []string, pods []*corev1.Pod) (map[string][]*corev1.Pod, []*corev1.Pod, []*corev1.Pod) {
-	podGangToPod := make(map[string][]*corev1.Pod)
-	unassignedPods := make([]*corev1.Pod, 20) // TODO: @renormalize decide on a better value
-	// orphanedPods holds Pods whose PodGang was deleted
-	orphanedPods := make([]*corev1.Pod, 20)
-	for _, existingPodGangName := range existingPodGangNames {
-		podGangToPod[existingPodGangName] = make([]*corev1.Pod, 0)
-	}
-	for _, pod := range pods {
-		podGangName, ok := pod.GetLabels()[grovecorev1alpha1.LabelPodGangName]
-		if !ok {
-			unassignedPods = append(unassignedPods, pod)
-		}
-		if slices.Contains(existingPodGangNames, podGangName) {
-			podGangToPod[podGangName] = append(podGangToPod[podGangName], pod)
-		} else {
-			orphanedPods = append(orphanedPods, pod)
-		}
-	}
-	return podGangToPod, unassignedPods, orphanedPods
-}
+//func segregateExistingPodsByPodGang(existingPodGangNames []string, pods []*corev1.Pod) (map[string][]*corev1.Pod, []*corev1.Pod, []*corev1.Pod) {
+//	podGangToPod := make(map[string][]*corev1.Pod)
+//	unassignedPods := make([]*corev1.Pod, 20) // TODO: @renormalize decide on a better value
+//	// orphanedPods holds Pods whose PodGang was deleted
+//	orphanedPods := make([]*corev1.Pod, 20)
+//	for _, existingPodGangName := range existingPodGangNames {
+//		podGangToPod[existingPodGangName] = make([]*corev1.Pod, 0)
+//	}
+//	for _, pod := range pods {
+//		podGangName, ok := pod.GetLabels()[grovecorev1alpha1.LabelPodGangName]
+//		if !ok {
+//			unassignedPods = append(unassignedPods, pod)
+//		}
+//		if slices.Contains(existingPodGangNames, podGangName) {
+//			podGangToPod[podGangName] = append(podGangToPod[podGangName], pod)
+//		} else {
+//			orphanedPods = append(orphanedPods, pod)
+//		}
+//	}
+//	return podGangToPod, unassignedPods, orphanedPods
+//}
 
 func (r _resource) doCreatePods(ctx context.Context, logger logr.Logger, pclq *grovecorev1alpha1.PodClique, podGangName *string, numPods int) error {
 	createTasks := make([]utils.Task, 0, numPods)

@@ -19,17 +19,18 @@ import (
 )
 
 const (
-	errCodeListPodGangs            grovecorev1alpha1.ErrorCode = "ERR_LIST_PODGANGS"
-	errCodeDeletePodGangs          grovecorev1alpha1.ErrorCode = "ERR_DELETE_PODGANGS"
-	errCodeDeleteExcessPodGang     grovecorev1alpha1.ErrorCode = "ERR_DELETE_EXCESS_PODGANG"
-	errCodeSyncPodGangs            grovecorev1alpha1.ErrorCode = "ERR_SYNC_PODGANGS"
-	errCodeGetPodClique            grovecorev1alpha1.ErrorCode = "ERR_GET_PODCLIQUE_FOR_PODGANG"
-	errCodeListPods                grovecorev1alpha1.ErrorCode = "ERR_LIST_PODS_FOR_PODGANGSET"
-	errCodeListPodCliques          grovecorev1alpha1.ErrorCode = "ERR_LIST_PODCLIQUES_FOR_PODGANGSET"
-	errCodePatchPodLabel           grovecorev1alpha1.ErrorCode = "ERR_PATCH_POD_LABELS_FOR_PODGANG"
-	errCodeComputeExistingPodGangs grovecorev1alpha1.ErrorCode = "ERR_COMPUTE_EXISTING_PODGANG"
-	errCodeSetControllerReference  grovecorev1alpha1.ErrorCode = "ERR_SET_CONTROLLER_REFERENCE"
-	errCodeCreatePodGang           grovecorev1alpha1.ErrorCode = "ERR_CREATE_PODGANG"
+	errCodeListPodGangs                           grovecorev1alpha1.ErrorCode = "ERR_LIST_PODGANGS"
+	errCodeDeletePodGangs                         grovecorev1alpha1.ErrorCode = "ERR_DELETE_PODGANGS"
+	errCodeDeleteExcessPodGang                    grovecorev1alpha1.ErrorCode = "ERR_DELETE_EXCESS_PODGANG"
+	errCodeSyncPodGangs                           grovecorev1alpha1.ErrorCode = "ERR_SYNC_PODGANGS"
+	errCodeGetPodClique                           grovecorev1alpha1.ErrorCode = "ERR_GET_PODCLIQUE_FOR_PODGANG"
+	errCodeListPods                               grovecorev1alpha1.ErrorCode = "ERR_LIST_PODS_FOR_PODGANGSET"
+	errCodeListPodCliques                         grovecorev1alpha1.ErrorCode = "ERR_LIST_PODCLIQUES_FOR_PODGANGSET"
+	errCodePatchPodLabel                          grovecorev1alpha1.ErrorCode = "ERR_PATCH_POD_LABELS_FOR_PODGANG"
+	errCodeComputeExistingPodGangs                grovecorev1alpha1.ErrorCode = "ERR_COMPUTE_EXISTING_PODGANG"
+	errCodeSetControllerReference                 grovecorev1alpha1.ErrorCode = "ERR_SET_CONTROLLER_REFERENCE"
+	errCodeCreatePodGang                          grovecorev1alpha1.ErrorCode = "ERR_CREATE_PODGANG"
+	errCodeInvalidPodCliqueScalingGroupLabelValue grovecorev1alpha1.ErrorCode = "ERR_INVALID_PODCLIQUESCALINGGROUP_LABEL_VALUE"
 )
 
 type _resource struct {

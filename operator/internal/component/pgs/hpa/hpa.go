@@ -44,14 +44,6 @@ const (
 	errDeleteHPA grovecorev1alpha1.ErrorCode = "ERR_DELETE_HPA"
 )
 
-type hpaInfo struct {
-	objectKey               client.ObjectKey
-	targetScaleResourceKind string
-	targetScaleResourceName string
-	minReplicas             int32
-	scaleConfig             grovecorev1alpha1.AutoScalingConfig
-}
-
 type _resource struct {
 	client client.Client
 	scheme *runtime.Scheme
@@ -123,6 +115,15 @@ func (r _resource) Delete(ctx context.Context, logger logr.Logger, pgsObjMeta me
 	}
 	logger.Info("Deleted HPA(s)")
 	return nil
+}
+
+// hpaInfo holds the state for a HPA resource. This will be used during sync run for HPA resources.
+type hpaInfo struct {
+	objectKey               client.ObjectKey
+	targetScaleResourceKind string
+	targetScaleResourceName string
+	minReplicas             int32
+	scaleConfig             grovecorev1alpha1.AutoScalingConfig
 }
 
 func (r _resource) computeExpectedHPAs(pgs *grovecorev1alpha1.PodGangSet) []hpaInfo {

@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"k8s.io/utils/ptr"
 	"slices"
+	"strconv"
 	"strings"
 
 	grovecorev1alpha1 "github.com/NVIDIA/grove/operator/api/core/v1alpha1"
@@ -105,17 +106,17 @@ func (r _resource) Sync(ctx context.Context, logger logr.Logger, pgs *grovecorev
 	numTasks := int(pgs.Spec.Replicas) * len(pgs.Spec.TemplateSpec.Cliques)
 	tasks := make([]utils.Task, 0, numTasks)
 
-	for replicaIndex := range pgs.Spec.Replicas {
+	for pgsReplica := range pgs.Spec.Replicas {
 		for _, pclqTemplateSpec := range pgs.Spec.TemplateSpec.Cliques {
 			pclqObjectKey := client.ObjectKey{
-				Name:      grovecorev1alpha1.GeneratePodCliqueName(grovecorev1alpha1.ResourceNameReplica{Name: pgs.Name, Replica: int(replicaIndex)}, pclqTemplateSpec.Name),
+				Name:      grovecorev1alpha1.GeneratePodCliqueName(grovecorev1alpha1.ResourceNameReplica{Name: pgs.Name, Replica: int(pgsReplica)}, pclqTemplateSpec.Name),
 				Namespace: pgs.Namespace,
 			}
 			exists := slices.Contains(existingPCLQNames, pclqObjectKey.Name)
 			createOrUpdateTask := utils.Task{
 				Name: fmt.Sprintf("CreateOrUpdatePodClique-%s", pclqObjectKey),
 				Fn: func(ctx context.Context) error {
-					return r.doCreateOrUpdate(ctx, logger, pgs, pclqObjectKey, exists)
+					return r.doCreateOrUpdate(ctx, logger, pgs, pgsReplica, pclqObjectKey, exists)
 				},
 			}
 			tasks = append(tasks, createOrUpdateTask)
@@ -200,11 +201,11 @@ func (r _resource) Delete(ctx context.Context, logger logr.Logger, pgsObjectMeta
 	return nil
 }
 
-func (r _resource) doCreateOrUpdate(ctx context.Context, logger logr.Logger, pgs *grovecorev1alpha1.PodGangSet, pclqObjectKey client.ObjectKey, exists bool) error {
+func (r _resource) doCreateOrUpdate(ctx context.Context, logger logr.Logger, pgs *grovecorev1alpha1.PodGangSet, pgsReplica int32, pclqObjectKey client.ObjectKey, exists bool) error {
 	logger.Info("Running CreateOrUpdate PodClique", "pclqObjectKey", pclqObjectKey)
 	pclq := emptyPodClique(pclqObjectKey)
 	opResult, err := controllerutil.CreateOrPatch(ctx, r.client, pclq, func() error {
-		return r.buildResource(logger, pclq, pgs, exists)
+		return r.buildResource(logger, pclq, pgs, int(pgsReplica), exists)
 	})
 	if err != nil {
 		return groveerr.WrapError(err,
@@ -217,7 +218,7 @@ func (r _resource) doCreateOrUpdate(ctx context.Context, logger logr.Logger, pgs
 	return nil
 }
 
-func (r _resource) buildResource(logger logr.Logger, pclq *grovecorev1alpha1.PodClique, pgs *grovecorev1alpha1.PodGangSet, exists bool) error {
+func (r _resource) buildResource(logger logr.Logger, pclq *grovecorev1alpha1.PodClique, pgs *grovecorev1alpha1.PodGangSet, pgsReplica int, exists bool) error {
 	var err error
 	pclqObjectKey, pgsObjectKey := client.ObjectKeyFromObject(pclq), client.ObjectKeyFromObject(pgs)
 	pclqTemplateSpec, foundAtIndex, ok := lo.FindIndexOf(pgs.Spec.TemplateSpec.Cliques, func(pclqTemplateSpec *grovecorev1alpha1.PodCliqueTemplateSpec) bool {
@@ -239,9 +240,8 @@ func (r _resource) buildResource(logger logr.Logger, pclq *grovecorev1alpha1.Pod
 			fmt.Sprintf("Error setting controller reference for PodClique: %v", client.ObjectKeyFromObject(pclq)),
 		)
 	}
-	pgsReplica, err := utils.GetPodGangSetReplicaIndexFromPodCliqueFQN(pgs.Name, pclq.Name)
 	pcsgName := getPCSGForPodClique(pgs, pgsReplica, pclqTemplateSpec.Name)
-	pclq.Labels = getLabels(pgs.Name, pcsgName, pclqObjectKey, pclqTemplateSpec)
+	pclq.Labels = getLabels(pgs.Name, pgsReplica, pcsgName, pclqObjectKey, pclqTemplateSpec)
 	pclq.Annotations = pclqTemplateSpec.Annotations
 	// set PodCliqueSpec
 	// ------------------------------------
@@ -322,10 +322,11 @@ func getPodCliqueSelectorLabels(pgsObjectMeta metav1.ObjectMeta) map[string]stri
 	)
 }
 
-func getLabels(pgsName string, pcsgName *string, pclqObjectKey client.ObjectKey, pclqTemplateSpec *grovecorev1alpha1.PodCliqueTemplateSpec) map[string]string {
+func getLabels(pgsName string, pgsReplica int, pcsgName *string, pclqObjectKey client.ObjectKey, pclqTemplateSpec *grovecorev1alpha1.PodCliqueTemplateSpec) map[string]string {
 	pclqComponentLabels := map[string]string{
-		grovecorev1alpha1.LabelAppNameKey:   pclqObjectKey.Name,
-		grovecorev1alpha1.LabelComponentKey: component.NamePodClique,
+		grovecorev1alpha1.LabelAppNameKey:             pclqObjectKey.Name,
+		grovecorev1alpha1.LabelComponentKey:           component.NamePodClique,
+		grovecorev1alpha1.LabelPodGangSetReplicaIndex: strconv.Itoa(pgsReplica),
 	}
 	if pcsgName != nil {
 		pclqComponentLabels[component.NamePodCliqueScalingGroup] = *pcsgName
