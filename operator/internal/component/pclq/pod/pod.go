@@ -328,6 +328,7 @@ func (r _resource) Sync(ctx context.Context, logger logr.Logger, pclq *grovecore
 // }
 
 func (r _resource) buildResource(pclq *grovecorev1alpha1.PodClique, pod *corev1.Pod, podGangName *string) error {
+	pod.Spec = *pclq.Spec.PodSpec.DeepCopy()
 	labels, err := getLabels(pclq.ObjectMeta)
 	if podGangName != nil {
 		labels[grovecorev1alpha1.LabelPodGangName] = *podGangName
@@ -353,7 +354,6 @@ func (r _resource) buildResource(pclq *grovecorev1alpha1.PodClique, pod *corev1.
 			fmt.Sprintf("error setting controller reference of PodClique: %v on Pod", client.ObjectKeyFromObject(pclq)),
 		)
 	}
-	pod.Spec = *pclq.Spec.PodSpec.DeepCopy()
 	// TODO: Add init container as part of the PodSpec once it is ready.
 
 	return nil
