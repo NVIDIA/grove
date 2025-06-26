@@ -292,7 +292,7 @@ func (r _resource) createNonExistingPodGangs(sc *syncContext) syncFlowResult {
 			}
 		}
 		if result.canCreatePodGang(pendingPodGang.fqn) {
-			if err := r.createPodGang(sc, pendingPodGang.fqn); err != nil {
+			if err := r.createPodGang(sc, pendingPodGang); err != nil {
 				sc.logger.Error(err, "Failed to create PodGang", "PodGangName", pendingPodGang.fqn)
 				result.recordError(err)
 				return result
@@ -303,10 +303,10 @@ func (r _resource) createNonExistingPodGangs(sc *syncContext) syncFlowResult {
 	return result
 }
 
-func (r _resource) createPodGang(sc *syncContext, podGangName string) error {
+func (r _resource) createPodGang(sc *syncContext, pgInfo podGangInfo) error {
 	pg := emptyPodGang(client.ObjectKey{
 		Namespace: sc.pgs.Namespace,
-		Name:      podGangName,
+		Name:      pgInfo.fqn,
 	})
 	pg.Labels = getLabels(sc.pgs.Name)
 	if err := controllerutil.SetControllerReference(sc.pgs, pg, r.scheme); err != nil {
@@ -314,10 +314,10 @@ func (r _resource) createPodGang(sc *syncContext, podGangName string) error {
 			err,
 			errCodeSetControllerReference,
 			component.OperationSync,
-			fmt.Sprintf("failed to set the controller reference on PodGang %s to PodGangSet %v", podGangName, client.ObjectKeyFromObject(sc.pgs)),
+			fmt.Sprintf("failed to set the controller reference on PodGang %s to PodGangSet %v", pgInfo.fqn, client.ObjectKeyFromObject(sc.pgs)),
 		)
 	}
-	pg.Spec.PodGroups = sc.createPodGroupsForPodGang(pg.Namespace, podGangName)
+	pg.Spec.PodGroups = sc.createPodGroupsForPodGang(pg.Namespace, pgInfo)
 	pg.Spec.PriorityClassName = sc.pgs.Spec.PriorityClassName
 	pg.Spec.TerminationDelay = sc.pgs.Spec.TemplateSpec.SchedulingPolicyConfig.TerminationDelay
 
@@ -410,10 +410,7 @@ func (sc *syncContext) initializeAssignedAndUnassignedPodsForPGS(podsByPLCQ map[
 	}
 }
 
-func (sc *syncContext) createPodGroupsForPodGang(namespace, podGangName string) []groveschedulerv1alpha1.PodGroup {
-	pgInfo, _ := lo.Find(sc.expectedPodGangs, func(pgi podGangInfo) bool {
-		return pgi.fqn == podGangName
-	})
+func (sc *syncContext) createPodGroupsForPodGang(namespace string, pgInfo podGangInfo) []groveschedulerv1alpha1.PodGroup {
 	podGroups := lo.Map(pgInfo.pclqs, func(pclq pclqInfo, _ int) groveschedulerv1alpha1.PodGroup {
 		namespacedNames := lo.Map(pclq.associatedPodNames, func(associatedPodName string, _ int) groveschedulerv1alpha1.NamespacedName {
 			return groveschedulerv1alpha1.NamespacedName{
