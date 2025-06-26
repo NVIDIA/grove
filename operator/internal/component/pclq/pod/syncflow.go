@@ -33,7 +33,10 @@ type syncContext struct {
 }
 
 func (r _resource) prepareSyncFlow(ctx context.Context, logger logr.Logger, pclq *grovecorev1alpha1.PodClique) (*syncContext, error) {
-	sc := &syncContext{ctx: ctx}
+	sc := &syncContext{
+		ctx:  ctx,
+		pclq: pclq,
+	}
 	pgs, err := r.getOwnerPodGangSet(ctx, pclq.ObjectMeta)
 	if err != nil {
 		return nil, err
@@ -71,8 +74,22 @@ func (r _resource) prepareSyncFlow(ctx context.Context, logger logr.Logger, pclq
 func (r _resource) runSyncFlow(sc *syncContext, logger logr.Logger) error {
 	diff := sc.numExistingPods - int(sc.pclq.Spec.Replicas)
 	if diff < 0 {
-		r.syncExistingPodGangs()
+		diff *= -1
+		numCreatedPods, numDeletedPods, err := r.syncExistingPodGangs(sc, logger)
+		if err != nil {
+			return err
+		}
+		// create pods without any gang associated with them
+		diff = diff - numCreatedPods + numDeletedPods
+		_, err = r.createPods(sc.ctx, logger, sc.pclq, nil, diff)
+		if err != nil {
+			return err
+		}
+	} else {
+		// delete pods
 	}
+
+	return nil
 }
 
 // getOwnerPodGangSet gets the owner PodGangSet object for the PodClique.
@@ -172,6 +189,9 @@ func computeExpectedPodGangReplicas(pgs *grovecorev1alpha1.PodGangSet, pclq *gro
 }
 
 func segregateExistingPodsByPodGang(existingPodGangNames []string, expectedPodGangNames []string, pods []*corev1.Pod) (existingPodGangToPods map[string][]*corev1.Pod, unassignedPods []*corev1.Pod, orphanedPods map[string][]*corev1.Pod) {
+	existingPodGangToPods = make(map[string][]*corev1.Pod)
+	unassignedPods = make([]*corev1.Pod, 0)
+	orphanedPods = make(map[string][]*corev1.Pod)
 	for _, pod := range pods {
 		podGangName, ok := pod.GetLabels()[grovecorev1alpha1.LabelPodGangName]
 		if !ok {
@@ -205,23 +225,30 @@ func getPGSReplicaIndexForPCLQ(pclqObjectMeta metav1.ObjectMeta) (int, error) {
 	return pgsReplica, nil
 }
 
-func (r _resource) syncExistingPodGangs(sc *syncContext, logger logr.Logger) error {
-	for existingPodGang, existingPods := range sc.existingPodGangToPods {
+func (r _resource) syncExistingPodGangs(sc *syncContext, logger logr.Logger) (numCreatedPods int, numDeletedPods int, err error) {
+	for existingPodGangName, existingPods := range sc.existingPodGangToPods {
 		// check if these existing existingPods are schedule gated. If yes, then remove the schedule gates as the PodGang now exists.
-		if err := r.removeSchedulingGatesFromPods(sc.ctx, logger, client.ObjectKeyFromObject(sc.pclq), existingPods); err != nil {
-			return err
+		if err = r.removeSchedulingGatesFromPods(sc.ctx, logger, client.ObjectKeyFromObject(sc.pclq), existingPods); err != nil {
+			return
 		}
 		diff := len(existingPods) - sc.expectedPodsPerPodGang
 		if diff < 0 {
-
+			numCreatedPodGangPods := 0
+			numCreatedPodGangPods, err = r.createPods(sc.ctx, logger, sc.pclq, &existingPodGangName, -diff)
+			if err != nil {
+				return
+			}
+			numCreatedPods += numCreatedPodGangPods
 		} else {
-			// TODO: code the logic to select pods to delete first.
+			numDeletedPodGangPods := 0
+			numDeletedPodGangPods, err = r.deletePods(sc.ctx, logger, sc.pclq, existingPods, sc.expectedPodsPerPodGang)
+			if err != nil {
+				return
+			}
+			numDeletedPods += numDeletedPodGangPods
 		}
 	}
-
-	if runResult := utils.RunConcurrentlyWithSlowStart(sc.ctx, logger, 1, syncTasks); runResult.HasErrors() {
-
-	}
+	return
 }
 
 func (r _resource) removeSchedulingGatesFromPods(ctx context.Context, logger logr.Logger, pclqObjectKey client.ObjectKey, pods []*corev1.Pod) error {
@@ -257,7 +284,7 @@ func (r _resource) removeSchedulingGatesFromPods(ctx context.Context, logger log
 	return nil
 }
 
-func (r _resource) getPodCreationTasks(logger logr.Logger, pclq *grovecorev1alpha1.PodClique, podGangName *string, numPods int) []utils.Task {
+func (r _resource) createPods(ctx context.Context, logger logr.Logger, pclq *grovecorev1alpha1.PodClique, podGangName *string, numPods int) (int, error) {
 	createTasks := make([]utils.Task, 0, numPods)
 	for i := range numPods {
 		createTask := utils.Task{
@@ -286,7 +313,55 @@ func (r _resource) getPodCreationTasks(logger logr.Logger, pclq *grovecorev1alph
 		}
 		createTasks = append(createTasks, createTask)
 	}
-	return createTasks
+	runResult := utils.RunConcurrentlyWithSlowStart(ctx, logger, 1, createTasks)
+	if runResult.HasErrors() {
+		err := runResult.GetAggregatedError()
+		pclqObjectKey := client.ObjectKeyFromObject(pclq)
+		logger.Error(err, "failed to create pods for PCLQ", "pclqObjectKey", pclqObjectKey, "runSummary", runResult.GetSummary())
+		return 0, groveerr.WrapError(err,
+			errCodeCreatePods,
+			component.OperationSync,
+			fmt.Sprintf("failed to create Pods for PodClique %v", pclqObjectKey),
+		)
+	}
+	return len(runResult.SuccessfulTasks), nil
+}
+
+// deletePods deletes the extra pods corresponding to the PodGang. TODO: the logic here can be significantly improved, by checking health of the Pods, and so on.
+func (r _resource) deletePods(ctx context.Context, logger logr.Logger, pclq *grovecorev1alpha1.PodClique, existingPods []*corev1.Pod, expectedPodsNum int) (int, error) {
+	podsToDelete := existingPods[expectedPodsNum:]
+	deleteTasks := make([]utils.Task, 0, len(podsToDelete))
+	for i, pod := range podsToDelete {
+		deleteTask := utils.Task{
+			Name: fmt.Sprintf("DeletePod-%s-%d", pod.Name, i),
+			Fn: func(ctx context.Context) error {
+				if err := r.client.Delete(ctx, pod); err != nil {
+					r.eventRecorder.Eventf(pclq, corev1.EventTypeWarning, reasonPodDeletionFailed, "Error deleting pod: %v", err)
+					return groveerr.WrapError(err,
+						errCodeDeletePod,
+						component.OperationSync,
+						fmt.Sprintf("failed to delete Pod: %v for PodClique %v", client.ObjectKeyFromObject(pod), client.ObjectKeyFromObject(pclq)),
+					)
+				}
+				logger.Info("Deleted pod for PodClique", "pclqName", pclq.Name, "podName", pod.Name)
+				r.eventRecorder.Eventf(pclq, corev1.EventTypeNormal, reasonPodDeletionSuccessful, "Deleted Pod: %s", pod.Name)
+				return nil
+			},
+		}
+		deleteTasks = append(deleteTasks, deleteTask)
+	}
+	runResult := utils.RunConcurrentlyWithSlowStart(ctx, logger, 1, deleteTasks)
+	if runResult.HasErrors() {
+		err := runResult.GetAggregatedError()
+		pclqObjectKey := client.ObjectKeyFromObject(pclq)
+		logger.Error(err, "failed to delete pods for PCLQ", "pclqObjectKey", pclqObjectKey, "runSummary", runResult.GetSummary())
+		return 0, groveerr.WrapError(err,
+			errCodeDeletePod,
+			component.OperationSync,
+			fmt.Sprintf("failed to delete Pods for PodClique %v", pclqObjectKey),
+		)
+	}
+	return len(runResult.SuccessfulTasks), nil
 }
 
 func hasPodGangSchedulingGate(pod *corev1.Pod) bool {
