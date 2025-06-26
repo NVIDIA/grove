@@ -248,7 +248,7 @@ func (r _resource) buildResource(pgs *grovecorev1alpha1.PodGangSet, hpa *autosca
 	hpa.Spec.ScaleTargetRef = autoscalingv2.CrossVersionObjectReference{
 		Kind:       expectedHPAInfo.targetScaleResourceKind,
 		Name:       expectedHPAInfo.targetScaleResourceName,
-		APIVersion: grovecorev1alpha1.SchemeGroupVersion.Version,
+		APIVersion: grovecorev1alpha1.SchemeGroupVersion.String(),
 	}
 	hpa.Spec.Metrics = expectedHPAInfo.scaleConfig.Metrics
 	hpa.Labels = getLabels(pgs.Name, hpa.Name)
