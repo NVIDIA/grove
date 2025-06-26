@@ -72,15 +72,14 @@ func (r _resource) prepareSyncFlow(ctx context.Context, logger logr.Logger, pclq
 }
 
 func (r _resource) runSyncFlow(sc *syncContext, logger logr.Logger) error {
-	diff := sc.numExistingPods - int(sc.pclq.Spec.Replicas)
+	numCreatedPods, numDeletedPods, err := r.syncExistingPodGangs(sc, logger)
+	if err != nil {
+		return err
+	}
+	diff := sc.numExistingPods - int(sc.pclq.Spec.Replicas) - numCreatedPods + numDeletedPods
+	// create pods without any gang associated with them
 	if diff < 0 {
 		diff *= -1
-		numCreatedPods, numDeletedPods, err := r.syncExistingPodGangs(sc, logger)
-		if err != nil {
-			return err
-		}
-		// create pods without any gang associated with them
-		diff = diff - numCreatedPods + numDeletedPods
 		_, err = r.createPods(sc.ctx, logger, sc.pclq, nil, diff)
 		if err != nil {
 			return err
