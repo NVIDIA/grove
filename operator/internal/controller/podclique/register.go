@@ -18,6 +18,8 @@ package podclique
 
 import (
 	"context"
+	"strings"
+
 	"github.com/NVIDIA/grove/operator/api/core/v1alpha1"
 	grovectrlutils "github.com/NVIDIA/grove/operator/internal/controller/utils"
 	groveschedulerv1alpha1 "github.com/NVIDIA/grove/scheduler/api/core/v1alpha1"
@@ -31,7 +33,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
-	"strings"
 )
 
 const (

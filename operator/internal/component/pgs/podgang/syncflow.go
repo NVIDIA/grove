@@ -235,6 +235,7 @@ func (r _resource) deleteExcessPodGangs(sc *syncContext) error {
 	for _, podGangToDelete := range excessPodGangs {
 		pgObjectKey := client.ObjectKey{Namespace: namespace, Name: podGangToDelete}
 		pg := emptyPodGang(pgObjectKey)
+		sc.logger.Info("Delete excess PodGang", "objectKey", client.ObjectKeyFromObject(pg))
 		if err := client.IgnoreNotFound(r.client.Delete(sc.ctx, pg)); err != nil {
 			return groveerr.WrapError(err,
 				errCodeDeleteExcessPodGang,
@@ -242,6 +243,7 @@ func (r _resource) deleteExcessPodGangs(sc *syncContext) error {
 				fmt.Sprintf("failed to delete PodGang %v", pgObjectKey),
 			)
 		}
+		sc.logger.Info("Triggered delete of excess PodGang", "objectKey", client.ObjectKeyFromObject(pg))
 	}
 	return nil
 }
@@ -302,6 +304,7 @@ func (r _resource) createPodGang(sc *syncContext, podGangName string) error {
 	pg.Spec.PriorityClassName = sc.pgs.Spec.PriorityClassName
 	pg.Spec.TerminationDelay = sc.pgs.Spec.TemplateSpec.SchedulingPolicyConfig.TerminationDelay
 
+	sc.logger.Info("Creating PodGang", "objectKey", client.ObjectKeyFromObject(pg))
 	if err := r.client.Create(sc.ctx, pg); err != nil {
 		return groveerr.WrapError(
 			err,
@@ -310,6 +313,7 @@ func (r _resource) createPodGang(sc *syncContext, podGangName string) error {
 			fmt.Sprintf("failed to create PodGang %v", client.ObjectKeyFromObject(pg)),
 		)
 	}
+	sc.logger.Info("Triggered create of PodGang", "objectKey", client.ObjectKeyFromObject(pg))
 	return nil
 }
 

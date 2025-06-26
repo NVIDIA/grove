@@ -62,6 +62,7 @@ func (r _resource) GetExistingResourceNames(ctx context.Context, logger logr.Log
 }
 
 func (r _resource) Sync(ctx context.Context, logger logr.Logger, pgs *grovecorev1alpha1.PodGangSet) error {
+	logger.Info("Syncing PodGang resources")
 	sc, err := r.prepareSyncFlow(ctx, logger, pgs)
 	if err != nil {
 		return err
