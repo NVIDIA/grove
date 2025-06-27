@@ -167,6 +167,7 @@ func (r *Reconciler) updatePodCliqueReplicas(ctx context.Context, logger logr.Lo
 	// update the spec
 	expectedReplicas := pcsg.Spec.Replicas * pclqTemplateSpec.Spec.Replicas
 	if expectedReplicas != pclq.Spec.Replicas {
+		logger.Info("Updating PCLQ replicas due to change in PCSG replicas", "pcsgReplicas", pcsg.Spec.Replicas, "expectedReplicasForPCLQ", expectedReplicas)
 		patch := client.MergeFrom(pclq.DeepCopy())
 		pclq.Spec.Replicas = expectedReplicas
 		if err := r.client.Patch(ctx, pclq, patch); err != nil {

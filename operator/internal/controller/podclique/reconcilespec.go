@@ -38,7 +38,6 @@ func (r *Reconciler) reconcileSpec(ctx context.Context, logger logr.Logger, pclq
 		r.updatePCLQStatusReplicas,
 		r.syncPCLQResources,
 		r.recordReconcileSuccess,
-		//r.updatePCLQStatus,
 		r.updateObservedGeneration,
 	}
 
