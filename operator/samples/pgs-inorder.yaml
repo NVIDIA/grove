@@ -14,9 +14,7 @@ spec:
         podSpec:
           containers:
           - name: decode
-            image: ubuntu
-            command: ["/bin/bash", "-c", "--" ]
-            args: [ "while true; do sleep 30; done;" ]
+            image: nginx:latest
             resources:
               requests:
                 cpu: 10m
@@ -35,9 +33,7 @@ spec:
         podSpec:
           containers:
           - name: prefill-leader
-            image: ubuntu
-            command: [ "/bin/bash", "-c", "--" ]
-            args: [ "while true; do sleep 30; done;" ]
+            image: nginx:latest
             resources:
               requests:
                 cpu: 10m
@@ -47,9 +43,7 @@ spec:
         podSpec:
           containers:
           - name: prefill-worker
-            image: ubuntu
-            command: [ "/bin/bash", "-c", "--" ]
-            args: [ "while true; do sleep 30; done;" ]
+            image: nginx:latest
             resources:
               requests:
                 cpu: 10m
