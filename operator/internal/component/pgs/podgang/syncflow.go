@@ -228,9 +228,16 @@ func (r _resource) getPodsByPCLQForPGS(ctx context.Context, pgsObjectKey client.
 	); err != nil {
 		return nil, err
 	}
-	podsByPCLQ := lo.GroupByMap(podList.Items, func(pod corev1.Pod) (string, corev1.Pod) {
-		return k8sutils.GetFirstOwnerName(pod.ObjectMeta), pod
-	})
+
+	podsByPCLQ := make(map[string][]corev1.Pod)
+	for _, pod := range podList.Items {
+		if pod.DeletionTimestamp != nil {
+			continue
+		}
+		pclqName := k8sutils.GetFirstOwnerName(pod.ObjectMeta)
+		podsByPCLQ[pclqName] = append(podsByPCLQ[pclqName], pod)
+	}
+
 	return podsByPCLQ, nil
 }
 
@@ -270,12 +277,14 @@ func (r _resource) createOrUpdatePodGangs(sc *syncContext) syncFlowResult {
 	result := syncFlowResult{}
 	pendingPodGangNames := sc.getPodGangNamesPendingCreation()
 	for _, podGang := range sc.expectedPodGangs {
+		sc.logger.Info("[createOrUpdatePodGangs] processing PodGang", "fqn", podGang.fqn)
 		isPodGangPendingCreation := slices.Contains(pendingPodGangNames, podGang.fqn)
 		pclqs := sc.getPodCliques(podGang)
 		// check the health of each podclique
 		for _, pclq := range pclqs {
 			if isPodGangPendingCreation {
 				if pclq.Spec.Replicas > pclq.Status.ReadyReplicas+pclq.Status.ScheduleGatedReplicas {
+					sc.logger.Info("[createOrUpdatePodGangs] skipping creation of PodGang as all desired replicas have not yet been created", "fqn", podGang.fqn)
 					result.recordSkippedPodGang(podGang.fqn)
 					break
 				}

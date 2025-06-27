@@ -18,11 +18,8 @@ package podgangset
 
 import (
 	"github.com/NVIDIA/grove/operator/api/core/v1alpha1"
-	grovectrlutils "github.com/NVIDIA/grove/operator/internal/controller/utils"
-
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
-	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 )
@@ -40,18 +37,6 @@ func (r *Reconciler) RegisterWithManager(mgr manager.Manager) error {
 		}).
 		For(&v1alpha1.PodGangSet{}).
 		WithEventFilter(predicate.GenerationChangedPredicate{}).
-		Owns(&v1alpha1.PodClique{}, builder.WithPredicates(podCliquePredicate())).
+		Owns(&v1alpha1.PodClique{}).
 		Complete(r)
-}
-
-// podCliquesPredicate returns a predicate that filters out PodClique resources that are not managed by Grove.
-func podCliquePredicate() predicate.Predicate {
-	return predicate.Funcs{
-		CreateFunc: func(_ event.CreateEvent) bool { return false },
-		DeleteFunc: func(deleteEvent event.DeleteEvent) bool {
-			return grovectrlutils.IsManagedPodClique(deleteEvent.Object)
-		},
-		UpdateFunc:  func(_ event.UpdateEvent) bool { return true },
-		GenericFunc: func(_ event.GenericEvent) bool { return false },
-	}
 }

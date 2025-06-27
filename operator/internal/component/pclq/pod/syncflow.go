@@ -345,13 +345,13 @@ func (r _resource) createPods(ctx context.Context, logger logr.Logger, pclq *gro
 }
 
 // deletePods deletes the extra pods corresponding to the PodGang. TODO: the logic here can be significantly improved, by checking health of the Pods, and so on.
-func (r _resource) deletePods(ctx context.Context, logger logr.Logger, pclq *grovecorev1alpha1.PodClique, existingPods []*corev1.Pod, expectedPodsNum int) (int, error) {
+func (r _resource) deletePods(ctx context.Context, logger logr.Logger, pclq *grovecorev1alpha1.PodClique, existingPods []*corev1.Pod, numexpectedPods int) (int, error) {
 	// TODO: @renormalize below deletes the newly created pods first, this can be improved to delete based on health, etc.
 	// If this is not done, the list calls made by reconciliations in other routines delete extra pods, as List's order varies.
 	slices.SortFunc(existingPods, func(pod1, pod2 *corev1.Pod) int {
 		return (pod1.CreationTimestamp.Time).Compare(pod2.CreationTimestamp.Time)
 	})
-	podsToDelete := existingPods[expectedPodsNum:]
+	podsToDelete := existingPods[numexpectedPods:]
 	deleteTasks := make([]utils.Task, 0, len(podsToDelete))
 	for i, pod := range podsToDelete {
 		deleteTask := utils.Task{
