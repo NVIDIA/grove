@@ -18,6 +18,7 @@ package podgangset
 
 import (
 	"context"
+
 	grovecorev1alpha1 "github.com/NVIDIA/grove/operator/api/core/v1alpha1"
 	grovectrlutils "github.com/NVIDIA/grove/operator/internal/controller/utils"
 	k8sutils "github.com/NVIDIA/grove/operator/internal/utils/kubernetes"
@@ -43,8 +44,7 @@ func (r *Reconciler) RegisterWithManager(mgr manager.Manager) error {
 		WithOptions(controller.Options{
 			MaxConcurrentReconciles: *r.config.ConcurrentSyncs,
 		}).
-		For(&grovecorev1alpha1.PodGangSet{}).
-		WithEventFilter(predicate.GenerationChangedPredicate{}).
+		For(&grovecorev1alpha1.PodGangSet{}, builder.WithPredicates(predicate.GenerationChangedPredicate{})).
 		Watches(
 			&grovecorev1alpha1.PodClique{},
 			handler.EnqueueRequestsFromMapFunc(mapPCLQToPodGangSet()),
@@ -72,8 +72,25 @@ func podCliquePredicate() predicate.Predicate {
 			return grovectrlutils.IsManagedPodClique(deleteEvent.Object)
 		},
 		UpdateFunc: func(updateEvent event.UpdateEvent) bool {
-			return grovectrlutils.IsManagedPodClique(updateEvent.ObjectOld)
+			return grovectrlutils.IsManagedPodClique(updateEvent.ObjectOld) &&
+				(hasSpecChanged(updateEvent) || hasStatusChanged(updateEvent))
 		},
 		GenericFunc: func(_ event.GenericEvent) bool { return false },
 	}
+}
+
+func hasSpecChanged(updateEvent event.UpdateEvent) bool {
+	return updateEvent.ObjectOld.GetGeneration() != updateEvent.ObjectNew.GetGeneration()
+}
+
+func hasStatusChanged(updateEvent event.UpdateEvent) bool {
+	oldPCLQ, okOld := updateEvent.ObjectOld.(*grovecorev1alpha1.PodClique)
+	newPCLQ, okNew := updateEvent.ObjectNew.(*grovecorev1alpha1.PodClique)
+	if !okOld || !okNew {
+		return false
+	}
+	return oldPCLQ.Status.Replicas != newPCLQ.Status.Replicas ||
+		oldPCLQ.Status.ReadyReplicas != newPCLQ.Status.ReadyReplicas ||
+		oldPCLQ.Status.UpdatedReplicas != newPCLQ.Status.UpdatedReplicas ||
+		oldPCLQ.Status.ScheduleGatedReplicas != newPCLQ.Status.ScheduleGatedReplicas
 }
