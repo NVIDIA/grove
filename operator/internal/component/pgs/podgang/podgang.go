@@ -33,6 +33,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )
 
 const (
@@ -48,6 +49,7 @@ const (
 	errCodeSetControllerReference                 grovecorev1alpha1.ErrorCode = "ERR_SET_CONTROLLER_REFERENCE"
 	errCodeCreatePodGang                          grovecorev1alpha1.ErrorCode = "ERR_CREATE_PODGANG"
 	errCodeInvalidPodCliqueScalingGroupLabelValue grovecorev1alpha1.ErrorCode = "ERR_INVALID_PODCLIQUESCALINGGROUP_LABEL_VALUE"
+	errCodeCreateOrPatchPodGang                   grovecorev1alpha1.ErrorCode = "ERR_CREATE_OR_PATCH_PODGANG"
 )
 
 type _resource struct {
@@ -113,7 +115,19 @@ func (r _resource) Delete(ctx context.Context, logger logr.Logger, pgsObjectMeta
 	return nil
 }
 
-func buildResource(podGang *groveschedulerv1alpha1.PodGang, pgs *grovecorev1alpha1.PodGangSet) error {
+func (r _resource) buildResource(pgs *grovecorev1alpha1.PodGangSet, pgInfo podGangInfo, pg *groveschedulerv1alpha1.PodGang) error {
+	pg.Labels = getLabels(pgs.Name)
+	if err := controllerutil.SetControllerReference(pgs, pg, r.scheme); err != nil {
+		return groveerr.WrapError(
+			err,
+			errCodeSetControllerReference,
+			component.OperationSync,
+			fmt.Sprintf("failed to set the controller reference on PodGang %s to PodGangSet %v", pgInfo.fqn, client.ObjectKeyFromObject(pgs)),
+		)
+	}
+	pg.Spec.PodGroups = createPodGroupsForPodGang(pg.Namespace, pgInfo)
+	pg.Spec.PriorityClassName = pgs.Spec.PriorityClassName
+	pg.Spec.TerminationDelay = pgs.Spec.TemplateSpec.SchedulingPolicyConfig.TerminationDelay
 	return nil
 }
 

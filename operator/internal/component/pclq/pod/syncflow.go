@@ -98,7 +98,7 @@ func (r _resource) runSyncFlow(sc *syncContext, logger logr.Logger) error {
 	// create pods without any gang associated with them
 	if diff < 0 {
 		diff *= -1
-		_, err = r.createPods(sc.ctx, logger, sc.pclq, nil, diff)
+		_, err = r.createPods(sc.ctx, logger, sc.pclq, diff)
 		if err != nil {
 			return err
 		}
@@ -243,7 +243,7 @@ func getPGSReplicaIndexForPCLQ(pclqObjectMeta metav1.ObjectMeta) (int, error) {
 }
 
 func (r _resource) syncExistingPodGangs(sc *syncContext, logger logr.Logger) (numCreatedPods int, numDeletedPods int, err error) {
-	for existingPodGangName, existingPods := range sc.existingPodGangToPods {
+	for _, existingPods := range sc.existingPodGangToPods {
 		// check if these existing existingPods are schedule gated. If yes, then remove the schedule gates as the PodGang now exists.
 		if err = r.removeSchedulingGatesFromPods(sc.ctx, logger, client.ObjectKeyFromObject(sc.pclq), existingPods); err != nil {
 			return
@@ -251,7 +251,7 @@ func (r _resource) syncExistingPodGangs(sc *syncContext, logger logr.Logger) (nu
 		diff := len(existingPods) - sc.expectedPodsPerPodGang
 		if diff < 0 {
 			numCreatedPodGangPods := 0
-			numCreatedPodGangPods, err = r.createPods(sc.ctx, logger, sc.pclq, &existingPodGangName, -diff)
+			numCreatedPodGangPods, err = r.createPods(sc.ctx, logger, sc.pclq, -diff)
 			if err != nil {
 				return
 			}
@@ -301,14 +301,14 @@ func (r _resource) removeSchedulingGatesFromPods(ctx context.Context, logger log
 	return nil
 }
 
-func (r _resource) createPods(ctx context.Context, logger logr.Logger, pclq *grovecorev1alpha1.PodClique, podGangName *string, numPods int) (int, error) {
+func (r _resource) createPods(ctx context.Context, logger logr.Logger, pclq *grovecorev1alpha1.PodClique, numPods int) (int, error) {
 	createTasks := make([]utils.Task, 0, numPods)
 	for i := range numPods {
 		createTask := utils.Task{
 			Name: fmt.Sprintf("CreatePod-%s-%d", pclq.Name, i),
 			Fn: func(ctx context.Context) error {
 				pod := &corev1.Pod{}
-				if err := r.buildResource(pclq, pod, podGangName); err != nil {
+				if err := r.buildResource(pclq, pod); err != nil {
 					return groveerr.WrapError(err,
 						errCodeSyncPod,
 						component.OperationSync,

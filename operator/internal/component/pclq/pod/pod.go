@@ -125,14 +125,8 @@ func (r _resource) Sync(ctx context.Context, logger logr.Logger, pclq *grovecore
 	return nil
 }
 
-func (r _resource) buildResource(pclq *grovecorev1alpha1.PodClique, pod *corev1.Pod, podGangName *string) error {
-	pod.Spec = *pclq.Spec.PodSpec.DeepCopy()
+func (r _resource) buildResource(pclq *grovecorev1alpha1.PodClique, pod *corev1.Pod) error {
 	labels, err := getLabels(pclq.ObjectMeta)
-	if podGangName != nil {
-		labels[grovecorev1alpha1.LabelPodGangName] = *podGangName
-	} else {
-		pod.Spec.SchedulingGates = []corev1.PodSchedulingGate{{Name: podGangSchedulingGate}}
-	}
 	if err != nil {
 		return groveerr.WrapError(err,
 			errCodeSyncPod,
@@ -152,7 +146,8 @@ func (r _resource) buildResource(pclq *grovecorev1alpha1.PodClique, pod *corev1.
 			fmt.Sprintf("error setting controller reference of PodClique: %v on Pod", client.ObjectKeyFromObject(pclq)),
 		)
 	}
-	// TODO: Add init container as part of the PodSpec once it is ready.
+	pod.Spec = *pclq.Spec.PodSpec.DeepCopy()
+	pod.Spec.SchedulingGates = []corev1.PodSchedulingGate{{Name: podGangSchedulingGate}}
 
 	return nil
 }
