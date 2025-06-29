@@ -329,7 +329,7 @@ func getLabels(pgsName string, pgsReplica int, pcsgName *string, pclqObjectKey c
 		grovecorev1alpha1.LabelPodGangSetReplicaIndex: strconv.Itoa(pgsReplica),
 	}
 	if pcsgName != nil {
-		pclqComponentLabels[component.NamePodCliqueScalingGroup] = *pcsgName
+		pclqComponentLabels[grovecorev1alpha1.LabelPodCliqueScalingGroup] = *pcsgName
 	}
 	return lo.Assign(
 		pclqTemplateSpec.Labels,

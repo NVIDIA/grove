@@ -58,6 +58,7 @@ func NewCliqueState(cliqueFQNs []string, cliqueNamespace string, log logr.Logger
 	return state
 }
 
+// WaitForReady waits for all upstream start-up dependencies to be ready.
 func (c *CliqueState) WaitForReady(ctx context.Context) error {
 	c.log.Info("The clique names are:", "cliques", c.cliqueFQNs)
 	c.log.Info("The clique namespace is:", "cliquesNamespace", c.namespace)
@@ -92,7 +93,7 @@ func (c *CliqueState) WaitForReady(ctx context.Context) error {
 	defer cancel()         // cancel the context used by the informers if the wait is successful, or an err occurs
 
 	if err = c.startPodCliqueEventHandler(eventHandlerContext, clientSet); err != nil {
-		return fmt.Errorf("Unable to start PodClique event handler with error %w", err)
+		return fmt.Errorf("unable to start PodClique event handler with error %w", err)
 	}
 
 	wg.Wait()
@@ -135,7 +136,6 @@ func (c *CliqueState) startPodCliqueEventHandler(ctx context.Context, clientSet 
 				fmt.Errorf("PodCliques were deleted"),
 				"PodCliques which are immutable in a PodGangSet were deleted while the initcontainer was waiting for startup",
 			)
-			return
 		},
 	}, cache.HandlerOptions{Logger: &c.log})
 	if err != nil {

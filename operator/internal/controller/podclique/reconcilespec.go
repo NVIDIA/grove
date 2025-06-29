@@ -35,7 +35,6 @@ func (r *Reconciler) reconcileSpec(ctx context.Context, logger logr.Logger, pclq
 	reconcileStepFns := []ctrlcommon.ReconcileStepFn[grovecorev1alpha1.PodClique]{
 		r.ensureFinalizer,
 		r.recordReconcileStart,
-		r.updatePCLQStatusReplicas,
 		r.syncPCLQResources,
 		r.recordReconcileSuccess,
 		r.updateObservedGeneration,
@@ -68,10 +67,6 @@ func (r *Reconciler) recordReconcileStart(ctx context.Context, logger logr.Logge
 	return ctrlcommon.ContinueReconcile()
 }
 
-func (r *Reconciler) updatePCLQStatusReplicas(ctx context.Context, logger logr.Logger, pclq *grovecorev1alpha1.PodClique) ctrlcommon.ReconcileStepResult {
-	return ctrlcommon.ContinueReconcile()
-}
-
 func (r *Reconciler) syncPCLQResources(ctx context.Context, logger logr.Logger, pclq *grovecorev1alpha1.PodClique) ctrlcommon.ReconcileStepResult {
 	for _, kind := range getOrderedKindsForSync() {
 		operator, err := r.operatorRegistry.GetOperator(kind)
@@ -80,6 +75,7 @@ func (r *Reconciler) syncPCLQResources(ctx context.Context, logger logr.Logger, 
 		}
 		logger.Info("Syncing PodClique resources", "kind", kind)
 		if err = operator.Sync(ctx, logger, pclq); err != nil {
+			logger.Error(err, "failed to sync PodClique resources", "kind", kind)
 			return ctrlcommon.ReconcileWithErrors("error syncing managed resources", fmt.Errorf("failed to sync %s: %w", kind, err))
 		}
 	}
@@ -93,51 +89,6 @@ func (r *Reconciler) recordReconcileSuccess(ctx context.Context, logger logr.Log
 	}
 	return ctrlcommon.ContinueReconcile()
 }
-
-// update PodClique status only if needed
-//func (r *Reconciler) updatePCLQStatus(ctx context.Context, logger logr.Logger, pclq *grovecorev1alpha1.PodClique) ctrlcommon.ReconcileStepResult {
-//
-//	var podList corev1.PodList
-//	if err := r.client.List(ctx, &podList, client.InNamespace(pclq.Namespace)); err != nil {
-//		logger.Error(err, "failed to list pods")
-//		return ctrlcommon.ReconcileWithErrors("error listing pods", err)
-//	}
-//
-//	var replicas, ready int32
-//	for _, pod := range podList.Items {
-//		ref := pod.OwnerReferences[0]
-//		if ref.Kind == grovecorev1alpha1.PodCliqueKind && ref.Name == pclq.Name {
-//			replicas++
-//			for _, cond := range pod.Status.Conditions {
-//				if cond.Type == corev1.PodReady {
-//					if cond.Status == corev1.ConditionTrue {
-//						ready++
-//					}
-//					break
-//				}
-//			}
-//		}
-//	}
-//
-//	// TODO: check Selector, Conditions
-//	if pclq.Status.Replicas == replicas && pclq.Status.ReadyReplicas == ready {
-//		return ctrlcommon.ContinueReconcile()
-//	}
-//
-//	logger.Info("update pclq status", "replicas", replicas, "ready", ready)
-//	pclq.Status.Replicas = replicas
-//	pclq.Status.ReadyReplicas = ready
-//	pclq.Status.ObservedGeneration = &pclq.Generation
-//	// TODO: fix UpdatedReplicas
-//	pclq.Status.UpdatedReplicas = pclq.Status.Replicas
-//	// TODO: set Selector, Conditions
-//
-//	if err := r.client.Status().Update(ctx, pclq); err != nil {
-//		logger.Error(err, "failed to update pclq status")
-//		return ctrlcommon.ReconcileWithErrors("error updating PodClique status", err)
-//	}
-//	return ctrlcommon.ContinueReconcile()
-//}
 
 func (r *Reconciler) updateObservedGeneration(ctx context.Context, logger logr.Logger, pclq *grovecorev1alpha1.PodClique) ctrlcommon.ReconcileStepResult {
 	original := pclq.DeepCopy()

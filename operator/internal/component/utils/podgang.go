@@ -29,20 +29,22 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
+// GetExistingPodGangNames gets the names of all existing PodGangs for the PodGangSet.
 func GetExistingPodGangNames(ctx context.Context, cl client.Client, pgs *grovecorev1alpha1.PodGangSet) ([]string, error) {
 	objMetaList := &metav1.PartialObjectMetadataList{}
 	objMetaList.SetGroupVersionKind(groveschedulerv1alpha1.SchemeGroupVersion.WithKind("PodGang"))
 	if err := cl.List(ctx,
 		objMetaList,
 		client.InNamespace(pgs.Namespace),
-		client.MatchingLabels(getPodGangSelectorLabels(pgs.ObjectMeta)),
+		client.MatchingLabels(GetPodGangSelectorLabels(pgs.ObjectMeta)),
 	); err != nil {
 		return nil, err
 	}
 	return k8sutils.FilterMapOwnedResourceNames(pgs.ObjectMeta, objMetaList.Items), nil
 }
 
-func getPodGangSelectorLabels(pgsObjMeta metav1.ObjectMeta) map[string]string {
+// GetPodGangSelectorLabels creates the label selector to list all the PodGangs for a PodGangSet.
+func GetPodGangSelectorLabels(pgsObjMeta metav1.ObjectMeta) map[string]string {
 	return lo.Assign(
 		k8sutils.GetDefaultLabelsForPodGangSetManagedResources(pgsObjMeta.Name),
 		map[string]string{

@@ -22,6 +22,7 @@ import (
 	"fmt"
 	"slices"
 	"strconv"
+	"strings"
 
 	grovecorev1alpha1 "github.com/NVIDIA/grove/operator/api/core/v1alpha1"
 	"github.com/NVIDIA/grove/operator/internal/component"
@@ -52,7 +53,7 @@ func (r _resource) prepareSyncFlow(ctx context.Context, logger logr.Logger, pgs 
 
 	pclqs, err := r.getPCLQsForPGS(ctx, pgsObjectKey)
 	if err != nil {
-		groveerr.WrapError(err,
+		return nil, groveerr.WrapError(err,
 			errCodeListPodCliques,
 			component.OperationSync,
 			fmt.Sprintf("failed to list PodCliques for PodGangSet %v", pgsObjectKey),
@@ -80,7 +81,7 @@ func (r _resource) prepareSyncFlow(ctx context.Context, logger logr.Logger, pgs 
 
 	podsByPCLQ, err := r.getPodsByPCLQForPGS(ctx, pgsObjectKey)
 	if err != nil {
-		groveerr.WrapError(err,
+		return nil, groveerr.WrapError(err,
 			errCodeListPods,
 			component.OperationSync,
 			fmt.Sprintf("failed to list Pods for PodGangSet %v", pgsObjectKey),
@@ -126,12 +127,35 @@ func getExpectedPodGangForPGSReplicas(sc *syncContext) []podGangInfo {
 	for pgsReplica := range sc.pgs.Spec.Replicas {
 		replicaPodGangName := grovecorev1alpha1.GeneratePodGangName(grovecorev1alpha1.ResourceNameReplica{Name: sc.pgs.Name, Replica: int(pgsReplica)}, nil)
 		expectedPodGangs = append(expectedPodGangs, podGangInfo{
-			fqn:            replicaPodGangName,
-			creationReason: pgsReplicaIncrease,
-			pclqs:          identifyConstituentPCLQsForPGSReplicaPodGang(sc, pgsReplica),
+			fqn:   replicaPodGangName,
+			pclqs: identifyConstituentPCLQsForPGSReplicaPodGang(sc, pgsReplica),
 		})
 	}
 	return expectedPodGangs
+}
+
+func (r _resource) getExpectedPodGangsForPCSG(ctx context.Context, logger logr.Logger, pgs *grovecorev1alpha1.PodGangSet, pgsReplica int32) ([]podGangInfo, error) {
+	if len(pgs.Spec.TemplateSpec.PodCliqueScalingGroupConfigs) == 0 {
+		return []podGangInfo{}, nil
+	}
+	existingPCSGs, err := r.getExistingPodCliqueScalingGroups(ctx, client.ObjectKeyFromObject(pgs), pgsReplica)
+	if err != nil {
+		return nil, err
+	}
+	expectedPodGangs := make([]podGangInfo, 0, 50) // preallocate to avoid multiple allocations
+	for _, pcsg := range existingPCSGs {
+		if pcsg.Spec.Replicas == 1 {
+			continue // First replica of PodCliqueScalingGroup is the first PodGang created for the PodGangSet replica, so it is already accounted for.
+		}
+		for i := 1; i < int(pcsg.Spec.Replicas); i++ {
+			pcsgReplicaPodGangName := grovecorev1alpha1.GeneratePodGangName(grovecorev1alpha1.ResourceNameReplica{Name: pgs.Name, Replica: int(pgsReplica)}, &grovecorev1alpha1.ResourceNameReplica{Name: pcsg.Name, Replica: i - 1})
+			expectedPodGangs = append(expectedPodGangs, podGangInfo{
+				fqn:   pcsgReplicaPodGangName,
+				pclqs: identifyConstituentPCLQsForPCSGPodGang(&pcsg, pgs.Spec.TemplateSpec.Cliques, logger),
+			})
+		}
+	}
+	return expectedPodGangs, nil
 }
 
 func identifyConstituentPCLQsForPGSReplicaPodGang(sc *syncContext, pgsReplica int32) []pclqInfo {
@@ -156,36 +180,11 @@ func identifyConstituentPCLQsForPGSReplicaPodGang(sc *syncContext, pgsReplica in
 	return constituentPCLQs
 }
 
-func (r _resource) getExpectedPodGangsForPCSG(ctx context.Context, logger logr.Logger, pgs *grovecorev1alpha1.PodGangSet, pgsReplica int32) ([]podGangInfo, error) {
-	if len(pgs.Spec.TemplateSpec.PodCliqueScalingGroupConfigs) == 0 {
-		return []podGangInfo{}, nil
-	}
-	existingPCSGs, err := r.getExistingPodCliqueScalingGroups(ctx, pgs.Name, pgsReplica)
-	if err != nil {
-		return nil, err
-	}
-	expectedPodGangs := make([]podGangInfo, 0, 50) // preallocate to avoid multiple allocations
-	for _, pcsg := range existingPCSGs {
-		if pcsg.Spec.Replicas == 1 {
-			continue // First replica of PodCliqueScalingGroup is the first PodGang created for the PodGangSet replica, so it is already accounted for.
-		}
-		for i := 1; i < int(pcsg.Spec.Replicas); i++ {
-			pcsgReplicaPodGangName := grovecorev1alpha1.GeneratePodGangName(grovecorev1alpha1.ResourceNameReplica{Name: pgs.Name, Replica: int(pgsReplica)}, &grovecorev1alpha1.ResourceNameReplica{Name: pcsg.Name, Replica: i - 1})
-			expectedPodGangs = append(expectedPodGangs, podGangInfo{
-				fqn:            pcsgReplicaPodGangName,
-				creationReason: pcsgReplicaIncrease,
-				pclqs:          identifyConstituentPCLQsForPCSGPodGang(&pcsg, pgs.Spec.TemplateSpec.Cliques, logger),
-			})
-		}
-	}
-	return expectedPodGangs, nil
-}
-
 func identifyConstituentPCLQsForPCSGPodGang(pcsg *grovecorev1alpha1.PodCliqueScalingGroup, cliques []*grovecorev1alpha1.PodCliqueTemplateSpec, logger logr.Logger) []pclqInfo {
 	constituentPCLQs := make([]pclqInfo, 0, len(pcsg.Spec.CliqueNames))
 	for _, pclqName := range pcsg.Spec.CliqueNames {
 		pclqTemplate, ok := lo.Find(cliques, func(pclqTemplateSpec *grovecorev1alpha1.PodCliqueTemplateSpec) bool {
-			return pclqTemplateSpec.Name == pclqName
+			return strings.HasSuffix(pclqName, pclqTemplateSpec.Name)
 		})
 		if !ok {
 			logger.Info("[WARN]: PodCliqueScalingGroup references a PodClique that does not exist in the PodGangSet. This should never happen.", "podCliqueName", pclqName)
@@ -200,14 +199,14 @@ func identifyConstituentPCLQsForPCSGPodGang(pcsg *grovecorev1alpha1.PodCliqueSca
 	return constituentPCLQs
 }
 
-func (r _resource) getExistingPodCliqueScalingGroups(ctx context.Context, pgsName string, pgsReplica int32) ([]grovecorev1alpha1.PodCliqueScalingGroup, error) {
+func (r _resource) getExistingPodCliqueScalingGroups(ctx context.Context, pgsObjectKey client.ObjectKey, pgsReplica int32) ([]grovecorev1alpha1.PodCliqueScalingGroup, error) {
 	pcsgList := &grovecorev1alpha1.PodCliqueScalingGroupList{}
 	if err := r.client.List(ctx,
 		pcsgList,
-		client.InNamespace(pgsName),
+		client.InNamespace(pgsObjectKey.Namespace),
 		client.MatchingLabels(
 			lo.Assign(
-				k8sutils.GetDefaultLabelsForPodGangSetManagedResources(pgsName),
+				k8sutils.GetDefaultLabelsForPodGangSetManagedResources(pgsObjectKey.Name),
 				map[string]string{
 					grovecorev1alpha1.LabelPodGangSetReplicaIndex: strconv.Itoa(int(pgsReplica)),
 				},
@@ -311,18 +310,6 @@ func (r _resource) createOrUpdatePodGangs(sc *syncContext) syncFlowResult {
 		}
 	}
 	return result
-}
-
-func (r _resource) updateExistingPodGangs(sc *syncContext) error {
-	podGangsToUpdate := lo.Filter(sc.expectedPodGangs, func(pgi podGangInfo, _ int) bool {
-		return slices.Contains(sc.existingPodGangNames, pgi.fqn)
-	})
-	for _, podGangToUpdate := range podGangsToUpdate {
-		if err := r.createOrUpdatePodGang(sc, podGangToUpdate); err != nil {
-			return err
-		}
-	}
-	return nil
 }
 
 func (r _resource) createOrUpdatePodGang(sc *syncContext, pgInfo podGangInfo) error {
@@ -439,17 +426,6 @@ func (sc *syncContext) initializeAssignedAndUnassignedPodsForPGS(podsByPLCQ map[
 	}
 }
 
-// getTargetPodGangsForUpdate returns a slice of PodGangs where updates are expected.
-// Only PodGangs that are created due to increase in PGS.Spec.Replicas can have their constituent PodCliques
-// scaled since we only allow ScaleConfig to be defined for PodCliques that are not associated or part of a PodCliqueScalingGroup.
-// If PodCliques.Spec.Replicas that are part of a PodCliqueScalingGroup are scaled then it will result in creation of new PodGangs.
-// The existing PodGang will not be updated and those will be handled in PodGang creation flow.
-func (sc *syncContext) getTargetPodGangsForUpdate() []podGangInfo {
-	return lo.Filter(sc.expectedPodGangs, func(pg podGangInfo, _ int) bool {
-		return pg.creationReason == pgsReplicaIncrease
-	})
-}
-
 func (sc *syncContext) getPodCliques(podGang podGangInfo) []grovecorev1alpha1.PodClique {
 	constituentPCLQs := make([]grovecorev1alpha1.PodClique, 0, len(podGang.pclqs))
 	for _, podGangConstituentPCLQInfo := range podGang.pclqs {
@@ -500,20 +476,9 @@ func (sfr *syncFlowResult) recordPodGangCreation(podGangName string) {
 	sfr.createdPodGangNames = append(sfr.createdPodGangNames, podGangName)
 }
 
-func (sfr *syncFlowResult) canCreatePodGang(podGangName string) bool {
-	return !slices.Contains(sfr.podsGangsPendingCreation, podGangName)
-}
-
 func (sfr *syncFlowResult) getAggregatedError() error {
 	return errors.Join(sfr.errs...)
 }
-
-type creationReason string
-
-const (
-	pgsReplicaIncrease  creationReason = "pgs-replica-increase"
-	pcsgReplicaIncrease creationReason = "pcsg-replica-increase"
-)
 
 // podGangInfo is a convenience type that holds the information about
 // its constituent PodClique names and expected replicas per PodClique for this PodGang.
@@ -522,8 +487,6 @@ const (
 type podGangInfo struct {
 	// fqn is a fully qualified name of a PodGang.
 	fqn string
-	// creationReason is a reason the PodGang is created. It helps categorise PodGang.
-	creationReason creationReason
 	// pclqs holds the relevant information for all constituent PodCliques for this PodGang.
 	pclqs []pclqInfo
 }

@@ -42,11 +42,8 @@ const (
 	errCodeGetPod                             grovecorev1alpha1.ErrorCode = "ERR_GET_POD"
 	errCodeSyncPod                            grovecorev1alpha1.ErrorCode = "ERR_SYNC_POD"
 	errCodeDeletePod                          grovecorev1alpha1.ErrorCode = "ERR_DELETE_POD"
-	errCodeCreatePodGangNameFromPCLQ          grovecorev1alpha1.ErrorCode = "ERR_CREATE_POD_GANG_NAME"
-	errCodeGetPodGangMetadata                 grovecorev1alpha1.ErrorCode = "ERR_GET_PODGANG_METADATA"
 	errCodeGetPodGangSet                      grovecorev1alpha1.ErrorCode = "ERR_GET_PODGANGSET"
 	errCodeListPodGang                        grovecorev1alpha1.ErrorCode = "ERR_LIST_PODGANG"
-	errCodeExtractPGSReplicaFromPCLQFQN       grovecorev1alpha1.ErrorCode = "ERR_EXTRACT_PODGANSET_REPLICA_FROM_PODCLIQUE_FQN"
 	errCodeListPod                            grovecorev1alpha1.ErrorCode = "ERR_LIST_POD"
 	errCodeGetPodCliqueScalingGroup           grovecorev1alpha1.ErrorCode = "ERR_GET_PODCLIQUESCALINGGROUP"
 	errCodeMissingPodGangSetReplicaIndexLabel grovecorev1alpha1.ErrorCode = "ERR_MISSING_PODGANGSET_REPLICA_INDEX_LABEL"
@@ -65,11 +62,6 @@ const (
 
 const (
 	podGangSchedulingGate = "grove.io/podgang-pending-creation"
-)
-
-const (
-	// TODO: @renormalize check if this is duplicate
-	noPodGangAssigned = "__no_pod_gang_assigned__"
 )
 
 type _resource struct {
@@ -184,7 +176,6 @@ func getLabels(pclqObjectMeta metav1.ObjectMeta) (map[string]string, error) {
 	if err != nil {
 		return nil, err
 	}
-	// TODO: Additional PodGang label is also required to be added to the pod labels.
 	return lo.Assign(
 		k8sutils.GetDefaultLabelsForPodGangSetManagedResources(pgsName),
 		map[string]string{
