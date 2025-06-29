@@ -8670,6 +8670,12 @@ spec:
                   by this PodClique.
                 format: int32
                 type: integer
+              scheduleGatedReplicas:
+                description: |-
+                  ScheduleGatedReplicas is the number of Pods that have been created with one or more scheduling gate(s) set.
+                  Sum of ReadyReplicas and ScheduleGatedReplicas will always be <= Replicas.
+                format: int32
+                type: integer
               updatedReplicas:
                 description: UpdatedReplicas is the number of Pods that have been
                   updated and are at the desired revision of the PodClique.

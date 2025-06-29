@@ -254,9 +254,9 @@ type SharedInformerFactory interface {
 	// client.
 	InformerFor(obj runtime.Object, newFunc internalinterfaces.NewInformerFunc) cache.SharedIndexInformer
 
-	Grove() core.Interface
+	Scheduler() core.Interface
 }
 
-func (f *sharedInformerFactory) Grove() core.Interface {
+func (f *sharedInformerFactory) Scheduler() core.Interface {
 	return core.New(f, f.namespace, f.tweakListOptions)
 }

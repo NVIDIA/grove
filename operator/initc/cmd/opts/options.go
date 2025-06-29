@@ -25,7 +25,7 @@ import (
 
 // CLIOptions defines the configuration that is passed to the init container
 type CLIOptions struct {
-	// podCliqueFQNs stores comma seperated parent fully qualified PodClique names.
+	// podCliqueFQNs stores comma separated parent fully qualified PodClique names.
 	podCliqueFQNs string
 	// podCliqueNamespace contains the namespace that the parent PodCliques are present in.
 	podCliqueNamespace string
@@ -33,7 +33,7 @@ type CLIOptions struct {
 
 // RegisterFlags registers all the flags that are defined for the init container
 func (c *CLIOptions) RegisterFlags(fs *flag.FlagSet) {
-	fs.StringVar(&c.podCliqueFQNs, "pod-cliques", "", "comma seperated namespaced names of PodCliques that the init container should wait for to be ready")
+	fs.StringVar(&c.podCliqueFQNs, "pod-cliques", "", "comma separated namespaced names of PodCliques that the init container should wait for to be ready")
 	fs.StringVar(&c.podCliqueNamespace, "pod-clique-namespace", "default", "namespace that the PodClique are deployed in")
 	version.AddFlags(fs)
 }
@@ -54,6 +54,7 @@ func (c *CLIOptions) PodCliqueNamespace() string {
 	return c.podCliqueNamespace
 }
 
+// InitializeCLIOptions parses the command line flags into CLIOptions.
 func InitializeCLIOptions() (CLIOptions, error) {
 	config := CLIOptions{}
 	flagSet := flag.CommandLine

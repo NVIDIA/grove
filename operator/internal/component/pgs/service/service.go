@@ -21,7 +21,7 @@ import (
 	"fmt"
 	"strconv"
 
-	"github.com/NVIDIA/grove/operator/api/core/v1alpha1"
+	grovecorev1alpha1 "github.com/NVIDIA/grove/operator/api/core/v1alpha1"
 	"github.com/NVIDIA/grove/operator/internal/component"
 	groveerr "github.com/NVIDIA/grove/operator/internal/errors"
 	"github.com/NVIDIA/grove/operator/internal/utils"
@@ -37,8 +37,8 @@ import (
 )
 
 const (
-	errSyncPodGangSetService   v1alpha1.ErrorCode = "ERR_SYNC_PODGANGSET_SERVICE"
-	errDeletePodGangSetService v1alpha1.ErrorCode = "ERR_DELETE_PODGANGSET_SERVICE"
+	errSyncPodGangSetService   grovecorev1alpha1.ErrorCode = "ERR_SYNC_PODGANGSET_SERVICE"
+	errDeletePodGangSetService grovecorev1alpha1.ErrorCode = "ERR_DELETE_PODGANGSET_SERVICE"
 )
 
 type _resource struct {
@@ -47,7 +47,7 @@ type _resource struct {
 }
 
 // New creates an instance of Service component operator.
-func New(client client.Client, scheme *runtime.Scheme) component.Operator[v1alpha1.PodGangSet] {
+func New(client client.Client, scheme *runtime.Scheme) component.Operator[grovecorev1alpha1.PodGangSet] {
 	return &_resource{
 		client: client,
 		scheme: scheme,
@@ -55,7 +55,7 @@ func New(client client.Client, scheme *runtime.Scheme) component.Operator[v1alph
 }
 
 // GetExistingResourceNames returns the names of all the existing resources that the Service Operator manages.
-func (r _resource) GetExistingResourceNames(ctx context.Context, logger logr.Logger, pgs *v1alpha1.PodGangSet) ([]string, error) {
+func (r _resource) GetExistingResourceNames(ctx context.Context, logger logr.Logger, pgs *grovecorev1alpha1.PodGangSet) ([]string, error) {
 	logger.Info("Looking for existing PodGangSet Headless Services", "objectKey", client.ObjectKeyFromObject(pgs))
 	objMetaList := &metav1.PartialObjectMetadataList{}
 	objMetaList.SetGroupVersionKind(corev1.SchemeGroupVersion.WithKind("Service"))
@@ -67,14 +67,14 @@ func (r _resource) GetExistingResourceNames(ctx context.Context, logger logr.Log
 		return nil, groveerr.WrapError(err,
 			errSyncPodGangSetService,
 			component.OperationGetExistingResourceNames,
-			fmt.Sprintf("Error listing PodGangSet Headless Services: %v", client.ObjectKeyFromObject(pgs)),
+			fmt.Sprintf("Error listing Headless Services for PodGangSet: %v", client.ObjectKeyFromObject(pgs)),
 		)
 	}
 	return k8sutils.FilterMapOwnedResourceNames(pgs.ObjectMeta, objMetaList.Items), nil
 }
 
 // Sync synchronizes all resources that the Service Operator manages.
-func (r _resource) Sync(ctx context.Context, logger logr.Logger, pgs *v1alpha1.PodGangSet) error {
+func (r _resource) Sync(ctx context.Context, logger logr.Logger, pgs *grovecorev1alpha1.PodGangSet) error {
 	replicaIndexToObjectKeys := getObjectKeys(pgs)
 	tasks := make([]utils.Task, 0, len(replicaIndexToObjectKeys))
 	for replicaIndex, objectKey := range replicaIndexToObjectKeys {
@@ -113,7 +113,7 @@ func (r _resource) Delete(ctx context.Context, logger logr.Logger, pgObjMeta met
 	return nil
 }
 
-func (r _resource) doCreateOrUpdate(ctx context.Context, logger logr.Logger, pgs *v1alpha1.PodGangSet, pgsReplicaIndex int, pgServiceObjectKey client.ObjectKey) error {
+func (r _resource) doCreateOrUpdate(ctx context.Context, logger logr.Logger, pgs *grovecorev1alpha1.PodGangSet, pgsReplicaIndex int, pgServiceObjectKey client.ObjectKey) error {
 	logger.Info("Running CreateOrUpdate PodGangSet Headless Service", "pgsReplicaIndex", pgsReplicaIndex, "objectKey", pgServiceObjectKey)
 	pgService := emptyPGService(pgServiceObjectKey)
 	opResult, err := controllerutil.CreateOrPatch(ctx, r.client, pgService, func() error {
@@ -130,7 +130,7 @@ func (r _resource) doCreateOrUpdate(ctx context.Context, logger logr.Logger, pgs
 	return nil
 }
 
-func (r _resource) buildResource(svc *corev1.Service, pgs *v1alpha1.PodGangSet, pgsReplicaIndex int) error {
+func (r _resource) buildResource(svc *corev1.Service, pgs *grovecorev1alpha1.PodGangSet, pgsReplicaIndex int) error {
 	svc.Labels = getLabels(pgs.Name, client.ObjectKeyFromObject(svc), pgsReplicaIndex)
 	var publishNotReadyAddresses bool
 	if pgs.Spec.TemplateSpec.HeadlessServiceConfig != nil {
@@ -151,9 +151,9 @@ func (r _resource) buildResource(svc *corev1.Service, pgs *v1alpha1.PodGangSet, 
 
 func getLabels(pgsName string, svcObjectKey client.ObjectKey, pgsReplicaIndex int) map[string]string {
 	svcLabels := map[string]string{
-		v1alpha1.LabelAppNameKey:             svcObjectKey.Name,
-		v1alpha1.LabelComponentKey:           component.NamePodGangHeadlessService,
-		v1alpha1.LabelPodGangSetReplicaIndex: strconv.Itoa(pgsReplicaIndex),
+		grovecorev1alpha1.LabelAppNameKey:             svcObjectKey.Name,
+		grovecorev1alpha1.LabelComponentKey:           component.NamePodGangHeadlessService,
+		grovecorev1alpha1.LabelPodGangSetReplicaIndex: strconv.Itoa(pgsReplicaIndex),
 	}
 	return lo.Assign(
 		k8sutils.GetDefaultLabelsForPodGangSetManagedResources(pgsName),
@@ -165,14 +165,14 @@ func getLabelSelectorForPodsInAPodGangSetReplica(pgsName string, pgsReplicaIndex
 	return lo.Assign(
 		k8sutils.GetDefaultLabelsForPodGangSetManagedResources(pgsName),
 		map[string]string{
-			v1alpha1.LabelPodGangSetReplicaIndex: strconv.Itoa(pgsReplicaIndex),
+			grovecorev1alpha1.LabelPodGangSetReplicaIndex: strconv.Itoa(pgsReplicaIndex),
 		},
 	)
 }
 
 func getSelectorLabelsForAllHeadlessServices(pgsName string) map[string]string {
 	svcMatchingLabels := map[string]string{
-		v1alpha1.LabelComponentKey: component.NamePodGangHeadlessService,
+		grovecorev1alpha1.LabelComponentKey: component.NamePodGangHeadlessService,
 	}
 	return lo.Assign(
 		k8sutils.GetDefaultLabelsForPodGangSetManagedResources(pgsName),
@@ -180,10 +180,10 @@ func getSelectorLabelsForAllHeadlessServices(pgsName string) map[string]string {
 	)
 }
 
-func getObjectKeys(pgs *v1alpha1.PodGangSet) []client.ObjectKey {
+func getObjectKeys(pgs *grovecorev1alpha1.PodGangSet) []client.ObjectKey {
 	objectKeys := make([]client.ObjectKey, 0, pgs.Spec.Replicas)
 	for replicaIndex := range pgs.Spec.Replicas {
-		serviceName := v1alpha1.GenerateHeadlessServiceName(pgs.Name, replicaIndex)
+		serviceName := grovecorev1alpha1.GenerateHeadlessServiceName(grovecorev1alpha1.ResourceNameReplica{Name: pgs.Name, Replica: int(replicaIndex)})
 		objectKeys = append(objectKeys, client.ObjectKey{
 			Name:      serviceName,
 			Namespace: pgs.Namespace,

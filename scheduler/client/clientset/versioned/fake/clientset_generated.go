@@ -20,8 +20,8 @@ package fake
 
 import (
 	clientset "github.com/NVIDIA/grove/scheduler/client/clientset/versioned"
-	grovev1alpha1 "github.com/NVIDIA/grove/scheduler/client/clientset/versioned/typed/core/v1alpha1"
-	fakegrovev1alpha1 "github.com/NVIDIA/grove/scheduler/client/clientset/versioned/typed/core/v1alpha1/fake"
+	schedulerv1alpha1 "github.com/NVIDIA/grove/scheduler/client/clientset/versioned/typed/core/v1alpha1"
+	fakeschedulerv1alpha1 "github.com/NVIDIA/grove/scheduler/client/clientset/versioned/typed/core/v1alpha1/fake"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/watch"
@@ -88,7 +88,7 @@ var (
 	_ testing.FakeClient  = &Clientset{}
 )
 
-// GroveV1alpha1 retrieves the GroveV1alpha1Client
-func (c *Clientset) GroveV1alpha1() grovev1alpha1.GroveV1alpha1Interface {
-	return &fakegrovev1alpha1.FakeGroveV1alpha1{Fake: &c.Fake}
+// SchedulerV1alpha1 retrieves the SchedulerV1alpha1Client
+func (c *Clientset) SchedulerV1alpha1() schedulerv1alpha1.SchedulerV1alpha1Interface {
+	return &fakeschedulerv1alpha1.FakeSchedulerV1alpha1{Fake: &c.Fake}
 }

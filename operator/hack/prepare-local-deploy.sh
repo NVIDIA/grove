@@ -23,6 +23,8 @@ source $(dirname $0)/openssl-utils.sh
 
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
 OPERATOR_GO_MODULE_ROOT="$(dirname "$SCRIPT_DIR")"
+PROJECT_ROOT="$(dirname "$OPERATOR_GO_MODULE_ROOT")"
+SCHEDULER_GO_MODULE_ROOT="${PROJECT_ROOT}/scheduler"
 CHARTS_DIR="${OPERATOR_GO_MODULE_ROOT}/charts"
 
 function check_prereq() {
@@ -33,18 +35,32 @@ function check_prereq() {
 }
 
 function copy_crds() {
-  declare -a crds=("grove.io_podgangsets.yaml" "grove.io_podcliques.yaml" "grove.io_podcliquescalinggroups.yaml")
   target_path="${OPERATOR_GO_MODULE_ROOT}/charts/crds"
   echo "Creating ${target_path} to copy the CRDs if not present..."
   mkdir -p ${target_path}
+
+  echo "Copying grove-operator CRDS..."
+  declare -a crds=("grove.io_podgangsets.yaml" "grove.io_podcliques.yaml" "grove.io_podcliquescalinggroups.yaml")
   for crd in "${crds[@]}"; do
-    local crd_path="${OPERATOR_GO_MODULE_ROOT}/api/core/v1alpha1/crds/${crd}"
-    if [ ! -f ${crd_path} ]; then
-      echo "CRD ${crd} not found in ${crd_path}, run 'make generate' first"
+    local src_crd_path="${OPERATOR_GO_MODULE_ROOT}/api/core/v1alpha1/crds/${crd}"
+    if [ ! -f ${src_crd_path} ]; then
+      echo "CRD ${crd} not found in ${src_crd_path}, run 'make generate' first"
       make generate
     fi
     echo "Copying CRD ${crd} to ${target_path}"
-    cp ${crd_path} ${target_path}
+    cp ${src_crd_path} ${target_path}
+  done
+
+  echo "Copying scheduler CRDS..."
+  declare -a crds=("scheduler.grove.io_podgangs.yaml")
+  for crd in "${crds[@]}"; do
+    local src_crd_path="${SCHEDULER_GO_MODULE_ROOT}/api/core/v1alpha1/crds/${crd}"
+    if [ ! -f ${src_crd_path} ]; then
+      echo "CRD ${crd} not found in ${src_crd_path}, run 'make generate' first"
+      make --directory="${SCHEDULER_GO_MODULE_ROOT}"/api generate
+    fi
+    echo "Copying CRD ${crd} to ${target_path}"
+    cp ${src_crd_path} ${target_path}
   done
 }
 

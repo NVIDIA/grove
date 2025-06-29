@@ -108,6 +108,9 @@ type PodCliqueStatus struct {
 	ReadyReplicas int32 `json:"readyReplicas,omitempty"`
 	// UpdatedReplicas is the number of Pods that have been updated and are at the desired revision of the PodClique.
 	UpdatedReplicas int32 `json:"updatedReplicas,omitempty"`
+	// ScheduleGatedReplicas is the number of Pods that have been created with one or more scheduling gate(s) set.
+	// Sum of ReadyReplicas and ScheduleGatedReplicas will always be <= Replicas.
+	ScheduleGatedReplicas int32 `json:"scheduleGatedReplicas,omitempty"`
 	// Selector is the label selector that determines which pods are part of the PodClique.
 	// PodClique is a unit of scale and this selector is used by HPA to scale the PodClique based on metrics captured for the pods that match this selector.
 	Selector *string `json:"hpaPodSelector,omitempty"`

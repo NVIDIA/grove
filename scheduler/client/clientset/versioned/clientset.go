@@ -22,7 +22,7 @@ import (
 	fmt "fmt"
 	http "net/http"
 
-	grovev1alpha1 "github.com/NVIDIA/grove/scheduler/client/clientset/versioned/typed/core/v1alpha1"
+	schedulerv1alpha1 "github.com/NVIDIA/grove/scheduler/client/clientset/versioned/typed/core/v1alpha1"
 	discovery "k8s.io/client-go/discovery"
 	rest "k8s.io/client-go/rest"
 	flowcontrol "k8s.io/client-go/util/flowcontrol"
@@ -30,18 +30,18 @@ import (
 
 type Interface interface {
 	Discovery() discovery.DiscoveryInterface
-	GroveV1alpha1() grovev1alpha1.GroveV1alpha1Interface
+	SchedulerV1alpha1() schedulerv1alpha1.SchedulerV1alpha1Interface
 }
 
 // Clientset contains the clients for groups.
 type Clientset struct {
 	*discovery.DiscoveryClient
-	groveV1alpha1 *grovev1alpha1.GroveV1alpha1Client
+	schedulerV1alpha1 *schedulerv1alpha1.SchedulerV1alpha1Client
 }
 
-// GroveV1alpha1 retrieves the GroveV1alpha1Client
-func (c *Clientset) GroveV1alpha1() grovev1alpha1.GroveV1alpha1Interface {
-	return c.groveV1alpha1
+// SchedulerV1alpha1 retrieves the SchedulerV1alpha1Client
+func (c *Clientset) SchedulerV1alpha1() schedulerv1alpha1.SchedulerV1alpha1Interface {
+	return c.schedulerV1alpha1
 }
 
 // Discovery retrieves the DiscoveryClient
@@ -88,7 +88,7 @@ func NewForConfigAndClient(c *rest.Config, httpClient *http.Client) (*Clientset,
 
 	var cs Clientset
 	var err error
-	cs.groveV1alpha1, err = grovev1alpha1.NewForConfigAndClient(&configShallowCopy, httpClient)
+	cs.schedulerV1alpha1, err = schedulerv1alpha1.NewForConfigAndClient(&configShallowCopy, httpClient)
 	if err != nil {
 		return nil, err
 	}
@@ -113,7 +113,7 @@ func NewForConfigOrDie(c *rest.Config) *Clientset {
 // New creates a new Clientset for the given RESTClient.
 func New(c rest.Interface) *Clientset {
 	var cs Clientset
-	cs.groveV1alpha1 = grovev1alpha1.New(c)
+	cs.schedulerV1alpha1 = schedulerv1alpha1.New(c)
 
 	cs.DiscoveryClient = discovery.NewDiscoveryClient(c)
 	return &cs

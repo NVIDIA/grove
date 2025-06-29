@@ -9577,8 +9577,10 @@ spec:
                   schedulingPolicyConfig:
                     default:
                       networkPackStrategy: BestEffort
-                    description: SchedulingPolicyConfig defines the scheduling policy
-                      configuration for the PodGang.
+                    description: |-
+                      SchedulingPolicyConfig defines the scheduling policy configuration for the PodGang.
+                      Defaulting only works for optional fields.
+                      See https://github.com/kubernetes-sigs/controller-tools/issues/893#issuecomment-1991256368
                     properties:
                       networkPackStrategy:
                         description: NetworkPackStrategy defines the strategy for

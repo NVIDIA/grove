@@ -44,14 +44,6 @@ const (
 	errDeleteHPA grovecorev1alpha1.ErrorCode = "ERR_DELETE_HPA"
 )
 
-type hpaInfo struct {
-	objectKey               client.ObjectKey
-	targetScaleResourceKind string
-	targetScaleResourceName string
-	minReplicas             int32
-	scaleConfig             grovecorev1alpha1.AutoScalingConfig
-}
-
 type _resource struct {
 	client client.Client
 	scheme *runtime.Scheme
@@ -125,6 +117,15 @@ func (r _resource) Delete(ctx context.Context, logger logr.Logger, pgsObjMeta me
 	return nil
 }
 
+// hpaInfo holds the state for a HPA resource. This will be used during sync run for HPA resources.
+type hpaInfo struct {
+	objectKey               client.ObjectKey
+	targetScaleResourceKind string
+	targetScaleResourceName string
+	minReplicas             int32
+	scaleConfig             grovecorev1alpha1.AutoScalingConfig
+}
+
 func (r _resource) computeExpectedHPAs(pgs *grovecorev1alpha1.PodGangSet) []hpaInfo {
 	expectedHPAInfos := make([]hpaInfo, 0, (len(pgs.Spec.TemplateSpec.Cliques)+len(pgs.Spec.TemplateSpec.PodCliqueScalingGroupConfigs))*int(pgs.Spec.Replicas))
 	for replicaIndex := range pgs.Spec.Replicas {
@@ -133,7 +134,7 @@ func (r _resource) computeExpectedHPAs(pgs *grovecorev1alpha1.PodGangSet) []hpaI
 			if pclqTemplateSpec.Spec.ScaleConfig == nil {
 				continue
 			}
-			pclqFQN := grovecorev1alpha1.GeneratePodCliqueName(pgs.Name, int(replicaIndex), pclqTemplateSpec.Name)
+			pclqFQN := grovecorev1alpha1.GeneratePodCliqueName(grovecorev1alpha1.ResourceNameReplica{Name: pgs.Name, Replica: int(replicaIndex)}, pclqTemplateSpec.Name)
 			hpaObjectKey := client.ObjectKey{
 				Namespace: pgs.Namespace,
 				Name:      pclqFQN,
@@ -146,12 +147,11 @@ func (r _resource) computeExpectedHPAs(pgs *grovecorev1alpha1.PodGangSet) []hpaI
 				scaleConfig:             *pclqTemplateSpec.Spec.ScaleConfig,
 			})
 		}
-		// compute expected HPAs for PodCliques which are part of a PodCliqueScalingGroup
 		for _, pcsgConfig := range pgs.Spec.TemplateSpec.PodCliqueScalingGroupConfigs {
 			if pcsgConfig.ScaleConfig == nil {
 				continue
 			}
-			pcsgFQN := grovecorev1alpha1.GeneratePodCliqueScalingGroupName(pgs.Name, replicaIndex, pcsgConfig.Name)
+			pcsgFQN := grovecorev1alpha1.GeneratePodCliqueScalingGroupName(grovecorev1alpha1.ResourceNameReplica{Name: pgs.Name, Replica: int(replicaIndex)}, pcsgConfig.Name)
 			hpaObjectKey := client.ObjectKey{
 				Namespace: pgs.Namespace,
 				Name:      pcsgFQN,
@@ -248,7 +248,7 @@ func (r _resource) buildResource(pgs *grovecorev1alpha1.PodGangSet, hpa *autosca
 	hpa.Spec.ScaleTargetRef = autoscalingv2.CrossVersionObjectReference{
 		Kind:       expectedHPAInfo.targetScaleResourceKind,
 		Name:       expectedHPAInfo.targetScaleResourceName,
-		APIVersion: grovecorev1alpha1.SchemeGroupVersion.Version,
+		APIVersion: grovecorev1alpha1.SchemeGroupVersion.String(),
 	}
 	hpa.Spec.Metrics = expectedHPAInfo.scaleConfig.Metrics
 	hpa.Labels = getLabels(pgs.Name, hpa.Name)

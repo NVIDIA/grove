@@ -21,7 +21,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/NVIDIA/grove/operator/api/core/v1alpha1"
+	grovecorev1alpha1 "github.com/NVIDIA/grove/operator/api/core/v1alpha1"
 	"github.com/NVIDIA/grove/operator/internal/component"
 	groveerr "github.com/NVIDIA/grove/operator/internal/errors"
 	k8sutils "github.com/NVIDIA/grove/operator/internal/utils/kubernetes"
@@ -37,9 +37,9 @@ import (
 )
 
 const (
-	errGetRole    v1alpha1.ErrorCode = "ERR_GET_ROLE"
-	errSyncRole   v1alpha1.ErrorCode = "ERR_SYNC_ROLE"
-	errDeleteRole v1alpha1.ErrorCode = "ERR_DELETE_ROLE"
+	errGetRole    grovecorev1alpha1.ErrorCode = "ERR_GET_ROLE"
+	errSyncRole   grovecorev1alpha1.ErrorCode = "ERR_SYNC_ROLE"
+	errDeleteRole grovecorev1alpha1.ErrorCode = "ERR_DELETE_ROLE"
 )
 
 type _resource struct {
@@ -48,7 +48,7 @@ type _resource struct {
 }
 
 // New creates an instance of Role component operator.
-func New(client client.Client, scheme *runtime.Scheme) component.Operator[v1alpha1.PodGangSet] {
+func New(client client.Client, scheme *runtime.Scheme) component.Operator[grovecorev1alpha1.PodGangSet] {
 	return &_resource{
 		client: client,
 		scheme: scheme,
@@ -56,7 +56,7 @@ func New(client client.Client, scheme *runtime.Scheme) component.Operator[v1alph
 }
 
 // GetExistingResourceNames returns the names of all the existing resources that the Role Operator manages.
-func (r _resource) GetExistingResourceNames(ctx context.Context, _ logr.Logger, pgs *v1alpha1.PodGangSet) ([]string, error) {
+func (r _resource) GetExistingResourceNames(ctx context.Context, _ logr.Logger, pgs *grovecorev1alpha1.PodGangSet) ([]string, error) {
 	roleNames := make([]string, 0, 1)
 	objectKey := getObjectKey(pgs.ObjectMeta)
 	objMeta := &metav1.PartialObjectMetadata{}
@@ -78,21 +78,37 @@ func (r _resource) GetExistingResourceNames(ctx context.Context, _ logr.Logger, 
 }
 
 // Sync synchronizes all resources that the Role Operator manages.
-func (r _resource) Sync(ctx context.Context, logger logr.Logger, pgs *v1alpha1.PodGangSet) error {
+func (r _resource) Sync(ctx context.Context, logger logr.Logger, pgs *grovecorev1alpha1.PodGangSet) error {
+	existingRoleNames, err := r.GetExistingResourceNames(ctx, logger, pgs)
+	if err != nil {
+		return groveerr.WrapError(err,
+			errGetRole,
+			component.OperationSync,
+			fmt.Sprintf("Error getting existing Role names for PodGangSet: %v", client.ObjectKeyFromObject(pgs)),
+		)
+	}
+	if len(existingRoleNames) > 0 {
+		logger.Info("Role already exists, skipping creation", "existingRole", existingRoleNames[0])
+		return nil
+	}
 	objectKey := getObjectKey(pgs.ObjectMeta)
 	role := emptyRole(objectKey)
 	logger.Info("Running CreateOrUpdate Role", "objectKey", objectKey)
-	opResult, err := controllerutil.CreateOrPatch(ctx, r.client, role, func() error {
-		return r.buildResource(pgs, role)
-	})
-	if err != nil {
+	if err := r.buildResource(pgs, role); err != nil {
+		return groveerr.WrapError(err,
+			errSyncRole,
+			component.OperationSync,
+			fmt.Sprintf("Error building Role: %v for PodGangSet: %v", objectKey, client.ObjectKeyFromObject(pgs)),
+		)
+	}
+	if err := client.IgnoreAlreadyExists(r.client.Create(ctx, role)); err != nil {
 		return groveerr.WrapError(err,
 			errSyncRole,
 			component.OperationSync,
 			fmt.Sprintf("Error syncing Role: %v for PodGangSet: %v", objectKey, client.ObjectKeyFromObject(pgs)),
 		)
 	}
-	logger.Info("triggered create or update of Role", "objectKey", objectKey, "result", opResult)
+	logger.Info("Created Role", "objectKey", objectKey)
 	return nil
 }
 
@@ -114,7 +130,7 @@ func (r _resource) Delete(ctx context.Context, logger logr.Logger, pgsObjMeta me
 	return nil
 }
 
-func (r _resource) buildResource(pgs *v1alpha1.PodGangSet, role *rbacv1.Role) error {
+func (r _resource) buildResource(pgs *grovecorev1alpha1.PodGangSet, role *rbacv1.Role) error {
 	role.Labels = getLabels(pgs.ObjectMeta)
 	if err := controllerutil.SetControllerReference(pgs, role, r.scheme); err != nil {
 		return groveerr.WrapError(err,
@@ -125,7 +141,7 @@ func (r _resource) buildResource(pgs *v1alpha1.PodGangSet, role *rbacv1.Role) er
 	}
 	role.Rules = []rbacv1.PolicyRule{
 		{
-			APIGroups: []string{v1alpha1.GroupName},
+			APIGroups: []string{grovecorev1alpha1.GroupName},
 			Resources: []string{"podcliques", "podcliques/status"},
 			Verbs:     []string{"get", "list", "watch"},
 		},
@@ -135,8 +151,8 @@ func (r _resource) buildResource(pgs *v1alpha1.PodGangSet, role *rbacv1.Role) er
 
 func getLabels(pgsObjMeta metav1.ObjectMeta) map[string]string {
 	roleLabels := map[string]string{
-		v1alpha1.LabelComponentKey: component.NamePodRole,
-		v1alpha1.LabelAppNameKey:   strings.ReplaceAll(v1alpha1.GeneratePodRoleName(pgsObjMeta), ":", "-"),
+		grovecorev1alpha1.LabelComponentKey: component.NamePodRole,
+		grovecorev1alpha1.LabelAppNameKey:   strings.ReplaceAll(grovecorev1alpha1.GeneratePodRoleName(pgsObjMeta.Name), ":", "-"),
 	}
 	return lo.Assign(
 		k8sutils.GetDefaultLabelsForPodGangSetManagedResources(pgsObjMeta.Name),
@@ -146,7 +162,7 @@ func getLabels(pgsObjMeta metav1.ObjectMeta) map[string]string {
 
 func getObjectKey(pgsObjMeta metav1.ObjectMeta) client.ObjectKey {
 	return client.ObjectKey{
-		Name:      v1alpha1.GeneratePodRoleName(pgsObjMeta),
+		Name:      grovecorev1alpha1.GeneratePodRoleName(pgsObjMeta.Name),
 		Namespace: pgsObjMeta.Namespace,
 	}
 }

@@ -22,6 +22,7 @@ import (
 	"github.com/NVIDIA/grove/operator/internal/component/pgs/hpa"
 	"github.com/NVIDIA/grove/operator/internal/component/pgs/podclique"
 	"github.com/NVIDIA/grove/operator/internal/component/pgs/podcliquescalinggroup"
+	"github.com/NVIDIA/grove/operator/internal/component/pgs/podgang"
 	"github.com/NVIDIA/grove/operator/internal/component/pgs/role"
 	"github.com/NVIDIA/grove/operator/internal/component/pgs/rolebinding"
 	"github.com/NVIDIA/grove/operator/internal/component/pgs/service"
@@ -41,5 +42,6 @@ func CreateOperatorRegistry(mgr manager.Manager) component.OperatorRegistry[v1al
 	reg.Register(component.KindServiceAccount, serviceaccount.New(cl, mgr.GetScheme()))
 	reg.Register(component.KindPodCliqueScalingGroup, podcliquescalinggroup.New(cl, mgr.GetScheme()))
 	reg.Register(component.KindHorizontalPodAutoscaler, hpa.New(cl, mgr.GetScheme()))
+	reg.Register(component.KindPodGang, podgang.New(cl, mgr.GetScheme()))
 	return reg
 }

@@ -21,19 +21,22 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/NVIDIA/grove/operator/api/core/v1alpha1"
+	grovecorev1alpha1 "github.com/NVIDIA/grove/operator/api/core/v1alpha1"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 var _ error = (*GroveError)(nil)
 
+// ErrCodeRequeueAfter is a special error code that indicates that the current step should be re-queued after a certain time,
+const ErrCodeRequeueAfter grovecorev1alpha1.ErrorCode = "ERR_REQUEUE_AFTER"
+
 // GroveError is a custom error type that should be used throughout grove which encapsulates
 // the underline error (cause), uniquely identifiable error code, contextual information captured
 // as operation during which an error occurred and any custom message.
 type GroveError struct {
 	// Code indicates the category of error.
-	Code v1alpha1.ErrorCode
+	Code grovecorev1alpha1.ErrorCode
 	// Cause is the underline error.
 	Cause error
 	// Operation is the semantic operation during which this error is created/wrapped.
@@ -54,7 +57,7 @@ func (e *GroveError) Error() string {
 
 // New creates a new GroveError with the given error code, operation and message.
 // This function should be used to create a new error. If you wish to wrap an existing error then use WrapError instead.
-func New(code v1alpha1.ErrorCode, operation string, message string) error {
+func New(code grovecorev1alpha1.ErrorCode, operation string, message string) error {
 	return &GroveError{
 		Code:       code,
 		Operation:  operation,
@@ -65,7 +68,7 @@ func New(code v1alpha1.ErrorCode, operation string, message string) error {
 
 // WrapError wraps the given error with the provided error code, operation and message.
 // If the err is nil then it returns nil.
-func WrapError(err error, code v1alpha1.ErrorCode, operation string, message string) error {
+func WrapError(err error, code grovecorev1alpha1.ErrorCode, operation string, message string) error {
 	if err == nil {
 		return nil
 	}
@@ -79,12 +82,12 @@ func WrapError(err error, code v1alpha1.ErrorCode, operation string, message str
 }
 
 // MapToLastErrors maps the given errors (that are GroveError's) to LastError slice.
-func MapToLastErrors(errs []error) []v1alpha1.LastError {
-	lastErrs := make([]v1alpha1.LastError, 0, len(errs))
+func MapToLastErrors(errs []error) []grovecorev1alpha1.LastError {
+	lastErrs := make([]grovecorev1alpha1.LastError, 0, len(errs))
 	for _, err := range errs {
 		groveErr := &GroveError{}
 		if errors.As(err, &groveErr) {
-			lastErr := v1alpha1.LastError{
+			lastErr := grovecorev1alpha1.LastError{
 				Code:        groveErr.Code,
 				Description: err.Error(),
 				ObservedAt:  metav1.NewTime(groveErr.ObservedAt),

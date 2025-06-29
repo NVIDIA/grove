@@ -6,6 +6,19 @@ metadata:
 {{- include "operator.clusterrole.labels" . | nindent 4 }}
 rules:
 - apiGroups:
+  - scheduler.grove.io
+  resources:
+  - podgangs
+  verbs:
+  - create
+  - get
+  - list
+  - watch
+  - delete
+  - deletecollection
+  - patch
+  - update
+- apiGroups:
   - grove.io
   resources:
   - podgangsets

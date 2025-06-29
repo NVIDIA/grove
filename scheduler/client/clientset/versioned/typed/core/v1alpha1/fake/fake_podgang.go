@@ -27,10 +27,10 @@ import (
 // fakePodGangs implements PodGangInterface
 type fakePodGangs struct {
 	*gentype.FakeClientWithList[*v1alpha1.PodGang, *v1alpha1.PodGangList]
-	Fake *FakeGroveV1alpha1
+	Fake *FakeSchedulerV1alpha1
 }
 
-func newFakePodGangs(fake *FakeGroveV1alpha1, namespace string) corev1alpha1.PodGangInterface {
+func newFakePodGangs(fake *FakeSchedulerV1alpha1, namespace string) corev1alpha1.PodGangInterface {
 	return &fakePodGangs{
 		gentype.NewFakeClientWithList[*v1alpha1.PodGang, *v1alpha1.PodGangList](
 			fake.Fake,
