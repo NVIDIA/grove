@@ -61,7 +61,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		WithValues("pclq-name", req.Name, "pclq-namespace", req.Namespace)
 
 	pclq := &grovecorev1alpha1.PodClique{}
-	if result := ctrlutils.GetPodClique(ctx, r.client, logger, req.NamespacedName, pclq); ctrlcommon.ShortCircuitReconcileFlow(result) {
+	if result := ctrlutils.GetPodClique(ctx, r.client, logger, req.NamespacedName, pclq, true); ctrlcommon.ShortCircuitReconcileFlow(result) {
 		return result.Result()
 	}
 
@@ -77,11 +77,11 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		deletionOrSpecReconcileFlowResult = r.reconcileSpec(ctx, specLog, pclq)
 	}
 
-	if statusReconcileResult := r.reconcileStatus(ctx, logger, pclq); statusReconcileResult.HasErrors() {
+	if statusReconcileResult := r.reconcileStatus(ctx, logger, pclq); ctrlcommon.ShortCircuitReconcileFlow(statusReconcileResult) {
 		return statusReconcileResult.Result()
 	}
 
-	if deletionOrSpecReconcileFlowResult.HasErrors() {
+	if ctrlcommon.ShortCircuitReconcileFlow(deletionOrSpecReconcileFlowResult) {
 		return deletionOrSpecReconcileFlowResult.Result()
 	}
 	return ctrlcommon.DoNotRequeue().Result()

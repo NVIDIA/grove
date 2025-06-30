@@ -149,9 +149,9 @@ func (r _resource) Delete(ctx context.Context, logger logr.Logger, pgsObjMeta me
 	return nil
 }
 
-func (r _resource) doCreateOrUpdate(ctx context.Context, logger logr.Logger, pgs *grovecorev1alpha1.PodGangSet, pclqScalingGrpObjectKey client.ObjectKey, pgsReplica int, cliqueNames []string, exists bool) error {
-	logger.Info("CreateOrUpdate PodCliqueScalingGroup", "objectKey", pclqScalingGrpObjectKey)
-	pclqScalingGrp := emptyPodCliqueScalingGroup(pclqScalingGrpObjectKey)
+func (r _resource) doCreateOrUpdate(ctx context.Context, logger logr.Logger, pgs *grovecorev1alpha1.PodGangSet, pcsgObjectKey client.ObjectKey, pgsReplica int, cliqueNames []string, exists bool) error {
+	logger.Info("CreateOrUpdate PodCliqueScalingGroup", "objectKey", pcsgObjectKey)
+	pclqScalingGrp := emptyPodCliqueScalingGroup(pcsgObjectKey)
 	opResult, err := controllerutil.CreateOrPatch(ctx, r.client, pclqScalingGrp, func() error {
 		return r.buildResource(pclqScalingGrp, pgs, pgsReplica, cliqueNames, exists)
 	})
@@ -159,10 +159,10 @@ func (r _resource) doCreateOrUpdate(ctx context.Context, logger logr.Logger, pgs
 		return groveerr.WrapError(err,
 			errSyncPodCliqueScalingGroup,
 			component.OperationSync,
-			fmt.Sprintf("Error in create/update of PodCliqueScalingGroup: %v for PodGangSet: %v", pclqScalingGrpObjectKey, client.ObjectKeyFromObject(pgs)),
+			fmt.Sprintf("Error in create/update of PodCliqueScalingGroup: %v for PodGangSet: %v", pcsgObjectKey, client.ObjectKeyFromObject(pgs)),
 		)
 	}
-	logger.Info("Triggered create or update of PodCliqueScalingGroup", "objectKey", pclqScalingGrpObjectKey, "result", opResult)
+	logger.Info("Triggered create or update of PodCliqueScalingGroup", "objectKey", pcsgObjectKey, "result", opResult)
 	return nil
 }
 

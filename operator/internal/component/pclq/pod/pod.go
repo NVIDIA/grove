@@ -178,6 +178,7 @@ func getLabels(pclqObjectMeta metav1.ObjectMeta) (map[string]string, error) {
 	}
 	return lo.Assign(
 		k8sutils.GetDefaultLabelsForPodGangSetManagedResources(pgsName),
+		pclqObjectMeta.Labels,
 		map[string]string{
 			grovecorev1alpha1.LabelPodCliqueName:          pclqObjectMeta.Name,
 			grovecorev1alpha1.LabelPodGangSetReplicaIndex: strconv.Itoa(pgsReplicaIndex),

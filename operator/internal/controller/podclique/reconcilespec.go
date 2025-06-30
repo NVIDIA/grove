@@ -19,7 +19,6 @@ package podclique
 import (
 	"context"
 	"fmt"
-
 	grovecorev1alpha1 "github.com/NVIDIA/grove/operator/api/core/v1alpha1"
 	"github.com/NVIDIA/grove/operator/internal/component"
 	ctrlcommon "github.com/NVIDIA/grove/operator/internal/controller/common"
@@ -75,6 +74,10 @@ func (r *Reconciler) syncPCLQResources(ctx context.Context, logger logr.Logger, 
 		}
 		logger.Info("Syncing PodClique resources", "kind", kind)
 		if err = operator.Sync(ctx, logger, pclq); err != nil {
+			if ctrlutils.ShouldRequeueAfter(err) {
+				logger.Info("retrying sync due to component", "kind", kind, "syncRetryInterval", ctrlcommon.ComponentSyncRetryInterval)
+				return ctrlcommon.ReconcileAfter(ctrlcommon.ComponentSyncRetryInterval, fmt.Sprintf("requeueing sync due to component %s after %s", kind, ctrlcommon.ComponentSyncRetryInterval))
+			}
 			logger.Error(err, "failed to sync PodClique resources", "kind", kind)
 			return ctrlcommon.ReconcileWithErrors("error syncing managed resources", fmt.Errorf("failed to sync %s: %w", kind, err))
 		}

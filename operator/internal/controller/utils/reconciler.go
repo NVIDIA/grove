@@ -18,6 +18,8 @@ package utils
 
 import (
 	"context"
+	"errors"
+	groveerr "github.com/NVIDIA/grove/operator/internal/errors"
 	"time"
 
 	"github.com/NVIDIA/grove/operator/api/core/v1alpha1"
@@ -42,9 +44,9 @@ func GetPodGangSet(ctx context.Context, cl client.Client, logger logr.Logger, ob
 }
 
 // GetPodClique gets the latest PodClique object. It will usually hit the informer cache. If the object is not found, it will log a message and return DoNotRequeue.
-func GetPodClique(ctx context.Context, cl client.Client, logger logr.Logger, objectKey client.ObjectKey, pclq *v1alpha1.PodClique) grovectrl.ReconcileStepResult {
+func GetPodClique(ctx context.Context, cl client.Client, logger logr.Logger, objectKey client.ObjectKey, pclq *v1alpha1.PodClique, ignoreNotFound bool) grovectrl.ReconcileStepResult {
 	if err := cl.Get(ctx, objectKey, pclq); err != nil {
-		if apierrors.IsNotFound(err) {
+		if ignoreNotFound && apierrors.IsNotFound(err) {
 			logger.Info("PodClique not found", "objectKey", objectKey)
 			return grovectrl.DoNotRequeue()
 		}
@@ -84,4 +86,14 @@ func VerifyNoResourceAwaitsCleanup[T component.GroveCustomResourceType](ctx cont
 	}
 	logger.Info("No resources are awaiting cleanup")
 	return grovectrl.ContinueReconcile()
+}
+
+// ShouldRequeueAfter checks if an error is a GroveError and if yes then returns true
+// when the error code is groveerr.ErrCodeRequeueAfter, else it returns false.
+func ShouldRequeueAfter(err error) bool {
+	groveErr := &groveerr.GroveError{}
+	if errors.As(err, &groveErr) {
+		return groveErr.Code == groveerr.ErrCodeRequeueAfter
+	}
+	return false
 }

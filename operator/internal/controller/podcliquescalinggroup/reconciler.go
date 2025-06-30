@@ -161,7 +161,7 @@ func (r *Reconciler) updatePodCliques(ctx context.Context, logger logr.Logger, p
 
 func (r *Reconciler) updatePodCliqueReplicas(ctx context.Context, logger logr.Logger, pcsg *grovecorev1alpha1.PodCliqueScalingGroup, pclqTemplateSpec *grovecorev1alpha1.PodCliqueTemplateSpec, pclqObjectKey client.ObjectKey) ctrlcommon.ReconcileStepResult {
 	pclq := &grovecorev1alpha1.PodClique{}
-	if result := ctrlutils.GetPodClique(ctx, r.client, logger, pclqObjectKey, pclq); ctrlcommon.ShortCircuitReconcileFlow(result) {
+	if result := ctrlutils.GetPodClique(ctx, r.client, logger, pclqObjectKey, pclq, false); ctrlcommon.ShortCircuitReconcileFlow(result) {
 		return result
 	}
 	// update the spec

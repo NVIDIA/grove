@@ -20,6 +20,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	componentutils "github.com/NVIDIA/grove/operator/internal/component/utils"
 	"slices"
 	"strconv"
 	"strings"
@@ -138,7 +139,7 @@ func (r _resource) getExpectedPodGangsForPCSG(ctx context.Context, logger logr.L
 	if len(pgs.Spec.TemplateSpec.PodCliqueScalingGroupConfigs) == 0 {
 		return []podGangInfo{}, nil
 	}
-	existingPCSGs, err := r.getExistingPodCliqueScalingGroups(ctx, client.ObjectKeyFromObject(pgs), pgsReplica)
+	existingPCSGs, err := r.getExistingPodCliqueScalingGroups(ctx, pgs, pgsReplica)
 	if err != nil {
 		return nil, err
 	}
@@ -147,8 +148,9 @@ func (r _resource) getExpectedPodGangsForPCSG(ctx context.Context, logger logr.L
 		if pcsg.Spec.Replicas == 1 {
 			continue // First replica of PodCliqueScalingGroup is the first PodGang created for the PodGangSet replica, so it is already accounted for.
 		}
+		matchingPCSGConfig := componentutils.FindMatchingPCSGConfig(pgs, pcsg.Name)
 		for i := 1; i < int(pcsg.Spec.Replicas); i++ {
-			pcsgReplicaPodGangName := grovecorev1alpha1.GeneratePodGangName(grovecorev1alpha1.ResourceNameReplica{Name: pgs.Name, Replica: int(pgsReplica)}, &grovecorev1alpha1.ResourceNameReplica{Name: pcsg.Name, Replica: i - 1})
+			pcsgReplicaPodGangName := grovecorev1alpha1.GeneratePodGangName(grovecorev1alpha1.ResourceNameReplica{Name: pgs.Name, Replica: int(pgsReplica)}, &grovecorev1alpha1.ResourceNameReplica{Name: matchingPCSGConfig.Name, Replica: i - 1})
 			expectedPodGangs = append(expectedPodGangs, podGangInfo{
 				fqn:   pcsgReplicaPodGangName,
 				pclqs: identifyConstituentPCLQsForPCSGPodGang(&pcsg, pgs.Spec.TemplateSpec.Cliques, logger),
@@ -199,14 +201,14 @@ func identifyConstituentPCLQsForPCSGPodGang(pcsg *grovecorev1alpha1.PodCliqueSca
 	return constituentPCLQs
 }
 
-func (r _resource) getExistingPodCliqueScalingGroups(ctx context.Context, pgsObjectKey client.ObjectKey, pgsReplica int32) ([]grovecorev1alpha1.PodCliqueScalingGroup, error) {
+func (r _resource) getExistingPodCliqueScalingGroups(ctx context.Context, pgs *grovecorev1alpha1.PodGangSet, pgsReplica int32) ([]grovecorev1alpha1.PodCliqueScalingGroup, error) {
 	pcsgList := &grovecorev1alpha1.PodCliqueScalingGroupList{}
 	if err := r.client.List(ctx,
 		pcsgList,
-		client.InNamespace(pgsObjectKey.Namespace),
+		client.InNamespace(pgs.Namespace),
 		client.MatchingLabels(
 			lo.Assign(
-				k8sutils.GetDefaultLabelsForPodGangSetManagedResources(pgsObjectKey.Name),
+				k8sutils.GetDefaultLabelsForPodGangSetManagedResources(pgs.Name),
 				map[string]string{
 					grovecorev1alpha1.LabelPodGangSetReplicaIndex: strconv.Itoa(int(pgsReplica)),
 				},
@@ -215,7 +217,9 @@ func (r _resource) getExistingPodCliqueScalingGroups(ctx context.Context, pgsObj
 	); err != nil {
 		return nil, err
 	}
-	return pcsgList.Items, nil
+	return lo.Filter(pcsgList.Items, func(pcsg grovecorev1alpha1.PodCliqueScalingGroup, _ int) bool {
+		return metav1.IsControlledBy(&pcsg, pgs)
+	}), nil
 }
 
 func (r _resource) getPodsByPCLQForPGS(ctx context.Context, pgsObjectKey client.ObjectKey) (map[string][]corev1.Pod, error) {

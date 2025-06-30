@@ -65,10 +65,16 @@ func GeneratePodCliqueScalingGroupName(pgsNameReplica ResourceNameReplica, pclqS
 	return fmt.Sprintf("%s-%d-%s", pgsNameReplica.Name, pgsNameReplica.Replica, pclqScalingGroupName)
 }
 
+// GeneratePodGangName generates a PodGang name based on pgs and pcsg name and replicas.
 func GeneratePodGangName(pgsNameReplica ResourceNameReplica, pcsgNameReplica *ResourceNameReplica) string {
 	if pcsgNameReplica == nil {
 		return fmt.Sprintf("%s-%d", pgsNameReplica.Name, pgsNameReplica.Replica)
 	} else {
-		return fmt.Sprintf("%s-%d-%s-%d", pgsNameReplica.Name, pgsNameReplica.Replica, pcsgNameReplica.Name, pcsgNameReplica.Replica)
+		return fmt.Sprintf("%s%d", GeneratePCSGPodGangNamePrefix(pgsNameReplica, pcsgNameReplica.Name), pcsgNameReplica.Replica)
 	}
+}
+
+// GeneratePCSGPodGangNamePrefix generates a PodGang name prefix for Podgangs created due to PCSG replica scale-out.
+func GeneratePCSGPodGangNamePrefix(pgsNameReplica ResourceNameReplica, pcsgName string) string {
+	return fmt.Sprintf("%s-%d-%s-", pgsNameReplica.Name, pgsNameReplica.Replica, pcsgName)
 }
