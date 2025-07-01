@@ -18,7 +18,6 @@ package podgang
 
 import (
 	"context"
-	"errors"
 	"fmt"
 
 	grovecorev1alpha1 "github.com/NVIDIA/grove/operator/api/core/v1alpha1"
@@ -92,7 +91,7 @@ func (r _resource) Sync(ctx context.Context, logger logr.Logger, pgs *grovecorev
 			fmt.Sprintf("PodGangs pending creation: %v", result.podsGangsPendingCreation),
 		)
 	}
-	return errors.Join(result.errs...)
+	return nil
 }
 
 func (r _resource) Delete(ctx context.Context, logger logr.Logger, pgsObjectMeta metav1.ObjectMeta) error {

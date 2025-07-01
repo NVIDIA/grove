@@ -282,30 +282,18 @@ func (r _resource) createOrUpdatePodGangs(sc *syncContext) syncFlowResult {
 	for _, podGang := range sc.expectedPodGangs {
 		sc.logger.Info("[createOrUpdatePodGangs] processing PodGang", "fqn", podGang.fqn)
 		isPodGangPendingCreation := slices.Contains(pendingPodGangNames, podGang.fqn)
-		pclqs := sc.getPodCliques(podGang)
 		// check the health of each podclique
-		for _, pclq := range pclqs {
-			if isPodGangPendingCreation {
-				if pclq.Spec.Replicas > pclq.Status.ReadyReplicas+pclq.Status.ScheduleGatedReplicas {
-					sc.logger.Info("[createOrUpdatePodGangs] skipping creation of PodGang as all desired replicas have not yet been created", "fqn", podGang.fqn)
-					result.recordSkippedPodGang(podGang.fqn)
-					break
-				}
-			}
-			associatedPodNames, unassociatedPods := sc.getAssociatedAndUnassociatedPods(podGang.fqn, &pclq)
-			numPendingPodsToAssociate := podGang.computePendingPodsToAssociate(pclq.Name, len(associatedPodNames))
-			if numPendingPodsToAssociate > 0 {
-				assignedPodNames, err := r.assignPodsToPodGang(sc.ctx, podGang.fqn, unassociatedPods, numPendingPodsToAssociate)
-				if err != nil {
-					sc.logger.Error(err, "Skipping PodGang creation, only could assign a subset of Pods to the PodGang", "assignedPodNames", assignedPodNames)
-					result.recordError(err)
-					return result
-				}
-				sc.refreshPodGangPCLQPods(&podGang, pclq.Name, assignedPodNames...)
-			}
+		numPendingPodsToAssociate, err := r.processPodGangPCLQs(sc, podGang)
+		if err != nil {
+			result.recordError(err)
+			return result
+		}
+		if isPodGangPendingCreation && numPendingPodsToAssociate > 0 {
+			sc.logger.Info("skipping creation of PodGang as all desired replicas have not yet been created or assigned", "fqn", podGang.fqn, "numPendingPods", numPendingPodsToAssociate)
+			continue
 		}
 		if err := r.createOrUpdatePodGang(sc, podGang); err != nil {
-			sc.logger.Error(err, "Failed to create PodGang", "PodGangName", podGang.fqn)
+			sc.logger.Error(err, "failed to create PodGang", "PodGangName", podGang.fqn)
 			result.recordError(err)
 			return result
 		}
@@ -314,6 +302,25 @@ func (r _resource) createOrUpdatePodGangs(sc *syncContext) syncFlowResult {
 		}
 	}
 	return result
+}
+
+func (r _resource) processPodGangPCLQs(sc *syncContext, podGang podGangInfo) (int, error) {
+	pclqs := sc.getPodCliques(podGang)
+	var numTotalPendingPodsToAssociate int
+	for _, pclq := range pclqs {
+		associatedPodNames, unassociatedPods := sc.getAssociatedAndUnassociatedPods(podGang.fqn, &pclq)
+		numPCLQPendingPodsToAssociate := podGang.computePendingPodsToAssociate(pclq.Name, len(associatedPodNames))
+		if numPCLQPendingPodsToAssociate > 0 {
+			assignedPodNames, err := r.assignPodsToPodGang(sc.ctx, podGang.fqn, unassociatedPods, numPCLQPendingPodsToAssociate)
+			if err != nil {
+				sc.logger.Error(err, "failed to assign pods to PodGang", "podGangName", podGang.fqn, "pclqObjectKey", client.ObjectKeyFromObject(&pclq), "numPCLQPendingPodsToAssociate", numPCLQPendingPodsToAssociate, "assignedPodNames", assignedPodNames)
+				return numTotalPendingPodsToAssociate, err
+			}
+			numTotalPendingPodsToAssociate += numPCLQPendingPodsToAssociate - len(associatedPodNames)
+			sc.refreshPodGangPCLQPods(&podGang, pclq.Name, assignedPodNames...)
+		}
+	}
+	return numTotalPendingPodsToAssociate, nil
 }
 
 func (r _resource) createOrUpdatePodGang(sc *syncContext, pgInfo podGangInfo) error {

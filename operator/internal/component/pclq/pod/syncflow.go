@@ -41,28 +41,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-type syncContext struct {
-	ctx                           context.Context
-	pgs                           *grovecorev1alpha1.PodGangSet
-	pclq                          *grovecorev1alpha1.PodClique
-	existingPodGangsForPCLQ       []*groveschedulerv1alpha1.PodGang
-	expectedPodGangNames          []string
-	existingPCLQPods              []*corev1.Pod
-	podNamesUpdatedInPCLQPodGangs []string
-}
-
-func (sc *syncContext) getExistingPodsByExpectedPodGangName() map[string][]*corev1.Pod {
-	podGangNameToPods := make(map[string][]*corev1.Pod)
-	for _, existingPod := range sc.existingPCLQPods {
-		podGangLabelValue, ok := existingPod.GetLabels()[grovecorev1alpha1.LabelPodGangName]
-		if !ok && !slices.Contains(sc.expectedPodGangNames, podGangLabelValue) {
-			continue
-		}
-		podGangNameToPods[podGangLabelValue] = append(podGangNameToPods[podGangLabelValue], existingPod)
-	}
-	return podGangNameToPods
-}
-
 func (r _resource) prepareSyncFlow(ctx context.Context, logger logr.Logger, pclq *grovecorev1alpha1.PodClique) (*syncContext, error) {
 	sc := &syncContext{
 		ctx:  ctx,
@@ -214,9 +192,8 @@ func getPodNamesUpdatedInAssociatedPodGangs(existingPodGangsForPCLQ []*grovesche
 	return updatedPodNames.UnsortedList()
 }
 
-func (r _resource) runSyncFlow(sc *syncContext, logger logr.Logger) error {
-	var errs []error
-
+func (r _resource) runSyncFlow(sc *syncContext, logger logr.Logger) syncFlowResult {
+	result := syncFlowResult{}
 	diff := len(sc.existingPCLQPods) - int(sc.pclq.Spec.Replicas)
 	if diff < 0 {
 		diff *= -1
@@ -224,25 +201,20 @@ func (r _resource) runSyncFlow(sc *syncContext, logger logr.Logger) error {
 		logger.Info("created unassigned and scheduled gated pods", "numberOfCreatedPods", numScheduleGatedPods)
 		if err != nil {
 			logger.Error(err, "failed to create pods", "pclqObjectKey", client.ObjectKeyFromObject(sc.pclq))
-			errs = append(errs, err)
+			result.recordError(err)
 		}
 	} else {
 		if err := r.deleteExcessPods(sc, logger, diff); err != nil {
-			errs = append(errs, err)
+			result.recordError(err)
 		}
 	}
 
 	skippedScheduleGatedPods, err := r.checkAndRemovePodSchedulingGates(sc, logger)
 	if err != nil {
-		errs = append(errs, err)
+		result.recordError(err)
 	}
-	if len(skippedScheduleGatedPods) > 0 {
-		errs = append(errs, groveerr.New(groveerr.ErrCodeRequeueAfter,
-			component.OperationSync,
-			fmt.Sprintf("some pods are still schedule gated. requeuing request to retry removal of scheduling gates")))
-	}
-
-	return errors.Join(errs...)
+	result.recordPendingScheduleGatedPods(skippedScheduleGatedPods)
+	return result
 }
 
 func (r _resource) deleteExcessPods(sc *syncContext, logger logr.Logger, diff int) error {
@@ -435,4 +407,58 @@ func (r _resource) createPods(ctx context.Context, logger logr.Logger, pclq *gro
 		)
 	}
 	return len(runResult.SuccessfulTasks), nil
+}
+
+// Convenience types and methods on these types that are used during sync flow run.
+// ------------------------------------------------------------------------------------------------
+
+// syncContext holds the relevant state required during the sync flow run.
+type syncContext struct {
+	ctx                           context.Context
+	pgs                           *grovecorev1alpha1.PodGangSet
+	pclq                          *grovecorev1alpha1.PodClique
+	existingPodGangsForPCLQ       []*groveschedulerv1alpha1.PodGang
+	expectedPodGangNames          []string
+	existingPCLQPods              []*corev1.Pod
+	podNamesUpdatedInPCLQPodGangs []string
+}
+
+func (sc *syncContext) getExistingPodsByExpectedPodGangName() map[string][]*corev1.Pod {
+	podGangNameToPods := make(map[string][]*corev1.Pod)
+	for _, existingPod := range sc.existingPCLQPods {
+		podGangLabelValue, ok := existingPod.GetLabels()[grovecorev1alpha1.LabelPodGangName]
+		if !ok && !slices.Contains(sc.expectedPodGangNames, podGangLabelValue) {
+			continue
+		}
+		podGangNameToPods[podGangLabelValue] = append(podGangNameToPods[podGangLabelValue], existingPod)
+	}
+	return podGangNameToPods
+}
+
+// syncFlowResult captures the result of a sync flow run.
+type syncFlowResult struct {
+	// scheduleGatedPods are the pods that were created but are still schedule gated.
+	scheduleGatedPods []string
+	// errs are the list of errors during the sync flow run.
+	errs []error
+}
+
+func (sfr *syncFlowResult) getAggregatedError() error {
+	return errors.Join(sfr.errs...)
+}
+
+func (sfr *syncFlowResult) hasPendingScheduleGatedPods() bool {
+	return len(sfr.scheduleGatedPods) > 0
+}
+
+func (sfr *syncFlowResult) recordError(err error) {
+	sfr.errs = append(sfr.errs, err)
+}
+
+func (sfr *syncFlowResult) recordPendingScheduleGatedPods(podNames []string) {
+	sfr.scheduleGatedPods = append(sfr.scheduleGatedPods, podNames...)
+}
+
+func (sfr *syncFlowResult) hasErrors() bool {
+	return len(sfr.errs) > 0
 }

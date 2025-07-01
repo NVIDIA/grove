@@ -111,8 +111,15 @@ func (r _resource) Sync(ctx context.Context, logger logr.Logger, pclq *grovecore
 	if err != nil {
 		return err
 	}
-	if err := r.runSyncFlow(sc, logger); err != nil {
-		return err
+	result := r.runSyncFlow(sc, logger)
+	if result.hasErrors() {
+		return result.getAggregatedError()
+	}
+	if result.hasPendingScheduleGatedPods() {
+		return groveerr.New(groveerr.ErrCodeRequeueAfter,
+			component.OperationSync,
+			fmt.Sprintf("some pods are still schedule gated. requeuing request to retry removal of scheduling gates"),
+		)
 	}
 	return nil
 }
