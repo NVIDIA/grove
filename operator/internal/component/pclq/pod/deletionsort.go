@@ -42,8 +42,6 @@ func (s DeletionSorter) Less(i, j int) bool {
 		return s[i].CreationTimestamp.IsZero()
 	}
 	return s[i].CreationTimestamp.After(s[j].CreationTimestamp.Time)
-
-	return false
 }
 
 func isPodReady(pod *corev1.Pod) bool {

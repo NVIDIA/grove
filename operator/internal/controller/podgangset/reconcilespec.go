@@ -115,11 +115,11 @@ func (r *Reconciler) recordIncompleteReconcile(ctx context.Context, logger logr.
 
 func getOrderedKindsForSync() []component.Kind {
 	return []component.Kind{
-		component.KindPodCliqueScalingGroup,
-		component.KindHeadlessService,
+		component.KindServiceAccount,
 		component.KindRole,
 		component.KindRoleBinding,
-		component.KindServiceAccount,
+		component.KindHeadlessService,
+		component.KindPodCliqueScalingGroup,
 		component.KindPodClique,
 		component.KindHorizontalPodAutoscaler,
 		component.KindPodGang,

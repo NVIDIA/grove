@@ -118,7 +118,7 @@ func (r _resource) Sync(ctx context.Context, logger logr.Logger, pclq *grovecore
 	if result.hasPendingScheduleGatedPods() {
 		return groveerr.New(groveerr.ErrCodeRequeueAfter,
 			component.OperationSync,
-			fmt.Sprintf("some pods are still schedule gated. requeuing request to retry removal of scheduling gates"),
+			"some pods are still schedule gated. requeuing request to retry removal of scheduling gates",
 		)
 	}
 	return nil

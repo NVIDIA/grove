@@ -20,10 +20,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	componentutils "github.com/NVIDIA/grove/operator/internal/component/utils"
 	"slices"
 	"strconv"
 	"strings"
+
+	componentutils "github.com/NVIDIA/grove/operator/internal/component/utils"
 
 	grovecorev1alpha1 "github.com/NVIDIA/grove/operator/api/core/v1alpha1"
 	"github.com/NVIDIA/grove/operator/internal/component"
@@ -308,7 +309,7 @@ func (r _resource) processPodGangPCLQs(sc *syncContext, podGang podGangInfo) (in
 	pclqs := sc.getPodCliques(podGang)
 	var numTotalPendingPodsToAssociate int
 	for _, pclq := range pclqs {
-		associatedPodNames, unassociatedPods := sc.getAssociatedAndUnassociatedPods(podGang.fqn, &pclq)
+		associatedPodNames, unassociatedPods := sc.getAssociatedAndUnassociatedPods(podGang, &pclq)
 		numPCLQPendingPodsToAssociate := podGang.computePendingPodsToAssociate(pclq.Name, len(associatedPodNames))
 		if numPCLQPendingPodsToAssociate > 0 {
 			assignedPodNames, err := r.assignPodsToPodGang(sc.ctx, podGang.fqn, unassociatedPods, numPCLQPendingPodsToAssociate)
@@ -316,7 +317,7 @@ func (r _resource) processPodGangPCLQs(sc *syncContext, podGang podGangInfo) (in
 				sc.logger.Error(err, "failed to assign pods to PodGang", "podGangName", podGang.fqn, "pclqObjectKey", client.ObjectKeyFromObject(&pclq), "numPCLQPendingPodsToAssociate", numPCLQPendingPodsToAssociate, "assignedPodNames", assignedPodNames)
 				return numTotalPendingPodsToAssociate, err
 			}
-			numTotalPendingPodsToAssociate += numPCLQPendingPodsToAssociate - len(associatedPodNames)
+			numTotalPendingPodsToAssociate += numPCLQPendingPodsToAssociate - len(assignedPodNames)
 			sc.refreshPodGangPCLQPods(&podGang, pclq.Name, assignedPodNames...)
 		}
 	}
@@ -345,8 +346,10 @@ func (r _resource) createOrUpdatePodGang(sc *syncContext, pgInfo podGangInfo) er
 }
 
 func (r _resource) assignPodsToPodGang(ctx context.Context, podGangName string, unassociatedPods []corev1.Pod, pendingPodsToAssociate int) ([]string, error) {
-	assignedPodNames := make([]string, 0, pendingPodsToAssociate)
-	for _, pod := range unassociatedPods[:pendingPodsToAssociate] {
+	// numAssignablePods holds the number of Pods that can be assigned the PodGang within unassociatedPods
+	numAssignablePods := min(len(unassociatedPods), pendingPodsToAssociate)
+	assignedPodNames := make([]string, 0, numAssignablePods)
+	for _, pod := range unassociatedPods[:numAssignablePods] {
 		podClone := pod.DeepCopy()
 		pod.Labels[grovecorev1alpha1.LabelPodGangName] = podGangName
 		if err := r.client.Patch(ctx, &pod, client.MergeFrom(podClone)); err != nil {
@@ -402,14 +405,8 @@ func (sc *syncContext) getPodGangNamesPendingCreation() []string {
 	})
 }
 
-func (sc *syncContext) getAssociatedAndUnassociatedPods(podGangName string, pclq *grovecorev1alpha1.PodClique) ([]string, []corev1.Pod) {
-	pgi, ok := lo.Find(sc.expectedPodGangs, func(pgi podGangInfo) bool {
-		return podGangName == pgi.fqn
-	})
-	if !ok {
-		return nil, nil
-	}
-	matchingPCLQInfo, ok := lo.Find(pgi.pclqs, func(p pclqInfo) bool {
+func (sc *syncContext) getAssociatedAndUnassociatedPods(podGang podGangInfo, pclq *grovecorev1alpha1.PodClique) ([]string, []corev1.Pod) {
+	matchingPCLQInfo, ok := lo.Find(podGang.pclqs, func(p pclqInfo) bool {
 		return p.fqn == pclq.Name
 	})
 	if !ok {
@@ -473,10 +470,6 @@ func (sfr *syncFlowResult) hasErrors() bool {
 
 func (sfr *syncFlowResult) recordError(err error) {
 	sfr.errs = append(sfr.errs, err)
-}
-
-func (sfr *syncFlowResult) recordSkippedPodGang(podGangName string) {
-	sfr.podsGangsPendingCreation = append(sfr.podsGangsPendingCreation, podGangName)
 }
 
 func (sfr *syncFlowResult) hasPodGangsPendingCreation() bool {
