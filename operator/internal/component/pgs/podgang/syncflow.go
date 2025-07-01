@@ -24,10 +24,9 @@ import (
 	"strconv"
 	"strings"
 
-	componentutils "github.com/NVIDIA/grove/operator/internal/component/utils"
-
 	grovecorev1alpha1 "github.com/NVIDIA/grove/operator/api/core/v1alpha1"
 	"github.com/NVIDIA/grove/operator/internal/component"
+	componentutils "github.com/NVIDIA/grove/operator/internal/component/utils"
 	groveerr "github.com/NVIDIA/grove/operator/internal/errors"
 	k8sutils "github.com/NVIDIA/grove/operator/internal/utils/kubernetes"
 

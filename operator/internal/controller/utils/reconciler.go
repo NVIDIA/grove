@@ -19,12 +19,12 @@ package utils
 import (
 	"context"
 	"errors"
-	groveerr "github.com/NVIDIA/grove/operator/internal/errors"
 	"time"
 
 	"github.com/NVIDIA/grove/operator/api/core/v1alpha1"
 	"github.com/NVIDIA/grove/operator/internal/component"
 	grovectrl "github.com/NVIDIA/grove/operator/internal/controller/common"
+	groveerr "github.com/NVIDIA/grove/operator/internal/errors"
 
 	"github.com/go-logr/logr"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"

@@ -50,6 +50,7 @@ func (c *CLIOptions) PodCliqueNames() []string {
 	return podCliquesNames
 }
 
+// PodCliqueNamespace returns the namespace that the PodClique is present in
 func (c *CLIOptions) PodCliqueNamespace() string {
 	return c.podCliqueNamespace
 }
