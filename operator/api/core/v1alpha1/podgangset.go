@@ -104,8 +104,8 @@ type PodGangTemplateSpec struct {
 	// Cliques is a slice of cliques that make up the PodGang. There should be at least one PodClique.
 	Cliques []*PodCliqueTemplateSpec `json:"cliques"`
 	// StartupType defines the type of startup dependency amongst the cliques within a PodGang.
-	// If it is not defined then default of CliqueStartupTypeInOrder is used.
-	// +kubebuilder:default=CliqueStartupTypeInOrder
+	// If it is not defined then default of CliqueStartupTypeAnyOrder is used.
+	// +kubebuilder:default=CliqueStartupTypeAnyOrder
 	// +optional
 	StartupType *CliqueStartupType `json:"cliqueStartupType,omitempty"`
 	// HeadlessServiceConfig defines the config options for the headless service.
@@ -182,15 +182,15 @@ type HeadlessServiceConfig struct {
 }
 
 // CliqueStartupType defines the order in which each PodClique is started.
-// +kubebuilder:validation:Enum={CliqueStartupTypeInOrder,CliqueStartupTypeAnyOrder,CliqueStartupTypeExplicit}
+// +kubebuilder:validation:Enum={CliqueStartupTypeAnyOrder,CliqueStartupTypeInOrder,CliqueStartupTypeExplicit}
 type CliqueStartupType string
 
 const (
-	// CliqueStartupTypeInOrder defines that the cliques should be started in the order they are defined in the PodGang Cliques slice.
-	// This is the default CliqueStartupType.
-	CliqueStartupTypeInOrder CliqueStartupType = "CliqueStartupTypeInOrder"
 	// CliqueStartupTypeAnyOrder defines that the cliques can be started in any order. This allows for concurrent starts of cliques.
+	// This is the default CliqueStartupType.
 	CliqueStartupTypeAnyOrder CliqueStartupType = "CliqueStartupTypeAnyOrder"
+	// CliqueStartupTypeInOrder defines that the cliques should be started in the order they are defined in the PodGang Cliques slice.
+	CliqueStartupTypeInOrder CliqueStartupType = "CliqueStartupTypeInOrder"
 	// CliqueStartupTypeExplicit defines that the cliques should be started after the cliques defined in PodClique.StartsAfter have started.
 	CliqueStartupTypeExplicit CliqueStartupType = "CliqueStartupTypeExplicit"
 )

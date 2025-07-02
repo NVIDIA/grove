@@ -1,0 +1,81 @@
+# This PodgangSet definition highlights the following features:
+# 1. PodClique with auto-scaling configuration. `pca` is configured with auto-scaling based on CPU utilization. An HPA resource will be created for this PodClique.
+# 2. PodCliques that are scaled as a group. `pcb` and `pcc` are configured to be scaled together as a group named `pcsg`.
+#    These PodCliques will not be auto-scaled individually, but rather as a group. An HPA resource will be created for
+#    the `PodCliqueScalingGroup` that represents this grouping of PodCliques.
+# 3. PodCliques that are neither auto-scaled individually nor do they belong to a PodCliqueScalingGroup. `pcd` is configured without auto-scaling.
+---
+apiVersion: grove.io/v1alpha1
+kind: PodGangSet
+metadata:
+  name: simple1
+  labels:
+    app: simple1
+spec:
+  replicas: 1
+  templateSpec:
+    cliques:
+      - name: pca
+        spec:
+          replicas: 3
+          podSpec:
+            containers:
+              - name: pca
+                image: nginx:latest
+                resources:
+                  requests:
+                    cpu: 10m
+          autoScalingConfig:
+            maxReplicas: 5
+            metrics:
+              - type: Resource
+                resource:
+                  name: cpu
+                  target:
+                    type: Utilization
+                    averageUtilization: 80
+      - name: pcb
+        spec:
+          replicas: 2
+          podSpec:
+            containers:
+              - name: pcb
+                image: nginx:latest
+                resources:
+                  requests:
+                    cpu: 10m
+      - name: pcc
+        spec:
+          replicas: 2
+          podSpec:
+            containers:
+              - name: pcc
+                image: nginx:latest
+                resources:
+                  requests:
+                    cpu: 10m
+      - name: pcd
+        spec:
+          replicas: 2
+          podSpec:
+            containers:
+              - name: pcd
+                image: nginx:latest
+                resources:
+                  requests:
+                    cpu: 10m
+    podCliqueScalingGroups:
+      - name: pcsg
+        cliqueNames:
+          - pcb
+          - pcc
+        scaleConfig:
+          maxReplicas: 6
+          metrics:
+            - type: Resource
+              resource:
+                name: cpu
+                target:
+                  type: Utilization
+                  averageUtilization: 80
+          
