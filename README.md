@@ -19,9 +19,9 @@ The Grove API consists of a user API and a scheduling API. While the user API (`
 
 | Concept                                                      | Description                                                  |
 | ------------------------------------------------------------ | ------------------------------------------------------------ |
-| [PodGangSet](https://github.com/nvrohanv/grove/blob/rohanv/doc/update_readme/operator/api/core/v1alpha1/podgangset.go) | The top-level Grove object that defines a group of components managed and colocated together. Also supports autoscaling with topology aware spread of PodGangSet replicas for availability. |
-| [PodClique](https://github.com/nvrohanv/grove/blob/rohanv/doc/update_readme/operator/api/core/v1alpha1/podclique.go) | A group of pods representing a specific role (e.g., leader, worker, frontend). Each clique has an independent configuration and supports custom scaling logic. |
-| [PodCliqueScalingGroup](https://github.com/nvrohanv/grove/blob/rohanv/doc/update_readme/operator/api/core/v1alpha1/scalinggroup.go) | A set of PodCliques that scale and are scheduled together. Ideal for tightly coupled roles like prefill leader and worker. |
+| [PodGangSet](operator/api/core/v1alpha1/podgangset.go) | The top-level Grove object that defines a group of components managed and colocated together. Also supports autoscaling with topology aware spread of PodGangSet replicas for availability. |
+| [PodClique](operator/api/core/v1alpha1/podclique.go) | A group of pods representing a specific role (e.g., leader, worker, frontend). Each clique has an independent configuration and supports custom scaling logic. |
+| [PodCliqueScalingGroup](operator/api/core/v1alpha1/scalinggroup.go) | A set of PodCliques that scale and are scheduled together. Ideal for tightly coupled roles like prefill leader and worker. |
 | [PodGang](scheduler/api/core/v1alpha1/podgang.go)            | The scheduler API that defines a unit of gang-scheduling. A PodGang is a collection of groups of similar pods, where each pod group defines a minimum number of replicas guaranteed for gang-scheduling. |
 
 
