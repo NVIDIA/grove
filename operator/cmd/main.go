@@ -26,6 +26,7 @@ import (
 	grovelogger "github.com/NVIDIA/grove/operator/internal/logger"
 	groveversion "github.com/NVIDIA/grove/operator/internal/version"
 
+	"github.com/spf13/pflag"
 	ctrl "sigs.k8s.io/controller-runtime"
 )
 
@@ -37,12 +38,12 @@ func main() {
 	ctx := ctrl.SetupSignalHandler()
 	ctrl.SetLogger(grovelogger.MustNewLogger(false, configv1alpha1.InfoLevel, configv1alpha1.LogFormatJSON))
 
-	cliFlagSet := flag.CommandLine
-	groveversion.AddFlags(cliFlagSet)
-	cliOpts := groveopts.NewCLIOptions(cliFlagSet)
+	fs := pflag.CommandLine
+	groveversion.AddFlags(fs)
+	cliOpts := groveopts.NewCLIOptions(fs)
 
 	// parse and print command line flags
-	flag.Parse()
+	pflag.Parse()
 	groveversion.PrintVersionAndExitIfRequested()
 
 	logger.Info("Starting grove operator", "version", groveversion.Get())

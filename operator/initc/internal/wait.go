@@ -18,163 +18,238 @@ package internal
 
 import (
 	"context"
-	"fmt"
-	"slices"
+	"os"
+	"path/filepath"
+	"strings"
 	"sync"
 	"time"
 
 	grovecorev1alpha1 "github.com/NVIDIA/grove/operator/api/core/v1alpha1"
-	groveclientset "github.com/NVIDIA/grove/operator/client/clientset/versioned"
-	groveinformers "github.com/NVIDIA/grove/operator/client/informers/externalversions"
+	"github.com/NVIDIA/grove/operator/internal/common"
+	groveerr "github.com/NVIDIA/grove/operator/internal/errors"
 
 	"github.com/go-logr/logr"
+	"github.com/samber/lo"
+	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/sets"
+	"k8s.io/client-go/informers"
+	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/cache"
 )
 
-// CliqueState contains the last known (readiness) state of all parent PodCliques.
-type CliqueState struct {
-	log         logr.Logger
-	mutex       *sync.Mutex
-	namespace   string
-	cliqueFQNs  []string
-	parentReady map[string]bool
-	readyCh     chan bool
+// Constants for error codes.
+const (
+	errCodeClientCreation               grovecorev1alpha1.ErrorCode = "ERR_CLIENT_CREATION"
+	errCodeLabelSelectorCreationForPods grovecorev1alpha1.ErrorCode = "ERR_LABEL_SELECTOR_CREATION_FOR_PODS"
+	errCodeRegisterEventHandler         grovecorev1alpha1.ErrorCode = "ERR_REGISTER_EVENT_HANDLER"
+)
+
+const (
+	operationWaitForParentPodClique = "WaitForParentPodClique"
+)
+
+// PodCliqueState contains the last known (readiness) state of all parent PodCliques.
+type PodCliqueState struct {
+	log                logr.Logger
+	mutex              *sync.Mutex
+	namespace          string
+	podgang            string
+	podCliqueInfo      map[string]int
+	currentlyReadyPods map[string]sets.Set[string]
+	allReadyCh         chan struct{}
 }
 
-// NewCliqueState creates and initializes all parent PodCliques with an unready state.
-func NewCliqueState(cliqueFQNs []string, cliqueNamespace string, log logr.Logger) CliqueState {
-	state := CliqueState{
-		log:         log,
-		mutex:       &sync.Mutex{},
-		namespace:   cliqueNamespace,
-		cliqueFQNs:  cliqueFQNs,
-		parentReady: make(map[string]bool),
-		readyCh:     make(chan bool, len(cliqueFQNs)),
+// NewPodCliqueState creates and initializes all parent PodCliques with an unready state.
+func NewPodCliqueState(podCliqueInfo map[string]int, log logr.Logger) (*PodCliqueState, error) {
+	podNamespaceFilePath := filepath.Join(common.VolumeMountPathPodInfo, common.PodNamespaceFileName)
+	podNamespace, err := os.ReadFile(podNamespaceFilePath)
+	if err != nil {
+		log.Error(err, "Failed to read the pod namespace from the file", "filepath", podNamespaceFilePath)
+		return nil, err
 	}
-	for _, cliqueFQN := range cliqueFQNs {
-		state.parentReady[cliqueFQN] = false
+
+	podGangNameFilePath := filepath.Join(common.VolumeMountPathPodInfo, common.PodGangNameFileName)
+	podGangName, err := os.ReadFile(podGangNameFilePath)
+	if err != nil {
+		log.Error(err, "Failed to read the PodGang name from the file", "filepath", podGangNameFilePath)
+		return nil, err
 	}
-	return state
+
+	currentlyReadyPods := make(map[string]sets.Set[string])
+	// Initialize the keys to indicate these are the parent PodCliques.
+	for parentPodCliqueName := range podCliqueInfo {
+		currentlyReadyPods[parentPodCliqueName] = sets.New[string]()
+	}
+
+	state := &PodCliqueState{
+		log:                log,
+		mutex:              &sync.Mutex{},
+		namespace:          string(podNamespace),
+		podgang:            string(podGangName),
+		podCliqueInfo:      podCliqueInfo,
+		currentlyReadyPods: currentlyReadyPods,
+		allReadyCh:         make(chan struct{}, len(podCliqueInfo)),
+	}
+
+	return state, nil
 }
 
 // WaitForReady waits for all upstream start-up dependencies to be ready.
-func (c *CliqueState) WaitForReady(ctx context.Context) error {
-	c.log.Info("The clique names are:", "cliques", c.cliqueFQNs)
-	c.log.Info("The clique namespace is:", "cliquesNamespace", c.namespace)
+func (c *PodCliqueState) WaitForReady(ctx context.Context) error {
+	for podCliqueName, minAvailable := range c.podCliqueInfo {
+		c.log.Info("Parent PodClique being waited on", "podCliqueName", podCliqueName, "minAvailable", minAvailable)
+	}
 
 	restConfig, err := rest.InClusterConfig()
 	if err != nil {
-		return fmt.Errorf("failed to fetch the in cluster config with error %w", err)
-	}
-	clientSet, err := groveclientset.NewForConfig(restConfig)
-	if err != nil {
-		return fmt.Errorf("failed to create clientSet with the fetched restConfig with error %w", err)
+		return groveerr.WrapError(
+			err,
+			errCodeClientCreation,
+			operationWaitForParentPodClique,
+			"failed to fetch the in cluster config",
+		)
 	}
 
-	// the readyCh channel is written to in two cases:
-	// 1. When an unready clique becomes ready: true
-	// 2. When a ready clique becomes unready: false
-	var wg sync.WaitGroup
-	wg.Add(len(c.cliqueFQNs))
-	go func() {
-		for ready := range c.readyCh {
-			if !ready {
-				wg.Add(1) // a ready PodClique has become unready
-			} else {
-				wg.Done() // an unready PodClique has become ready
-			}
-		}
-	}()
+	bareBonesClient, err := kubernetes.NewForConfig(restConfig)
+	if err != nil {
+		return groveerr.WrapError(
+			err,
+			errCodeClientCreation,
+			operationWaitForParentPodClique,
+			"failed to create clientSet with the fetched restConfig",
+		)
+	}
+
+	selector, err := metav1.LabelSelectorAsSelector(&metav1.LabelSelector{
+		MatchLabels: getLabelSelectorForPods(c.podgang),
+	})
+	if err != nil {
+		return groveerr.WrapError(
+			err,
+			errCodeLabelSelectorCreationForPods,
+			operationWaitForParentPodClique,
+			"failed to convert labels required for the PodGang to selector",
+		)
+	}
 
 	eventHandlerContext, cancel := context.WithCancel(ctx)
 
-	defer close(c.readyCh) // close the channel the informers write to after the context they use is cancelled
-	defer cancel()         // cancel the context used by the informers if the wait is successful, or an err occurs
+	defer close(c.allReadyCh) // Close the channel the informers write to after the context they use is cancelled.
+	defer cancel()            // Cancel the context used by the informers if the wait is successful, or an err occurs.
 
-	if err = c.startPodCliqueEventHandler(eventHandlerContext, clientSet); err != nil {
-		return fmt.Errorf("unable to start PodClique event handler with error %w", err)
+	factory := informers.NewSharedInformerFactoryWithOptions(
+		bareBonesClient,
+		time.Second,
+		informers.WithNamespace(c.namespace),
+		informers.WithTweakListOptions(func(opts *metav1.ListOptions) {
+			opts.LabelSelector = selector.String()
+		},
+		))
+	if err := c.registerEventHandler(factory); err != nil {
+		return groveerr.WrapError(
+			err,
+			errCodeRegisterEventHandler,
+			operationWaitForParentPodClique,
+			"failed to register the Pod event handler",
+		)
 	}
 
-	wg.Wait()
+	factory.WaitForCacheSync(eventHandlerContext.Done())
+	factory.Start(eventHandlerContext.Done())
+
+	<-c.allReadyCh
 	return nil
 }
 
-func (c *CliqueState) startPodCliqueEventHandler(ctx context.Context, clientSet *groveclientset.Clientset) error {
-	factory := groveinformers.NewSharedInformerFactoryWithOptions(clientSet, time.Second, groveinformers.WithNamespace(c.namespace))
-	typedInformer := factory.Grove().V1alpha1().PodCliques().Informer()
+func (c *PodCliqueState) registerEventHandler(factory informers.SharedInformerFactory) error {
+	typedInformer := factory.Core().V1().Pods().Informer()
 	_, err := typedInformer.AddEventHandlerWithOptions(cache.ResourceEventHandlerFuncs{
 		AddFunc: func(obj any) {
 			c.mutex.Lock()
 			defer c.mutex.Unlock()
-			pclq, ok := obj.(*grovecorev1alpha1.PodClique)
+			pod, ok := obj.(*corev1.Pod)
 			if !ok {
 				return
 			}
-			if !slices.Contains(c.cliqueFQNs, pclq.Name) {
-				// pclq is not a parent
-				return
+
+			c.refreshReadyPodsOfPodClique(pod, false)
+			if c.checkAllParentsReady() {
+				c.allReadyCh <- struct{}{}
 			}
-			c.verifyParentReadiness(pclq)
 		},
-		UpdateFunc: func(_, obj any) {
+		UpdateFunc: func(_, newObj any) {
 			c.mutex.Lock()
 			defer c.mutex.Unlock()
-			pclq, ok := obj.(*grovecorev1alpha1.PodClique)
+			pod, ok := newObj.(*corev1.Pod)
 			if !ok {
 				return
 			}
-			if !slices.Contains(c.cliqueFQNs, pclq.Name) {
-				// pclq is not a parent
+
+			c.refreshReadyPodsOfPodClique(pod, false)
+			if c.checkAllParentsReady() {
+				c.allReadyCh <- struct{}{}
+			}
+		},
+		DeleteFunc: func(obj any) {
+			c.mutex.Lock()
+			defer c.mutex.Unlock()
+			if tombstone, ok := obj.(cache.DeletedFinalStateUnknown); ok {
+				obj = tombstone.Obj
+			}
+			pod, ok := obj.(*corev1.Pod)
+			if !ok {
 				return
 			}
-			c.verifyParentReadiness(pclq)
-		},
-		DeleteFunc: func(_ any) {
-			// the delete function should not be entered, since PodCliques are immutable in a PodGangSet.
-			c.log.Error(
-				fmt.Errorf("PodCliques were deleted"),
-				"PodCliques which are immutable in a PodGangSet were deleted while the initcontainer was waiting for startup",
-			)
+
+			c.refreshReadyPodsOfPodClique(pod, true)
+			if c.checkAllParentsReady() {
+				c.allReadyCh <- struct{}{}
+			}
 		},
 	}, cache.HandlerOptions{Logger: &c.log})
-	if err != nil {
-		return fmt.Errorf("failed to add the event handler to the informer")
-	}
-
-	synced := factory.WaitForCacheSync(ctx.Done())
-	for v, ok := range synced {
-		if !ok {
-			c.log.Error(fmt.Errorf("failed to sync informer cache"), "Caches failed to sync", "type", v)
-		}
-	}
-
-	factory.Start(ctx.Done())
-	return nil
+	return err
 }
 
-func (c *CliqueState) verifyParentReadiness(pclq *grovecorev1alpha1.PodClique) {
-	c.log.Info("Parent PodClique:",
-		"PodClique.Name", pclq.Name,
-		"PodClique.Spec.Replicas", pclq.Spec.Replicas,
-		"PodClique.Status.ReadyReplicas", pclq.Status.ReadyReplicas,
-	)
-	// check if the PodClique was already ready
-	if c.parentReady[pclq.Name] {
-		if pclq.Spec.Replicas != pclq.Status.ReadyReplicas {
-			c.parentReady[pclq.Name] = false
-			c.readyCh <- false
-			c.log.Info("The parent PodClique that was previously ready is not ready any more", "PodClique", pclq.Name)
-		}
-		c.log.Info("The parent PodClique was already ready", "PodClique", pclq.Name)
+func (c *PodCliqueState) refreshReadyPodsOfPodClique(pod *corev1.Pod, deletionEvent bool) {
+	podCliqueName, ok := lo.Find(lo.Keys(c.podCliqueInfo), func(podCliqueFQN string) bool {
+		return strings.HasPrefix(pod.Name, podCliqueFQN)
+	})
+	if !ok {
+		return // If not found, the Pod is not related to any parent PodClique.
+	}
+
+	if deletionEvent {
+		c.currentlyReadyPods[podCliqueName].Delete(pod.Name)
 		return
 	}
-	// The PodClique was not ready previously, check if it is ready now
-	if pclq.Spec.Replicas != pclq.Status.ReadyReplicas {
-		c.log.Info("The parent PodClique is not ready", "PodClique", pclq.Name)
+
+	readyCondition, ok := lo.Find(pod.Status.Conditions, func(podCondition corev1.PodCondition) bool {
+		return podCondition.Type == corev1.PodReady
+	})
+	podReady := ok && readyCondition.Status == corev1.ConditionTrue
+
+	if podReady {
+		c.currentlyReadyPods[podCliqueName].Insert(pod.Name)
 	} else {
-		c.parentReady[pclq.Name] = true
-		c.readyCh <- true
-		c.log.Info("The parent PodClique has become ready", "PodClique", pclq.Name)
+		c.currentlyReadyPods[podCliqueName].Delete(pod.Name)
 	}
+}
+
+func (c *PodCliqueState) checkAllParentsReady() bool {
+	for cliqueName, readyPods := range c.currentlyReadyPods {
+		if len(readyPods) < c.podCliqueInfo[cliqueName] {
+			return false // If any single parent is not ready, wait.
+		}
+	}
+	return true
+}
+
+func getLabelSelectorForPods(podGangName string) map[string]string {
+	return lo.Assign(
+		map[string]string{
+			grovecorev1alpha1.LabelPodGang: podGangName,
+		},
+	)
 }

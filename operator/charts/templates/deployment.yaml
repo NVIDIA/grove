@@ -59,6 +59,8 @@ spec:
               mountPath: /etc/grove-operator/webhook-certs
               readOnly: true
             {{- end }}
+          env:
+{{- toYaml .Values.deployment.env | nindent 12 }}
       volumes:
         - name: kube-api-access-grove
           projected:

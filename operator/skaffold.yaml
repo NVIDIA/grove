@@ -5,13 +5,17 @@ metadata:
 build:
   local: # see https://skaffold.dev/docs/builders/build-environments/local/
     push: true
+  tagPolicy:
+    envTemplate:
+      template: "{{.VERSION}}"
   artifacts:
-    - image: local-skaffold/grove-operator
+    - image: grove-operator
       ko: # see https://skaffold.dev/docs/builders/builder-types/ko/
         dependencies: # configures which files should skaffold watch for changes in dev mode.
           paths:
             - api
             - cmd
+            - initc
             - internal
             - VERSION
         flags:
@@ -19,7 +23,7 @@ build:
         ldflags:
           - '{{.LD_FLAGS}}'
         main: ./cmd
-    - image: local-skaffold/grove-initc
+    - image: grove-initc
       ko: # see https://skaffold.dev/docs/builders/builder-types/ko/
         dependencies: # configures which files should skaffold watch for changes in dev mode.
           paths:
@@ -31,15 +35,18 @@ build:
           - -v
         ldflags:
           - '{{.LD_FLAGS}}'
-        main: ./cmd
+        main: ./initc/cmd
 deploy:
   helm: # see https://skaffold.dev/docs/deployers/helm/
     releases:
       - name: grove-operator
         chartPath: charts
         setValueTemplates:
-          image.repository: '{{.IMAGE_REPO_local_skaffold_grove_operator}}'
-          image.tag: '{{.IMAGE_TAG_local_skaffold_grove_operator}}@{{.IMAGE_DIGEST_local_skaffold_grove_operator}}'
+          image.repository: '{{.IMAGE_REPO}}'
+          image.tag: "{{.VERSION}}@{{.IMAGE_DIGEST}}"
+          deployment.env:
+            - name: GROVE_INIT_CONTAINER_IMAGE
+              value: localhost:5001/grove-initc
         skipBuildDependencies: true
         createNamespace: true
         wait: true

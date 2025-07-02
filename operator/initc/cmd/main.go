@@ -38,20 +38,30 @@ func main() {
 
 	config, err := opts.InitializeCLIOptions()
 	if err != nil {
-		log.Error(err, "failed to generate configuration for the init container from the flags")
+		log.Error(err, "Failed to generate configuration for the init container from the flags")
 		os.Exit(1)
 	}
 	version.PrintVersionAndExitIfRequested()
 
 	log.Info("Starting grove init container", "version", version.Get())
 
-	cliqueState := internal.NewCliqueState(config.PodCliqueNames(), config.PodCliqueNamespace(), log)
-	if err := cliqueState.WaitForReady(ctx); err != nil {
-		log.Error(err, "failed to wait for all PodCliques")
+	podCliqueInfo, err := config.PodCliqueInfo()
+	if err != nil {
+		log.Error(err, "Failed to parse CLI input")
 		os.Exit(1)
 	}
 
-	log.Info("Successfully waited for all dependent PodCliques to start up")
+	podCliqueState, err := internal.NewPodCliqueState(podCliqueInfo, log)
+	if err != nil {
+		os.Exit(1)
+	}
+
+	if err := podCliqueState.WaitForReady(ctx); err != nil {
+		log.Error(err, "Failed to wait for all parent PodCliques")
+		os.Exit(1)
+	}
+
+	log.Info("Successfully waited for all parent PodCliques to start up")
 }
 
 // setupSignalHandler sets up the context for the application. Handles the SIGTERM and SIGINT signals.

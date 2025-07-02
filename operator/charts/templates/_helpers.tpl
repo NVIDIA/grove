@@ -95,9 +95,6 @@ release: "{{ .Release.Name }}"
 {{- end }}
 {{- end -}}
 
-{{- define "operator.imagevector-overwrite-charts.name" -}}
-{{- end -}}
-
 {{- define "image" -}}
 {{- if hasPrefix "sha256:" (required "$.tag is required" $.tag) -}}
 {{ required "$.repository is required" $.repository }}@{{ required "$.tag" $.tag }}
