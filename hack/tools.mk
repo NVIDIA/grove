@@ -14,7 +14,6 @@
 # limitations under the License.
 # */
 
-
 SYSTEM_NAME       := $(shell uname -s | tr '[:upper:]' '[:lower:]')
 SYSTEM_ARCH       := $(shell uname -m | sed 's/x86_64/amd64/;s/aarch64/arm64/')
 TOOLS_DIR         := $(REPO_HACK_DIR)/tools
@@ -27,16 +26,18 @@ GOIMPORTS_REVISER := $(TOOLS_BIN_DIR)/goimports-reviser
 YQ                := $(TOOLS_BIN_DIR)/yq
 GO_ADD_LICENSE    := $(TOOLS_BIN_DIR)/addlicense
 SKAFFOLD          := $(TOOLS_BIN_DIR)/skaffold
+CRD_REF_DOCS      := $(TOOLS_BIN_DIR)/crd-ref-docs
 
 # default tool versions
 # -------------------------------------------------------------------------
 CONTROLLER_GEN_VERSION    ?= $(call version_gomod,sigs.k8s.io/controller-tools)
-KIND_VERSION              ?= v0.27.0
+KIND_VERSION              ?= v0.29.0
 GOLANGCI_LINT_VERSION     ?= v2.1.1
 GOIMPORTS_REVISER_VERSION ?= v3.9.1
 YQ_VERSION                ?= v4.45.1
 GO_ADD_LICENSE_VERSION    ?= v1.1.1
 SKAFFOLD_VERSION          ?= v2.14.0
+CRD_REF_DOCS_VERSION      ?= v0.1.0
 
 export PATH := $(abspath $(TOOLS_BIN_DIR)):$(PATH)
 
@@ -79,3 +80,6 @@ $(GO_ADD_LICENSE):
 $(SKAFFOLD):
 	curl -Lo $(SKAFFOLD) https://storage.googleapis.com/skaffold/releases/$(SKAFFOLD_VERSION)/skaffold-$(SYSTEM_NAME)-$(SYSTEM_ARCH)
 	chmod +x $(SKAFFOLD)
+
+$(CRD_REF_DOCS):
+	GOBIN=$(abspath $(TOOLS_BIN_DIR)) go install github.com/elastic/crd-ref-docs@$(CRD_REF_DOCS_VERSION)

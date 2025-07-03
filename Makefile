@@ -13,6 +13,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # */
+REPO_ROOT           := $(shell dirname "$(realpath $(lastword $(MAKEFILE_LIST)))")
+REPO_HACK_DIR       := $(REPO_ROOT)/hack
+
+include $(REPO_HACK_DIR)/tools.mk
 
 # Lints the entire codebase (all modules) using GOLANGCI_LINT.
 .PHONY: lint
@@ -50,3 +54,7 @@ add-license-headers:
 	@echo "> Adding license headers to scheduler"
 	@make --directory=scheduler add-license-headers
 
+# Generates API documentation for Grove Operator and Scheduler APIs
+.PHONY: generate-api-docs
+generate-api-docs: $(CRD_REF_DOCS)
+	@$(REPO_HACK_DIR)/generate-api-docs.sh

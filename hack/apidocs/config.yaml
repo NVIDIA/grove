@@ -1,0 +1,8 @@
+processor:
+  ignoreFields:
+    - "TypeMeta$"
+  ignoreTypes:
+    - "List$"
+    - "ParseError$"
+render:
+  kubernetesVersion: 1.33

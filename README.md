@@ -42,13 +42,10 @@ The Grove API consists of a user API and a scheduling API. While the user API (`
 
 ## Example Use Cases
 
-- [Multi-node, Disaggregated Inference for large models (DeepSeek-R1, Llama-4-Maverick)](docs/grove_visualizations/Grove_Multinode_Disagg.png)
-
-- [Single-node, Disaggregated Inference](docs/grove_visualizations/Grove_Single_Node_Disagg.png)
-
-- [Agentic Pipeline of Models](docs/grove_visualizations/Grove_Agentic_Pipeline.png)
-
-- ["Standard" Aggregated Single Node or Single GPU Inference](docs/grove_visualizations/Grove_Single_Node_Agg.png)
+- **Multi-Node, Disaggregated Inference for large models** ***(DeepSeek-R1, Llama-4-Maverick)*** : [Visualization](docs/assets/multinode-disaggregated.excalidraw.png)
+- **Single-Node, Disaggregated Inference** : [Visualization](docs/assets/singlenode-disaggregated.excalidraw.png)
+- **Agentic Pipeline of Models** : [Visualization](docs/assets/agentic-pipeline.excalidraw.png)
+- **Standard Aggregated Single Node or Single GPU Inference** : [Visualization](docs/assets/singlenode-aggregated.excalidraw.png)
 
 ## Getting Started
 
