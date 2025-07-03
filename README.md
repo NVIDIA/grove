@@ -29,15 +29,15 @@ The Grove API consists of a user API and a scheduling API. While the user API (`
 
 - **Declarative composition of Role-Based Pod Groups**
   `PodGangSet` API provides users a capability to declaratively compose tightly coupled group of pods with explicit role based logic, e.g. disaggregated roles in a model serving stack such as `prefill`, `decode` and `routing`.
-- **Flexible Gang Scheduling**  
+- **Flexible Gang Scheduling**
   `PodClique`'s and `PodCliqueScalingGroup`s allow users to specify flexible gang-scheduling requirements at multiple levels within a `PodGangSet` to prevent resource deadlocks.
-- **Multi-level Horizontal Auto-Scaling**  
+- **Multi-level Horizontal Auto-Scaling**
   Supports pluggable horizontal auto-scaling solutions to scale `PodGangSet`, `PodClique` and `PodCliqueScalingGroup` custom resources.
-- **Network Topology-Aware Scheduling**  
+- **Network Topology-Aware Scheduling**
   Allows specifying network topology pack and spread constraints to optimize for both network performance and service availability.
-- **Custom Startup Dependencies**  
+- **Custom Startup Dependencies**
   Prescribe the order in which the `PodClique`s must start in a declarative specification. Pod startup is decoupled from pod creation or scheduling.
-- **Resource-Aware Rolling Upgrades**  
+- **Resource-Aware Rolling Upgrades**
   Supports reuse of resource reservations of `Pod`s during upgrades in order to preserve topology-optimized placement.
 
 ## Example Use Cases
@@ -49,7 +49,7 @@ The Grove API consists of a user API and a scheduling API. While the user API (`
 
 ## Getting Started
 
-:construction:
+You can get started with Grove operator by following along to our [doc](docs/getting-started.md).
 
 ## Contributions
 
@@ -58,4 +58,3 @@ The Grove API consists of a user API and a scheduling API. While the user API (`
 ## Community, Discussion, and Support
 
 :construction:
-

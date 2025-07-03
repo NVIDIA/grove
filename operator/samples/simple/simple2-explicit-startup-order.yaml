@@ -19,7 +19,7 @@ metadata:
 spec:
   replicas: 1
   templateSpec:
-    startupType: Explicit # To ensure that the startup order as defined in this spec is honored, the statupType must be set to Explicit.
+    cliqueStartupType: CliqueStartupTypeExplicit # To ensure that the startup order as defined in this spec is honored, the statupType must be set to Explicit.
     cliques:
       # pca is the first clique to start. For this clique the startsAfter will be empty.
       - name: pca

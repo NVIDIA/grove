@@ -41,6 +41,9 @@ CRD_REF_DOCS_VERSION      ?= v0.1.0
 
 export PATH := $(abspath $(TOOLS_BIN_DIR)):$(PATH)
 
+# Ensure the tools bin directory exists
+$(shell mkdir -p $(TOOLS_BIN_DIR) > /dev/null)
+
 # Common
 # -------------------------------------------------------------------------
 # Use this function to get the version of a go module from go.mod
