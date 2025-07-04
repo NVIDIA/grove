@@ -3,15 +3,16 @@
 To get started with Grove, you would need a running Kubernetes cluster. As there is no released version of Grove operator just yet, we recommend you try out Grove locally using a [kind](https://kind.sigs.k8s.io/) cluster, using the make targets we provide as a part of the repository.
 
 > [!NOTE]
-> In case you would like to run Grove operator in your own Kubernetes cluster, you could build an image of Grove operator and init container by running the provided make targets in [operator/Makefile](../operator/Makefile), and specifying your image in the operator's Helm charts in [values.yaml](../operator/charts/values.yaml); and make a Helm release of Grove in your cluster.
+> In case you would like to run Grove operator in your own Kubernetes cluster, you could build your own images of Grove operator and init container. This can be done through the provided make targets in [operator/Makefile](../operator/Makefile).
+> Specify your image in the operator's Helm charts in [values.yaml](../operator/charts/values.yaml); and install the Helm charts.
 
 ## Local kind cluster set-up
 
-All code and corresponding make targets for the operator are present in the [operator](./operator) directory, so you would first switch your working directory to that.
+All grove operator Make targets are located in [Operator Makefile][./operator/Makefile].
 
 ### Kind cluster set-up
 
-- Set up the kind cluster configured to run the Grove operator by running:
+- To set up a KIND cluster with local docker registry run the following command:
 
   ```bash
   make kind-up
@@ -28,11 +29,21 @@ All code and corresponding make targets for the operator are present in the [ope
 ### Deploy Grove operator
 
 ```bash
+# If you wish to deploy all Grove Operator resources in a custom namespace then set the `NAMESPACE` environment variable
+export NAMESPACE=custom-ns
+# if `NAMESPACE` environment variable is set then `make deploy-local` target will use this namespace to deploy all Grove operator resources
 make deploy-local
 ```
 
 This make target installs all relevant CRDs, builds `grove-operator`, `grove-initc`, and deploys the operator to the kind cluster.
 You can configure the Grove operator by modifying the [values.yaml](../operator/charts/values.yaml).
+
+This make target leverages Grove [Helm](https://helm.sh/) charts and [Skaffold](https://skaffold.dev/) to install the following resources to the KIND cluster:
+
+- [CRDs](../grove/operator/charts):
+  - Grove operator CRD - `podgangsets.grove.io`, `podcliques.grove.io` and `podcliquescalinggroups.grove.io`.
+  - Grove Scheduler CRDs - `podgangs.scheduler.grove.io`.
+- All Grove operator resources defined as a part of [Grove Helm chart templates](../operator/charts/templates).
 
 ### Deploy a `PodGangSet`
 
@@ -42,7 +53,7 @@ You can configure the Grove operator by modifying the [values.yaml](../operator/
   kubectl apply -f ./samples/simple/simple1.yaml
   ```
 
-- You can now fetch resources like `PodGangSet`, `PodGang`, `PodClique`, `PodCliqueScalingGroup`, etc. created by the Grove operator, by running:
+- You can now fetch resources like `PodGangSet` (pgs), `PodGang` (pg), `PodClique` (pclq), `PodCliqueScalingGroup` (pcsg), etc. created by the Grove operator, by running:
 
   ```bash
   kubectl get pgs,pclq,pcsg,pg,pod -owide

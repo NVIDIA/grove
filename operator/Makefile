@@ -68,6 +68,14 @@ format: $(GOIMPORTS_REVISER)
 add-license-headers: $(GO_ADD_LICENSE)
 	@$(REPO_HACK_DIR)/add-license-headers.sh
 
+# Make targets for tests
+# -------------------------------------------------------------
+
+# Run all unit tests
+.PHONY: test-unit
+test-unit:
+	@go test ./...
+
 # Make targets for local development and testing
 # -------------------------------------------------------------
 # Starts a local k8s cluster using kind.
