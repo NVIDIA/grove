@@ -39,7 +39,8 @@ func TestDefaultPodGangSet(t *testing.T) {
 				Cliques: []*grovecorev1alpha1.PodCliqueTemplateSpec{{
 					Name: "test",
 					Spec: grovecorev1alpha1.PodCliqueSpec{
-						Replicas: 2,
+						Replicas:    2,
+						MinReplicas: ptr.To(int32(2)),
 						PodSpec: corev1.PodSpec{
 							RestartPolicy:                 corev1.RestartPolicyAlways,
 							TerminationGracePeriodSeconds: ptr.To[int64](30),
@@ -49,10 +50,6 @@ func TestDefaultPodGangSet(t *testing.T) {
 						},
 					},
 				}},
-				StartupType: ptr.To(grovecorev1alpha1.CliqueStartupTypeInOrder),
-				SchedulingPolicyConfig: &grovecorev1alpha1.SchedulingPolicyConfig{
-					NetworkPackStrategy: ptr.To(grovecorev1alpha1.BestEffort),
-				},
 				HeadlessServiceConfig: &grovecorev1alpha1.HeadlessServiceConfig{
 					PublishNotReadyAddresses: true,
 				},
