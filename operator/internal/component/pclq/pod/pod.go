@@ -19,13 +19,17 @@ package pod
 import (
 	"context"
 	"fmt"
+	"os"
 	"strconv"
+	"strings"
 
 	grovecorev1alpha1 "github.com/NVIDIA/grove/operator/api/core/v1alpha1"
+	"github.com/NVIDIA/grove/operator/internal/common"
 	"github.com/NVIDIA/grove/operator/internal/component"
 	groveerr "github.com/NVIDIA/grove/operator/internal/errors"
 	"github.com/NVIDIA/grove/operator/internal/utils"
 	k8sutils "github.com/NVIDIA/grove/operator/internal/utils/kubernetes"
+	"github.com/NVIDIA/grove/operator/internal/version"
 
 	"github.com/go-logr/logr"
 	"github.com/samber/lo"
@@ -35,6 +39,16 @@ import (
 	"k8s.io/client-go/tools/record"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
+)
+
+const (
+	// envVarInitContainerImage stores the environment variable which is read to find the image for the initcontainer.
+	// The environment variable should only store the registry and repository of the initcontainer. It should not contain any tag.
+	envVarInitContainerImage string = "GROVE_INIT_CONTAINER_IMAGE"
+	// grove-initc name
+	initContainerName = "grove-initc"
+	// volumeNamePodInfo is the name of the downwardAPI volume that passes the pod information to the init container
+	volumeNamePodInfo = "pod-info"
 )
 
 // constants for error codes
@@ -50,6 +64,7 @@ const (
 	errCodeInvalidPodGangSetReplicaLabelValue grovecorev1alpha1.ErrorCode = "ERR_INVALID_PODGANGSET_REPLICA_LABEL_VALUE"
 	errCodeRemovePodSchedulingGate            grovecorev1alpha1.ErrorCode = "ERR_REMOVE_POD_SCHEDULING_GATE"
 	errCodeCreatePods                         grovecorev1alpha1.ErrorCode = "ERR_CREATE_PODS"
+	errCodeInitContainerImageEnvVarMissing    grovecorev1alpha1.ErrorCode = "ERR_INITCONTAINER_ENVIRONMENT_VARIABLE_MISSING"
 )
 
 // constants used for pod events
@@ -148,6 +163,47 @@ func (r _resource) buildResource(pclq *grovecorev1alpha1.PodClique, pod *corev1.
 	pod.Spec = *pclq.Spec.PodSpec.DeepCopy()
 	pod.Spec.SchedulingGates = []corev1.PodSchedulingGate{{Name: podGangSchedulingGate}}
 
+	pgsName := k8sutils.GetFirstOwnerName(pclq.ObjectMeta)
+	pod.Spec.ServiceAccountName = grovecorev1alpha1.GeneratePodServiceAccountName(pgsName)
+
+	initContainerImage, ok := os.LookupEnv(envVarInitContainerImage)
+	if !ok {
+		return groveerr.New(
+			errCodeInitContainerImageEnvVarMissing,
+			component.OperationSync,
+			"environment variable specifying the initcontainer image is missing",
+		)
+	}
+	if len(pclq.Spec.StartsAfter) != 0 {
+		pod.Spec.InitContainers = append(pod.Spec.InitContainers, corev1.Container{
+			Name:  initContainerName,
+			Image: fmt.Sprintf("%s:%s", initContainerImage, version.Get().GitVersion),
+			Args: []string{
+				fmt.Sprintf("-pod-cliques=%s", strings.Join(pclq.Spec.StartsAfter, ",")),
+			},
+		})
+		pod.Spec.Volumes = append(pod.Spec.Volumes, corev1.Volume{
+			Name: volumeNamePodInfo,
+			VolumeSource: corev1.VolumeSource{
+				DownwardAPI: &corev1.DownwardAPIVolumeSource{
+					Items: []corev1.DownwardAPIVolumeFile{
+						{
+							Path: common.PodNamespaceFileName,
+							FieldRef: &corev1.ObjectFieldSelector{
+								FieldPath: "metadata.namespace",
+							},
+						},
+					},
+				},
+			},
+		})
+		groveInitcIndex := len(pod.Spec.InitContainers) - 1
+		pod.Spec.InitContainers[groveInitcIndex].VolumeMounts = append(pod.Spec.InitContainers[groveInitcIndex].VolumeMounts, corev1.VolumeMount{
+			Name:      volumeNamePodInfo,
+			ReadOnly:  true,
+			MountPath: common.VolumeMountPathPodInfo,
+		})
+	}
 	return nil
 }
 

@@ -20,11 +20,13 @@ import (
 	"context"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"syscall"
 
 	configv1alpha1 "github.com/NVIDIA/grove/operator/api/config/v1alpha1"
 	"github.com/NVIDIA/grove/operator/initc/cmd/opts"
 	"github.com/NVIDIA/grove/operator/initc/internal"
+	"github.com/NVIDIA/grove/operator/internal/common"
 	"github.com/NVIDIA/grove/operator/internal/logger"
 	"github.com/NVIDIA/grove/operator/internal/version"
 )
@@ -45,7 +47,15 @@ func main() {
 
 	log.Info("Starting grove init container", "version", version.Get())
 
-	cliqueState := internal.NewCliqueState(config.PodCliqueNames(), config.PodCliqueNamespace(), log)
+	// podNamespaceFilePath corresponds to the file containing the namespace, created through downwardAPI
+	podNamespaceFilePath := filepath.Join(common.VolumeMountPathPodInfo, common.PodNamespaceFileName)
+	podNamespace, err := os.ReadFile(podNamespaceFilePath)
+	if err != nil {
+		log.Error(err, "failed to read the pod namespace from the file", "filepath", podNamespaceFilePath)
+		os.Exit(1)
+	}
+
+	cliqueState := internal.NewCliqueState(config.PodCliqueNames(), string(podNamespace), log)
 	if err := cliqueState.WaitForReady(ctx); err != nil {
 		log.Error(err, "failed to wait for all PodCliques")
 		os.Exit(1)
