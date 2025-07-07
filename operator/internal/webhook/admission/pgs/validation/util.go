@@ -18,6 +18,7 @@ package validation
 
 import (
 	"fmt"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/NVIDIA/grove/operator/internal/utils"
 
@@ -48,6 +49,14 @@ func validateNonEmptyStringField(value string, fldPath *field.Path) field.ErrorL
 	allErrs := field.ErrorList{}
 	if utils.IsEmptyStringType(value) {
 		return append(allErrs, field.Required(fldPath, "field cannot be empty"))
+	}
+	return allErrs
+}
+
+func mustBeEqualToOrGreaterThanZeroDuration(duration metav1.Duration, fldPath *field.Path) field.ErrorList {
+	allErrs := field.ErrorList{}
+	if duration.Duration < 0 {
+		allErrs = append(allErrs, field.Invalid(fldPath, duration, "must be greater than or equal to 0"))
 	}
 	return allErrs
 }
