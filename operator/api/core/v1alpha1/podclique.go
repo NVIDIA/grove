@@ -79,9 +79,7 @@ type PodCliqueSpec struct {
 // AutoScalingConfig defines the configuration for the horizontal pod autoscaler for a PodClique.
 type AutoScalingConfig struct {
 	// MinReplicas is the lower limit for the number of replicas for this PodClique.
-	// It will serve dual purpose:
-	// 1. It will be used by the horizontal pod autoscaler to determine the minimum number of replicas to scale-in to.
-	// 2. For gang scheduling, it will be used to determine the minimum number of pods that must be scheduled together.
+	// It will be used by the horizontal pod autoscaler to determine the minimum number of replicas to scale-in to.
 	// +optional
 	MinReplicas *int32 `json:"minReplicas,omitempty"`
 	// maxReplicas is the upper limit for the number of replicas to which the autoscaler can scale up.

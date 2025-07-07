@@ -776,9 +776,7 @@ spec:
                                 minReplicas:
                                   description: |-
                                     MinReplicas is the lower limit for the number of replicas for this PodClique.
-                                    It will serve dual purpose:
-                                    1. It will be used by the horizontal pod autoscaler to determine the minimum number of replicas to scale-in to.
-                                    2. For gang scheduling, it will be used to determine the minimum number of pods that must be scheduled together.
+                                    It will be used by the horizontal pod autoscaler to determine the minimum number of replicas to scale-in to.
                                   format: int32
                                   type: integer
                               required:
@@ -9568,9 +9566,7 @@ spec:
                             minReplicas:
                               description: |-
                                 MinReplicas is the lower limit for the number of replicas for this PodClique.
-                                It will serve dual purpose:
-                                1. It will be used by the horizontal pod autoscaler to determine the minimum number of replicas to scale-in to.
-                                2. For gang scheduling, it will be used to determine the minimum number of pods that must be scheduled together.
+                                It will be used by the horizontal pod autoscaler to determine the minimum number of replicas to scale-in to.
                               format: int32
                               type: integer
                           required:
@@ -9607,8 +9603,8 @@ spec:
                           2. Pods created due to scale-out or rolling upgrades is not guaranteed optimal placement.
                         items:
                           description: |-
-                            NetworkPackGroupConfig indicates that all the Pods belonging to the constituent PodClique's should be optimally placed w.r.t cluster's network topology.
-                            If a constituent PodClique belongs to a PodCliqueScalingGroup then ensure that all constituent PodClique's of that PodCliqueScalingGroup are also part of the NetworkPackGroupConfig.
+                            NetworkPackGroupConfig indicates that all the Pods belonging to the constituent PodCliques should be optimally placed w.r.t cluster's network topology.
+                            If a constituent PodClique belongs to a PodCliqueScalingGroup then ensure that all constituent PodCliques of that PodCliqueScalingGroup are also part of the NetworkPackGroupConfig.
                           properties:
                             cliqueNames:
                               description: CliqueNames is the list of PodClique names

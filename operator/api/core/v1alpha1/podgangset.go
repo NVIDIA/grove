@@ -160,8 +160,8 @@ type SchedulingPolicyConfig struct {
 	TerminationDelay *metav1.Duration `json:"terminationDelay,omitempty"`
 }
 
-// NetworkPackGroupConfig indicates that all the Pods belonging to the constituent PodClique's should be optimally placed w.r.t cluster's network topology.
-// If a constituent PodClique belongs to a PodCliqueScalingGroup then ensure that all constituent PodClique's of that PodCliqueScalingGroup are also part of the NetworkPackGroupConfig.
+// NetworkPackGroupConfig indicates that all the Pods belonging to the constituent PodCliques should be optimally placed w.r.t cluster's network topology.
+// If a constituent PodClique belongs to a PodCliqueScalingGroup then ensure that all constituent PodCliques of that PodCliqueScalingGroup are also part of the NetworkPackGroupConfig.
 type NetworkPackGroupConfig struct {
 	// CliqueNames is the list of PodClique names that are part of the network pack group.
 	CliqueNames []string `json:"cliqueNames"`

@@ -29,7 +29,7 @@ _Appears in:_
 
 | Field | Description | Default | Validation |
 | --- | --- | --- | --- |
-| `minReplicas` _integer_ | MinReplicas is the lower limit for the number of replicas for this PodClique.<br />It will serve dual purpose:<br />1. It will be used by the horizontal pod autoscaler to determine the minimum number of replicas to scale-in to.<br />2. For gang scheduling, it will be used to determine the minimum number of pods that must be scheduled together. |  |  |
+| `minReplicas` _integer_ | MinReplicas is the lower limit for the number of replicas for this PodClique.<br />It will be used by the horizontal pod autoscaler to determine the minimum number of replicas to scale-in to. |  |  |
 | `maxReplicas` _integer_ | maxReplicas is the upper limit for the number of replicas to which the autoscaler can scale up.<br />It cannot be less that minReplicas. |  |  |
 | `metrics` _[MetricSpec](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.33/#metricspec-v2-autoscaling) array_ | Metrics contains the specifications for which to use to calculate the<br />desired replica count (the maximum replica count across all metrics will<br />be used).  The desired replica count is calculated multiplying the<br />ratio between the target value and the current value by the current<br />number of pods.  Ergo, metrics used must decrease as the pod count is<br />increased, and vice versa.  See the individual metric source types for<br />more information about how each type of metric must respond.<br />If not set, the default metric will be set to 80% average CPU utilization. |  |  |
 
@@ -162,8 +162,8 @@ _Appears in:_
 
 
 
-NetworkPackGroupConfig indicates that all the Pods belonging to the constituent PodClique's should be optimally placed w.r.t cluster's network topology.
-If a constituent PodClique belongs to a PodCliqueScalingGroup then ensure that all constituent PodClique's of that PodCliqueScalingGroup are also part of the NetworkPackGroupConfig.
+NetworkPackGroupConfig indicates that all the Pods belonging to the constituent PodCliques should be optimally placed w.r.t cluster's network topology.
+If a constituent PodClique belongs to a PodCliqueScalingGroup then ensure that all constituent PodCliques of that PodCliqueScalingGroup are also part of the NetworkPackGroupConfig.
 
 
 
