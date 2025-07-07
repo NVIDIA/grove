@@ -21,7 +21,6 @@ import (
 	"github.com/NVIDIA/grove/operator/internal/utils"
 
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/utils/ptr"
 )
 
@@ -36,30 +35,12 @@ func defaultPodGangSet(pgs *grovecorev1alpha1.PodGangSet) {
 // defaultPodGangSetSpec adds defaults to the specification of a PodGangSet.
 func defaultPodGangSetSpec(spec *grovecorev1alpha1.PodGangSetSpec) {
 	// default PodGangSetTemplateSpec
-	defaultPodGangTemplateSpec(&spec.Template)
-	// default UpdateStrategy
-	defaultUpdateStrategy(spec)
+	defaultPodGangSetTemplateSpec(&spec.Template)
 }
 
-func defaultPodGangTemplateSpec(spec *grovecorev1alpha1.PodGangSetTemplateSpec) {
+func defaultPodGangSetTemplateSpec(spec *grovecorev1alpha1.PodGangSetTemplateSpec) {
 	// default PodCliqueTemplateSpecs
 	spec.Cliques = defaultPodCliqueTemplateSpecs(spec.Cliques)
-}
-
-func defaultUpdateStrategy(spec *grovecorev1alpha1.PodGangSetSpec) {
-	updateStrategy := spec.UpdateStrategy.DeepCopy()
-	if updateStrategy == nil || updateStrategy.RollingUpdateConfig == nil {
-		updateStrategy = &grovecorev1alpha1.GangUpdateStrategy{
-			RollingUpdateConfig: &grovecorev1alpha1.RollingUpdateConfiguration{},
-		}
-	}
-	if updateStrategy.RollingUpdateConfig.MaxSurge == nil {
-		updateStrategy.RollingUpdateConfig.MaxSurge = ptr.To(intstr.FromInt32(1))
-	}
-	if updateStrategy.RollingUpdateConfig.MaxUnavailable == nil {
-		updateStrategy.RollingUpdateConfig.MaxUnavailable = ptr.To(intstr.FromInt32(1))
-	}
-	spec.UpdateStrategy = updateStrategy
 }
 
 func defaultPodCliqueTemplateSpecs(cliqueSpecs []*grovecorev1alpha1.PodCliqueTemplateSpec) []*grovecorev1alpha1.PodCliqueTemplateSpec {
@@ -70,8 +51,8 @@ func defaultPodCliqueTemplateSpecs(cliqueSpecs []*grovecorev1alpha1.PodCliqueTem
 		if defaultedCliqueSpec.Spec.Replicas == 0 {
 			defaultedCliqueSpec.Spec.Replicas = 1
 		}
-		if cliqueSpec.Spec.MinReplicas == nil {
-			defaultedCliqueSpec.Spec.MinReplicas = ptr.To(cliqueSpec.Spec.Replicas)
+		if cliqueSpec.Spec.ScaleConfig.MinReplicas == nil {
+			defaultedCliqueSpec.Spec.ScaleConfig.MinReplicas = ptr.To(cliqueSpec.Spec.Replicas)
 		}
 		defaultedCliqueSpecs = append(defaultedCliqueSpecs, defaultedCliqueSpec)
 	}

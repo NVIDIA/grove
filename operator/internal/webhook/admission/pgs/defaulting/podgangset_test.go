@@ -24,7 +24,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/utils/ptr"
 )
 
@@ -39,25 +38,19 @@ func TestDefaultPodGangSet(t *testing.T) {
 				Cliques: []*grovecorev1alpha1.PodCliqueTemplateSpec{{
 					Name: "test",
 					Spec: grovecorev1alpha1.PodCliqueSpec{
-						Replicas:    2,
-						MinReplicas: ptr.To(int32(2)),
+						Replicas: 2,
 						PodSpec: corev1.PodSpec{
 							RestartPolicy:                 corev1.RestartPolicyAlways,
 							TerminationGracePeriodSeconds: ptr.To[int64](30),
 						},
 						ScaleConfig: &grovecorev1alpha1.AutoScalingConfig{
+							MinReplicas: ptr.To(int32(2)),
 							MaxReplicas: 3,
 						},
 					},
 				}},
 				HeadlessServiceConfig: &grovecorev1alpha1.HeadlessServiceConfig{
 					PublishNotReadyAddresses: true,
-				},
-			},
-			UpdateStrategy: &grovecorev1alpha1.GangUpdateStrategy{
-				RollingUpdateConfig: &grovecorev1alpha1.RollingUpdateConfiguration{
-					MaxSurge:       ptr.To(intstr.FromInt32(1)),
-					MaxUnavailable: ptr.To(intstr.FromInt32(1)),
 				},
 			},
 		},
@@ -71,9 +64,9 @@ func TestDefaultPodGangSet(t *testing.T) {
 				Cliques: []*grovecorev1alpha1.PodCliqueTemplateSpec{{
 					Name: "test",
 					Spec: grovecorev1alpha1.PodCliqueSpec{
-						Replicas:    2,
-						MinReplicas: ptr.To[int32](2),
+						Replicas: 2,
 						ScaleConfig: &grovecorev1alpha1.AutoScalingConfig{
+							MinReplicas: ptr.To[int32](2),
 							MaxReplicas: 3,
 						},
 					},

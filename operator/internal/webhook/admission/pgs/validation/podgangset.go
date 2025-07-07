@@ -282,7 +282,7 @@ func (v *pgsValidator) validatePodGangSchedulingPolicyConfig(schedulingPolicyCon
 	if schedulingPolicyConfig.TerminationDelay != nil {
 		allErrs = append(allErrs, mustBeEqualToOrGreaterThanZeroDuration(*schedulingPolicyConfig.TerminationDelay, fldPath.Child("terminationDelay"))...)
 	}
-	if schedulingPolicyConfig.NetworkPackGroupConfigs != nil && len(schedulingPolicyConfig.NetworkPackGroupConfigs) > 0 {
+	if len(schedulingPolicyConfig.NetworkPackGroupConfigs) > 0 {
 		allErrs = append(allErrs, v.validateNetworkPackGroupConfigs(fldPath.Child("networkPackGroupConfigs"))...)
 	}
 	return allErrs

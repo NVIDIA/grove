@@ -174,9 +174,9 @@ func identifyConstituentPCLQsForPGSReplicaPodGang(sc *syncContext, pgsReplica in
 			replicas = pclqTemplateSpec.Spec.Replicas
 		}
 		constituentPCLQs = append(constituentPCLQs, pclqInfo{
-			fqn:         pclqFQN,
-			replicas:    replicas,
-			minReplicas: *pclqTemplateSpec.Spec.MinReplicas,
+			fqn:          pclqFQN,
+			replicas:     replicas,
+			minAvailable: *pclqTemplateSpec.Spec.MinAvailable,
 		})
 	}
 	return constituentPCLQs
@@ -193,9 +193,9 @@ func identifyConstituentPCLQsForPCSGPodGang(pcsg *grovecorev1alpha1.PodCliqueSca
 			continue
 		}
 		constituentPCLQs = append(constituentPCLQs, pclqInfo{
-			fqn:         pclqName,
-			replicas:    pclqTemplate.Spec.Replicas,
-			minReplicas: *pclqTemplate.Spec.MinReplicas,
+			fqn:          pclqName,
+			replicas:     pclqTemplate.Spec.Replicas,
+			minAvailable: *pclqTemplate.Spec.MinAvailable,
 		})
 	}
 	return constituentPCLQs
@@ -373,7 +373,7 @@ func createPodGroupsForPodGang(namespace string, pgInfo podGangInfo) []grovesche
 		})
 		return groveschedulerv1alpha1.PodGroup{
 			PodReferences: namespacedNames,
-			MinReplicas:   pclq.minReplicas,
+			MinReplicas:   pclq.minAvailable,
 		}
 	})
 	return podGroups
@@ -519,8 +519,8 @@ type pclqInfo struct {
 	fqn string
 	// replicas is the number of Pods that are assigned to the PodGang for which this PodClique is a constituent.
 	replicas int32
-	// minReplicas is the lower limit for the number of replicas for this PodClique.
-	minReplicas int32
+	// minAvailable is the minimum number of pods that are required for gang scheduling from this PodClique
+	minAvailable int32
 	// associatedPodNames are Pod names (having this PodClique as an owner) that have already been associated to this PodGang.
 	// This will be updated as and when pods are either deleted or new pods are associated.
 	associatedPodNames []string
