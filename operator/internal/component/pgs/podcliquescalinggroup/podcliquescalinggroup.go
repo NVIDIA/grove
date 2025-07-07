@@ -83,10 +83,10 @@ func (r _resource) Sync(ctx context.Context, logger logr.Logger, pgs *grovecorev
 		)
 	}
 
-	tasks := make([]utils.Task, 0, int(pgs.Spec.Replicas)*len(pgs.Spec.TemplateSpec.PodCliqueScalingGroupConfigs))
+	tasks := make([]utils.Task, 0, int(pgs.Spec.Replicas)*len(pgs.Spec.Template.PodCliqueScalingGroupConfigs))
 	expectedPCSGNames := make([]string, 0, 20)
 	for pgsReplica := range pgs.Spec.Replicas {
-		for _, pcsgConfig := range pgs.Spec.TemplateSpec.PodCliqueScalingGroupConfigs {
+		for _, pcsgConfig := range pgs.Spec.Template.PodCliqueScalingGroupConfigs {
 			pcsgName := grovecorev1alpha1.GeneratePodCliqueScalingGroupName(grovecorev1alpha1.ResourceNameReplica{Name: pgs.Name, Replica: int(pgsReplica)}, pcsgConfig.Name)
 			expectedPCSGNames = append(expectedPCSGNames, pcsgName)
 			pcsgObjectKey := client.ObjectKey{

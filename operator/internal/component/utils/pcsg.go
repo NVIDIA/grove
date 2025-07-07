@@ -26,7 +26,7 @@ import (
 
 // FindMatchingPCSGConfig finds matching PodCliqueScalingGroupConfig defined in PodGangSet which matches PodCliqueScalingGroup fully qualified name.
 func FindMatchingPCSGConfig(pgs *grovecorev1alpha1.PodGangSet, pcsgFQN string) grovecorev1alpha1.PodCliqueScalingGroupConfig {
-	matchingPCSG, _ := lo.Find(pgs.Spec.TemplateSpec.PodCliqueScalingGroupConfigs, func(pcsgConfig grovecorev1alpha1.PodCliqueScalingGroupConfig) bool {
+	matchingPCSG, _ := lo.Find(pgs.Spec.Template.PodCliqueScalingGroupConfigs, func(pcsgConfig grovecorev1alpha1.PodCliqueScalingGroupConfig) bool {
 		return strings.HasSuffix(pcsgFQN, pcsgConfig.Name)
 	})
 	return matchingPCSG

@@ -52,9 +52,8 @@ type PodGangList struct {
 type PodGangSpec struct {
 	// PodGroups is a list of member pod groups in the PodGang.
 	PodGroups []PodGroup `json:"podgroups"`
-	// NetworkPackStrategy defines the strategy for packing pods on nodes while minimizing network switch hops.
-	// +optional
-	NetworkPackStrategy *NetworkPackStrategy `json:"networkPackStrategy,omitempty"`
+	// NetworkPackGroupConfigs is a list of network pack group configurations.
+	NetworkPackGroupConfigs []NetworkPackGroupConfig `json:"networkPackGroupConfigs,omitempty"`
 	// SpreadConstraints defines the constraints for spreading PodGang's filtered by the same label selector, across domains identified by a topology key.
 	// +optional
 	SpreadConstraints []corev1.TopologySpreadConstraint `json:"spreadConstraints,omitempty"`
@@ -84,12 +83,20 @@ type PodGangSpec struct {
 
 // PodGroup defines a set of pods in a PodGang that share the same PodTemplateSpec.
 type PodGroup struct {
+	// Name is the name of the PodGroup.
+	Name string `json:"name"`
 	// PodReferences is a list of references to the Pods that are part of this group.
 	PodReferences []NamespacedName `json:"podReferences"`
 	// MinReplicas is the number of replicas that needs to be gang scheduled.
 	// If the MinReplicas is greater than len(PodReferences) then scheduler makes the best effort to schedule as many pods beyond
 	// MinReplicas. However, guaranteed gang scheduling is only provided for MinReplicas.
 	MinReplicas int32 `json:"minReplicas"`
+}
+
+// NetworkPackGroupConfig indicates that all the Pods belonging to the constituent PodGroup's should be optimally placed w.r.t cluster's network topology.
+type NetworkPackGroupConfig struct {
+	// PodGroupNames is the list of PodGroup.Name that are part of the network pack group.
+	PodGroupNames []string `json:"podGroupNames"`
 }
 
 // NamespacedName is a struct that contains the namespace and name of an object.

@@ -134,13 +134,13 @@ func (v *pgsValidator) validateRollingUpdateConfig(fldPath *field.Path) field.Er
 func (v *pgsValidator) validatePodGangTemplateSpec(fldPath *field.Path) ([]string, field.ErrorList) {
 	allErrs := field.ErrorList{}
 
-	allErrs = append(allErrs, validateEnumType(v.pgs.Spec.TemplateSpec.StartupType, allowedStartupTypes, fldPath.Child("cliqueStartupType"))...)
+	allErrs = append(allErrs, validateEnumType(v.pgs.Spec.Template.StartupType, allowedStartupTypes, fldPath.Child("cliqueStartupType"))...)
 	// validate cliques
 	warnings, errs := v.validatePodCliqueTemplates(fldPath.Child("cliques"))
 	if len(errs) != 0 {
 		allErrs = append(allErrs, errs...)
 	}
-	allErrs = append(allErrs, validatePodGangSchedulingPolicyConfig(v.pgs.Spec.TemplateSpec.SchedulingPolicyConfig, fldPath.Child("schedulingPolicyConfig"))...)
+	allErrs = append(allErrs, validatePodGangSchedulingPolicyConfig(v.pgs.Spec.Template.SchedulingPolicyConfig, fldPath.Child("schedulingPolicyConfig"))...)
 	allErrs = append(allErrs, v.validatePodCliqueScalingGroupConfigs(fldPath.Child("podCliqueScalingGroups"))...)
 
 	return warnings, allErrs
@@ -150,7 +150,7 @@ func (v *pgsValidator) validatePodCliqueTemplates(fldPath *field.Path) ([]string
 	allErrs := field.ErrorList{}
 
 	var warnings []string
-	cliqueTemplateSpecs := v.pgs.Spec.TemplateSpec.Cliques
+	cliqueTemplateSpecs := v.pgs.Spec.Template.Cliques
 	if len(cliqueTemplateSpecs) == 0 {
 		allErrs = append(allErrs, field.Required(fldPath, "at least one PodClique must be defined"))
 	}
@@ -324,13 +324,13 @@ func validatePodGangSchedulingPolicyConfig(config *grovecorev1alpha1.SchedulingP
 func (v *pgsValidator) validatePodCliqueScalingGroupConfigs(fldPath *field.Path) field.ErrorList {
 	allErrs := field.ErrorList{}
 
-	allPodGangSetCliqueNames := lo.Map(v.pgs.Spec.TemplateSpec.Cliques, func(cliqueTemplateSpec *grovecorev1alpha1.PodCliqueTemplateSpec, _ int) string {
+	allPodGangSetCliqueNames := lo.Map(v.pgs.Spec.Template.Cliques, func(cliqueTemplateSpec *grovecorev1alpha1.PodCliqueTemplateSpec, _ int) string {
 		return cliqueTemplateSpec.Name
 	})
-	pclqScalingGroupNames := make([]string, 0, len(v.pgs.Spec.TemplateSpec.PodCliqueScalingGroupConfigs))
+	pclqScalingGroupNames := make([]string, 0, len(v.pgs.Spec.Template.PodCliqueScalingGroupConfigs))
 	var cliqueNamesAcrossAllScalingGroups []string
 
-	for _, scalingGroupConfig := range v.pgs.Spec.TemplateSpec.PodCliqueScalingGroupConfigs {
+	for _, scalingGroupConfig := range v.pgs.Spec.Template.PodCliqueScalingGroupConfigs {
 		pclqScalingGroupNames = append(pclqScalingGroupNames, scalingGroupConfig.Name)
 		cliqueNamesAcrossAllScalingGroups = append(cliqueNamesAcrossAllScalingGroups, scalingGroupConfig.CliqueNames...)
 		// validate that scaling groups only contains clique names that are defined in the PodGangSet.
@@ -351,7 +351,7 @@ func (v *pgsValidator) validatePodCliqueScalingGroupConfigs(fldPath *field.Path)
 
 	// validate that for all pod cliques that are part of defined scaling groups, separate AutoScalingConfig is not defined for them.
 	scalingGroupCliqueNames := lo.Uniq(cliqueNamesAcrossAllScalingGroups)
-	for _, cliqueTemplateSpec := range v.pgs.Spec.TemplateSpec.Cliques {
+	for _, cliqueTemplateSpec := range v.pgs.Spec.Template.Cliques {
 		if slices.Contains(scalingGroupCliqueNames, cliqueTemplateSpec.Name) && cliqueTemplateSpec.Spec.ScaleConfig != nil {
 			allErrs = append(allErrs, field.Invalid(fldPath, cliqueTemplateSpec.Name, "AutoScalingConfig is not allowed to be defined for PodClique that is part of scaling group"))
 		}
@@ -374,11 +374,11 @@ func validateScalingGroupPodCliqueNames(allPclqNames, pclqNameInScalingGrp []str
 
 func validatePodGangSetSpecUpdate(newSpec, oldSpec *grovecorev1alpha1.PodGangSetSpec, fldPath *field.Path) field.ErrorList {
 	allErrs := field.ErrorList{}
-	allErrs = append(allErrs, validatePodGangTemplateSpecUpdate(&newSpec.TemplateSpec, &oldSpec.TemplateSpec, fldPath.Child("template"))...)
+	allErrs = append(allErrs, validatePodGangTemplateSpecUpdate(&newSpec.Template, &oldSpec.Template, fldPath.Child("template"))...)
 	return allErrs
 }
 
-func validatePodGangTemplateSpecUpdate(newSpec, oldSpec *grovecorev1alpha1.PodGangTemplateSpec, fldPath *field.Path) field.ErrorList {
+func validatePodGangTemplateSpecUpdate(newSpec, oldSpec *grovecorev1alpha1.PodGangSetTemplateSpec, fldPath *field.Path) field.ErrorList {
 	allErrs := field.ErrorList{}
 
 	allErrs = append(allErrs, validatePodCliqueUpdate(newSpec.Cliques, oldSpec.Cliques, fldPath.Child("cliques"))...)
@@ -450,5 +450,5 @@ func clearContainerImages(containers []corev1.Container) {
 }
 
 func (v *pgsValidator) isStartupTypeExplicit() bool {
-	return v.pgs.Spec.TemplateSpec.StartupType != nil && *v.pgs.Spec.TemplateSpec.StartupType == grovecorev1alpha1.CliqueStartupTypeExplicit
+	return v.pgs.Spec.Template.StartupType != nil && *v.pgs.Spec.Template.StartupType == grovecorev1alpha1.CliqueStartupTypeExplicit
 }

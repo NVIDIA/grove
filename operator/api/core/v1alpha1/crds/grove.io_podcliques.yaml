@@ -524,15 +524,23 @@ spec:
                       type: object
                     type: array
                     x-kubernetes-list-type: atomic
+                  minReplicas:
+                    description: |-
+                      MinReplicas is the lower limit for the number of replicas for this PodClique.
+                      It will serve dual purpose:
+                      1. It will be used by the horizontal pod autoscaler to determine the minimum number of replicas to scale-in to.
+                      2. For gang scheduling, it will be used to determine the minimum number of pods that must be scheduled together.
+                    format: int32
+                    type: integer
                 required:
                 - maxReplicas
                 type: object
-              minReplicas:
+              minAvailable:
                 description: |-
-                  MinReplicas is the lower limit for the number of replicas for this PodClique.
-                  It will serve dual purpose:
-                  1. It will be used by the horizontal pod autoscaler to determine the minimum number of replicas to scale-in to.
-                  2. For gang scheduling, it will be used to determine the minimum number of pods that must be scheduled together.
+                  MinAvailable serves two purposes:
+                  1. It defines the minimum number of pods that are guaranteed to be gang scheduled.
+                  2. It defines the minimum requirement of available pods in a PodClique. Violation of this threshold will result in termination of the PodGang that it belongs to.
+                  If MinAvailable is not set, then it will default to the template Replicas.
                 format: int32
                 type: integer
               podSpec:

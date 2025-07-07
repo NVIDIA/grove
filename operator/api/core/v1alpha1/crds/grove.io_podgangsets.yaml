@@ -42,15 +42,6 @@ spec:
           spec:
             description: Spec defines the specification of the PodGangSet.
             properties:
-              priorityClassName:
-                description: |-
-                  PriorityClassName is the name of the PriorityClass to be used for the PodGangSet.
-                  If specified, indicates the priority of the PodGangSet. "system-node-critical" and
-                  "system-cluster-critical" are two special keywords which indicate the
-                  highest priorities with the former being the highest priority. Any other
-                  name must be defined by creating a PriorityClass object with that name.
-                  If not specified, the pod priority will be default or zero if there is no default.
-                type: string
               replicaSpreadConstraints:
                 description: ReplicaSpreadConstraints defines the constraints for
                   spreading each replica of PodGangSet across domains identified by
@@ -232,9 +223,9 @@ spec:
                 description: Replicas is the number of desired replicas of the PodGang.
                 format: int32
                 type: integer
-              templateSpec:
-                description: TemplateSpec describes the template spec for PodGangs
-                  that will be created in the PodGangSet.
+              template:
+                description: Template describes the template spec for PodGangs that
+                  will be created in the PodGangSet.
                 properties:
                   cliqueStartupType:
                     default: CliqueStartupTypeAnyOrder
@@ -273,8 +264,8 @@ spec:
                           type: object
                         name:
                           description: |-
-                            Name must be unique name of a PodClique within a PodGangSet.
-                            Cannot be updated.
+                            Name must be unique within a PodGangSet and is used to denote a role.
+                            Once set it cannot be updated.
                             More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names#names
                           type: string
                         spec:
@@ -782,15 +773,23 @@ spec:
                                     type: object
                                   type: array
                                   x-kubernetes-list-type: atomic
+                                minReplicas:
+                                  description: |-
+                                    MinReplicas is the lower limit for the number of replicas for this PodClique.
+                                    It will serve dual purpose:
+                                    1. It will be used by the horizontal pod autoscaler to determine the minimum number of replicas to scale-in to.
+                                    2. For gang scheduling, it will be used to determine the minimum number of pods that must be scheduled together.
+                                  format: int32
+                                  type: integer
                               required:
                               - maxReplicas
                               type: object
-                            minReplicas:
+                            minAvailable:
                               description: |-
-                                MinReplicas is the lower limit for the number of replicas for this PodClique.
-                                It will serve dual purpose:
-                                1. It will be used by the horizontal pod autoscaler to determine the minimum number of replicas to scale-in to.
-                                2. For gang scheduling, it will be used to determine the minimum number of pods that must be scheduled together.
+                                MinAvailable serves two purposes:
+                                1. It defines the minimum number of pods that are guaranteed to be gang scheduled.
+                                2. It defines the minimum requirement of available pods in a PodClique. Violation of this threshold will result in termination of the PodGang that it belongs to.
+                                If MinAvailable is not set, then it will default to the template Replicas.
                               format: int32
                               type: integer
                             podSpec:
@@ -9566,6 +9565,14 @@ spec:
                                 type: object
                               type: array
                               x-kubernetes-list-type: atomic
+                            minReplicas:
+                              description: |-
+                                MinReplicas is the lower limit for the number of replicas for this PodClique.
+                                It will serve dual purpose:
+                                1. It will be used by the horizontal pod autoscaler to determine the minimum number of replicas to scale-in to.
+                                2. For gang scheduling, it will be used to determine the minimum number of pods that must be scheduled together.
+                              format: int32
+                              type: integer
                           required:
                           - maxReplicas
                           type: object
@@ -9574,6 +9581,15 @@ spec:
                       - name
                       type: object
                     type: array
+                  priorityClassName:
+                    description: |-
+                      PriorityClassName is the name of the PriorityClass to be used for the PodGangSet.
+                      If specified, indicates the priority of the PodGangSet. "system-node-critical" and
+                      "system-cluster-critical" are two special keywords which indicate the
+                      highest priorities with the former being the highest priority. Any other
+                      name must be defined by creating a PriorityClass object with that name.
+                      If not specified, the pod priority will be default or zero if there is no default.
+                    type: string
                   schedulingPolicyConfig:
                     default:
                       networkPackStrategy: BestEffort
@@ -9582,13 +9598,28 @@ spec:
                       Defaulting only works for optional fields.
                       See https://github.com/kubernetes-sigs/controller-tools/issues/893#issuecomment-1991256368
                     properties:
-                      networkPackStrategy:
-                        description: NetworkPackStrategy defines the strategy for
-                          packing pods on nodes while minimizing network switch hops.
-                        enum:
-                        - BestEffort
-                        - Strict
-                        type: string
+                      networkPackGroupConfigs:
+                        description: |-
+                          NetworkPackGroupConfigs is a list of NetworkPackGroupConfig's that define how the pods in the PodGangSet are optimally packaged w.r.t cluster's network topology.
+                          PodCliques that are not part of any NetworkPackGroupConfig are scheduled with best-effort network packing strategy.
+                          Exercise caution when defining NetworkPackGroupConfig. Some of the downsides include:
+                          1. Scheduling may be delayed until optimal placement is available.
+                          2. Pods created due to scale-out or rolling upgrades is not guaranteed optimal placement.
+                        items:
+                          description: |-
+                            NetworkPackGroupConfig indicates that all the Pods belonging to the constituent PodClique's should be optimally placed w.r.t cluster's network topology.
+                            If a constituent PodClique belongs to a PodCliqueScalingGroup then ensure that all constituent PodClique's of that PodCliqueScalingGroup are also part of the NetworkPackGroupConfig.
+                          properties:
+                            cliqueNames:
+                              description: CliqueNames is the list of PodClique names
+                                that are part of the network pack group.
+                              items:
+                                type: string
+                              type: array
+                          required:
+                          - cliqueNames
+                          type: object
+                        type: array
                       terminationDelay:
                         description: |-
                           TerminationDelay is the delay after which the gang termination will be triggered.
@@ -9601,50 +9632,8 @@ spec:
                 required:
                 - cliques
                 type: object
-              updateStrategy:
-                description: UpdateStrategy defines the strategy to be used when updating
-                  the PodGangs.
-                properties:
-                  rollingUpdateConfig:
-                    description: RollingUpdateConfig is the configuration to control
-                      the desired behavior of a rolling update of a PodGang.
-                    properties:
-                      maxSurge:
-                        anyOf:
-                        - type: integer
-                        - type: string
-                        description: |-
-                          The maximum number of podgangs that can be scheduled above the original number of
-                          podgangs.
-                          Value can be an absolute number (ex: 5) or a percentage of total podgangs at
-                          the start of the update (ex: 10%). This can not be 0 if MaxUnavailable is 0.
-                          Absolute number is calculated from percentage by rounding up.
-                          By default, a value of 1 is used.
-                          Example: when this is set to 30%, the new RC can be scaled up by 30%
-                          immediately when the rolling update starts. Once old podgangs have been killed,
-                          new RC can be scaled up further, ensuring that total number of podgangs running
-                          at any time during the update is at most 130% of original podgangs.
-                        x-kubernetes-int-or-string: true
-                      maxUnavailable:
-                        anyOf:
-                        - type: integer
-                        - type: string
-                        description: |-
-                          The maximum number of podgangs that can be unavailable during the update.
-                          Value can be an absolute number (ex: 5) or a percentage of total podgangs at the start of update (ex: 10%).
-                          Absolute number is calculated from percentage by rounding down.
-                          This can not be 0 if MaxSurge is 0.
-                          By default, a fixed value of 1 is used.
-                          Example: when this is set to 30%, the old RC can be scaled down by 30%
-                          immediately when the rolling update starts. Once new podgangs are ready, old RC
-                          can be scaled down further, followed by scaling up the new RC, ensuring
-                          that at least 70% of original number of podgangs are available at all times
-                          during the update.
-                        x-kubernetes-int-or-string: true
-                    type: object
-                type: object
             required:
-            - templateSpec
+            - template
             type: object
           status:
             description: Status defines the status of the PodGangSet.

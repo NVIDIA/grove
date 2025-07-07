@@ -311,7 +311,7 @@ func selectExcessPodsFromExpectedPodGangs(sc *syncContext, logger logr.Logger) [
 
 func computeExpectedPodGangReplicas(pgs *grovecorev1alpha1.PodGangSet, pclq *grovecorev1alpha1.PodClique) int {
 	if metav1.HasLabel(pclq.ObjectMeta, grovecorev1alpha1.LabelPodCliqueScalingGroup) {
-		cliqueTemplateSpec, _ := lo.Find(pgs.Spec.TemplateSpec.Cliques, func(cliqueTemplateSpec *grovecorev1alpha1.PodCliqueTemplateSpec) bool {
+		cliqueTemplateSpec, _ := lo.Find(pgs.Spec.Template.Cliques, func(cliqueTemplateSpec *grovecorev1alpha1.PodCliqueTemplateSpec) bool {
 			return strings.Contains(pclq.Name, cliqueTemplateSpec.Name)
 		})
 		return int(cliqueTemplateSpec.Spec.Replicas)

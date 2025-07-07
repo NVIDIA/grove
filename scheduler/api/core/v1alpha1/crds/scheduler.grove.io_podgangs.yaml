@@ -42,13 +42,24 @@ spec:
           spec:
             description: Spec defines the specification of the PodGang.
             properties:
-              networkPackStrategy:
-                description: NetworkPackStrategy defines the strategy for packing
-                  pods on nodes while minimizing network switch hops.
-                enum:
-                - BestEffort
-                - Strict
-                type: string
+              networkPackGroupConfigs:
+                description: NetworkPackGroupConfigs is a list of network pack group
+                  configurations.
+                items:
+                  description: NetworkPackGroupConfig indicates that all the Pods
+                    belonging to the constituent PodGroup's should be optimally placed
+                    w.r.t cluster's network topology.
+                  properties:
+                    podGroupNames:
+                      description: PodGroupNames is the list of PodGroup.Name that
+                        are part of the network pack group.
+                      items:
+                        type: string
+                      type: array
+                  required:
+                  - podGroupNames
+                  type: object
+                type: array
               podgroups:
                 description: PodGroups is a list of member pod groups in the PodGang.
                 items:
@@ -62,6 +73,9 @@ spec:
                         MinReplicas. However, guaranteed gang scheduling is only provided for MinReplicas.
                       format: int32
                       type: integer
+                    name:
+                      description: Name is the name of the PodGroup.
+                      type: string
                     podReferences:
                       description: PodReferences is a list of references to the Pods
                         that are part of this group.
@@ -84,6 +98,7 @@ spec:
                       type: array
                   required:
                   - minReplicas
+                  - name
                   - podReferences
                   type: object
                 type: array

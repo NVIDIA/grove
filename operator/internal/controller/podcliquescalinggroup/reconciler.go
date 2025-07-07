@@ -144,7 +144,7 @@ func (r *Reconciler) updatePodCliques(ctx context.Context, logger logr.Logger, p
 			Namespace: pcsg.Namespace,
 			Name:      fullyQualifiedCliqueName,
 		}
-		matchingPCLQTemplateSpec, ok := lo.Find(pgs.Spec.TemplateSpec.Cliques, func(pclqTemplateSpec *grovecorev1alpha1.PodCliqueTemplateSpec) bool {
+		matchingPCLQTemplateSpec, ok := lo.Find(pgs.Spec.Template.Cliques, func(pclqTemplateSpec *grovecorev1alpha1.PodCliqueTemplateSpec) bool {
 			return strings.HasSuffix(fullyQualifiedCliqueName, pclqTemplateSpec.Name)
 		})
 		if !ok {

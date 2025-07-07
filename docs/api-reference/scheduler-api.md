@@ -32,24 +32,22 @@ _Appears in:_
 | `name` _string_ | Name is the name of the object. |  |  |
 
 
-#### NetworkPackStrategy
+#### NetworkPackGroupConfig
 
-_Underlying type:_ _string_
 
-NetworkPackStrategy defines the strategy for packing pods across nodes while minimizing network switch hops.
-An attempt will always be made to ensure that the pods are packed optimally minimizing the total number of network switch hops.
-Pack strategy only describes if this is a strict requirement or a best-effort.
 
-_Validation:_
-- Enum: [BestEffort Strict]
+NetworkPackGroupConfig indicates that all the Pods belonging to the constituent PodGroup's should be optimally placed w.r.t cluster's network topology.
+
+
 
 _Appears in:_
 - [PodGangSpec](#podgangspec)
 
-| Field | Description |
-| --- | --- |
-| `BestEffort` | BestEffort pack strategy makes the best effort for optimal placement of pods but does not guarantee it.<br /> |
-| `Strict` | Strict pack strategy strives for the most optimal placement for pods assuming sufficient capacity.<br />If optimal placement cannot be achieved then pods will remain pending.<br /> |
+| Field | Description | Default | Validation |
+| --- | --- | --- | --- |
+| `podGroupNames` _string array_ | PodGroupNames is the list of PodGroup.Name that are part of the network pack group. |  |  |
+
+
 
 
 #### PodGang
@@ -85,7 +83,7 @@ _Appears in:_
 | Field | Description | Default | Validation |
 | --- | --- | --- | --- |
 | `podgroups` _[PodGroup](#podgroup) array_ | PodGroups is a list of member pod groups in the PodGang. |  |  |
-| `networkPackStrategy` _[NetworkPackStrategy](#networkpackstrategy)_ | NetworkPackStrategy defines the strategy for packing pods on nodes while minimizing network switch hops. |  | Enum: [BestEffort Strict] <br /> |
+| `networkPackGroupConfigs` _[NetworkPackGroupConfig](#networkpackgroupconfig) array_ | NetworkPackGroupConfigs is a list of network pack group configurations. |  |  |
 | `spreadConstraints` _[TopologySpreadConstraint](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.33/#topologyspreadconstraint-v1-core) array_ | SpreadConstraints defines the constraints for spreading PodGang's filtered by the same label selector, across domains identified by a topology key. |  |  |
 | `priorityClassName` _string_ | PriorityClassName is the name of the PriorityClass to be used for the PodGangSet.<br />If specified, indicates the priority of the PodGangSet. "system-node-critical" and<br />"system-cluster-critical" are two special keywords which indicate the<br />highest priorities with the former being the highest priority. Any other<br />name must be defined by creating a PriorityClass object with that name.<br />If not specified, the pod priority will be default or zero if there is no default. |  |  |
 | `terminationDelay` _[Duration](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.33/#duration-v1-meta)_ | TerminationDelay is the delay after which the gang termination will be triggered.<br />A gang is a candidate for termination if number of running pods fall below a threshold for any PodClique.<br />If a PodGang remains a candidate past TerminationDelay then it will be terminated. This allows additional time<br />to the kube-scheduler to re-schedule sufficient pods in the PodGang that will result in having the total number of<br />running pods go above the threshold. |  |  |
@@ -123,6 +121,7 @@ _Appears in:_
 
 | Field | Description | Default | Validation |
 | --- | --- | --- | --- |
+| `name` _string_ | Name is the name of the PodGroup. |  |  |
 | `podReferences` _[NamespacedName](#namespacedname) array_ | PodReferences is a list of references to the Pods that are part of this group. |  |  |
 | `minReplicas` _integer_ | MinReplicas is the number of replicas that needs to be gang scheduled.<br />If the MinReplicas is greater than len(PodReferences) then scheduler makes the best effort to schedule as many pods beyond<br />MinReplicas. However, guaranteed gang scheduling is only provided for MinReplicas. |  |  |
 

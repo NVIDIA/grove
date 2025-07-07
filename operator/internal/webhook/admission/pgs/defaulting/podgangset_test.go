@@ -35,7 +35,7 @@ func TestDefaultPodGangSet(t *testing.T) {
 			Namespace: "default",
 		},
 		Spec: grovecorev1alpha1.PodGangSetSpec{
-			TemplateSpec: grovecorev1alpha1.PodGangTemplateSpec{
+			Template: grovecorev1alpha1.PodGangSetTemplateSpec{
 				Cliques: []*grovecorev1alpha1.PodCliqueTemplateSpec{{
 					Name: "test",
 					Spec: grovecorev1alpha1.PodCliqueSpec{
@@ -67,7 +67,7 @@ func TestDefaultPodGangSet(t *testing.T) {
 			Name: "PGS1",
 		},
 		Spec: grovecorev1alpha1.PodGangSetSpec{
-			TemplateSpec: grovecorev1alpha1.PodGangTemplateSpec{
+			Template: grovecorev1alpha1.PodGangSetTemplateSpec{
 				Cliques: []*grovecorev1alpha1.PodCliqueTemplateSpec{{
 					Name: "test",
 					Spec: grovecorev1alpha1.PodCliqueSpec{

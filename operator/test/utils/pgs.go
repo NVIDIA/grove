@@ -37,7 +37,7 @@ func NewPodGangSetBuilder(name, namespace string) *PodGangSetBuilder {
 
 // WithCliqueStartupType sets the StartupType for the PodGangSet.
 func (b *PodGangSetBuilder) WithCliqueStartupType(startupType *grovecorev1alpha1.CliqueStartupType) *PodGangSetBuilder {
-	b.pgs.Spec.TemplateSpec.StartupType = startupType
+	b.pgs.Spec.Template.StartupType = startupType
 	return b
 }
 
@@ -59,7 +59,7 @@ func (b *PodGangSetBuilder) WithPodCliqueParameters(name string, replicas int32,
 // WithPodCliqueTemplateSpec sets the PodCliqueTemplateSpec for the PodGangSet.
 // Consumers can use PodCliqueBuilder to create a PodCliqueTemplateSpec and then use this method to add it to the PodGangSet.
 func (b *PodGangSetBuilder) WithPodCliqueTemplateSpec(pclq *grovecorev1alpha1.PodCliqueTemplateSpec) *PodGangSetBuilder {
-	b.pgs.Spec.TemplateSpec.Cliques = append(b.pgs.Spec.TemplateSpec.Cliques, pclq)
+	b.pgs.Spec.Template.Cliques = append(b.pgs.Spec.Template.Cliques, pclq)
 	return b
 }
 

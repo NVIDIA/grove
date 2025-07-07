@@ -133,8 +133,8 @@ func (r _resource) doCreateOrUpdate(ctx context.Context, logger logr.Logger, pgs
 func (r _resource) buildResource(svc *corev1.Service, pgs *grovecorev1alpha1.PodGangSet, pgsReplicaIndex int) error {
 	svc.Labels = getLabels(pgs.Name, client.ObjectKeyFromObject(svc), pgsReplicaIndex)
 	var publishNotReadyAddresses bool
-	if pgs.Spec.TemplateSpec.HeadlessServiceConfig != nil {
-		publishNotReadyAddresses = pgs.Spec.TemplateSpec.HeadlessServiceConfig.PublishNotReadyAddresses
+	if pgs.Spec.Template.HeadlessServiceConfig != nil {
+		publishNotReadyAddresses = pgs.Spec.Template.HeadlessServiceConfig.PublishNotReadyAddresses
 	}
 	svc.Spec = corev1.ServiceSpec{
 		Selector:                 getLabelSelectorForPodsInAPodGangSetReplica(pgs.Name, pgsReplicaIndex),

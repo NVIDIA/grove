@@ -78,7 +78,7 @@ func (r _resource) GetExistingResourceNames(ctx context.Context, logger logr.Log
 
 // Sync synchronizes all resources that the PodClique Operator manages.
 func (r _resource) Sync(ctx context.Context, logger logr.Logger, pgs *grovecorev1alpha1.PodGangSet) error {
-	expectedPCLQs := int(pgs.Spec.Replicas) * len(pgs.Spec.TemplateSpec.Cliques)
+	expectedPCLQs := int(pgs.Spec.Replicas) * len(pgs.Spec.Template.Cliques)
 	existingPCLQNames, err := r.GetExistingResourceNames(ctx, logger, pgs)
 	if err != nil {
 		return groveerr.WrapError(err,
@@ -103,11 +103,11 @@ func (r _resource) Sync(ctx context.Context, logger logr.Logger, pgs *grovecorev
 	}
 
 	// Update or create PodCliques
-	numTasks := int(pgs.Spec.Replicas) * len(pgs.Spec.TemplateSpec.Cliques)
+	numTasks := int(pgs.Spec.Replicas) * len(pgs.Spec.Template.Cliques)
 	tasks := make([]utils.Task, 0, numTasks)
 
 	for pgsReplica := range pgs.Spec.Replicas {
-		for _, pclqTemplateSpec := range pgs.Spec.TemplateSpec.Cliques {
+		for _, pclqTemplateSpec := range pgs.Spec.Template.Cliques {
 			pclqObjectKey := client.ObjectKey{
 				Name:      grovecorev1alpha1.GeneratePodCliqueName(grovecorev1alpha1.ResourceNameReplica{Name: pgs.Name, Replica: int(pgsReplica)}, pclqTemplateSpec.Name),
 				Namespace: pgs.Namespace,
@@ -221,7 +221,7 @@ func (r _resource) doCreateOrUpdate(ctx context.Context, logger logr.Logger, pgs
 func (r _resource) buildResource(logger logr.Logger, pclq *grovecorev1alpha1.PodClique, pgs *grovecorev1alpha1.PodGangSet, pgsReplica int, exists bool) error {
 	var err error
 	pclqObjectKey, pgsObjectKey := client.ObjectKeyFromObject(pclq), client.ObjectKeyFromObject(pgs)
-	pclqTemplateSpec, foundAtIndex, ok := lo.FindIndexOf(pgs.Spec.TemplateSpec.Cliques, func(pclqTemplateSpec *grovecorev1alpha1.PodCliqueTemplateSpec) bool {
+	pclqTemplateSpec, foundAtIndex, ok := lo.FindIndexOf(pgs.Spec.Template.Cliques, func(pclqTemplateSpec *grovecorev1alpha1.PodCliqueTemplateSpec) bool {
 		return strings.HasSuffix(pclq.Name, pclqTemplateSpec.Name)
 	})
 	if !ok {
@@ -269,7 +269,7 @@ func (r _resource) buildResource(logger logr.Logger, pclq *grovecorev1alpha1.Pod
 }
 
 func getPCSGForPodClique(pgs *grovecorev1alpha1.PodGangSet, pgsReplica int, pclqTemplateName string) *string {
-	pcsg, ok := lo.Find(pgs.Spec.TemplateSpec.PodCliqueScalingGroupConfigs, func(pcsg grovecorev1alpha1.PodCliqueScalingGroupConfig) bool {
+	pcsg, ok := lo.Find(pgs.Spec.Template.PodCliqueScalingGroupConfigs, func(pcsg grovecorev1alpha1.PodCliqueScalingGroupConfig) bool {
 		return slices.Contains(pcsg.CliqueNames, pclqTemplateName)
 	})
 	if !ok {
@@ -279,7 +279,7 @@ func getPCSGForPodClique(pgs *grovecorev1alpha1.PodGangSet, pgsReplica int, pclq
 }
 
 func identifyFullyQualifiedStartupDependencyNames(pgs *grovecorev1alpha1.PodGangSet, pclq *grovecorev1alpha1.PodClique, pgsReplicaIndex, foundAtIndex int) ([]string, error) {
-	cliqueStartupType := pgs.Spec.TemplateSpec.StartupType
+	cliqueStartupType := pgs.Spec.Template.StartupType
 	if cliqueStartupType == nil {
 		// Ideally this should never happen as the defaulting webhook should set it v1alpha1.CliqueStartupTypeInOrder as the default value.
 		// If it is still nil, then by not returning an error we break the API contract. It is a bug that should be fixed.
@@ -299,7 +299,7 @@ func getInOrderStartupDependencies(pgs *grovecorev1alpha1.PodGangSet, pgsReplica
 	if foundAtIndex == 0 {
 		return []string{}
 	}
-	previousClique := pgs.Spec.TemplateSpec.Cliques[foundAtIndex-1]
+	previousClique := pgs.Spec.Template.Cliques[foundAtIndex-1]
 	// get the name of the previous PodCliqueTemplateSpec
 	previousPCLQName := grovecorev1alpha1.GeneratePodCliqueName(grovecorev1alpha1.ResourceNameReplica{Name: pgs.Name, Replica: pgsReplicaIndex}, previousClique.Name)
 	return []string{previousPCLQName}

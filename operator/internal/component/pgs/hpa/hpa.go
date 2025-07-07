@@ -84,7 +84,7 @@ func (r _resource) Sync(ctx context.Context, logger logr.Logger, pgs *grovecorev
 	}
 
 	expectedHPAInfos := r.computeExpectedHPAs(pgs)
-	tasks := make([]utils.Task, 0, (len(pgs.Spec.TemplateSpec.Cliques)+len(pgs.Spec.TemplateSpec.PodCliqueScalingGroupConfigs))*int(pgs.Spec.Replicas))
+	tasks := make([]utils.Task, 0, (len(pgs.Spec.Template.Cliques)+len(pgs.Spec.Template.PodCliqueScalingGroupConfigs))*int(pgs.Spec.Replicas))
 	tasks = append(tasks, r.deleteExcessHPATasks(logger, pgs, existingHPANames, expectedHPAInfos)...)
 	tasks = append(tasks, r.createOrUpdateHPATasks(logger, pgs, expectedHPAInfos)...)
 
@@ -127,10 +127,10 @@ type hpaInfo struct {
 }
 
 func (r _resource) computeExpectedHPAs(pgs *grovecorev1alpha1.PodGangSet) []hpaInfo {
-	expectedHPAInfos := make([]hpaInfo, 0, (len(pgs.Spec.TemplateSpec.Cliques)+len(pgs.Spec.TemplateSpec.PodCliqueScalingGroupConfigs))*int(pgs.Spec.Replicas))
+	expectedHPAInfos := make([]hpaInfo, 0, (len(pgs.Spec.Template.Cliques)+len(pgs.Spec.Template.PodCliqueScalingGroupConfigs))*int(pgs.Spec.Replicas))
 	for replicaIndex := range pgs.Spec.Replicas {
 		// compute expected HPA for PodCliques with individual HPAs attached to them
-		for _, pclqTemplateSpec := range pgs.Spec.TemplateSpec.Cliques {
+		for _, pclqTemplateSpec := range pgs.Spec.Template.Cliques {
 			if pclqTemplateSpec.Spec.ScaleConfig == nil {
 				continue
 			}
@@ -147,7 +147,7 @@ func (r _resource) computeExpectedHPAs(pgs *grovecorev1alpha1.PodGangSet) []hpaI
 				scaleConfig:             *pclqTemplateSpec.Spec.ScaleConfig,
 			})
 		}
-		for _, pcsgConfig := range pgs.Spec.TemplateSpec.PodCliqueScalingGroupConfigs {
+		for _, pcsgConfig := range pgs.Spec.Template.PodCliqueScalingGroupConfigs {
 			if pcsgConfig.ScaleConfig == nil {
 				continue
 			}

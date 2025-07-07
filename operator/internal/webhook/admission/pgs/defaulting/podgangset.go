@@ -35,13 +35,13 @@ func defaultPodGangSet(pgs *grovecorev1alpha1.PodGangSet) {
 
 // defaultPodGangSetSpec adds defaults to the specification of a PodGangSet.
 func defaultPodGangSetSpec(spec *grovecorev1alpha1.PodGangSetSpec) {
-	// default PodGangTemplateSpec
-	defaultPodGangTemplateSpec(&spec.TemplateSpec)
+	// default PodGangSetTemplateSpec
+	defaultPodGangTemplateSpec(&spec.Template)
 	// default UpdateStrategy
 	defaultUpdateStrategy(spec)
 }
 
-func defaultPodGangTemplateSpec(spec *grovecorev1alpha1.PodGangTemplateSpec) {
+func defaultPodGangTemplateSpec(spec *grovecorev1alpha1.PodGangSetTemplateSpec) {
 	// default PodCliqueTemplateSpecs
 	spec.Cliques = defaultPodCliqueTemplateSpecs(spec.Cliques)
 }

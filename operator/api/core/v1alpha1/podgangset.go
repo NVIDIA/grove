@@ -19,7 +19,6 @@ package v1alpha1
 import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/util/intstr"
 )
 
 // +genclient
@@ -55,22 +54,11 @@ type PodGangSetSpec struct {
 	// Replicas is the number of desired replicas of the PodGang.
 	// +kubebuilder:default=0
 	Replicas int32 `json:"replicas,omitempty"`
-	// TemplateSpec describes the template spec for PodGangs that will be created in the PodGangSet.
-	TemplateSpec PodGangTemplateSpec `json:"templateSpec"`
-	// UpdateStrategy defines the strategy to be used when updating the PodGangs.
-	// +optional
-	UpdateStrategy *GangUpdateStrategy `json:"updateStrategy,omitempty"`
+	// Template describes the template spec for PodGangs that will be created in the PodGangSet.
+	Template PodGangSetTemplateSpec `json:"template"`
 	// ReplicaSpreadConstraints defines the constraints for spreading each replica of PodGangSet across domains identified by a topology key.
 	// +optional
 	ReplicaSpreadConstraints []corev1.TopologySpreadConstraint `json:"replicaSpreadConstraints,omitempty"`
-	// PriorityClassName is the name of the PriorityClass to be used for the PodGangSet.
-	// If specified, indicates the priority of the PodGangSet. "system-node-critical" and
-	// "system-cluster-critical" are two special keywords which indicate the
-	// highest priorities with the former being the highest priority. Any other
-	// name must be defined by creating a PriorityClass object with that name.
-	// If not specified, the pod priority will be default or zero if there is no default.
-	// +optional
-	PriorityClassName string `json:"priorityClassName,omitempty"`
 }
 
 // PodGangSetStatus defines the status of a PodGangSet.
@@ -94,13 +82,13 @@ type PodGangSetStatus struct {
 	PodGangStatutes []PodGangStatus `json:"podGangStatuses,omitempty"`
 }
 
-// PodGangTemplateSpec defines a template spec for a PodGang.
+// PodGangSetTemplateSpec defines a template spec for a PodGang.
 // A PodGang does not have a RestartPolicy field because the restart policy is predefined:
 // If the number of pods in any of the cliques falls below the threshold, the entire PodGang will be restarted.
 // The threshold is determined by either:
 // - The value of "MinReplicas", if specified in the ScaleConfig of that clique, or
 // - The "Replicas" value of that clique
-type PodGangTemplateSpec struct {
+type PodGangSetTemplateSpec struct {
 	// Cliques is a slice of cliques that make up the PodGang. There should be at least one PodClique.
 	Cliques []*PodCliqueTemplateSpec `json:"cliques"`
 	// StartupType defines the type of startup dependency amongst the cliques within a PodGang.
@@ -108,6 +96,14 @@ type PodGangTemplateSpec struct {
 	// +kubebuilder:default=CliqueStartupTypeAnyOrder
 	// +optional
 	StartupType *CliqueStartupType `json:"cliqueStartupType,omitempty"`
+	// PriorityClassName is the name of the PriorityClass to be used for the PodGangSet.
+	// If specified, indicates the priority of the PodGangSet. "system-node-critical" and
+	// "system-cluster-critical" are two special keywords which indicate the
+	// highest priorities with the former being the highest priority. Any other
+	// name must be defined by creating a PriorityClass object with that name.
+	// If not specified, the pod priority will be default or zero if there is no default.
+	// +optional
+	PriorityClassName string `json:"priorityClassName,omitempty"`
 	// HeadlessServiceConfig defines the config options for the headless service.
 	// If present, create headless service for each PodGang.
 	// +optional
@@ -123,8 +119,8 @@ type PodGangTemplateSpec struct {
 
 // PodCliqueTemplateSpec defines a template spec for a PodClique.
 type PodCliqueTemplateSpec struct {
-	// Name must be unique name of a PodClique within a PodGangSet.
-	// Cannot be updated.
+	// Name must be unique within a PodGangSet and is used to denote a role.
+	// Once set it cannot be updated.
 	// More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names#names
 	Name string `json:"name"`
 
@@ -149,9 +145,12 @@ type PodCliqueTemplateSpec struct {
 
 // SchedulingPolicyConfig defines the scheduling policy configuration for the PodGang.
 type SchedulingPolicyConfig struct {
-	// NetworkPackStrategy defines the strategy for packing pods on nodes while minimizing network switch hops.
-	// +optional
-	NetworkPackStrategy *NetworkPackStrategy `json:"networkPackStrategy,omitempty"`
+	// NetworkPackGroupConfigs is a list of NetworkPackGroupConfig's that define how the pods in the PodGangSet are optimally packaged w.r.t cluster's network topology.
+	// PodCliques that are not part of any NetworkPackGroupConfig are scheduled with best-effort network packing strategy.
+	// Exercise caution when defining NetworkPackGroupConfig. Some of the downsides include:
+	// 1. Scheduling may be delayed until optimal placement is available.
+	// 2. Pods created due to scale-out or rolling upgrades is not guaranteed optimal placement.
+	NetworkPackGroupConfigs []NetworkPackGroupConfig `json:"networkPackGroupConfigs,omitempty"`
 	// TerminationDelay is the delay after which the gang termination will be triggered.
 	// A gang is a candidate for termination if number of running pods fall below a threshold for any PodClique.
 	// If a PodGang remains a candidate past TerminationDelay then it will be terminated. This allows additional time
@@ -159,6 +158,13 @@ type SchedulingPolicyConfig struct {
 	// running pods go above the threshold.
 	// +optional
 	TerminationDelay *metav1.Duration `json:"terminationDelay,omitempty"`
+}
+
+// NetworkPackGroupConfig indicates that all the Pods belonging to the constituent PodClique's should be optimally placed w.r.t cluster's network topology.
+// If a constituent PodClique belongs to a PodCliqueScalingGroup then ensure that all constituent PodClique's of that PodCliqueScalingGroup are also part of the NetworkPackGroupConfig.
+type NetworkPackGroupConfig struct {
+	// CliqueNames is the list of PodClique names that are part of the network pack group.
+	CliqueNames []string `json:"cliqueNames"`
 }
 
 // PodCliqueScalingGroupConfig is a group of PodClique's that are scaled together.
@@ -194,57 +200,6 @@ const (
 	// CliqueStartupTypeExplicit defines that the cliques should be started after the cliques defined in PodClique.StartsAfter have started.
 	CliqueStartupTypeExplicit CliqueStartupType = "CliqueStartupTypeExplicit"
 )
-
-// NetworkPackStrategy defines the strategy for packing pods across nodes while minimizing network switch hops.
-// An attempt will always be made to ensure that the pods are packed optimally minimizing the total number of network switch hops.
-// Pack strategy only describes if this is a strict requirement or a best-effort.
-// +kubebuilder:validation:Enum={BestEffort,Strict}
-type NetworkPackStrategy string
-
-const (
-	// BestEffort pack strategy makes the best effort for optimal placement of pods but does not guarantee it.
-	BestEffort NetworkPackStrategy = "BestEffort"
-	// Strict pack strategy strives for the most optimal placement for pods assuming sufficient capacity.
-	// If optimal placement cannot be achieved then pods will remain pending.
-	Strict NetworkPackStrategy = "Strict"
-)
-
-// GangUpdateStrategy defines the strategy to be used when updating a PodGang.
-// At this point we only support Rolling Updates, but we may add more strategies in the future.
-type GangUpdateStrategy struct {
-	// RollingUpdateConfig is the configuration to control the desired behavior of a rolling update of a PodGang.
-	// +optional
-	RollingUpdateConfig *RollingUpdateConfiguration `json:"rollingUpdateConfig,omitempty"`
-}
-
-// RollingUpdateConfiguration is the configuration to control the desired behavior of a rolling update of a PodGang.
-type RollingUpdateConfiguration struct {
-	// The maximum number of podgangs that can be unavailable during the update.
-	// Value can be an absolute number (ex: 5) or a percentage of total podgangs at the start of update (ex: 10%).
-	// Absolute number is calculated from percentage by rounding down.
-	// This can not be 0 if MaxSurge is 0.
-	// By default, a fixed value of 1 is used.
-	// Example: when this is set to 30%, the old RC can be scaled down by 30%
-	// immediately when the rolling update starts. Once new podgangs are ready, old RC
-	// can be scaled down further, followed by scaling up the new RC, ensuring
-	// that at least 70% of original number of podgangs are available at all times
-	// during the update.
-	// +optional
-	MaxUnavailable *intstr.IntOrString `json:"maxUnavailable,omitempty"`
-
-	// The maximum number of podgangs that can be scheduled above the original number of
-	// podgangs.
-	// Value can be an absolute number (ex: 5) or a percentage of total podgangs at
-	// the start of the update (ex: 10%). This can not be 0 if MaxUnavailable is 0.
-	// Absolute number is calculated from percentage by rounding up.
-	// By default, a value of 1 is used.
-	// Example: when this is set to 30%, the new RC can be scaled up by 30%
-	// immediately when the rolling update starts. Once old podgangs have been killed,
-	// new RC can be scaled up further, ensuring that total number of podgangs running
-	// at any time during the update is at most 130% of original podgangs.
-	// +optional
-	MaxSurge *intstr.IntOrString `json:"maxSurge,omitempty"`
-}
 
 // PodGangStatus defines the status of a PodGang.
 type PodGangStatus struct {
