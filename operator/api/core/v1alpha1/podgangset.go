@@ -69,11 +69,9 @@ type PodGangSetStatus struct {
 	LastOperation *LastOperation `json:"lastOperation,omitempty"`
 	// LastErrors captures the last errors observed by the controller when reconciling the PodGangSet.
 	LastErrors []LastError `json:"lastErrors,omitempty"`
-	// Replicas is the total number of non-terminated PodGangs targeted by this PodGangSet.
+	// Replicas is the total number of PodGangSet replicas created.
 	Replicas int32 `json:"replicas,omitempty"`
-	// ReadyReplicas is the number of ready PodGangs targeted by this PodGangSet.
-	ReadyReplicas int32 `json:"readyReplicas,omitempty"`
-	// UpdatedReplicas is the number of PodGangs that have been updated and are at the desired revision of the PodGangSet.
+	// UpdatedReplicas is the number of replicas that have been updated to the desired revision of the PodGangSet.
 	UpdatedReplicas int32 `json:"updatedReplicas,omitempty"`
 	// Selector is the label selector that determines which pods are part of the PodGang.
 	// PodGang is a unit of scale and this selector is used by HPA to scale the PodGang based on metrics captured for the pods that match this selector.
@@ -111,7 +109,7 @@ type PodGangSetTemplateSpec struct {
 	// SchedulingPolicyConfig defines the scheduling policy configuration for the PodGang.
 	// Defaulting only works for optional fields.
 	// See https://github.com/kubernetes-sigs/controller-tools/issues/893#issuecomment-1991256368
-	// +kubebuilder:default:={networkPackStrategy:BestEffort}
+	// +optional
 	SchedulingPolicyConfig *SchedulingPolicyConfig `json:"schedulingPolicyConfig,omitempty"`
 	// PodCliqueScalingGroupConfigs is a list of scaling groups for the PodGangSet.
 	PodCliqueScalingGroupConfigs []PodCliqueScalingGroupConfig `json:"podCliqueScalingGroups,omitempty"`

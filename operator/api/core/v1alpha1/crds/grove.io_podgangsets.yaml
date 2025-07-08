@@ -775,7 +775,7 @@ spec:
                                   x-kubernetes-list-type: atomic
                                 minReplicas:
                                   description: |-
-                                    MinReplicas is the lower limit for the number of replicas for this PodClique.
+                                    MinReplicas is the lower limit for the number of replicas for the target resource.
                                     It will be used by the horizontal pod autoscaler to determine the minimum number of replicas to scale-in to.
                                   format: int32
                                   type: integer
@@ -9565,7 +9565,7 @@ spec:
                               x-kubernetes-list-type: atomic
                             minReplicas:
                               description: |-
-                                MinReplicas is the lower limit for the number of replicas for this PodClique.
+                                MinReplicas is the lower limit for the number of replicas for the target resource.
                                 It will be used by the horizontal pod autoscaler to determine the minimum number of replicas to scale-in to.
                               format: int32
                               type: integer
@@ -9587,8 +9587,6 @@ spec:
                       If not specified, the pod priority will be default or zero if there is no default.
                     type: string
                   schedulingPolicyConfig:
-                    default:
-                      networkPackStrategy: BestEffort
                     description: |-
                       SchedulingPolicyConfig defines the scheduling policy configuration for the PodGang.
                       Defaulting only works for optional fields.
@@ -9776,19 +9774,13 @@ spec:
                   - phase
                   type: object
                 type: array
-              readyReplicas:
-                description: ReadyReplicas is the number of ready PodGangs targeted
-                  by this PodGangSet.
-                format: int32
-                type: integer
               replicas:
-                description: Replicas is the total number of non-terminated PodGangs
-                  targeted by this PodGangSet.
+                description: Replicas is the total number of PodGangSet replicas created.
                 format: int32
                 type: integer
               updatedReplicas:
-                description: UpdatedReplicas is the number of PodGangs that have been
-                  updated and are at the desired revision of the PodGangSet.
+                description: UpdatedReplicas is the number of replicas that have been
+                  updated to the desired revision of the PodGangSet.
                 format: int32
                 type: integer
             type: object

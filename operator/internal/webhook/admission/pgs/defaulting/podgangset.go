@@ -51,8 +51,13 @@ func defaultPodCliqueTemplateSpecs(cliqueSpecs []*grovecorev1alpha1.PodCliqueTem
 		if defaultedCliqueSpec.Spec.Replicas == 0 {
 			defaultedCliqueSpec.Spec.Replicas = 1
 		}
-		if cliqueSpec.Spec.ScaleConfig.MinReplicas == nil {
-			defaultedCliqueSpec.Spec.ScaleConfig.MinReplicas = ptr.To(cliqueSpec.Spec.Replicas)
+		if cliqueSpec.Spec.MinAvailable == nil {
+			defaultedCliqueSpec.Spec.MinAvailable = ptr.To(cliqueSpec.Spec.Replicas)
+		}
+		if cliqueSpec.Spec.ScaleConfig != nil {
+			if cliqueSpec.Spec.ScaleConfig.MinReplicas == nil {
+				defaultedCliqueSpec.Spec.ScaleConfig.MinReplicas = ptr.To(cliqueSpec.Spec.Replicas)
+			}
 		}
 		defaultedCliqueSpecs = append(defaultedCliqueSpecs, defaultedCliqueSpec)
 	}
