@@ -14,12 +14,12 @@
 // limitations under the License.
 // */
 
-package pclq
+package podclique
 
 import (
 	"github.com/NVIDIA/grove/operator/api/core/v1alpha1"
 	"github.com/NVIDIA/grove/operator/internal/component"
-	"github.com/NVIDIA/grove/operator/internal/component/pclq/pod"
+	"github.com/NVIDIA/grove/operator/internal/component/podclique/pod"
 
 	"k8s.io/client-go/tools/record"
 	"sigs.k8s.io/controller-runtime/pkg/manager"

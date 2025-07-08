@@ -57,9 +57,9 @@ func New(client client.Client, scheme *runtime.Scheme) component.Operator[grovec
 }
 
 // GetExistingResourceNames returns the names of all the existing resources that the RoleBinding Operator manages.
-func (r _resource) GetExistingResourceNames(ctx context.Context, _ logr.Logger, pgs *grovecorev1alpha1.PodGangSet) ([]string, error) {
+func (r _resource) GetExistingResourceNames(ctx context.Context, _ logr.Logger, pgsObjMeta metav1.ObjectMeta) ([]string, error) {
 	roleBindingNames := make([]string, 0, 1)
-	objectKey := getObjectKey(pgs.ObjectMeta)
+	objectKey := getObjectKey(pgsObjMeta)
 	objMeta := &metav1.PartialObjectMetadata{}
 	objMeta.SetGroupVersionKind(rbacv1.SchemeGroupVersion.WithKind("RoleBinding"))
 	if err := r.client.Get(ctx, objectKey, objMeta); err != nil {
@@ -69,10 +69,10 @@ func (r _resource) GetExistingResourceNames(ctx context.Context, _ logr.Logger, 
 		return roleBindingNames, groveerr.WrapError(err,
 			errGetRoleBinding,
 			component.OperationGetExistingResourceNames,
-			fmt.Sprintf("Error getting RoleBinding: %v for PodGangSet: %v", objectKey, client.ObjectKeyFromObject(pgs)),
+			fmt.Sprintf("Error getting RoleBinding: %v for PodGangSet: %v", objectKey, k8sutils.GetObjectKeyFromObjectMeta(pgsObjMeta)),
 		)
 	}
-	if metav1.IsControlledBy(objMeta, &pgs.ObjectMeta) {
+	if metav1.IsControlledBy(objMeta, &pgsObjMeta) {
 		roleBindingNames = append(roleBindingNames, objMeta.Name)
 	}
 	return roleBindingNames, nil
@@ -80,7 +80,7 @@ func (r _resource) GetExistingResourceNames(ctx context.Context, _ logr.Logger, 
 
 // Sync synchronizes all resources that the RoleBinding Operator manages.
 func (r _resource) Sync(ctx context.Context, logger logr.Logger, pgs *grovecorev1alpha1.PodGangSet) error {
-	existingRoleBindingNames, err := r.GetExistingResourceNames(ctx, logger, pgs)
+	existingRoleBindingNames, err := r.GetExistingResourceNames(ctx, logger, pgs.ObjectMeta)
 	if err != nil {
 		return groveerr.WrapError(err,
 			errSyncRoleBinding,

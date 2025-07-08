@@ -19,6 +19,7 @@ package utils
 import (
 	"context"
 	"errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"time"
 
 	"github.com/NVIDIA/grove/operator/api/core/v1alpha1"
@@ -68,11 +69,11 @@ func GetPodCliqueScalingGroup(ctx context.Context, cl client.Client, logger logr
 }
 
 // VerifyNoResourceAwaitsCleanup ensures no resources that are to be cleaned up are still present in the cluster.
-func VerifyNoResourceAwaitsCleanup[T component.GroveCustomResourceType](ctx context.Context, logger logr.Logger, operatorRegistry component.OperatorRegistry[T], obj *T) grovectrl.ReconcileStepResult {
+func VerifyNoResourceAwaitsCleanup[T component.GroveCustomResourceType](ctx context.Context, logger logr.Logger, operatorRegistry component.OperatorRegistry[T], objMeta metav1.ObjectMeta) grovectrl.ReconcileStepResult {
 	operators := operatorRegistry.GetAllOperators()
 	resourceNamesAwaitingCleanup := make([]string, 0, len(operators))
 	for _, operator := range operators {
-		existingResourceNames, err := operator.GetExistingResourceNames(ctx, logger, obj)
+		existingResourceNames, err := operator.GetExistingResourceNames(ctx, logger, objMeta)
 		if err != nil {
 			return grovectrl.ReconcileWithErrors("error getting existing resource names", err)
 		}

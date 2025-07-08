@@ -70,7 +70,7 @@ func (r _resource) prepareSyncFlow(ctx context.Context, logger logr.Logger, pgs 
 		)
 	}
 
-	existingPodGangNames, err := r.GetExistingResourceNames(ctx, logger, pgs)
+	existingPodGangNames, err := r.GetExistingResourceNames(ctx, logger, pgs.ObjectMeta)
 	if err != nil {
 		return nil, groveerr.WrapError(err,
 			errCodeListPodGangs,

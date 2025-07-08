@@ -56,9 +56,9 @@ func New(client client.Client, scheme *runtime.Scheme) component.Operator[v1alph
 }
 
 // GetExistingResourceNames returns the names of all the existing resources that the ServiceAccount Operator manages.
-func (r _resource) GetExistingResourceNames(ctx context.Context, _ logr.Logger, pgs *v1alpha1.PodGangSet) ([]string, error) {
+func (r _resource) GetExistingResourceNames(ctx context.Context, _ logr.Logger, pgsObjMeta metav1.ObjectMeta) ([]string, error) {
 	saNames := make([]string, 0, 1)
-	objectKey := getObjectKey(pgs.ObjectMeta)
+	objectKey := getObjectKey(pgsObjMeta)
 	objMeta := &metav1.PartialObjectMetadata{}
 	objMeta.SetGroupVersionKind(corev1.SchemeGroupVersion.WithKind("ServiceAccount"))
 	if err := r.client.Get(ctx, objectKey, objMeta); err != nil {
@@ -68,10 +68,10 @@ func (r _resource) GetExistingResourceNames(ctx context.Context, _ logr.Logger, 
 		return saNames, groveerr.WrapError(err,
 			errGetServiceAccount,
 			component.OperationGetExistingResourceNames,
-			fmt.Sprintf("Error getting ServiceAccount: %v for PodGangSet: %v", objectKey, client.ObjectKeyFromObject(pgs)),
+			fmt.Sprintf("Error getting ServiceAccount: %v for PodGangSet: %v", objectKey, k8sutils.GetObjectKeyFromObjectMeta(pgsObjMeta)),
 		)
 	}
-	if metav1.IsControlledBy(objMeta, &pgs.ObjectMeta) {
+	if metav1.IsControlledBy(objMeta, &pgsObjMeta) {
 		saNames = append(saNames, objMeta.Name)
 	}
 	return saNames, nil

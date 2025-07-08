@@ -83,14 +83,14 @@ func New(client client.Client, scheme *runtime.Scheme, eventRecorder record.Even
 // NOTE: Since we do not currently support Jobs, therefore we do not have to filter the pods that are reached their final state.
 // Pods created for Jobs can reach corev1.PodSucceeded state or corev1.PodFailed state but these are not relevant for us at the moment.
 // In future when these states become relevant then we have to list the pods and filter on their status.Phase.
-func (r _resource) GetExistingResourceNames(ctx context.Context, _ logr.Logger, pclq *grovecorev1alpha1.PodClique) ([]string, error) {
-	podNames := make([]string, 0, pclq.Spec.Replicas)
+func (r _resource) GetExistingResourceNames(ctx context.Context, _ logr.Logger, pclqObjMeta metav1.ObjectMeta) ([]string, error) {
+	var podNames []string
 	objMetaList := &metav1.PartialObjectMetadataList{}
 	objMetaList.SetGroupVersionKind(corev1.SchemeGroupVersion.WithKind("Pod"))
 	if err := r.client.List(ctx,
 		objMetaList,
-		client.InNamespace(pclq.Namespace),
-		client.MatchingLabels(getSelectorLabelsForPods(pclq.ObjectMeta)),
+		client.InNamespace(pclqObjMeta.Namespace),
+		client.MatchingLabels(getSelectorLabelsForPods(pclqObjMeta)),
 	); err != nil {
 		return podNames, groveerr.WrapError(err,
 			errCodeGetPod,
@@ -99,7 +99,7 @@ func (r _resource) GetExistingResourceNames(ctx context.Context, _ logr.Logger, 
 		)
 	}
 	for _, pod := range objMetaList.Items {
-		if metav1.IsControlledBy(&pod, &pclq.ObjectMeta) {
+		if metav1.IsControlledBy(&pod, &pclqObjMeta) {
 			podNames = append(podNames, pod.Name)
 		}
 	}

@@ -58,28 +58,28 @@ func New(client client.Client, scheme *runtime.Scheme) component.Operator[grovec
 }
 
 // GetExistingResourceNames returns the names of all the existing resources that the PodClique Operator manages.
-func (r _resource) GetExistingResourceNames(ctx context.Context, logger logr.Logger, pgs *grovecorev1alpha1.PodGangSet) ([]string, error) {
+func (r _resource) GetExistingResourceNames(ctx context.Context, logger logr.Logger, pgsObjMeta metav1.ObjectMeta) ([]string, error) {
 	logger.Info("Looking for existing PodCliques")
 	objMetaList := &metav1.PartialObjectMetadataList{}
 	objMetaList.SetGroupVersionKind(grovecorev1alpha1.SchemeGroupVersion.WithKind("PodClique"))
 	if err := r.client.List(ctx,
 		objMetaList,
-		client.InNamespace(pgs.Namespace),
-		client.MatchingLabels(getPodCliqueSelectorLabels(pgs.ObjectMeta)),
+		client.InNamespace(pgsObjMeta.Namespace),
+		client.MatchingLabels(getPodCliqueSelectorLabels(pgsObjMeta)),
 	); err != nil {
 		return nil, groveerr.WrapError(err,
 			errListPodClique,
 			component.OperationGetExistingResourceNames,
-			fmt.Sprintf("Error listing PodCliques for PodGangSet: %v", client.ObjectKeyFromObject(pgs)),
+			fmt.Sprintf("Error listing PodCliques for PodGangSet: %v", k8sutils.GetObjectKeyFromObjectMeta(pgsObjMeta)),
 		)
 	}
-	return k8sutils.FilterMapOwnedResourceNames(pgs.ObjectMeta, objMetaList.Items), nil
+	return k8sutils.FilterMapOwnedResourceNames(pgsObjMeta, objMetaList.Items), nil
 }
 
 // Sync synchronizes all resources that the PodClique Operator manages.
 func (r _resource) Sync(ctx context.Context, logger logr.Logger, pgs *grovecorev1alpha1.PodGangSet) error {
 	expectedPCLQs := int(pgs.Spec.Replicas) * len(pgs.Spec.Template.Cliques)
-	existingPCLQNames, err := r.GetExistingResourceNames(ctx, logger, pgs)
+	existingPCLQNames, err := r.GetExistingResourceNames(ctx, logger, pgs.ObjectMeta)
 	if err != nil {
 		return groveerr.WrapError(err,
 			errSyncPodClique,
@@ -103,8 +103,7 @@ func (r _resource) Sync(ctx context.Context, logger logr.Logger, pgs *grovecorev
 	}
 
 	// Update or create PodCliques
-	numTasks := int(pgs.Spec.Replicas) * len(pgs.Spec.Template.Cliques)
-	tasks := make([]utils.Task, 0, numTasks)
+	tasks := make([]utils.Task, 0, expectedPCLQs)
 
 	for pgsReplica := range pgs.Spec.Replicas {
 		for _, pclqTemplateSpec := range pgs.Spec.Template.Cliques {
@@ -187,16 +186,41 @@ func getPodCliqueNamesToDelete(pgsName string, pgsReplicas int, existingPCLQName
 // Delete deletes all resources that the PodClique Operator manages.
 func (r _resource) Delete(ctx context.Context, logger logr.Logger, pgsObjectMeta metav1.ObjectMeta) error {
 	logger.Info("Triggering deletion of PodCliques")
-	if err := r.client.DeleteAllOf(ctx,
-		&grovecorev1alpha1.PodClique{},
-		client.InNamespace(pgsObjectMeta.Namespace),
-		client.MatchingLabels(getPodCliqueSelectorLabels(pgsObjectMeta))); err != nil {
+	existingPCLQNames, err := r.GetExistingResourceNames(ctx, logger, pgsObjectMeta)
+	if err != nil {
 		return groveerr.WrapError(err,
-			errDeletePodClique,
+			errListPodClique,
 			component.OperationDelete,
-			fmt.Sprintf("Failed to delete PodCliques for PodGangSet: %v", k8sutils.GetObjectKeyFromObjectMeta(pgsObjectMeta)),
+			fmt.Sprintf("Unable to fetch existing PodClique names for PodGangSet: %v", k8sutils.GetObjectKeyFromObjectMeta(pgsObjectMeta)),
 		)
 	}
+	deleteTasks := make([]utils.Task, 0, len(existingPCLQNames))
+	for _, pclqName := range existingPCLQNames {
+		pclqObjectKey := client.ObjectKey{Name: pclqName, Namespace: pgsObjectMeta.Namespace}
+		task := utils.Task{
+			Name: "DeletePodClique-" + pclqName,
+			Fn: func(ctx context.Context) error {
+				if err := client.IgnoreNotFound(r.client.Delete(ctx, emptyPodClique(pclqObjectKey))); err != nil {
+					return groveerr.WrapError(err,
+						errDeletePodClique,
+						component.OperationDelete,
+						fmt.Sprintf("Failed to delete PodClique: %v for PodGangSet: %v", pclqObjectKey, k8sutils.GetObjectKeyFromObjectMeta(pgsObjectMeta)),
+					)
+				}
+				return nil
+			},
+		}
+		deleteTasks = append(deleteTasks, task)
+	}
+	if runResult := utils.RunConcurrently(ctx, logger, deleteTasks); runResult.HasErrors() {
+		logger.Error(runResult.GetAggregatedError(), "Error deleting PodCliques", "run summary", runResult.GetSummary())
+		return groveerr.WrapError(runResult.GetAggregatedError(),
+			errDeletePodClique,
+			component.OperationDelete,
+			fmt.Sprintf("Error deleting PodCliques for PodGangSet: %v", k8sutils.GetObjectKeyFromObjectMeta(pgsObjectMeta)),
+		)
+	}
+
 	logger.Info("Deleted PodCliques")
 	return nil
 }

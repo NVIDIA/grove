@@ -50,7 +50,6 @@ const (
 type _resource struct {
 	client client.Client
 	scheme *runtime.Scheme
-	// eventRecorder record.EventRecorder
 }
 
 // New creates a new instance of PodGang component operator.
@@ -58,21 +57,25 @@ func New(client client.Client, scheme *runtime.Scheme) component.Operator[grovec
 	return &_resource{
 		client: client,
 		scheme: scheme,
-		// eventRecorder: eventRecorder,
 	}
 }
 
-func (r _resource) GetExistingResourceNames(ctx context.Context, logger logr.Logger, pgs *grovecorev1alpha1.PodGangSet) ([]string, error) {
+func (r _resource) GetExistingResourceNames(ctx context.Context, logger logr.Logger, pgsObjMeta metav1.ObjectMeta) ([]string, error) {
 	logger.Info("Looking for existing PodGang resources created per replica of PodGangSet")
-	podGangNames, err := componentutils.GetExistingPodGangNames(ctx, r.client, pgs)
-	if err != nil {
+	objMetaList := &metav1.PartialObjectMetadataList{}
+	objMetaList.SetGroupVersionKind(groveschedulerv1alpha1.SchemeGroupVersion.WithKind("PodGang"))
+	if err := r.client.List(ctx,
+		objMetaList,
+		client.InNamespace(pgsObjMeta.Namespace),
+		client.MatchingLabels(componentutils.GetPodGangSelectorLabels(pgsObjMeta)),
+	); err != nil {
 		return nil, groveerr.WrapError(err,
 			errCodeListPodGangs,
 			component.OperationGetExistingResourceNames,
-			fmt.Sprintf("Error listing PodGang for PodGangSet: %v", client.ObjectKeyFromObject(pgs)),
+			fmt.Sprintf("Error listing PodGang for PodGangSet: %v", k8sutils.GetObjectKeyFromObjectMeta(pgsObjMeta)),
 		)
 	}
-	return podGangNames, nil
+	return k8sutils.FilterMapOwnedResourceNames(pgsObjMeta, objMetaList.Items), nil
 }
 
 func (r _resource) Sync(ctx context.Context, logger logr.Logger, pgs *grovecorev1alpha1.PodGangSet) error {

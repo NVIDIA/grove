@@ -14,19 +14,19 @@
 // limitations under the License.
 // */
 
-package pgs
+package podgangset
 
 import (
 	"github.com/NVIDIA/grove/operator/api/core/v1alpha1"
 	"github.com/NVIDIA/grove/operator/internal/component"
-	"github.com/NVIDIA/grove/operator/internal/component/pgs/hpa"
-	"github.com/NVIDIA/grove/operator/internal/component/pgs/podclique"
-	"github.com/NVIDIA/grove/operator/internal/component/pgs/podcliquescalinggroup"
-	"github.com/NVIDIA/grove/operator/internal/component/pgs/podgang"
-	"github.com/NVIDIA/grove/operator/internal/component/pgs/role"
-	"github.com/NVIDIA/grove/operator/internal/component/pgs/rolebinding"
-	"github.com/NVIDIA/grove/operator/internal/component/pgs/service"
-	"github.com/NVIDIA/grove/operator/internal/component/pgs/serviceaccount"
+	"github.com/NVIDIA/grove/operator/internal/component/podgangset/hpa"
+	"github.com/NVIDIA/grove/operator/internal/component/podgangset/podclique"
+	"github.com/NVIDIA/grove/operator/internal/component/podgangset/podcliquescalinggroup"
+	"github.com/NVIDIA/grove/operator/internal/component/podgangset/podgang"
+	"github.com/NVIDIA/grove/operator/internal/component/podgangset/role"
+	"github.com/NVIDIA/grove/operator/internal/component/podgangset/rolebinding"
+	"github.com/NVIDIA/grove/operator/internal/component/podgangset/service"
+	"github.com/NVIDIA/grove/operator/internal/component/podgangset/serviceaccount"
 
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 )

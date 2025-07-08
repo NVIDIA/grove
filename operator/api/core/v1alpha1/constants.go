@@ -46,6 +46,10 @@ const (
 	// FinalizerPodClique is the finalizer for PodClique that is added to `.metadata.finalizers[]` slice. This will be placed on all PodClique resources
 	// during reconciliation. This finalizer is used to clean up resources that are created for a PodClique when it is deleted.
 	FinalizerPodClique = "grove.io/podclique.grove.io"
+	// FinalizerPodCliqueScalingGroup is the finalizer for PodCliqueScalingGroup that is added to `.metadata.finalizers[]` slice.
+	// This will be placed on all PodCliqueScalingGroup resources during reconciliation. This finalizer is used to clean up resources
+	// that are created for a PodCliqueScalingGroup when it is deleted.
+	FinalizerPodCliqueScalingGroup = "grove.io/podcliquescalinggroup.grove.io"
 )
 
 // Constants for events.

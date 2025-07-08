@@ -17,14 +17,17 @@
 package podcliquescalinggroup
 
 import (
+	"context"
 	grovecorev1alpha1 "github.com/NVIDIA/grove/operator/api/core/v1alpha1"
 	ctrlutils "github.com/NVIDIA/grove/operator/internal/controller/utils"
-
 	"sigs.k8s.io/controller-runtime/pkg/builder"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/event"
+	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
+	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
 const (
@@ -40,12 +43,16 @@ func (r *Reconciler) RegisterWithManager(mgr manager.Manager) error {
 		WithOptions(controller.Options{
 			MaxConcurrentReconciles: *r.config.ConcurrentSyncs,
 		}).
-		For(&grovecorev1alpha1.PodCliqueScalingGroup{}).
-		WithEventFilter(
+		For(&grovecorev1alpha1.PodCliqueScalingGroup{}, builder.WithPredicates(
 			predicate.And(
 				predicate.GenerationChangedPredicate{},
 				podCliqueScalingGroupUpdatePredicate(),
-			)).
+			)),
+		).
+		Watches(&grovecorev1alpha1.PodGangSet{},
+			handler.EnqueueRequestsFromMapFunc(mapPGSToPCSG()),
+			builder.WithPredicates(podGangSetPredicate()),
+		).
 		Complete(r)
 }
 
@@ -59,6 +66,43 @@ func podCliqueScalingGroupUpdatePredicate() predicate.Predicate {
 		UpdateFunc: func(updateEvent event.UpdateEvent) bool {
 			return ctrlutils.IsManagedByGrove(updateEvent.ObjectOld.GetLabels()) &&
 				ctrlutils.HasExpectedOwner(grovecorev1alpha1.PodGangSetKind, updateEvent.ObjectOld.GetOwnerReferences())
+		},
+		GenericFunc: func(_ event.GenericEvent) bool { return false },
+	}
+}
+
+func mapPGSToPCSG() handler.MapFunc {
+	return func(_ context.Context, obj client.Object) []reconcile.Request {
+		pgs, ok := obj.(*grovecorev1alpha1.PodGangSet)
+		if !ok {
+			return nil
+		}
+		pcsgConfigs := pgs.Spec.Template.PodCliqueScalingGroupConfigs
+		if len(pcsgConfigs) == 0 {
+			return nil
+		}
+		requests := make([]reconcile.Request, 0, int(pgs.Spec.Replicas)*len(pcsgConfigs))
+		for pgsReplica := range pgs.Spec.Replicas {
+			for _, pcsgConfig := range pcsgConfigs {
+				pcsgName := grovecorev1alpha1.GeneratePodCliqueScalingGroupName(grovecorev1alpha1.ResourceNameReplica{Name: pgs.Name, Replica: int(pgsReplica)}, pcsgConfig.Name)
+				requests = append(requests, reconcile.Request{
+					NamespacedName: client.ObjectKey{
+						Name:      pcsgName,
+						Namespace: pgs.Namespace,
+					},
+				})
+			}
+		}
+		return requests
+	}
+}
+
+func podGangSetPredicate() predicate.Predicate {
+	return predicate.Funcs{
+		CreateFunc: func(_ event.CreateEvent) bool { return false },
+		DeleteFunc: func(_ event.DeleteEvent) bool { return false },
+		UpdateFunc: func(updateEvent event.UpdateEvent) bool {
+			return ctrlutils.IsManagedByGrove(updateEvent.ObjectOld.GetLabels())
 		},
 		GenericFunc: func(_ event.GenericEvent) bool { return false },
 	}

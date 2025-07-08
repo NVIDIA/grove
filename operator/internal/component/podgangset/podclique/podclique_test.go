@@ -107,7 +107,7 @@ func TestGetExistingResourceNames(t *testing.T) {
 			// Create a fake client with PodCliques
 			cl := testutils.CreateFakeClientForObjectsMatchingLabels(nil, tc.listErr, pgs.Namespace, grovecorev1alpha1.SchemeGroupVersion.WithKind("PodClique"), getPodCliqueSelectorLabels(pgs.ObjectMeta), existingObjects...)
 			operator := New(cl, groveclientscheme.Scheme)
-			actualPCLQNames, err := operator.GetExistingResourceNames(context.Background(), logr.Discard(), pgs)
+			actualPCLQNames, err := operator.GetExistingResourceNames(context.Background(), logr.Discard(), pgs.ObjectMeta)
 			if tc.expectedErr == nil {
 				assert.NoError(t, err)
 				assert.ElementsMatch(t, tc.expectedPodCliqueNames, actualPCLQNames)

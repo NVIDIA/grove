@@ -55,22 +55,22 @@ func New(client client.Client, scheme *runtime.Scheme) component.Operator[grovec
 }
 
 // GetExistingResourceNames returns the names of all the existing resources that the Service Operator manages.
-func (r _resource) GetExistingResourceNames(ctx context.Context, logger logr.Logger, pgs *grovecorev1alpha1.PodGangSet) ([]string, error) {
-	logger.Info("Looking for existing PodGangSet Headless Services", "objectKey", client.ObjectKeyFromObject(pgs))
+func (r _resource) GetExistingResourceNames(ctx context.Context, logger logr.Logger, pgsObjMeta metav1.ObjectMeta) ([]string, error) {
+	logger.Info("Looking for existing PodGangSet Headless Services", "objectKey", k8sutils.GetObjectKeyFromObjectMeta(pgsObjMeta))
 	objMetaList := &metav1.PartialObjectMetadataList{}
 	objMetaList.SetGroupVersionKind(corev1.SchemeGroupVersion.WithKind("Service"))
 	if err := r.client.List(ctx,
 		objMetaList,
-		client.InNamespace(pgs.Namespace),
-		client.MatchingLabels(getSelectorLabelsForAllHeadlessServices(pgs.Name)),
+		client.InNamespace(pgsObjMeta.Namespace),
+		client.MatchingLabels(getSelectorLabelsForAllHeadlessServices(pgsObjMeta.Name)),
 	); err != nil {
 		return nil, groveerr.WrapError(err,
 			errSyncPodGangSetService,
 			component.OperationGetExistingResourceNames,
-			fmt.Sprintf("Error listing Headless Services for PodGangSet: %v", client.ObjectKeyFromObject(pgs)),
+			fmt.Sprintf("Error listing Headless Services for PodGangSet: %v", k8sutils.GetObjectKeyFromObjectMeta(pgsObjMeta)),
 		)
 	}
-	return k8sutils.FilterMapOwnedResourceNames(pgs.ObjectMeta, objMetaList.Items), nil
+	return k8sutils.FilterMapOwnedResourceNames(pgsObjMeta, objMetaList.Items), nil
 }
 
 // Sync synchronizes all resources that the Service Operator manages.

@@ -57,27 +57,27 @@ func New(client client.Client, scheme *runtime.Scheme) component.Operator[grovec
 }
 
 // GetExistingResourceNames returns the names of all the existing resources that the HPA Operator manages.
-func (r _resource) GetExistingResourceNames(ctx context.Context, logger logr.Logger, pgs *grovecorev1alpha1.PodGangSet) ([]string, error) {
+func (r _resource) GetExistingResourceNames(ctx context.Context, logger logr.Logger, pgsObjMeta metav1.ObjectMeta) ([]string, error) {
 	logger.Info("Looking for existing HPA resources")
 	objMetaList := &metav1.PartialObjectMetadataList{}
 	objMetaList.SetGroupVersionKind(autoscalingv2.SchemeGroupVersion.WithKind("HorizontalPodAutoscaler"))
 	if err := r.client.List(ctx,
 		objMetaList,
-		client.InNamespace(pgs.Namespace),
-		client.MatchingLabels(getPodCliqueHPASelectorLabels(pgs.ObjectMeta)),
+		client.InNamespace(pgsObjMeta.Namespace),
+		client.MatchingLabels(getPodCliqueHPASelectorLabels(pgsObjMeta)),
 	); err != nil {
 		return nil, groveerr.WrapError(err,
 			errListHPA,
 			component.OperationGetExistingResourceNames,
-			fmt.Sprintf("Error listing HorizontalPodAutoscaler for PodCliques belonging to PodGangSet: %s", client.ObjectKeyFromObject(pgs)),
+			fmt.Sprintf("Error listing HorizontalPodAutoscaler for PodCliques belonging to PodGangSet: %s", k8sutils.GetObjectKeyFromObjectMeta(pgsObjMeta)),
 		)
 	}
-	return k8sutils.FilterMapOwnedResourceNames(pgs.ObjectMeta, objMetaList.Items), nil
+	return k8sutils.FilterMapOwnedResourceNames(pgsObjMeta, objMetaList.Items), nil
 }
 
 // Sync synchronizes all resources that the HPA Operator manages.
 func (r _resource) Sync(ctx context.Context, logger logr.Logger, pgs *grovecorev1alpha1.PodGangSet) error {
-	existingHPANames, err := r.GetExistingResourceNames(ctx, logger, pgs)
+	existingHPANames, err := r.GetExistingResourceNames(ctx, logger, pgs.ObjectMeta)
 	if err != nil {
 		return err
 	}

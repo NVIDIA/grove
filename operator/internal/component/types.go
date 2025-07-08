@@ -67,7 +67,7 @@ type GroveCustomResourceType interface {
 // Operator is a facade that manages one or more resources that are provisioned for a PodGangSet.
 type Operator[T GroveCustomResourceType] interface {
 	// GetExistingResourceNames returns the names of all the existing resources that this Operator manages.
-	GetExistingResourceNames(ctx context.Context, logger logr.Logger, obj *T) ([]string, error)
+	GetExistingResourceNames(ctx context.Context, logger logr.Logger, objMeta metav1.ObjectMeta) ([]string, error)
 	// Sync synchronizes all resources that this Operator manages. If a component does not exist then it will
 	// create it. If there are changes in the owning PodGangSet resource that transpires changes to one or more resources
 	// managed by this Operator then those component(s) will be either be updated or a deletion is triggered.
