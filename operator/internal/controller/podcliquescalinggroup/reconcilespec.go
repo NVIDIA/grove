@@ -20,8 +20,8 @@ func (r *Reconciler) reconcileSpec(ctx context.Context, logger logr.Logger, pcsg
 	reconcileStepFns := []ctrlcommon.ReconcileStepFn[grovecorev1alpha1.PodCliqueScalingGroup]{
 		r.ensureFinalizer,
 		r.recordReconcileStart,
-		//r.syncPodCliqueScalingGroupResources,
-		r.updatePodCliques,
+		r.syncPodCliqueScalingGroupResources,
+		// r.updatePodCliques,
 		r.recordReconcileSuccess,
 		r.updateObservedGeneration,
 	}
@@ -53,24 +53,24 @@ func (r *Reconciler) recordReconcileStart(ctx context.Context, logger logr.Logge
 	return ctrlcommon.ContinueReconcile()
 }
 
-//func (r *Reconciler) syncPodCliqueScalingGroupResources(ctx context.Context, logger logr.Logger, pcsg *grovecorev1alpha1.PodCliqueScalingGroup) ctrlcommon.ReconcileStepResult {
-//	for _, kind := range getOrderedKindsForSync() {
-//		operator, err := r.operatorRegistry.GetOperator(kind)
-//		if err != nil {
-//			return ctrlcommon.ReconcileWithErrors(fmt.Sprintf("error getting operator for kind: %s", kind), err)
-//		}
-//		logger.Info("Syncing PodGangSet resource", "kind", kind)
-//		if err = operator.Sync(ctx, logger, pgs); err != nil {
-//			if ctrlutils.ShouldRequeueAfter(err) {
-//				logger.Info("retrying sync due to component", "kind", kind, "syncRetryInterval", ctrlcommon.ComponentSyncRetryInterval)
-//				return ctrlcommon.ReconcileAfter(ctrlcommon.ComponentSyncRetryInterval, fmt.Sprintf("requeueing sync due to component %s after %s", kind, ctrlcommon.ComponentSyncRetryInterval))
-//			}
-//			logger.Error(err, "failed to sync PodGangSet resources", "kind", kind)
-//			return ctrlcommon.ReconcileWithErrors("error syncing managed resources", fmt.Errorf("failed to sync %s: %w", kind, err))
-//		}
-//	}
-//	return ctrlcommon.ContinueReconcile()
-//}
+func (r *Reconciler) syncPodCliqueScalingGroupResources(ctx context.Context, logger logr.Logger, pcsg *grovecorev1alpha1.PodCliqueScalingGroup) ctrlcommon.ReconcileStepResult {
+	for _, kind := range getOrderedKindsForSync() {
+		operator, err := r.operatorRegistry.GetOperator(kind)
+		if err != nil {
+			return ctrlcommon.ReconcileWithErrors(fmt.Sprintf("error getting operator for kind: %s", kind), err)
+		}
+		logger.Info("Syncing PodCliqueScalingGroup resource", "kind", kind)
+		if err = operator.Sync(ctx, logger, pcsg); err != nil {
+			if ctrlutils.ShouldRequeueAfter(err) {
+				logger.Info("retrying sync due to component", "kind", kind, "syncRetryInterval", ctrlcommon.ComponentSyncRetryInterval)
+				return ctrlcommon.ReconcileAfter(ctrlcommon.ComponentSyncRetryInterval, fmt.Sprintf("requeueing sync due to component %s after %s", kind, ctrlcommon.ComponentSyncRetryInterval))
+			}
+			logger.Error(err, "failed to sync PodGangSet resources", "kind", kind)
+			return ctrlcommon.ReconcileWithErrors("error syncing managed resources", fmt.Errorf("failed to sync %s: %w", kind, err))
+		}
+	}
+	return ctrlcommon.ContinueReconcile()
+}
 
 func (r *Reconciler) updatePodCliques(ctx context.Context, logger logr.Logger, pcsg *grovecorev1alpha1.PodCliqueScalingGroup) ctrlcommon.ReconcileStepResult {
 	// Get the owner PodGangSet for the PodCliqueScalingGroup

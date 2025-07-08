@@ -19,8 +19,11 @@ package podcliquescalinggroup
 import (
 	"context"
 	"errors"
+
 	groveconfigv1alpha1 "github.com/NVIDIA/grove/operator/api/config/v1alpha1"
 	grovecorev1alpha1 "github.com/NVIDIA/grove/operator/api/core/v1alpha1"
+	"github.com/NVIDIA/grove/operator/internal/component"
+	pcsgcomponent "github.com/NVIDIA/grove/operator/internal/component/podcliquescalinggroup"
 	ctrlcommon "github.com/NVIDIA/grove/operator/internal/controller/common"
 	ctrlutils "github.com/NVIDIA/grove/operator/internal/controller/utils"
 	k8sutils "github.com/NVIDIA/grove/operator/internal/utils/kubernetes"
@@ -29,6 +32,7 @@ import (
 	"k8s.io/utils/ptr"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	ctrllogger "sigs.k8s.io/controller-runtime/pkg/log"
 )
 
@@ -39,6 +43,7 @@ type Reconciler struct {
 	config                  groveconfigv1alpha1.PodCliqueScalingGroupControllerConfiguration
 	client                  client.Client
 	reconcileStatusRecorder ctrlcommon.ReconcileStatusRecorder
+	operatorRegistry        component.OperatorRegistry[grovecorev1alpha1.PodCliqueScalingGroup]
 }
 
 // NewReconciler creates a new instance of the PodClique Reconciler.
@@ -47,6 +52,7 @@ func NewReconciler(mgr ctrl.Manager, controllerCfg groveconfigv1alpha1.PodClique
 		config:                  controllerCfg,
 		client:                  mgr.GetClient(),
 		reconcileStatusRecorder: ctrlcommon.NewReconcileStatusRecorder(mgr.GetClient(), mgr.GetEventRecorderFor(controllerName)),
+		operatorRegistry:        pcsgcomponent.CreateOperatorRegistry(mgr, nil),
 	}
 }
 
@@ -62,15 +68,28 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	}
 
 	// Check if the deletion timestamp has not been set, do not handle if it is
+	var deletionOrSpecReconcileFlowResult ctrlcommon.ReconcileStepResult
 	if !pcsg.DeletionTimestamp.IsZero() {
+		if !controllerutil.ContainsFinalizer(pcsg, grovecorev1alpha1.FinalizerPodCliqueScalingGroup) {
+			return ctrlcommon.DoNotRequeue().Result()
+		}
+		dLog := logger.WithValues("operation", "delete")
+		deletionOrSpecReconcileFlowResult = r.triggerDeletionFlow(ctx, dLog, pcsg)
 		return ctrl.Result{}, nil
+	} else {
+		specLog := logger.WithValues("operation", "specReconcile")
+		deletionOrSpecReconcileFlowResult = r.reconcileSpec(ctx, specLog, pcsg)
 	}
 
-	if reconcileSpecResult := r.reconcileSpec(ctx, logger, pcsg); ctrlcommon.ShortCircuitReconcileFlow(reconcileSpecResult) {
-		return reconcileSpecResult.Result()
+	if ctrlcommon.ShortCircuitReconcileFlow(deletionOrSpecReconcileFlowResult) {
+		return deletionOrSpecReconcileFlowResult.Result()
 	}
 
-	return r.reconcileStatus(ctx, pcsg).Result()
+	if statusReconcileResult := r.reconcileStatus(ctx, pcsg); ctrlcommon.ShortCircuitReconcileFlow(statusReconcileResult) {
+		return statusReconcileResult.Result()
+	}
+
+	return ctrlcommon.DoNotRequeue().Result()
 }
 
 func (r *Reconciler) reconcileStatus(ctx context.Context, pcsg *grovecorev1alpha1.PodCliqueScalingGroup) ctrlcommon.ReconcileStepResult {

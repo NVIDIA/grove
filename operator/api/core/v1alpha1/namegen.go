@@ -50,8 +50,8 @@ func GeneratePodServiceAccountName(pgsName string) string {
 }
 
 // GeneratePodCliqueName generates a PodClique name based on the PodGangSet name, replica index, and PodCliqueTemplate name.
-func GeneratePodCliqueName(pgsNameReplica ResourceNameReplica, pclqTemplateName string) string {
-	return fmt.Sprintf("%s-%d-%s", pgsNameReplica.Name, pgsNameReplica.Replica, pclqTemplateName)
+func GeneratePodCliqueName(ownerNameReplica ResourceNameReplica, pclqTemplateName string) string {
+	return fmt.Sprintf("%s-%d-%s", ownerNameReplica.Name, ownerNameReplica.Replica, pclqTemplateName)
 }
 
 // GeneratePodName generates a Pod name based on the PodClique name and replica index.

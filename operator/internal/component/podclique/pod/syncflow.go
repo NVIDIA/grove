@@ -46,9 +46,14 @@ func (r _resource) prepareSyncFlow(ctx context.Context, logger logr.Logger, pclq
 		ctx:  ctx,
 		pclq: pclq,
 	}
-	pgs, err := r.getOwnerPodGangSet(ctx, pclq.ObjectMeta)
+	pgs, err := componentutils.GetOwnerPodGangSet(ctx, r.client, pclq.ObjectMeta)
 	if err != nil {
-		return nil, err
+		return nil, groveerr.WrapError(err,
+			errCodeGetPodGangSet,
+			component.OperationSync,
+			fmt.Sprintf("failed to get owner PodGangSet %s ", pgs.Name),
+		)
+
 	}
 	sc.pgs = pgs
 
@@ -77,25 +82,6 @@ func (r _resource) prepareSyncFlow(ctx context.Context, logger logr.Logger, pclq
 	sc.existingPCLQPods = existingPCLQPods
 
 	return sc, nil
-}
-
-// getOwnerPodGangSet gets the owner PodGangSet object for the PodClique.
-func (r _resource) getOwnerPodGangSet(ctx context.Context, pclqObjectMeta metav1.ObjectMeta) (*grovecorev1alpha1.PodGangSet, error) {
-	pgsName := k8sutils.GetFirstOwnerName(pclqObjectMeta)
-	pgs := &grovecorev1alpha1.PodGangSet{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      pgsName,
-			Namespace: pclqObjectMeta.Namespace,
-		},
-	}
-	if err := r.client.Get(ctx, client.ObjectKeyFromObject(pgs), pgs); err != nil {
-		return nil, groveerr.WrapError(err,
-			errCodeGetPodGangSet,
-			component.OperationSync,
-			fmt.Sprintf("failed to get owner PodGangSet %s ", pgsName),
-		)
-	}
-	return pgs, nil
 }
 
 func (r _resource) getExpectedPodGangNamesAssociatedWithPCLQ(ctx context.Context, pgs *grovecorev1alpha1.PodGangSet, pclqObjectMeta metav1.ObjectMeta) ([]string, error) {
