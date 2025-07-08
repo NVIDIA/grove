@@ -46,5 +46,7 @@ func IsManagedPodClique(obj client.Object) bool {
 	if !ok {
 		return false
 	}
-	return IsManagedByGrove(podClique.GetLabels()) && HasExpectedOwner(grovecorev1alpha1.PodGangSetKind, podClique.GetOwnerReferences())
+	return IsManagedByGrove(podClique.GetLabels()) &&
+		(HasExpectedOwner(grovecorev1alpha1.PodGangSetKind, podClique.GetOwnerReferences()) ||
+			HasExpectedOwner(grovecorev1alpha1.PodCliqueScalingGroupKind, podClique.GetOwnerReferences()))
 }

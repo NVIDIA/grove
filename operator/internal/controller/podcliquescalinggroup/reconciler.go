@@ -81,12 +81,12 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		deletionOrSpecReconcileFlowResult = r.reconcileSpec(ctx, specLog, pcsg)
 	}
 
-	if ctrlcommon.ShortCircuitReconcileFlow(deletionOrSpecReconcileFlowResult) {
-		return deletionOrSpecReconcileFlowResult.Result()
-	}
-
 	if statusReconcileResult := r.reconcileStatus(ctx, pcsg); ctrlcommon.ShortCircuitReconcileFlow(statusReconcileResult) {
 		return statusReconcileResult.Result()
+	}
+
+	if ctrlcommon.ShortCircuitReconcileFlow(deletionOrSpecReconcileFlowResult) {
+		return deletionOrSpecReconcileFlowResult.Result()
 	}
 
 	return ctrlcommon.DoNotRequeue().Result()

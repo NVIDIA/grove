@@ -37,9 +37,11 @@ import (
 )
 
 const (
-	errListPodCliqueScalingGroup   grovecorev1alpha1.ErrorCode = "ERR_GET_POD_CLIQUE_SCALING_GROUPS"
-	errSyncPodCliqueScalingGroup   grovecorev1alpha1.ErrorCode = "ERR_SYNC_POD_CLIQUE_SCALING_GROUP"
-	errDeletePodCliqueScalingGroup grovecorev1alpha1.ErrorCode = "ERR_DELETE_POD_CLIQUE_SCALING_GROUP"
+	errListPodCliqueScalingGroup       grovecorev1alpha1.ErrorCode = "ERR_GET_POD_CLIQUE_SCALING_GROUPS"
+	errSyncPodCliqueScalingGroup       grovecorev1alpha1.ErrorCode = "ERR_SYNC_POD_CLIQUE_SCALING_GROUP"
+	errDeletePodCliqueScalingGroup     grovecorev1alpha1.ErrorCode = "ERR_DELETE_POD_CLIQUE_SCALING_GROUP"
+	errCodeBuildPodCliqueScalingGroup  grovecorev1alpha1.ErrorCode = "ERR_BUILD_PODCLIQUESCALINGGROUP"
+	errCodeCreatePodCliqueScalingGroup grovecorev1alpha1.ErrorCode = "ERR_CREATE_PODCLIQUESCALINGGROUP"
 )
 
 type _resource struct {
@@ -90,15 +92,17 @@ func (r _resource) Sync(ctx context.Context, logger logr.Logger, pgs *grovecorev
 		for _, pcsgConfig := range pgs.Spec.Template.PodCliqueScalingGroupConfigs {
 			pcsgName := grovecorev1alpha1.GeneratePodCliqueScalingGroupName(grovecorev1alpha1.ResourceNameReplica{Name: pgs.Name, Replica: int(pgsReplica)}, pcsgConfig.Name)
 			expectedPCSGNames = append(expectedPCSGNames, pcsgName)
+			if slices.Contains(existingPCSGNames, pcsgName) {
+				continue
+			}
 			pcsgObjectKey := client.ObjectKey{
 				Name:      pcsgName,
 				Namespace: pgs.Namespace,
 			}
-			exists := slices.Contains(existingPCSGNames, pcsgObjectKey.Name)
 			createTask := utils.Task{
 				Name: fmt.Sprintf("CreateOrUpdatePodCliqueScalingGroup-%s", pcsgObjectKey),
 				Fn: func(ctx context.Context) error {
-					return r.doCreateOrUpdate(ctx, logger, pgs, pcsgObjectKey, int(pgsReplica), pcsgConfig.CliqueNames, exists)
+					return r.doCreate(ctx, logger, pgs, pcsgObjectKey, int(pgsReplica), pcsgConfig.CliqueNames)
 				},
 			}
 			tasks = append(tasks, createTask)
@@ -150,20 +154,27 @@ func (r _resource) Delete(ctx context.Context, logger logr.Logger, pgsObjMeta me
 	return nil
 }
 
-func (r _resource) doCreateOrUpdate(ctx context.Context, logger logr.Logger, pgs *grovecorev1alpha1.PodGangSet, pcsgObjectKey client.ObjectKey, pgsReplica int, cliqueNames []string, exists bool) error {
-	logger.Info("CreateOrUpdate PodCliqueScalingGroup", "objectKey", pcsgObjectKey)
+func (r _resource) doCreate(ctx context.Context, logger logr.Logger, pgs *grovecorev1alpha1.PodGangSet, pcsgObjectKey client.ObjectKey, pgsReplica int, cliqueNames []string) error {
+	logger.Info("Create PodCliqueScalingGroup", "objectKey", pcsgObjectKey)
 	pclqScalingGrp := emptyPodCliqueScalingGroup(pcsgObjectKey)
-	opResult, err := controllerutil.CreateOrPatch(ctx, r.client, pclqScalingGrp, func() error {
-		return r.buildResource(pclqScalingGrp, pgs, pgsReplica, cliqueNames, exists)
-	})
-	if err != nil {
+
+	if err := r.buildResource(pclqScalingGrp, pgs, pgsReplica, cliqueNames); err != nil {
 		return groveerr.WrapError(err,
-			errSyncPodCliqueScalingGroup,
+			errCodeBuildPodCliqueScalingGroup,
 			component.OperationSync,
-			fmt.Sprintf("Error in create/update of PodCliqueScalingGroup: %v for PodGangSet: %v", pcsgObjectKey, client.ObjectKeyFromObject(pgs)),
+			fmt.Sprintf("Error building PodCliqueScalingGroup: %v for PodGangSet: %v", pcsgObjectKey, client.ObjectKeyFromObject(pgs)),
 		)
 	}
-	logger.Info("Triggered create or update of PodCliqueScalingGroup", "objectKey", pcsgObjectKey, "result", opResult)
+
+	if err := client.IgnoreAlreadyExists(r.client.Create(ctx, pclqScalingGrp)); err != nil {
+		return groveerr.WrapError(err,
+			errCodeCreatePodCliqueScalingGroup,
+			component.OperationSync,
+			fmt.Sprintf("Error creating PodCliqueScalingGroup: %v for PodGangSet: %v", pcsgObjectKey, client.ObjectKeyFromObject(pgs)),
+		)
+	}
+
+	logger.Info("Created PodCliqueScalingGroup", "objectKey", pcsgObjectKey)
 	return nil
 }
 
@@ -181,22 +192,17 @@ func (r _resource) doDelete(ctx context.Context, logger logr.Logger, pcsgObjectK
 	return nil
 }
 
-func (r _resource) buildResource(pclqScalingGroup *grovecorev1alpha1.PodCliqueScalingGroup, pgs *grovecorev1alpha1.PodGangSet, pgsReplica int, cliqueNames []string, exists bool) error {
-	if err := controllerutil.SetControllerReference(pgs, pclqScalingGroup, r.scheme); err != nil {
+func (r _resource) buildResource(pcsg *grovecorev1alpha1.PodCliqueScalingGroup, pgs *grovecorev1alpha1.PodGangSet, pgsReplica int, cliqueNames []string) error {
+	if err := controllerutil.SetControllerReference(pgs, pcsg, r.scheme); err != nil {
 		return groveerr.WrapError(err,
 			errSyncPodCliqueScalingGroup,
 			component.OperationSync,
-			fmt.Sprintf("Error setting controller reference for PodCliqueScalingGroup: %v", client.ObjectKeyFromObject(pclqScalingGroup)),
+			fmt.Sprintf("Error setting controller reference for PodCliqueScalingGroup: %v", client.ObjectKeyFromObject(pcsg)),
 		)
 	}
-	if !exists {
-		cliqueNameFQNs := lo.Map(cliqueNames, func(cliqueName string, _ int) string {
-			return grovecorev1alpha1.GeneratePodCliqueName(grovecorev1alpha1.ResourceNameReplica{Name: pgs.Name, Replica: pgsReplica}, cliqueName)
-		})
-		pclqScalingGroup.Spec.Replicas = 1 // default to 1 replica if creating the resource.
-		pclqScalingGroup.Spec.CliqueNames = cliqueNameFQNs
-	}
-	pclqScalingGroup.Labels = getLabels(pgs.Name, pgsReplica, client.ObjectKeyFromObject(pclqScalingGroup))
+	pcsg.Spec.Replicas = 1 // default to 1 replica if creating the resource.
+	pcsg.Spec.CliqueNames = cliqueNames
+	pcsg.Labels = getLabels(pgs.Name, pgsReplica, client.ObjectKeyFromObject(pcsg))
 	return nil
 }
 

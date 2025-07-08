@@ -19,7 +19,6 @@ package podclique
 import (
 	"context"
 	"fmt"
-
 	grovecorev1alpha1 "github.com/NVIDIA/grove/operator/api/core/v1alpha1"
 	componentutils "github.com/NVIDIA/grove/operator/internal/component/utils"
 	ctrlcommon "github.com/NVIDIA/grove/operator/internal/controller/common"
@@ -34,8 +33,14 @@ import (
 )
 
 func (r *Reconciler) reconcileStatus(ctx context.Context, logger logr.Logger, pclq *grovecorev1alpha1.PodClique) ctrlcommon.ReconcileStepResult {
-	pgsName := k8sutils.GetFirstOwnerName(pclq.ObjectMeta)
-	pods, err := componentutils.GetPCLQPods(ctx, r.client, pgsName, pclq)
+	pgsName := componentutils.GetPodGangSetName(pclq.ObjectMeta)
+	if pgsName == nil {
+		logger.Error(nil, "PodClique does not have required label", "label", grovecorev1alpha1.LabelPartOfKey, "pclqObjectKey", client.ObjectKeyFromObject(pclq))
+		return ctrlcommon.ReconcileWithErrors(
+			"PodClique does not have the required label to determine parent PodGangSet name",
+			fmt.Errorf("PodClique %v does not have required label %v", client.ObjectKeyFromObject(pclq), grovecorev1alpha1.LabelPartOfKey))
+	}
+	pods, err := componentutils.GetPCLQPods(ctx, r.client, *pgsName, pclq)
 	if err != nil {
 		logger.Error(err, "failed to get pod list for PodClique")
 		ctrlcommon.ReconcileWithErrors(fmt.Sprintf("failed to list pods for PodClique %v", client.ObjectKeyFromObject(pclq)), err)
@@ -48,7 +53,7 @@ func (r *Reconciler) reconcileStatus(ctx context.Context, logger logr.Logger, pc
 
 	// TODO: change this when rolling update is implemented
 	pclq.Status.UpdatedReplicas = int32(len(pods))
-	if err := updateSelector(pgsName, pclq); err != nil {
+	if err := updateSelector(*pgsName, pclq); err != nil {
 		logger.Error(err, "failed to update selector for PodClique")
 		ctrlcommon.ReconcileWithErrors("failed to set selector for PodClique", err)
 	}

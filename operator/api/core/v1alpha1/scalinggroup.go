@@ -52,7 +52,8 @@ type PodCliqueScalingGroupSpec struct {
 	// Replicas is the desired number of replicas for the PodCliqueScalingGroup.
 	// If not specified, it defaults to 1.
 	Replicas int32 `json:"replicas"`
-	// CliqueNames is the fully qualified list of PodClique names that are a part of this scaling group.
+	// CliqueNames is the list of PodClique names that are configured in the
+	// matching PodCliqueScalingGroup in PodGangSet.Spec.Template.PodCliqueScalingGroupConfigs.
 	CliqueNames []string `json:"cliqueNames"`
 }
 

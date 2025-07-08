@@ -110,7 +110,7 @@ func (r _resource) Sync(ctx context.Context, logger logr.Logger, pcsg *grovecore
 		return groveerr.WrapError(err,
 			errGetPodGangSet,
 			component.OperationSync,
-			fmt.Sprintf("failed to get owner PodGangSet %s for PodCliqueScalingGroup %s", client.ObjectKeyFromObject(pgs), client.ObjectKeyFromObject(pcsg)),
+			fmt.Sprintf("failed to get owner PodGangSet for PodCliqueScalingGroup %s", client.ObjectKeyFromObject(pcsg)),
 		)
 	}
 	// Update or create PodCliques
@@ -121,7 +121,7 @@ func (r _resource) Sync(ctx context.Context, logger logr.Logger, pcsg *grovecore
 				Name:    pcsg.Name,
 				Replica: int(pcsgReplica),
 			}, pclqTemplateSpec.Name)
-			return pclqFQN, slices.Contains(pcsg.Spec.CliqueNames, pclqFQN)
+			return pclqFQN, slices.Contains(pcsg.Spec.CliqueNames, pclqTemplateSpec.Name)
 		})
 
 		for _, pclqFQN := range pclqFQNs {
