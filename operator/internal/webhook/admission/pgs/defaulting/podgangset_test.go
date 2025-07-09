@@ -47,6 +47,7 @@ func TestDefaultPodGangSet(t *testing.T) {
 							MinReplicas: ptr.To(int32(2)),
 							MaxReplicas: 3,
 						},
+						MinAvailable: ptr.To[int32](2),
 					},
 				}},
 				HeadlessServiceConfig: &grovecorev1alpha1.HeadlessServiceConfig{
