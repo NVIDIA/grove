@@ -16,8 +16,8 @@ spec:
   template:
     cliques:
       - name: pca
-        role: rolea
         spec:
+          roleName: rolea
           replicas: 3
           podSpec:
             containers:
@@ -36,8 +36,8 @@ spec:
                     type: Utilization
                     averageUtilization: 80
       - name: pcb
-        role: roleb
         spec:
+          roleName: roleb
           replicas: 2
           podSpec:
             containers:
@@ -47,8 +47,8 @@ spec:
                   requests:
                     cpu: 10m
       - name: pcc
-        role: rolec
         spec:
+          roleName: rolec
           replicas: 2
           podSpec:
             containers:
@@ -58,8 +58,8 @@ spec:
                   requests:
                     cpu: 10m
       - name: pcd
-        role: roled
         spec:
+          roleName: roled
           replicas: 2
           podSpec:
             containers:
