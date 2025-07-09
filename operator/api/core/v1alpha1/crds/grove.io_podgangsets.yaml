@@ -268,10 +268,6 @@ spec:
                             Once set it cannot be updated.
                             More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names#names
                           type: string
-                        roleName:
-                          description: RoleName is the name of the role that this
-                            PodClique will assume.
-                          type: string
                         spec:
                           description: |-
                             Specification of the desired behavior of a PodClique.
@@ -9017,6 +9013,10 @@ spec:
                                 pods in the clique. It cannot be less than 1.
                               format: int32
                               type: integer
+                            roleName:
+                              description: RoleName is the name of the role that this
+                                PodClique will assume.
+                              type: string
                             startsAfter:
                               description: |-
                                 StartsAfter provides you a way to explicitly define the startup dependencies amongst cliques.
@@ -9032,10 +9032,10 @@ spec:
                           required:
                           - podSpec
                           - replicas
+                          - roleName
                           type: object
                       required:
                       - name
-                      - roleName
                       - spec
                       type: object
                     type: array

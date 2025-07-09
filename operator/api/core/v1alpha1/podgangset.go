@@ -121,8 +121,6 @@ type PodCliqueTemplateSpec struct {
 	// Once set it cannot be updated.
 	// More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names#names
 	Name string `json:"name"`
-	// RoleName is the name of the role that this PodClique will assume.
-	RoleName string `json:"roleName"`
 	// Labels is a map of string keys and values that can be used to organize and categorize
 	// (scope and select) objects. May match selectors of replication controllers
 	// and services.

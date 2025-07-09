@@ -8529,6 +8529,10 @@ spec:
                   clique. It cannot be less than 1.
                 format: int32
                 type: integer
+              roleName:
+                description: RoleName is the name of the role that this PodClique
+                  will assume.
+                type: string
               startsAfter:
                 description: |-
                   StartsAfter provides you a way to explicitly define the startup dependencies amongst cliques.
@@ -8544,6 +8548,7 @@ spec:
             required:
             - podSpec
             - replicas
+            - roleName
             type: object
           status:
             description: Status defines the status of a PodClique.

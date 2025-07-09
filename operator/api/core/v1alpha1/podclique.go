@@ -52,6 +52,8 @@ type PodCliqueList struct {
 
 // PodCliqueSpec defines the specification of a PodClique.
 type PodCliqueSpec struct {
+	// RoleName is the name of the role that this PodClique will assume.
+	RoleName string `json:"roleName"`
 	// Spec is the spec of the pods in the clique.
 	PodSpec corev1.PodSpec `json:"podSpec"`
 	// Replicas is the number of replicas of the pods in the clique. It cannot be less than 1.
