@@ -48,8 +48,6 @@ _Appears in:_
 | `podGroupNames` _string array_ | PodGroupNames is the list of PodGroup.Name that are part of the network pack group. |  |  |
 
 
-
-
 #### PodGang
 
 
@@ -67,6 +65,26 @@ PodGang defines a specification of a group of pods that should be scheduled toge
 | `metadata` _[ObjectMeta](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.33/#objectmeta-v1-meta)_ | Refer to Kubernetes API documentation for fields of `metadata`. |  |  |
 | `spec` _[PodGangSpec](#podgangspec)_ | Spec defines the specification of the PodGang. |  |  |
 | `status` _[PodGangStatus](#podgangstatus)_ | Status defines the status of the PodGang. |  |  |
+
+
+
+
+#### PodGangPhase
+
+_Underlying type:_ _string_
+
+PodGangPhase defines the current phase of a PodGang.
+
+
+
+_Appears in:_
+- [PodGangStatus](#podgangstatus)
+
+| Field | Description |
+| --- | --- |
+| `Pending` | PodGangPhasePending indicates that all the pods in a PodGang have been created and the PodGang is pending scheduling.<br /> |
+| `Starting` | PodGangPhaseStarting indicates that the scheduler has started binding pods in the PodGang to nodes.<br /> |
+| `Running` | PodGangPhaseRunning indicates that all the pods in the PodGang have been scheduled and are running.<br /> |
 
 
 #### PodGangSpec
@@ -103,7 +121,7 @@ _Appears in:_
 
 | Field | Description | Default | Validation |
 | --- | --- | --- | --- |
-| `schedulingPhase` _string_ | SchedulingPhase is the current phase of scheduling for the PodGang. |  |  |
+| `phase` _[PodGangPhase](#podgangphase)_ | Phase is the current phase of a PodGang. |  |  |
 | `conditions` _[Condition](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.33/#condition-v1-meta) array_ | Conditions is a list of conditions that describe the current state of the PodGang. |  |  |
 | `placementScore` _float_ | PlacementScore is network optimality score for the PodGang. If the choice that the scheduler has made corresponds to the<br />best possible placement of the pods in the PodGang, then the score will be 1.0. Higher the score, better the placement. |  |  |
 

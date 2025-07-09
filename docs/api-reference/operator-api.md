@@ -19,7 +19,7 @@
 
 
 
-AutoScalingConfig defines the configuration for the horizontal pod autoscaler for a PodClique.
+AutoScalingConfig defines the configuration for the horizontal pod autoscaler.
 
 
 
@@ -29,7 +29,7 @@ _Appears in:_
 
 | Field | Description | Default | Validation |
 | --- | --- | --- | --- |
-| `minReplicas` _integer_ | MinReplicas is the lower limit for the number of replicas for this PodClique.<br />It will be used by the horizontal pod autoscaler to determine the minimum number of replicas to scale-in to. |  |  |
+| `minReplicas` _integer_ | MinReplicas is the lower limit for the number of replicas for the target resource.<br />It will be used by the horizontal pod autoscaler to determine the minimum number of replicas to scale-in to. |  |  |
 | `maxReplicas` _integer_ | maxReplicas is the upper limit for the number of replicas to which the autoscaler can scale up.<br />It cannot be less that minReplicas. |  |  |
 | `metrics` _[MetricSpec](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.33/#metricspec-v2-autoscaling) array_ | Metrics contains the specifications for which to use to calculate the<br />desired replica count (the maximum replica count across all metrics will<br />be used).  The desired replica count is calculated multiplying the<br />ratio between the target value and the current value by the current<br />number of pods.  Ergo, metrics used must decrease as the pod count is<br />increased, and vice versa.  See the individual metric source types for<br />more information about how each type of metric must respond.<br />If not set, the default metric will be set to 80% average CPU utilization. |  |  |
 
@@ -248,7 +248,7 @@ _Appears in:_
 | Field | Description | Default | Validation |
 | --- | --- | --- | --- |
 | `replicas` _integer_ | Replicas is the desired number of replicas for the PodCliqueScalingGroup.<br />If not specified, it defaults to 1. |  |  |
-| `cliqueNames` _string array_ | CliqueNames is the fully qualified list of PodClique names that are a part of this scaling group. |  |  |
+| `cliqueNames` _string array_ | CliqueNames is the list of PodClique names that are configured in the<br />matching PodCliqueScalingGroup in PodGangSet.Spec.Template.PodCliqueScalingGroupConfigs. |  |  |
 
 
 #### PodCliqueScalingGroupStatus
@@ -285,6 +285,7 @@ _Appears in:_
 
 | Field | Description | Default | Validation |
 | --- | --- | --- | --- |
+| `roleName` _string_ | RoleName is the name of the role that this PodClique will assume. |  |  |
 | `podSpec` _[PodSpec](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.33/#podspec-v1-core)_ | Spec is the spec of the pods in the clique. |  |  |
 | `replicas` _integer_ | Replicas is the number of replicas of the pods in the clique. It cannot be less than 1. |  |  |
 | `minAvailable` _integer_ | MinAvailable serves two purposes:<br />1. It defines the minimum number of pods that are guaranteed to be gang scheduled.<br />2. It defines the minimum requirement of available pods in a PodClique. Violation of this threshold will result in termination of the PodGang that it belongs to.<br />If MinAvailable is not set, then it will default to the template Replicas. |  |  |
@@ -409,9 +410,8 @@ _Appears in:_
 | `observedGeneration` _integer_ | ObservedGeneration is the most recent generation observed by the controller. |  |  |
 | `lastOperation` _[LastOperation](#lastoperation)_ | LastOperation captures the last operation done by the respective reconciler on the PodGangSet. |  |  |
 | `lastErrors` _[LastError](#lasterror) array_ | LastErrors captures the last errors observed by the controller when reconciling the PodGangSet. |  |  |
-| `replicas` _integer_ | Replicas is the total number of non-terminated PodGangs targeted by this PodGangSet. |  |  |
-| `readyReplicas` _integer_ | ReadyReplicas is the number of ready PodGangs targeted by this PodGangSet. |  |  |
-| `updatedReplicas` _integer_ | UpdatedReplicas is the number of PodGangs that have been updated and are at the desired revision of the PodGangSet. |  |  |
+| `replicas` _integer_ | Replicas is the total number of PodGangSet replicas created. |  |  |
+| `updatedReplicas` _integer_ | UpdatedReplicas is the number of replicas that have been updated to the desired revision of the PodGangSet. |  |  |
 | `hpaPodSelector` _string_ | Selector is the label selector that determines which pods are part of the PodGang.<br />PodGang is a unit of scale and this selector is used by HPA to scale the PodGang based on metrics captured for the pods that match this selector. |  |  |
 | `podGangStatuses` _[PodGangStatus](#podgangstatus) array_ | PodGangStatuses captures the status for all the PodGang's that are part of the PodGangSet. |  |  |
 
@@ -438,7 +438,7 @@ _Appears in:_
 | `cliqueStartupType` _[CliqueStartupType](#cliquestartuptype)_ | StartupType defines the type of startup dependency amongst the cliques within a PodGang.<br />If it is not defined then default of CliqueStartupTypeAnyOrder is used. | CliqueStartupTypeAnyOrder | Enum: [CliqueStartupTypeAnyOrder CliqueStartupTypeInOrder CliqueStartupTypeExplicit] <br /> |
 | `priorityClassName` _string_ | PriorityClassName is the name of the PriorityClass to be used for the PodGangSet.<br />If specified, indicates the priority of the PodGangSet. "system-node-critical" and<br />"system-cluster-critical" are two special keywords which indicate the<br />highest priorities with the former being the highest priority. Any other<br />name must be defined by creating a PriorityClass object with that name.<br />If not specified, the pod priority will be default or zero if there is no default. |  |  |
 | `headlessServiceConfig` _[HeadlessServiceConfig](#headlessserviceconfig)_ | HeadlessServiceConfig defines the config options for the headless service.<br />If present, create headless service for each PodGang. |  |  |
-| `schedulingPolicyConfig` _[SchedulingPolicyConfig](#schedulingpolicyconfig)_ | SchedulingPolicyConfig defines the scheduling policy configuration for the PodGang.<br />Defaulting only works for optional fields.<br />See https://github.com/kubernetes-sigs/controller-tools/issues/893#issuecomment-1991256368 | \{ networkPackStrategy:BestEffort \} |  |
+| `schedulingPolicyConfig` _[SchedulingPolicyConfig](#schedulingpolicyconfig)_ | SchedulingPolicyConfig defines the scheduling policy configuration for the PodGang.<br />Defaulting only works for optional fields.<br />See https://github.com/kubernetes-sigs/controller-tools/issues/893#issuecomment-1991256368 |  |  |
 | `podCliqueScalingGroups` _[PodCliqueScalingGroupConfig](#podcliquescalinggroupconfig) array_ | PodCliqueScalingGroupConfigs is a list of scaling groups for the PodGangSet. |  |  |
 
 
