@@ -20,8 +20,8 @@ import (
 	"context"
 
 	grovecorev1alpha1 "github.com/NVIDIA/grove/operator/api/core/v1alpha1"
+	componentutils "github.com/NVIDIA/grove/operator/internal/component/utils"
 	grovectrlutils "github.com/NVIDIA/grove/operator/internal/controller/utils"
-	k8sutils "github.com/NVIDIA/grove/operator/internal/utils/kubernetes"
 
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
@@ -60,8 +60,11 @@ func mapPCLQToPodGangSet() handler.MapFunc {
 		if !ok {
 			return nil
 		}
-		pgsName := k8sutils.GetFirstOwnerName(pclq.ObjectMeta)
-		return []reconcile.Request{{NamespacedName: types.NamespacedName{Name: pgsName, Namespace: pclq.Namespace}}}
+		pgsName := componentutils.GetPodGangSetName(pclq.ObjectMeta)
+		if pgsName == nil {
+			return nil
+		}
+		return []reconcile.Request{{NamespacedName: types.NamespacedName{Name: *pgsName, Namespace: pclq.Namespace}}}
 	}
 }
 

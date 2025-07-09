@@ -351,8 +351,9 @@ func getExplicitStartupDependencies(pgsName string, pgsReplicaIndex int, pclq *g
 }
 
 func getPodCliqueSelectorLabels(pcsgObjectMeta metav1.ObjectMeta) map[string]string {
+	pgsName := componentutils.GetPodGangSetName(pcsgObjectMeta)
 	return lo.Assign(
-		k8sutils.GetDefaultLabelsForPodGangSetManagedResources(pcsgObjectMeta.Name),
+		k8sutils.GetDefaultLabelsForPodGangSetManagedResources(*pgsName),
 		map[string]string{
 			grovecorev1alpha1.LabelComponentKey:          component.NamePodClique,
 			grovecorev1alpha1.LabelPodCliqueScalingGroup: pcsgObjectMeta.Name,

@@ -20,13 +20,14 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"slices"
+	"strconv"
+
 	grovecorev1alpha1 "github.com/NVIDIA/grove/operator/api/core/v1alpha1"
 	"github.com/NVIDIA/grove/operator/internal/component"
 	componentutils "github.com/NVIDIA/grove/operator/internal/component/utils"
 	groveerr "github.com/NVIDIA/grove/operator/internal/errors"
 	k8sutils "github.com/NVIDIA/grove/operator/internal/utils/kubernetes"
-	"slices"
-	"strconv"
 
 	groveschedulerv1alpha1 "github.com/NVIDIA/grove/scheduler/api/core/v1alpha1"
 	"github.com/go-logr/logr"
@@ -88,6 +89,7 @@ func (r _resource) prepareSyncFlow(ctx context.Context, logger logr.Logger, pgs 
 		)
 	}
 
+	sc.pclqPods = podsByPCLQ
 	sc.initializeAssignedAndUnassignedPodsForPGS(podsByPCLQ)
 
 	return sc, nil
@@ -148,7 +150,7 @@ func (r _resource) getExpectedPodGangsForPCSG(ctx context.Context, logger logr.L
 			continue // First replica of PodCliqueScalingGroup is the first PodGang created for the PodGangSet replica, so it is already accounted for.
 		}
 		for pcsgReplicaIndex := 1; pcsgReplicaIndex < int(pcsg.Spec.Replicas); pcsgReplicaIndex++ {
-			podGangName := componentutils.CreatePodGangNameForPCSG(pgs.Name, pgsReplica, pgs.Name, pcsgReplicaIndex)
+			podGangName := componentutils.CreatePodGangNameForPCSG(pgs.Name, pgsReplica, pcsg.Name, pcsgReplicaIndex)
 			expectedPodGangs = append(expectedPodGangs, podGangInfo{
 				fqn:   podGangName,
 				pclqs: identifyConstituentPCLQsForPCSGPodGang(logger, &pcsg, pcsgReplicaIndex, pgs.Spec.Template.Cliques),

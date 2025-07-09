@@ -40,5 +40,5 @@ func CreatePodGangNameForPCSG(pgsName string, pgsReplicaIndex int, pcsgFQN strin
 	if pcsgReplicaIndex == 0 {
 		return grovecorev1alpha1.GeneratePodGangName(grovecorev1alpha1.ResourceNameReplica{Name: pgsName, Replica: pgsReplicaIndex}, nil)
 	}
-	return fmt.Sprintf("%s-%d", pcsgFQN, pcsgReplicaIndex+1)
+	return fmt.Sprintf("%s-%d", pcsgFQN, pcsgReplicaIndex)
 }
