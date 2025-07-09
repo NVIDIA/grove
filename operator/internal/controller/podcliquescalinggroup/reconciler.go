@@ -75,7 +75,6 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		}
 		dLog := logger.WithValues("operation", "delete")
 		deletionOrSpecReconcileFlowResult = r.triggerDeletionFlow(ctx, dLog, pcsg)
-		return ctrl.Result{}, nil
 	} else {
 		specLog := logger.WithValues("operation", "specReconcile")
 		deletionOrSpecReconcileFlowResult = r.reconcileSpec(ctx, specLog, pcsg)

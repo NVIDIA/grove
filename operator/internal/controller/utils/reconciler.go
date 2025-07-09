@@ -19,6 +19,7 @@ package utils
 import (
 	"context"
 	"errors"
+	k8sutils "github.com/NVIDIA/grove/operator/internal/utils/kubernetes"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"time"
 
@@ -82,7 +83,7 @@ func VerifyNoResourceAwaitsCleanup[T component.GroveCustomResourceType](ctx cont
 		}
 	}
 	if len(resourceNamesAwaitingCleanup) > 0 {
-		logger.Info("Resources are still awaiting cleanup", "resources", resourceNamesAwaitingCleanup)
+		logger.Info("Resources are still awaiting cleanup", "reconciledObjectKey", k8sutils.GetObjectKeyFromObjectMeta(objMeta), "resources", resourceNamesAwaitingCleanup)
 		return grovectrl.ReconcileAfter(5*time.Second, "Resources are still awaiting cleanup. Skipping removal of finalizer")
 	}
 	logger.Info("No resources are awaiting cleanup")
