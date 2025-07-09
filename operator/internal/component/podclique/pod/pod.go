@@ -43,13 +43,14 @@ const (
 	errCodeSyncPod                            grovecorev1alpha1.ErrorCode = "ERR_SYNC_POD"
 	errCodeDeletePod                          grovecorev1alpha1.ErrorCode = "ERR_DELETE_POD"
 	errCodeGetPodGangSet                      grovecorev1alpha1.ErrorCode = "ERR_GET_PODGANGSET"
-	errCodeListPodGang                        grovecorev1alpha1.ErrorCode = "ERR_LIST_PODGANG"
+	errCodeGetPodGang                         grovecorev1alpha1.ErrorCode = "ERR_GET_PODGANG"
 	errCodeListPod                            grovecorev1alpha1.ErrorCode = "ERR_LIST_POD"
 	errCodeGetPodCliqueScalingGroup           grovecorev1alpha1.ErrorCode = "ERR_GET_PODCLIQUESCALINGGROUP"
 	errCodeMissingPodGangSetReplicaIndexLabel grovecorev1alpha1.ErrorCode = "ERR_MISSING_PODGANGSET_REPLICA_INDEX_LABEL"
 	errCodeInvalidPodGangSetReplicaLabelValue grovecorev1alpha1.ErrorCode = "ERR_INVALID_PODGANGSET_REPLICA_LABEL_VALUE"
 	errCodeRemovePodSchedulingGate            grovecorev1alpha1.ErrorCode = "ERR_REMOVE_POD_SCHEDULING_GATE"
 	errCodeCreatePods                         grovecorev1alpha1.ErrorCode = "ERR_CREATE_PODS"
+	errCodeMissingPodGangLabelOnPCLQ          grovecorev1alpha1.ErrorCode = "ERR_MISSING_PODGANG_LABEL_ON_PODCLIQUE"
 )
 
 // constants used for pod events
@@ -124,8 +125,8 @@ func (r _resource) Sync(ctx context.Context, logger logr.Logger, pclq *grovecore
 	return nil
 }
 
-func (r _resource) buildResource(pclq *grovecorev1alpha1.PodClique, pod *corev1.Pod) error {
-	labels, err := getLabels(pclq.ObjectMeta)
+func (r _resource) buildResource(pclq *grovecorev1alpha1.PodClique, podGangName string, pod *corev1.Pod) error {
+	labels, err := getLabels(pclq.ObjectMeta, podGangName)
 	if err != nil {
 		return groveerr.WrapError(err,
 			errCodeSyncPod,
@@ -177,7 +178,7 @@ func getSelectorLabelsForPods(pclqObjectMeta metav1.ObjectMeta) map[string]strin
 	)
 }
 
-func getLabels(pclqObjectMeta metav1.ObjectMeta) (map[string]string, error) {
+func getLabels(pclqObjectMeta metav1.ObjectMeta, podGangName string) (map[string]string, error) {
 	pgsName := k8sutils.GetFirstOwnerName(pclqObjectMeta)
 	pgsReplicaIndex, err := utils.GetPodGangSetReplicaIndexFromPodCliqueFQN(pgsName, pclqObjectMeta.Name)
 	if err != nil {
@@ -189,5 +190,6 @@ func getLabels(pclqObjectMeta metav1.ObjectMeta) (map[string]string, error) {
 		map[string]string{
 			grovecorev1alpha1.LabelPodCliqueName:          pclqObjectMeta.Name,
 			grovecorev1alpha1.LabelPodGangSetReplicaIndex: strconv.Itoa(pgsReplicaIndex),
+			grovecorev1alpha1.LabelPodGangName:            podGangName,
 		}), nil
 }

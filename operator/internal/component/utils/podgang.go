@@ -17,6 +17,7 @@
 package utils
 
 import (
+	"fmt"
 	grovecorev1alpha1 "github.com/NVIDIA/grove/operator/api/core/v1alpha1"
 	"github.com/NVIDIA/grove/operator/internal/component"
 	k8sutils "github.com/NVIDIA/grove/operator/internal/utils/kubernetes"
@@ -32,4 +33,12 @@ func GetPodGangSelectorLabels(pgsObjMeta metav1.ObjectMeta) map[string]string {
 		map[string]string{
 			grovecorev1alpha1.LabelComponentKey: component.NamePodGang,
 		})
+}
+
+// CreatePodGangNameForPCSG generates the PodGang name for a replica of a PodCliqueScalingGroup.
+func CreatePodGangNameForPCSG(pgsName string, pgsReplicaIndex int, pcsgFQN string, pcsgReplicaIndex int) string {
+	if pcsgReplicaIndex == 0 {
+		return grovecorev1alpha1.GeneratePodGangName(grovecorev1alpha1.ResourceNameReplica{Name: pgsName, Replica: pgsReplicaIndex}, nil)
+	}
+	return fmt.Sprintf("%s-%d", pcsgFQN, pcsgReplicaIndex+1)
 }

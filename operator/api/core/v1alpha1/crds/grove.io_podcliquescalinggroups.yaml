@@ -44,8 +44,9 @@ spec:
             description: Spec is the specification of the PodCliqueScalingGroup.
             properties:
               cliqueNames:
-                description: CliqueNames is the fully qualified list of PodClique
-                  names that are a part of this scaling group.
+                description: |-
+                  CliqueNames is the list of PodClique names that are configured in the
+                  matching PodCliqueScalingGroup in PodGangSet.Spec.Template.PodCliqueScalingGroupConfigs.
                 items:
                   type: string
                 type: array

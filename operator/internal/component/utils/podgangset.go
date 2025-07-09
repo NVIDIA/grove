@@ -3,6 +3,7 @@ package utils
 import (
 	"context"
 	"fmt"
+	"github.com/samber/lo"
 
 	grovecorev1alpha1 "github.com/NVIDIA/grove/operator/api/core/v1alpha1"
 	k8sutils "github.com/NVIDIA/grove/operator/internal/utils/kubernetes"
@@ -33,4 +34,17 @@ func GetPodGangSetName(objectMeta metav1.ObjectMeta) *string {
 		return nil
 	}
 	return &pgsName
+}
+
+// GetExpectedPCLQNamesGroupByOwner returns the expected unqualified PodClique names which are either owned by PodGangSet or PodCliqueScalingGroup.
+func GetExpectedPCLQNamesGroupByOwner(pgs *grovecorev1alpha1.PodGangSet) (expectedPCLQNamesForPGS []string, expectedPCLQNamesForPCSG []string) {
+	pcsgConfigs := pgs.Spec.Template.PodCliqueScalingGroupConfigs
+	for _, pcsgConfig := range pcsgConfigs {
+		expectedPCLQNamesForPCSG = append(expectedPCLQNamesForPCSG, pcsgConfig.CliqueNames...)
+	}
+	pgsCliqueNames := lo.Map(pgs.Spec.Template.Cliques, func(pclqTemplateSpec *grovecorev1alpha1.PodCliqueTemplateSpec, _ int) string {
+		return pclqTemplateSpec.Name
+	})
+	expectedPCLQNamesForPGS, _ = lo.Difference(pgsCliqueNames, expectedPCLQNamesForPCSG)
+	return
 }
