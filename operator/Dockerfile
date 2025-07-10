@@ -1,5 +1,5 @@
 # builder
-FROM --platform=$BUILDPLATFORM golang:1.24.3 AS builder
+FROM --platform=$BUILDPLATFORM golang:1.24.5 AS builder
 WORKDIR /go/src/github.com/NVIDIA/grove
 COPY ../. .
 
