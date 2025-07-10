@@ -24,9 +24,13 @@ go.work.sum
 # env file
 .env
 
+# developer files
+dev
+
 # code editor ignores
 .vscode
 .idea
+.zed
 .DS_Store
 
 # hack tools binaries
