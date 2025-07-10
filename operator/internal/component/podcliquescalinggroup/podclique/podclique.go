@@ -138,7 +138,6 @@ func (r _resource) Sync(ctx context.Context, logger logr.Logger, pcsg *grovecore
 			}
 			tasks = append(tasks, createOrUpdateTask)
 		}
-
 	}
 	if runResult := utils.RunConcurrently(ctx, logger, tasks); runResult.HasErrors() {
 		return groveerr.WrapError(runResult.GetAggregatedError(),

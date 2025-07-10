@@ -22,7 +22,6 @@ import (
 	"fmt"
 	"slices"
 	"sort"
-	"strconv"
 
 	grovecorev1alpha1 "github.com/NVIDIA/grove/operator/api/core/v1alpha1"
 	"github.com/NVIDIA/grove/operator/internal/component"
@@ -51,7 +50,6 @@ func (r _resource) prepareSyncFlow(ctx context.Context, logger logr.Logger, pclq
 			component.OperationSync,
 			fmt.Sprintf("failed to get owner PodGangSet %s ", pgs.Name),
 		)
-
 	}
 	sc.pgs = pgs
 
@@ -90,38 +88,6 @@ func (r _resource) getAssociatedPodGangName(pclqObjectMeta metav1.ObjectMeta) (s
 		)
 	}
 	return podGangName, nil
-}
-
-func getPGSReplicaIndexForPCLQ(pclqObjectMeta metav1.ObjectMeta) (int, error) {
-	pgsReplicaLabelValue, ok := pclqObjectMeta.GetLabels()[grovecorev1alpha1.LabelPodGangSetReplicaIndex]
-	if !ok {
-		return 0, groveerr.New(
-			errCodeMissingPodGangSetReplicaIndexLabel,
-			component.OperationSync,
-			fmt.Sprintf("PodClique %v is missing a required label :%s. This should ideally not happen.", k8sutils.GetObjectKeyFromObjectMeta(pclqObjectMeta), grovecorev1alpha1.LabelPodGangSetReplicaIndex))
-	}
-	pgsReplica, err := strconv.Atoi(pgsReplicaLabelValue)
-	if err != nil {
-		return 0, groveerr.WrapError(err,
-			errCodeInvalidPodGangSetReplicaLabelValue,
-			component.OperationSync,
-			fmt.Sprintf("failed to convert label value %v to int for PodClique %v", pgsReplicaLabelValue, k8sutils.GetObjectKeyFromObjectMeta(pclqObjectMeta)),
-		)
-	}
-	return pgsReplica, nil
-}
-
-func (r _resource) getPCSGReplicasAssociatedWithPCLQ(ctx context.Context, pcsgName, namespace string) (int32, error) {
-	// Get the PCSG resource and check its current spec.replicas.
-	pcsg := &grovecorev1alpha1.PodCliqueScalingGroup{}
-	if err := r.client.Get(ctx, client.ObjectKey{Name: pcsgName, Namespace: namespace}, pcsg); err != nil {
-		return 0, groveerr.WrapError(err,
-			errCodeGetPodCliqueScalingGroup,
-			component.OperationSync,
-			fmt.Sprintf("failed to get PodCliqueScalingGroup %s associated to PodClique", client.ObjectKey{Namespace: namespace, Name: pcsgName}),
-		)
-	}
-	return pcsg.Spec.Replicas, nil
 }
 
 func (r _resource) getAssociatedPodGang(ctx context.Context, podGangName, namespace string) (*groveschedulerv1alpha1.PodGang, error) {

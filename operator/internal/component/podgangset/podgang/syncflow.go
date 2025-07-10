@@ -381,25 +381,6 @@ func (r _resource) createOrUpdatePodGang(sc *syncContext, pgInfo podGangInfo) er
 	return nil
 }
 
-func (r _resource) assignPodsToPodGang(ctx context.Context, podGangName string, unassociatedPods []corev1.Pod, pendingPodsToAssociate int) ([]string, error) {
-	// numAssignablePods holds the number of Pods that can be assigned the PodGang within unassociatedPods
-	numAssignablePods := min(len(unassociatedPods), pendingPodsToAssociate)
-	assignedPodNames := make([]string, 0, numAssignablePods)
-	for _, pod := range unassociatedPods[:numAssignablePods] {
-		podClone := pod.DeepCopy()
-		pod.Labels[grovecorev1alpha1.LabelPodGangName] = podGangName
-		if err := r.client.Patch(ctx, &pod, client.MergeFrom(podClone)); err != nil {
-			return assignedPodNames, groveerr.WrapError(err,
-				errCodePatchPodLabel,
-				component.OperationSync,
-				fmt.Sprintf("failed to patch pod %v with pod gang label: [%s:%s]", client.ObjectKeyFromObject(&pod), grovecorev1alpha1.LabelPodGangName, podGangName),
-			)
-		}
-		assignedPodNames = append(assignedPodNames, pod.Name)
-	}
-	return assignedPodNames, nil
-}
-
 func createPodGroupsForPodGang(namespace string, pgInfo podGangInfo) []groveschedulerv1alpha1.PodGroup {
 	podGroups := lo.Map(pgInfo.pclqs, func(pclq pclqInfo, _ int) groveschedulerv1alpha1.PodGroup {
 		namespacedNames := lo.Map(pclq.associatedPodNames, func(associatedPodName string, _ int) groveschedulerv1alpha1.NamespacedName {
@@ -443,16 +424,6 @@ func (sc *syncContext) getPodGangNamesPendingCreation() []string {
 	})
 }
 
-func (sc *syncContext) getAssociatedAndUnassociatedPods(podGang podGangInfo, pclq *grovecorev1alpha1.PodClique) ([]string, []corev1.Pod) {
-	matchingPCLQInfo, ok := lo.Find(podGang.pclqs, func(p pclqInfo) bool {
-		return p.fqn == pclq.Name
-	})
-	if !ok {
-		return nil, nil
-	}
-	return matchingPCLQInfo.associatedPodNames, sc.unassignedPodsByPCLQ[pclq.Name]
-}
-
 func (sc *syncContext) initializeAssignedAndUnassignedPodsForPGS(podsByPLCQ map[string][]corev1.Pod) {
 	for pclqName, pods := range podsByPLCQ {
 		for _, pod := range pods {
@@ -482,13 +453,6 @@ func (sc *syncContext) getPodCliques(podGang podGangInfo) []grovecorev1alpha1.Po
 		}
 	}
 	return constituentPCLQs
-}
-
-func (sc *syncContext) refreshPodGangPCLQPods(pgi *podGangInfo, pclqName string, newlyAssociatedPods ...string) {
-	pgi.refreshAssociatedPCLQPods(pclqName, newlyAssociatedPods...)
-	sc.unassignedPodsByPCLQ[pclqName] = lo.Filter(sc.unassignedPodsByPCLQ[pclqName], func(pod corev1.Pod, _ int) bool {
-		return !slices.Contains(newlyAssociatedPods, pod.Name)
-	})
 }
 
 // syncFlowResult captures the result of a sync flow run.
@@ -535,16 +499,6 @@ type podGangInfo struct {
 	fqn string
 	// pclqs holds the relevant information for all constituent PodCliques for this PodGang.
 	pclqs []pclqInfo
-}
-
-func (pgi *podGangInfo) computePendingPodsToAssociate(pclqFQN string, numAssociatedPods int) int {
-	matchingPCLQConstituent, ok := lo.Find(pgi.pclqs, func(p pclqInfo) bool {
-		return p.fqn == pclqFQN
-	})
-	if !ok {
-		return 0
-	}
-	return int(matchingPCLQConstituent.replicas) - numAssociatedPods
 }
 
 func (pgi *podGangInfo) refreshAssociatedPCLQPods(pclqName string, newlyAssociatedPods ...string) {

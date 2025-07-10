@@ -34,7 +34,6 @@ import (
 	"github.com/samber/lo"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )
@@ -289,28 +288,11 @@ func (r _resource) buildResource(logger logr.Logger, pclq *grovecorev1alpha1.Pod
 		pclq.Spec = pclqTemplateSpec.Spec
 	}
 	var dependentPclqNames []string
-	if err != nil {
-		return groveerr.WrapError(err,
-			errSyncPodClique,
-			component.OperationSync,
-			fmt.Sprintf("Failed to extract PodGangSet replica index from PodClique name: %s", pclq.Name),
-		)
-	}
 	if dependentPclqNames, err = identifyFullyQualifiedStartupDependencyNames(pgs, pclq, pgsReplica, foundAtIndex); err != nil {
 		return err
 	}
 	pclq.Spec.StartsAfter = dependentPclqNames
 	return nil
-}
-
-func getPCSGForPodClique(pgs *grovecorev1alpha1.PodGangSet, pgsReplica int, pclqTemplateName string) *string {
-	pcsg, ok := lo.Find(pgs.Spec.Template.PodCliqueScalingGroupConfigs, func(pcsg grovecorev1alpha1.PodCliqueScalingGroupConfig) bool {
-		return slices.Contains(pcsg.CliqueNames, pclqTemplateName)
-	})
-	if !ok {
-		return nil
-	}
-	return ptr.To(grovecorev1alpha1.GeneratePodCliqueScalingGroupName(grovecorev1alpha1.ResourceNameReplica{Name: pgs.Name, Replica: pgsReplica}, pcsg.Name))
 }
 
 func identifyFullyQualifiedStartupDependencyNames(pgs *grovecorev1alpha1.PodGangSet, pclq *grovecorev1alpha1.PodClique, pgsReplicaIndex, foundAtIndex int) ([]string, error) {
