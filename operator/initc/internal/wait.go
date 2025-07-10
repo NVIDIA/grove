@@ -26,8 +26,8 @@ import (
 	grovecorev1alpha1 "github.com/NVIDIA/grove/operator/api/core/v1alpha1"
 	groveclientset "github.com/NVIDIA/grove/operator/client/clientset/versioned"
 	groveinformers "github.com/NVIDIA/grove/operator/client/informers/externalversions"
-	"github.com/go-logr/logr"
 
+	"github.com/go-logr/logr"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/cache"
 )

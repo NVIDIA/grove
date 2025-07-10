@@ -19,17 +19,17 @@ package utils
 import (
 	"context"
 	"errors"
-	k8sutils "github.com/NVIDIA/grove/operator/internal/utils/kubernetes"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"time"
 
 	"github.com/NVIDIA/grove/operator/api/core/v1alpha1"
 	"github.com/NVIDIA/grove/operator/internal/component"
 	grovectrl "github.com/NVIDIA/grove/operator/internal/controller/common"
 	groveerr "github.com/NVIDIA/grove/operator/internal/errors"
+	k8sutils "github.com/NVIDIA/grove/operator/internal/utils/kubernetes"
 
 	"github.com/go-logr/logr"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
