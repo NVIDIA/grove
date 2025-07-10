@@ -73,7 +73,7 @@ func updateSelector(pgsName string, pclq *grovecorev1alpha1.PodClique) error {
 	labels := lo.Assign(
 		k8sutils.GetDefaultLabelsForPodGangSetManagedResources(pgsName),
 		map[string]string{
-			grovecorev1alpha1.LabelAppNameKey: pclq.Name,
+			grovecorev1alpha1.LabelPodCliqueName: pclq.Name,
 		},
 	)
 	selector, err := metav1.LabelSelectorAsSelector(&metav1.LabelSelector{MatchLabels: labels})

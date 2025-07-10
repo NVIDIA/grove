@@ -98,7 +98,7 @@ func (r *Reconciler) reconcileStatus(ctx context.Context, pcsg *grovecorev1alpha
 	labels := lo.Assign(
 		k8sutils.GetDefaultLabelsForPodGangSetManagedResources(pgsName),
 		map[string]string{
-			grovecorev1alpha1.LabelAppNameKey: pcsg.Name,
+			grovecorev1alpha1.LabelPodCliqueScalingGroup: pcsg.Name,
 		},
 	)
 

@@ -69,7 +69,7 @@ spec:
                   requests:
                     cpu: 10m
     podCliqueScalingGroups:
-      - name: pcsg
+      - name: sga
         cliqueNames:
           - pcb
           - pcc
