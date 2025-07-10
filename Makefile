@@ -18,9 +18,11 @@ REPO_HACK_DIR       := $(REPO_ROOT)/hack
 
 include $(REPO_HACK_DIR)/tools.mk
 
-# Lints the entire codebase (all modules) using GOLANGCI_LINT.
+# Lints the entire codebase using GOLANGCI_LINT.
 .PHONY: lint
 lint:
+	@echo "> Linting operator/api"
+	@make --directory=operator/api lint
 	@echo "> Linting operator"
 	@make --directory=operator lint
 	@echo "> Linting scheduler/api"
@@ -44,15 +46,10 @@ generate:
 	@echo "> Generating code for scheduler api"
 	@make --directory=scheduler/api generate
 
-# Add license headers to all files (all modules)
+# Add license headers to all files
 .PHONY: add-license-headers
-add-license-headers:
-	@echo "> Adding license headers to operator"
-	@make --directory=operator add-license-headers
-	@echo "> Adding license headers to scheduler/api"
-	@make --directory=scheduler/api add-license-headers
-	@echo "> Adding license headers to scheduler"
-	@make --directory=scheduler add-license-headers
+add-license-headers: $(GO_ADD_LICENSE)
+	@$(REPO_HACK_DIR)/add-license-headers.sh
 
 # Generates API documentation for Grove Operator and Scheduler APIs
 .PHONY: generate-api-docs
@@ -60,8 +57,8 @@ generate-api-docs: $(CRD_REF_DOCS)
 	@$(REPO_HACK_DIR)/generate-api-docs.sh
 
 # Runs unit tests for the entire codebase (all modules)
-.PHONY: test
-test:
+.PHONY: test-unit
+test-unit:
 	@echo "> Running tests for operator"
 	@make --directory=operator test-unit
 	@echo "> Running tests for scheduler"

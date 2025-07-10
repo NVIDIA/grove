@@ -50,12 +50,8 @@ lint: $(GOLANGCI_LINT)
 # Formats the codebase
 .PHONY: format
 format: $(GOIMPORTS_REVISER)
-	@$(REPO_HACK_DIR)/format.sh  ./api/ ./cmd/ ./internal/ ./plugins/
+	@$(REPO_HACK_DIR)/format.sh  ./api/ ./client/ ./cmd/ ./internal/ ./plugins/
 
-# Add license headers to all files
-.PHONY: add-license-headers
-add-license-headers: $(GO_ADD_LICENSE)
-	@$(REPO_HACK_DIR)/add-license-headers.sh
 
 # Make targets for tests
 # -------------------------------------------------------------

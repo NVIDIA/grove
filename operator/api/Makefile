@@ -31,13 +31,3 @@ generate: $(CONTROLLER_GEN)
 .PHONY: lint
 lint: $(GOLANGCI_LINT)
 	@$(GOLANGCI_LINT) run -c $(REPO_ROOT)/.golangci.yaml ./...
-
-# Formats the codebase
-.PHONY: format
-format: $(GOIMPORTS_REVISER)
-	@$(REPO_HACK_DIR)/format.sh ./api/
-
-# Add license headers to all files
-.PHONY: add-license-headers
-add-license-headers: $(GO_ADD_LICENSE)
-	@$(REPO_HACK_DIR)/add-license-headers.sh
