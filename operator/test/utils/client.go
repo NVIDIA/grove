@@ -18,6 +18,7 @@ package utils
 
 import (
 	"context"
+
 	groveclientscheme "github.com/NVIDIA/grove/operator/internal/client"
 	"github.com/samber/lo"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -93,14 +94,16 @@ func CreateFakeClientForObjects(getErr, createErr, patchErr, deleteErr *apierror
 // CreateFakeClientForObjectsMatchingLabels creates a fake client.Client with initial set of existing objects
 // along with any expected list and/or deleteAll errors for objects matching the given matching labels for the given GVK.
 // If the matchingLabels is nil or empty then the deleteAll/list error will be recorded for all objects matching the GVK in the given namespace.
-func CreateFakeClientForObjectsMatchingLabels(deleteAllErr, listErr *apierrors.StatusError, namespace string, targetObjectsGVK schema.GroupVersionKind, matchingLabels map[string]string, existingObjects ...client.Object) client.Client {
+func CreateFakeClientForObjectsMatchingLabels(deleteErr, listErr *apierrors.StatusError, namespace string, targetObjectsGVK schema.GroupVersionKind, matchingLabels map[string]string, existingObjects ...client.Object) client.Client {
 	clientBuilder := NewTestClientBuilder()
-	if len(existingObjects) > 0 {
-		clientBuilder.WithObjects(existingObjects...)
+	for _, existingObject := range existingObjects {
+		// Errors recorded for individual object delete
+		clientBuilder.WithObjects(existingObject).
+			RecordErrorForObjectsMatchingLabels(ClientMethodDelete, client.ObjectKeyFromObject(existingObject), targetObjectsGVK, matchingLabels, deleteErr)
 	}
 	return clientBuilder.
-		RecordErrorForObjectsMatchingLabels(ClientMethodList, namespace, targetObjectsGVK, matchingLabels, listErr).
-		RecordErrorForObjectsMatchingLabels(ClientMethodDeleteAll, namespace, targetObjectsGVK, matchingLabels, deleteAllErr).
+		RecordErrorForObjectsMatchingLabels(ClientMethodList, client.ObjectKey{Namespace: namespace}, targetObjectsGVK, matchingLabels, listErr).
+		RecordErrorForObjectsMatchingLabels(ClientMethodDelete, client.ObjectKey{Namespace: namespace}, targetObjectsGVK, matchingLabels, deleteErr).
 		Build()
 }
 
@@ -145,13 +148,13 @@ func (b *TestClientBuilder) RecordErrorForObjects(method ClientMethod, err *apie
 }
 
 // RecordErrorForObjectsMatchingLabels records an error for a specific client.Client method and object keys matching the given labels for a given GVK.
-func (b *TestClientBuilder) RecordErrorForObjectsMatchingLabels(method ClientMethod, namespace string, targetObjectsGVK schema.GroupVersionKind, matchingLabels map[string]string, err *apierrors.StatusError) *TestClientBuilder {
+func (b *TestClientBuilder) RecordErrorForObjectsMatchingLabels(method ClientMethod, objectKey client.ObjectKey, targetObjectsGVK schema.GroupVersionKind, matchingLabels map[string]string, err *apierrors.StatusError) *TestClientBuilder {
 	if err == nil {
 		return b
 	}
 	b.errorRecords = append(b.errorRecords, errorRecord{
 		method:      method,
-		objectKey:   client.ObjectKey{Namespace: namespace},
+		objectKey:   objectKey,
 		resourceGVK: targetObjectsGVK,
 		labels:      matchingLabels,
 		err:         err,

@@ -122,7 +122,7 @@ func TestDelete(t *testing.T) {
 	testCases := []struct {
 		description           string
 		numExistingPodCliques int
-		deleteAllOfError      *apierrors.StatusError
+		deleteError           *apierrors.StatusError
 		expectedError         *groveerr.GroveError
 	}{
 		{
@@ -138,7 +138,7 @@ func TestDelete(t *testing.T) {
 		{
 			description:           "error when deleting existing PodCliques",
 			numExistingPodCliques: 2,
-			deleteAllOfError:      testutils.TestAPIInternalErr,
+			deleteError:           testutils.TestAPIInternalErr,
 			expectedError: &groveerr.GroveError{
 				Code:      errDeletePodClique,
 				Cause:     testutils.TestAPIInternalErr,
@@ -158,7 +158,7 @@ func TestDelete(t *testing.T) {
 			t.Parallel()
 			existingPodCliques := createDefaultPodCliques(pgsObjMeta, "howl", tc.numExistingPodCliques)
 			// Create a fake client with PodCliques
-			cl := testutils.CreateFakeClientForObjectsMatchingLabels(tc.deleteAllOfError, nil, testPGSNamespace, grovecorev1alpha1.SchemeGroupVersion.WithKind("PodClique"), getPodCliqueSelectorLabels(pgsObjMeta), existingPodCliques...)
+			cl := testutils.CreateFakeClientForObjectsMatchingLabels(tc.deleteError, nil, testPGSNamespace, grovecorev1alpha1.SchemeGroupVersion.WithKind("PodClique"), getPodCliqueSelectorLabels(pgsObjMeta), existingPodCliques...)
 			operator := New(cl, groveclientscheme.Scheme)
 			err := operator.Delete(context.Background(), logr.Discard(), pgsObjMeta)
 			if tc.expectedError != nil {
@@ -180,8 +180,8 @@ func getExistingPodCliques(t *testing.T, cl client.Client, pgsObjMeta metav1.Obj
 
 func createDefaultPodCliques(pgsObjMeta metav1.ObjectMeta, pclqNamePrefix string, numPodCliques int) []client.Object {
 	podCliqueNames := make([]client.Object, 0, numPodCliques)
-	for i := 0; i < numPodCliques; i++ {
-		pclq := testutils.NewPodCliqueBuilder(pgsObjMeta.Name, types.UID(uuid.NewString()), fmt.Sprintf("%s-%d", pclqNamePrefix, i), pgsObjMeta.Namespace, 0).
+	for i := range numPodCliques {
+		pclq := testutils.NewPodCliqueBuilder(pgsObjMeta.Name, pgsObjMeta.GetUID(), fmt.Sprintf("%s-%d", pclqNamePrefix, i), pgsObjMeta.Namespace, 0).
 			WithLabels(getPodCliqueSelectorLabels(pgsObjMeta)).
 			Build()
 		podCliqueNames = append(podCliqueNames, pclq)

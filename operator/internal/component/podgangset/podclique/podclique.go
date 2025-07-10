@@ -19,13 +19,13 @@ package podclique
 import (
 	"context"
 	"fmt"
-	componentutils "github.com/NVIDIA/grove/operator/internal/component/utils"
 	"slices"
 	"strconv"
 	"strings"
 
 	grovecorev1alpha1 "github.com/NVIDIA/grove/operator/api/core/v1alpha1"
 	"github.com/NVIDIA/grove/operator/internal/component"
+	componentutils "github.com/NVIDIA/grove/operator/internal/component/utils"
 	groveerr "github.com/NVIDIA/grove/operator/internal/errors"
 	"github.com/NVIDIA/grove/operator/internal/utils"
 	k8sutils "github.com/NVIDIA/grove/operator/internal/utils/kubernetes"
@@ -217,11 +217,7 @@ func (r _resource) Delete(ctx context.Context, logger logr.Logger, pgsObjectMeta
 			Name: "DeletePodClique-" + pclqName,
 			Fn: func(ctx context.Context) error {
 				if err := client.IgnoreNotFound(r.client.Delete(ctx, emptyPodClique(pclqObjectKey))); err != nil {
-					return groveerr.WrapError(err,
-						errDeletePodClique,
-						component.OperationDelete,
-						fmt.Sprintf("Failed to delete PodClique: %v for PodGangSet: %v", pclqObjectKey, k8sutils.GetObjectKeyFromObjectMeta(pgsObjectMeta)),
-					)
+					return fmt.Errorf("failed to delete PodClique: %v for PodGangSet: %v with error: %w", pclqObjectKey, k8sutils.GetObjectKeyFromObjectMeta(pgsObjectMeta), err)
 				}
 				return nil
 			},
