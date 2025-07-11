@@ -87,6 +87,7 @@ func (v *pgsValidator) validatePodGangTemplateSpec(fldPath *field.Path) ([]strin
 	}
 	allErrs = append(allErrs, v.validatePodGangSchedulingPolicyConfig(v.pgs.Spec.Template.SchedulingPolicyConfig, fldPath.Child("schedulingPolicyConfig"))...)
 	allErrs = append(allErrs, v.validatePodCliqueScalingGroupConfigs(fldPath.Child("podCliqueScalingGroups"))...)
+	allErrs = append(allErrs, v.validateTerminationDelay(fldPath.Child("terminationDelay"))...)
 
 	return warnings, allErrs
 }
@@ -101,9 +102,11 @@ func (v *pgsValidator) validatePodCliqueTemplates(fldPath *field.Path) ([]string
 	}
 
 	cliqueNames := make([]string, 0, len(cliqueTemplateSpecs))
+	cliqueRoles := make([]string, 0, len(cliqueTemplateSpecs))
 	schedulerNames := make([]string, 0, len(cliqueTemplateSpecs))
 	for _, cliqueTemplateSpec := range cliqueTemplateSpecs {
 		cliqueNames = append(cliqueNames, cliqueTemplateSpec.Name)
+		cliqueRoles = append(cliqueRoles, cliqueTemplateSpec.Spec.RoleName)
 		warns, errs := v.validatePodCliqueTemplateSpec(cliqueTemplateSpec, fldPath)
 		if len(errs) != 0 {
 			allErrs = append(allErrs, errs...)
@@ -114,11 +117,8 @@ func (v *pgsValidator) validatePodCliqueTemplates(fldPath *field.Path) ([]string
 		schedulerNames = append(schedulerNames, cliqueTemplateSpec.Spec.PodSpec.SchedulerName)
 	}
 
-	duplicateCliqueNames := lo.FindDuplicates(cliqueNames)
-	if len(duplicateCliqueNames) > 0 {
-		allErrs = append(allErrs, field.Invalid(fldPath.Child("name"),
-			strings.Join(duplicateCliqueNames, ","), "cliqueTemplateSpec names must be unique"))
-	}
+	allErrs = append(allErrs, sliceMustHaveUniqueElements(cliqueNames, fldPath.Child("name"), "cliqueTemplateSpec names must be unique")...)
+	allErrs = append(allErrs, sliceMustHaveUniqueElements(cliqueRoles, fldPath.Child("roleName"), "cliqueTemplateSpec.Spec roleNames must be unique")...)
 
 	uniqueSchedulerNames := lo.Uniq(lo.Map(schedulerNames, func(item string, _ int) string {
 		if item == "" {
@@ -141,9 +141,6 @@ func (v *pgsValidator) validatePodGangSchedulingPolicyConfig(schedulingPolicyCon
 	allErrs := field.ErrorList{}
 	if schedulingPolicyConfig == nil {
 		return allErrs
-	}
-	if schedulingPolicyConfig.TerminationDelay != nil {
-		allErrs = append(allErrs, mustBeEqualToOrGreaterThanZeroDuration(*schedulingPolicyConfig.TerminationDelay, fldPath.Child("terminationDelay"))...)
 	}
 	if len(schedulingPolicyConfig.NetworkPackGroupConfigs) > 0 {
 		allErrs = append(allErrs, v.validateNetworkPackGroupConfigs(fldPath.Child("networkPackGroupConfigs"))...)
@@ -168,16 +165,9 @@ func (v *pgsValidator) validatePodCliqueScalingGroupConfigs(fldPath *field.Path)
 	}
 
 	// validate that the scaling group names are unique
-	duplicateScalingGroupNames := lo.FindDuplicates(pclqScalingGroupNames)
-	if len(duplicateScalingGroupNames) > 0 {
-		allErrs = append(allErrs, field.Invalid(fldPath.Child("name"), strings.Join(duplicateScalingGroupNames, ","), "PodCliqueScalingGroupConfig names must be unique"))
-	}
-
+	allErrs = append(allErrs, sliceMustHaveUniqueElements(pclqScalingGroupNames, fldPath.Child("name"), "PodCliqueScalingGroupConfig names must be unique")...)
 	// validate that there should not be any overlapping clique names across scaling groups.
-	overlappingCliqueNames := lo.FindDuplicates(cliqueNamesAcrossAllScalingGroups)
-	if len(overlappingCliqueNames) > 0 {
-		allErrs = append(allErrs, field.Invalid(fldPath.Child("cliqueNames"), strings.Join(overlappingCliqueNames, ","), "clique names must not overlap across scaling groups, every scaling group should have unique clique names"))
-	}
+	allErrs = append(allErrs, sliceMustHaveUniqueElements(cliqueNamesAcrossAllScalingGroups, fldPath.Child("cliqueNames"), "clique names must not overlap across scaling groups, every scaling group should have unique clique names")...)
 
 	// validate that for all pod cliques that are part of defined scaling groups, separate AutoScalingConfig is not defined for them.
 	scalingGroupCliqueNames := lo.Uniq(cliqueNamesAcrossAllScalingGroups)
@@ -185,6 +175,23 @@ func (v *pgsValidator) validatePodCliqueScalingGroupConfigs(fldPath *field.Path)
 		if slices.Contains(scalingGroupCliqueNames, cliqueTemplateSpec.Name) && cliqueTemplateSpec.Spec.ScaleConfig != nil {
 			allErrs = append(allErrs, field.Invalid(fldPath, cliqueTemplateSpec.Name, "AutoScalingConfig is not allowed to be defined for PodClique that is part of scaling group"))
 		}
+	}
+
+	return allErrs
+}
+
+func (v *pgsValidator) validateTerminationDelay(fldPath *field.Path) field.ErrorList {
+	allErrs := field.ErrorList{}
+
+	// This should ideally not happen, the defaulting webhook will always set the default value for terminationDelay.
+	if v.pgs.Spec.Template.TerminationDelay == nil {
+		allErrs = append(allErrs, field.Required(fldPath, "terminationDelay is required"))
+	} else {
+
+	}
+
+	if v.pgs.Spec.Template.TerminationDelay.Duration <= 0 {
+		allErrs = append(allErrs, field.Invalid(fldPath, v.pgs.Spec.Template.TerminationDelay, "terminationDelay must be greater than 0"))
 	}
 
 	return allErrs
@@ -247,10 +254,7 @@ func (v *pgsValidator) checkNetworkPackGroupConfigsForDuplicates(fldPath *field.
 	}
 
 	// validate that a clique cannot be present in more than one NetworkPackGroupConfig.
-	duplicateCliqueNames := lo.FindDuplicates(allCliqueNames)
-	if len(duplicateCliqueNames) > 0 {
-		allErrs = append(allErrs, field.Invalid(fldPath.Child("cliqueNames"), strings.Join(duplicateCliqueNames, ","), "A PodClique cannot belong to more than one NetworkPackGroupConfig"))
-	}
+	allErrs = append(allErrs, sliceMustHaveUniqueElements(allCliqueNames, fldPath.Child("cliqueNames"), "A PodClique cannot belong to more than one NetworkPackGroupConfig")...)
 
 	return allErrs
 }
@@ -317,11 +321,7 @@ func (v *pgsValidator) validatePodCliqueSpec(name string, cliqueSpec grovecorev1
 				allErrs = append(allErrs, field.Invalid(fldPath.Child("startsAfter"), dep, "clique dependency cannot refer to itself"))
 			}
 		}
-		duplicateStartAfterDeps := lo.FindDuplicates(cliqueSpec.StartsAfter)
-		if len(duplicateStartAfterDeps) > 0 {
-			allErrs = append(allErrs, field.Invalid(fldPath.Child("startsAfter"),
-				strings.Join(duplicateStartAfterDeps, ","), "clique dependencies must be unique"))
-		}
+		allErrs = append(allErrs, sliceMustHaveUniqueElements(cliqueSpec.StartsAfter, fldPath.Child("startsAfter"), "clique dependencies must be unique")...)
 	}
 
 	if cliqueSpec.ScaleConfig != nil {

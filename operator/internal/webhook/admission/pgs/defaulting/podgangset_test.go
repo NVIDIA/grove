@@ -17,14 +17,13 @@
 package defaulting
 
 import (
-	"testing"
-
 	grovecorev1alpha1 "github.com/NVIDIA/grove/operator/api/core/v1alpha1"
-
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/utils/ptr"
+	"testing"
+	"time"
 )
 
 func TestDefaultPodGangSet(t *testing.T) {
@@ -53,6 +52,7 @@ func TestDefaultPodGangSet(t *testing.T) {
 				HeadlessServiceConfig: &grovecorev1alpha1.HeadlessServiceConfig{
 					PublishNotReadyAddresses: true,
 				},
+				TerminationDelay: &metav1.Duration{Duration: time.Second * 30},
 			},
 		},
 	}

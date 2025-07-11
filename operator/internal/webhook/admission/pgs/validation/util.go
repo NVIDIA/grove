@@ -18,10 +18,11 @@ package validation
 
 import (
 	"fmt"
+	"github.com/samber/lo"
+	"strings"
 
 	"github.com/NVIDIA/grove/operator/internal/utils"
 
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/apimachinery/pkg/util/validation/field"
 )
@@ -53,10 +54,11 @@ func validateNonEmptyStringField(value string, fldPath *field.Path) field.ErrorL
 	return allErrs
 }
 
-func mustBeEqualToOrGreaterThanZeroDuration(duration metav1.Duration, fldPath *field.Path) field.ErrorList {
+func sliceMustHaveUniqueElements(s []string, fldPath *field.Path, msg string) field.ErrorList {
 	allErrs := field.ErrorList{}
-	if duration.Duration < 0 {
-		allErrs = append(allErrs, field.Invalid(fldPath, duration, "must be greater than or equal to 0"))
+	duplicates := lo.FindDuplicates(s)
+	if len(duplicates) > 0 {
+		allErrs = append(allErrs, field.Invalid(fldPath, strings.Join(duplicates, ","), msg))
 	}
 	return allErrs
 }

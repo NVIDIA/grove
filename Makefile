@@ -18,7 +18,16 @@ REPO_HACK_DIR       := $(REPO_ROOT)/hack
 
 include $(REPO_HACK_DIR)/tools.mk
 
-# Lints the entire codebase using GOLANGCI_LINT.
+.PHONY: build
+build:
+	@echo "> Building Grove Operator"
+	@make --directory=operator build-operator
+	@echo "> Building Grove Init Container"
+	@make --directory=operator build-initc
+	@echo "> Building Grove Scheduler"
+	@make --directory=scheduler build
+
+# Lints the entire codebase (all modules) using GOLANGCI_LINT.
 .PHONY: lint
 lint:
 	@echo "> Linting operator/api"

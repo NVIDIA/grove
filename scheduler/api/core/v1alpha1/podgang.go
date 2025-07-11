@@ -65,13 +65,6 @@ type PodGangSpec struct {
 	// If not specified, the pod priority will be default or zero if there is no default.
 	// +optional
 	PriorityClassName string `json:"priorityClassName,omitempty"`
-	// TerminationDelay is the delay after which the gang termination will be triggered.
-	// A gang is a candidate for termination if number of running pods fall below a threshold for any PodClique.
-	// If a PodGang remains a candidate past TerminationDelay then it will be terminated. This allows additional time
-	// to the kube-scheduler to re-schedule sufficient pods in the PodGang that will result in having the total number of
-	// running pods go above the threshold.
-	// +optional
-	TerminationDelay *metav1.Duration `json:"terminationDelay,omitempty"`
 	// ReuseReservationRef holds the reference to another PodGang resource scheduled previously.
 	// During updates, an operator can suggest to reuse the reservation of the previous PodGang for a newer version of the
 	// PodGang resource. This is a suggestion for the scheduler and not a requirement that must be met. If the scheduler plugin

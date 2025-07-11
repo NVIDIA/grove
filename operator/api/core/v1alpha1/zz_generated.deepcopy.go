@@ -601,6 +601,11 @@ func (in *PodGangSetTemplateSpec) DeepCopyInto(out *PodGangSetTemplateSpec) {
 		*out = new(SchedulingPolicyConfig)
 		(*in).DeepCopyInto(*out)
 	}
+	if in.TerminationDelay != nil {
+		in, out := &in.TerminationDelay, &out.TerminationDelay
+		*out = new(v1.Duration)
+		**out = **in
+	}
 	if in.PodCliqueScalingGroupConfigs != nil {
 		in, out := &in.PodCliqueScalingGroupConfigs, &out.PodCliqueScalingGroupConfigs
 		*out = make([]PodCliqueScalingGroupConfig, len(*in))
@@ -669,11 +674,6 @@ func (in *SchedulingPolicyConfig) DeepCopyInto(out *SchedulingPolicyConfig) {
 		for i := range *in {
 			(*in)[i].DeepCopyInto(&(*out)[i])
 		}
-	}
-	if in.TerminationDelay != nil {
-		in, out := &in.TerminationDelay, &out.TerminationDelay
-		*out = new(v1.Duration)
-		**out = **in
 	}
 	return
 }

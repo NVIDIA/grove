@@ -111,6 +111,13 @@ type PodGangSetTemplateSpec struct {
 	// See https://github.com/kubernetes-sigs/controller-tools/issues/893#issuecomment-1991256368
 	// +optional
 	SchedulingPolicyConfig *SchedulingPolicyConfig `json:"schedulingPolicyConfig,omitempty"`
+	// TerminationDelay is the delay after which the gang termination will be triggered.
+	// A gang is a candidate for termination if number of running pods fall below a threshold for any PodClique.
+	// If a PodGang remains a candidate past TerminationDelay then it will be terminated. This allows additional time
+	// to the kube-scheduler to re-schedule sufficient pods in the PodGang that will result in having the total number of
+	// running pods go above the threshold.
+	// +optional
+	TerminationDelay *metav1.Duration `json:"terminationDelay,omitempty"`
 	// PodCliqueScalingGroupConfigs is a list of scaling groups for the PodGangSet.
 	PodCliqueScalingGroupConfigs []PodCliqueScalingGroupConfig `json:"podCliqueScalingGroups,omitempty"`
 }
@@ -146,13 +153,6 @@ type SchedulingPolicyConfig struct {
 	// 1. Scheduling may be delayed until optimal placement is available.
 	// 2. Pods created due to scale-out or rolling upgrades is not guaranteed optimal placement.
 	NetworkPackGroupConfigs []NetworkPackGroupConfig `json:"networkPackGroupConfigs,omitempty"`
-	// TerminationDelay is the delay after which the gang termination will be triggered.
-	// A gang is a candidate for termination if number of running pods fall below a threshold for any PodClique.
-	// If a PodGang remains a candidate past TerminationDelay then it will be terminated. This allows additional time
-	// to the kube-scheduler to re-schedule sufficient pods in the PodGang that will result in having the total number of
-	// running pods go above the threshold.
-	// +optional
-	TerminationDelay *metav1.Duration `json:"terminationDelay,omitempty"`
 }
 
 // NetworkPackGroupConfig indicates that all the Pods belonging to the constituent PodCliques should be optimally placed w.r.t cluster's network topology.

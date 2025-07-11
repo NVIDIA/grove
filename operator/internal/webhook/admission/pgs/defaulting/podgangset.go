@@ -19,9 +19,15 @@ package defaulting
 import (
 	grovecorev1alpha1 "github.com/NVIDIA/grove/operator/api/core/v1alpha1"
 	"github.com/NVIDIA/grove/operator/internal/utils"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"time"
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/utils/ptr"
+)
+
+const (
+	defaultTerminationDelay = 30 * time.Second
 )
 
 // defaultPodGangSet adds defaults to a PodGangSet.
@@ -41,6 +47,9 @@ func defaultPodGangSetSpec(spec *grovecorev1alpha1.PodGangSetSpec) {
 func defaultPodGangSetTemplateSpec(spec *grovecorev1alpha1.PodGangSetTemplateSpec) {
 	// default PodCliqueTemplateSpecs
 	spec.Cliques = defaultPodCliqueTemplateSpecs(spec.Cliques)
+	if spec.TerminationDelay == nil {
+		spec.TerminationDelay = &metav1.Duration{Duration: defaultTerminationDelay}
+	}
 }
 
 func defaultPodCliqueTemplateSpecs(cliqueSpecs []*grovecorev1alpha1.PodCliqueTemplateSpec) []*grovecorev1alpha1.PodCliqueTemplateSpec {

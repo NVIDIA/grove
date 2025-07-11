@@ -149,11 +149,6 @@ func (in *PodGangSpec) DeepCopyInto(out *PodGangSpec) {
 			(*in)[i].DeepCopyInto(&(*out)[i])
 		}
 	}
-	if in.TerminationDelay != nil {
-		in, out := &in.TerminationDelay, &out.TerminationDelay
-		*out = new(metav1.Duration)
-		**out = **in
-	}
 	if in.ReuseReservationRef != nil {
 		in, out := &in.ReuseReservationRef, &out.ReuseReservationRef
 		*out = new(NamespacedName)
