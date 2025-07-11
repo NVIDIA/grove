@@ -18,11 +18,11 @@ package validation
 
 import (
 	"fmt"
-	"github.com/samber/lo"
 	"strings"
 
 	"github.com/NVIDIA/grove/operator/internal/utils"
 
+	"github.com/samber/lo"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/apimachinery/pkg/util/validation/field"
 )
