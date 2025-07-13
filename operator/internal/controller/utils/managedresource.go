@@ -19,6 +19,7 @@ package utils
 import (
 	grovecorev1alpha1 "github.com/NVIDIA/grove/operator/api/core/v1alpha1"
 
+	"github.com/samber/lo"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -41,12 +42,13 @@ func IsManagedByGrove(labels map[string]string) bool {
 }
 
 // IsManagedPodClique checks if the PodClique is managed by Grove.
-func IsManagedPodClique(obj client.Object) bool {
+func IsManagedPodClique(obj client.Object, expectedOwnerKinds ...string) bool {
 	podClique, ok := obj.(*grovecorev1alpha1.PodClique)
 	if !ok {
 		return false
 	}
-	return IsManagedByGrove(podClique.GetLabels()) &&
-		(HasExpectedOwner(grovecorev1alpha1.PodGangSetKind, podClique.GetOwnerReferences()) ||
-			HasExpectedOwner(grovecorev1alpha1.PodCliqueScalingGroupKind, podClique.GetOwnerReferences()))
+	hasExpectedOwner := lo.Reduce(expectedOwnerKinds, func(acc bool, expectedOwnerKind string, _ int) bool {
+		return acc || HasExpectedOwner(expectedOwnerKind, podClique.GetOwnerReferences())
+	}, false)
+	return IsManagedByGrove(podClique.GetLabels()) && hasExpectedOwner
 }

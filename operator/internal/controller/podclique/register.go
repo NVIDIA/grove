@@ -20,7 +20,7 @@ import (
 	"context"
 	"strings"
 
-	"github.com/NVIDIA/grove/operator/api/core/v1alpha1"
+	grovecorev1alpha1 "github.com/NVIDIA/grove/operator/api/core/v1alpha1"
 	grovectrlutils "github.com/NVIDIA/grove/operator/internal/controller/utils"
 
 	groveschedulerv1alpha1 "github.com/NVIDIA/grove/scheduler/api/core/v1alpha1"
@@ -48,7 +48,7 @@ func (r *Reconciler) RegisterWithManager(mgr ctrl.Manager) error {
 		WithOptions(controller.Options{
 			MaxConcurrentReconciles: *r.config.ConcurrentSyncs,
 		}).
-		For(&v1alpha1.PodClique{},
+		For(&grovecorev1alpha1.PodClique{},
 			builder.WithPredicates(
 				predicate.And(
 					predicate.GenerationChangedPredicate{},
@@ -66,10 +66,17 @@ func (r *Reconciler) RegisterWithManager(mgr ctrl.Manager) error {
 }
 
 func managedPodCliquePredicate() predicate.Predicate {
+	expectedOwnerKinds := []string{grovecorev1alpha1.PodCliqueScalingGroupKind, grovecorev1alpha1.PodGangSetKind}
 	return predicate.Funcs{
-		CreateFunc:  func(e event.CreateEvent) bool { return grovectrlutils.IsManagedPodClique(e.Object) },
-		DeleteFunc:  func(e event.DeleteEvent) bool { return grovectrlutils.IsManagedPodClique(e.Object) },
-		UpdateFunc:  func(e event.UpdateEvent) bool { return grovectrlutils.IsManagedPodClique(e.ObjectOld) },
+		CreateFunc: func(e event.CreateEvent) bool {
+			return grovectrlutils.IsManagedPodClique(e.Object, expectedOwnerKinds...)
+		},
+		DeleteFunc: func(e event.DeleteEvent) bool {
+			return grovectrlutils.IsManagedPodClique(e.Object, expectedOwnerKinds...)
+		},
+		UpdateFunc: func(e event.UpdateEvent) bool {
+			return grovectrlutils.IsManagedPodClique(e.ObjectOld, expectedOwnerKinds...)
+		},
 		GenericFunc: func(_ event.GenericEvent) bool { return false },
 	}
 }
@@ -159,5 +166,5 @@ func isManagedPod(obj client.Object) bool {
 	if !ok {
 		return false
 	}
-	return grovectrlutils.HasExpectedOwner(v1alpha1.PodCliqueKind, pod.OwnerReferences) && grovectrlutils.IsManagedByGrove(pod.GetLabels())
+	return grovectrlutils.HasExpectedOwner(grovecorev1alpha1.PodCliqueKind, pod.OwnerReferences) && grovectrlutils.IsManagedByGrove(pod.GetLabels())
 }

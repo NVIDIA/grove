@@ -73,7 +73,7 @@ func podCliquePredicate() predicate.Predicate {
 	return predicate.Funcs{
 		CreateFunc: func(_ event.CreateEvent) bool { return false },
 		DeleteFunc: func(deleteEvent event.DeleteEvent) bool {
-			return grovectrlutils.IsManagedPodClique(deleteEvent.Object)
+			return grovectrlutils.IsManagedPodClique(deleteEvent.Object, grovecorev1alpha1.PodGangSetKind)
 		},
 		UpdateFunc: func(updateEvent event.UpdateEvent) bool {
 			return grovectrlutils.IsManagedPodClique(updateEvent.ObjectOld) &&

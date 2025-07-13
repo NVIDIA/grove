@@ -22,6 +22,7 @@ import (
 	grovecorev1alpha1 "github.com/NVIDIA/grove/operator/api/core/v1alpha1"
 	ctrlutils "github.com/NVIDIA/grove/operator/internal/controller/utils"
 
+	"github.com/samber/lo"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
@@ -54,6 +55,10 @@ func (r *Reconciler) RegisterWithManager(mgr manager.Manager) error {
 		Watches(&grovecorev1alpha1.PodGangSet{},
 			handler.EnqueueRequestsFromMapFunc(mapPGSToPCSG()),
 			builder.WithPredicates(podGangSetPredicate()),
+		).
+		Watches(&grovecorev1alpha1.PodClique{},
+			handler.EnqueueRequestsFromMapFunc(mapPCLQToPCSG()),
+			builder.WithPredicates(podCliquePredicate()),
 		).
 		Complete(r)
 }
@@ -108,4 +113,42 @@ func podGangSetPredicate() predicate.Predicate {
 		},
 		GenericFunc: func(_ event.GenericEvent) bool { return false },
 	}
+}
+
+func mapPCLQToPCSG() handler.MapFunc {
+	return func(_ context.Context, obj client.Object) []reconcile.Request {
+		pclq, ok := obj.(*grovecorev1alpha1.PodClique)
+		if !ok {
+			return nil
+		}
+		pcsgName, ok := pclq.GetLabels()[grovecorev1alpha1.LabelPodCliqueScalingGroup]
+		if !ok || lo.IsEmpty(pcsgName) {
+			return nil
+		}
+		return []reconcile.Request{{NamespacedName: client.ObjectKey{Name: pcsgName, Namespace: pclq.Namespace}}}
+	}
+}
+
+func podCliquePredicate() predicate.Predicate {
+	return predicate.Funcs{
+		CreateFunc: func(_ event.CreateEvent) bool { return false },
+		DeleteFunc: func(deleteEvent event.DeleteEvent) bool {
+			return ctrlutils.IsManagedByGrove(deleteEvent.Object.GetLabels()) &&
+				ctrlutils.HasExpectedOwner(grovecorev1alpha1.PodCliqueScalingGroupKind, deleteEvent.Object.GetOwnerReferences())
+		},
+		UpdateFunc: func(updateEvent event.UpdateEvent) bool {
+			return ctrlutils.IsManagedByGrove(updateEvent.ObjectOld.GetLabels()) &&
+				ctrlutils.HasExpectedOwner(grovecorev1alpha1.PodCliqueScalingGroupKind, updateEvent.ObjectOld.GetOwnerReferences()) &&
+				hasPodCliqueReadyReplicasChanged(updateEvent)
+		},
+	}
+}
+
+func hasPodCliqueReadyReplicasChanged(updateEvent event.UpdateEvent) bool {
+	oldPCLQ, okOld := updateEvent.ObjectOld.(*grovecorev1alpha1.PodClique)
+	newPCLQ, okNew := updateEvent.ObjectNew.(*grovecorev1alpha1.PodClique)
+	if !okOld || !okNew {
+		return false
+	}
+	return oldPCLQ.Status.ReadyReplicas != newPCLQ.Status.ReadyReplicas
 }

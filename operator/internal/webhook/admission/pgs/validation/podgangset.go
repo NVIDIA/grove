@@ -225,11 +225,10 @@ func (v *pgsValidator) validateTerminationDelay(fldPath *field.Path) field.Error
 
 	// This should ideally not happen, the defaulting webhook will always set the default value for terminationDelay.
 	if v.pgs.Spec.Template.TerminationDelay == nil {
-		allErrs = append(allErrs, field.Required(fldPath, "terminationDelay is required"))
-	} else {
-		if v.pgs.Spec.Template.TerminationDelay.Duration <= 0 {
-			allErrs = append(allErrs, field.Invalid(fldPath, v.pgs.Spec.Template.TerminationDelay, "terminationDelay must be greater than 0"))
-		}
+		return append(allErrs, field.Required(fldPath, "terminationDelay is required"))
+	}
+	if v.pgs.Spec.Template.TerminationDelay.Duration <= 0 {
+		allErrs = append(allErrs, field.Invalid(fldPath, v.pgs.Spec.Template.TerminationDelay, "terminationDelay must be greater than 0"))
 	}
 
 	return allErrs
