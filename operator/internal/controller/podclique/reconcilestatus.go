@@ -19,6 +19,7 @@ package podclique
 import (
 	"context"
 	"fmt"
+	"k8s.io/apimachinery/pkg/api/meta"
 
 	grovecorev1alpha1 "github.com/NVIDIA/grove/operator/api/core/v1alpha1"
 	componentutils "github.com/NVIDIA/grove/operator/internal/component/utils"
@@ -28,7 +29,6 @@ import (
 	"github.com/go-logr/logr"
 	"github.com/samber/lo"
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -104,7 +104,9 @@ func mutateSelector(pgsName string, pclq *grovecorev1alpha1.PodClique) error {
 
 func mutateMinAvailableBreachedCondition(pclq *grovecorev1alpha1.PodClique) {
 	newCondition := computeMinAvailableBreachedCondition(pclq)
-	meta.SetStatusCondition(&pclq.Status.Conditions, newCondition)
+	if k8sutils.HasConditionChanged(pclq.Status.Conditions, newCondition) {
+		meta.SetStatusCondition(&pclq.Status.Conditions, newCondition)
+	}
 }
 
 func getReadyAndScheduleGatedPods(pods []*corev1.Pod) (readyPods []*corev1.Pod, scheduleGatedPods []*corev1.Pod) {

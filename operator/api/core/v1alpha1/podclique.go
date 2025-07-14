@@ -124,14 +124,6 @@ type PodCliqueStatus struct {
 	Conditions []metav1.Condition `json:"conditions,omitempty"`
 }
 
-// PodCliqueConditionType defines the type of condition for a PodClique.
-type PodCliqueConditionType string
-
-const (
-	// ConditionTypeMinAvailableBreached indicates that the minimum number of ready pods in the PodClique are below the threshold defined in the PodCliqueSpec.MinAvailable threshold.
-	ConditionTypeMinAvailableBreached PodCliqueConditionType = "MinAvailableBreached"
-)
-
 // SetLastErrors sets the last errors observed by the controller when reconciling the PodClique.
 func (pclq *PodClique) SetLastErrors(lastErrs ...LastError) {
 	pclq.Status.LastErrors = lastErrs

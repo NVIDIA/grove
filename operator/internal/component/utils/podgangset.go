@@ -45,12 +45,11 @@ func GetOwnerPodGangSet(ctx context.Context, cl client.Client, objectMeta metav1
 }
 
 // GetPodGangSetName retrieves the PodGangSet name from the labels of the given ObjectMeta.
-func GetPodGangSetName(objectMeta metav1.ObjectMeta) *string {
-	pgsName, ok := objectMeta.GetLabels()[grovecorev1alpha1.LabelPartOfKey]
-	if !ok {
-		return nil
-	}
-	return &pgsName
+// NOTE: It is assumed that all managed objects like PCSG, PCLQ and Pods will always have PGS name as value for grovecorev1alpha1.LabelPartOfKey label.
+// It should be ensured that labels that are set by the operator are never removed.
+func GetPodGangSetName(objectMeta metav1.ObjectMeta) string {
+	pgsName, _ := objectMeta.GetLabels()[grovecorev1alpha1.LabelPartOfKey]
+	return pgsName
 }
 
 // GetExpectedPCLQNamesGroupByOwner returns the expected unqualified PodClique names which are either owned by PodGangSet or PodCliqueScalingGroup.

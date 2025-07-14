@@ -67,3 +67,9 @@ const (
 	// EventDeleteError is the event type which indicates that the delete operation has failed.
 	EventDeleteError = "DeleteError"
 )
+
+// Constants for Condition Types
+const (
+	// ConditionTypeMinAvailableBreached indicates that the minimum number of ready pods in the PodClique are below the threshold defined in the PodCliqueSpec.MinAvailable threshold.
+	ConditionTypeMinAvailableBreached = "MinAvailableBreached"
+)

@@ -43,15 +43,8 @@ func (r _resource) prepareSyncFlow(ctx context.Context, logger logr.Logger, pclq
 		ctx:  ctx,
 		pclq: pclq,
 	}
-	pgs, err := componentutils.GetOwnerPodGangSet(ctx, r.client, pclq.ObjectMeta)
-	if err != nil {
-		return nil, groveerr.WrapError(err,
-			errCodeGetPodGangSet,
-			component.OperationSync,
-			fmt.Sprintf("failed to get owner PodGangSet %s ", pgs.Name),
-		)
-	}
-	sc.pgs = pgs
+
+	pgsName := componentutils.GetPodGangSetName(pclq.ObjectMeta)
 
 	associatedPodGangName, err := r.getAssociatedPodGangName(pclq.ObjectMeta)
 	if err != nil {
@@ -65,7 +58,7 @@ func (r _resource) prepareSyncFlow(ctx context.Context, logger logr.Logger, pclq
 	}
 	sc.podNamesUpdatedInPCLQPodGangs = r.getPodNamesUpdatedInAssociatedPodGang(existingPodGang, pclq.Name)
 
-	existingPCLQPods, err := componentutils.GetPCLQPods(ctx, r.client, pgs.Name, pclq)
+	existingPCLQPods, err := componentutils.GetPCLQPods(ctx, r.client, pgsName, pclq)
 	if err != nil {
 		logger.Error(err, "Failed to list pods that belong to PodClique", "pclqObjectKey", client.ObjectKeyFromObject(pclq))
 		return nil, groveerr.WrapError(err,
@@ -293,7 +286,6 @@ func (r _resource) createPods(ctx context.Context, logger logr.Logger, pclq *gro
 // syncContext holds the relevant state required during the sync flow run.
 type syncContext struct {
 	ctx                           context.Context
-	pgs                           *grovecorev1alpha1.PodGangSet
 	pclq                          *grovecorev1alpha1.PodClique
 	associatedPodGangName         string
 	existingPCLQPods              []*corev1.Pod
