@@ -36,15 +36,9 @@ import (
 
 func (r *Reconciler) reconcileStatus(ctx context.Context, logger logr.Logger, pclq *grovecorev1alpha1.PodClique) ctrlcommon.ReconcileStepResult {
 	pgsName := componentutils.GetPodGangSetName(pclq.ObjectMeta)
-	if pgsName == nil {
-		logger.Error(nil, "PodClique does not have required label", "label", grovecorev1alpha1.LabelPartOfKey, "pclqObjectKey", client.ObjectKeyFromObject(pclq))
-		return ctrlcommon.ReconcileWithErrors(
-			"PodClique does not have the required label to determine parent PodGangSet name",
-			fmt.Errorf("PodClique %v does not have required label %v", client.ObjectKeyFromObject(pclq), grovecorev1alpha1.LabelPartOfKey))
-	}
 
 	// mutate PodClique Status Replicas, ReadyReplicas, ScheduleGatedReplicas and UpdatedReplicas.
-	if err := r.mutateStatusReplicaCounts(ctx, logger, *pgsName, pclq); err != nil {
+	if err := r.mutateStatusReplicaCounts(ctx, logger, pgsName, pclq); err != nil {
 		logger.Error(err, "failed to mutate PodClique status with replica counts")
 		return ctrlcommon.ReconcileWithErrors("failed to mutate PodClique status with replica counts", err)
 	}
@@ -53,7 +47,7 @@ func (r *Reconciler) reconcileStatus(ctx context.Context, logger logr.Logger, pc
 	mutateMinAvailableBreachedCondition(pclq)
 
 	// mutate the selector that will be used by an autoscaler.
-	if err := mutateSelector(*pgsName, pclq); err != nil {
+	if err := mutateSelector(pgsName, pclq); err != nil {
 		logger.Error(err, "failed to update selector for PodClique")
 		ctrlcommon.ReconcileWithErrors("failed to set selector for PodClique", err)
 	}

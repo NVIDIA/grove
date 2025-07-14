@@ -61,10 +61,7 @@ func mapPCLQToPodGangSet() handler.MapFunc {
 			return nil
 		}
 		pgsName := componentutils.GetPodGangSetName(pclq.ObjectMeta)
-		if pgsName == nil {
-			return nil
-		}
-		return []reconcile.Request{{NamespacedName: types.NamespacedName{Name: *pgsName, Namespace: pclq.Namespace}}}
+		return []reconcile.Request{{NamespacedName: types.NamespacedName{Name: pgsName, Namespace: pclq.Namespace}}}
 	}
 }
 
@@ -76,7 +73,7 @@ func podCliquePredicate() predicate.Predicate {
 			return grovectrlutils.IsManagedPodClique(deleteEvent.Object, grovecorev1alpha1.PodGangSetKind)
 		},
 		UpdateFunc: func(updateEvent event.UpdateEvent) bool {
-			return grovectrlutils.IsManagedPodClique(updateEvent.ObjectOld) &&
+			return grovectrlutils.IsManagedPodClique(updateEvent.ObjectOld, grovecorev1alpha1.PodGangSetKind, grovecorev1alpha1.PodCliqueScalingGroupKind) &&
 				(hasSpecChanged(updateEvent) || hasStatusChanged(updateEvent))
 		},
 		GenericFunc: func(_ event.GenericEvent) bool { return false },

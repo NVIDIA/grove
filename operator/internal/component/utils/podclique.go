@@ -60,7 +60,10 @@ func GetMinAvailableBreachedPCLQInfo(pclqs []grovecorev1alpha1.PodClique, termin
 		}
 	}
 	slices.Sort(waitForDurations)
-	return pclqCandidateNames, lo.Ternary(len(waitForDurations) > 0, waitForDurations[0], 0)
+	if len(waitForDurations) == 0 {
+		return pclqCandidateNames, 0
+	}
+	return pclqCandidateNames, waitForDurations[0]
 }
 
 func FilterPCLQsWithMinAvailableBreached(pclqs []grovecorev1alpha1.PodClique) []grovecorev1alpha1.PodClique {
