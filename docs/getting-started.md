@@ -64,31 +64,31 @@ This make target leverages Grove [Helm](https://helm.sh/) charts and [Skaffold](
   ```bash
   ❯ kubectl get pgs,pclq,pcsg,pg,pod -owide
   NAME                          AGE
-  podgangset.grove.io/simple1   27s
+  podgangset.grove.io/simple1   34s
 
-  NAME                               AGE
-  podclique.grove.io/simple1-0-pca   26s
-  podclique.grove.io/simple1-0-pcb   26s
-  podclique.grove.io/simple1-0-pcc   26s
-  podclique.grove.io/simple1-0-pcd   26s
+  NAME                                     AGE
+  podclique.grove.io/simple1-0-pca         33s
+  podclique.grove.io/simple1-0-pcd         33s
+  podclique.grove.io/simple1-0-sga-0-pcb   33s
+  podclique.grove.io/simple1-0-sga-0-pcc   33s
 
-  NAME                                            AGE
-  podcliquescalinggroup.grove.io/simple1-0-pcsg   26s
+  NAME                                           AGE
+  podcliquescalinggroup.grove.io/simple1-0-sga   33s
 
   NAME                                   AGE
-  podgang.scheduler.grove.io/simple1-0   26s
+  podgang.scheduler.grove.io/simple1-0   33s
 
   NAME                                  READY   STATUS    RESTARTS   AGE
-  pod/grove-operator-74cc5866c8-s7ssj   1/1     Running   0          34s
-  pod/simple1-0-pca-hk7pk               1/1     Running   0          26s
-  pod/simple1-0-pca-m8hm6               1/1     Running   0          26s
-  pod/simple1-0-pca-nrfs9               1/1     Running   0          26s
-  pod/simple1-0-pcb-pg5dr               1/1     Running   0          26s
-  pod/simple1-0-pcb-r46xn               1/1     Running   0          26s
-  pod/simple1-0-pcc-hw9lf               1/1     Running   0          26s
-  pod/simple1-0-pcc-pb6hg               1/1     Running   0          26s
-  pod/simple1-0-pcd-7nvm5               1/1     Running   0          26s
-  pod/simple1-0-pcd-dtfr2               1/1     Running   0          26s
+  pod/grove-operator-699c77979f-7x2zc   1/1     Running   0          51s
+  pod/simple1-0-pca-pkl2b               1/1     Running   0          33s
+  pod/simple1-0-pca-s7dz2               1/1     Running   0          33s
+  pod/simple1-0-pca-wjfqz               1/1     Running   0          33s
+  pod/simple1-0-pcd-l4vnk               1/1     Running   0          33s
+  pod/simple1-0-pcd-s7687               1/1     Running   0          33s
+  pod/simple1-0-sga-0-pcb-m9shj         1/1     Running   0          33s
+  pod/simple1-0-sga-0-pcb-vnrqw         1/1     Running   0          33s
+  pod/simple1-0-sga-0-pcc-g8rg8         1/1     Running   0          33s
+  pod/simple1-0-sga-0-pcc-hx4zn         1/1     Running   0          33s
   ```
 
 ### Scaling
@@ -108,36 +108,38 @@ As specified in the [README.md](../README.md) and the [docs](../docs), there are
   ```bash
   ❯ kubectl get pgs,pclq,pcsg,pg,pod -owide
   NAME                          AGE
-  podgangset.grove.io/simple1   87s
+  podgangset.grove.io/simple1   2m28s
 
-  NAME                               AGE
-  podclique.grove.io/simple1-0-pca   86s
-  podclique.grove.io/simple1-0-pcb   86s
-  podclique.grove.io/simple1-0-pcc   86s
-  podclique.grove.io/simple1-0-pcd   86s
+  NAME                                     AGE
+  podclique.grove.io/simple1-0-pca         2m27s
+  podclique.grove.io/simple1-0-pcd         2m27s
+  podclique.grove.io/simple1-0-sga-0-pcb   2m27s
+  podclique.grove.io/simple1-0-sga-0-pcc   2m27s
+  podclique.grove.io/simple1-0-sga-1-pcb   15s # newly created `PodClique`, as a consequence of scaling `PodCliqueScalingGroup`
+  podclique.grove.io/simple1-0-sga-1-pcc   15s # newly created `PodClique`, as a consequence of scaling `PodCliqueScalingGroup`
 
-  NAME                                            AGE
-  podcliquescalinggroup.grove.io/simple1-0-pcsg   86s
+  NAME                                           AGE
+  podcliquescalinggroup.grove.io/simple1-0-sga   2m27s
 
-  NAME                                          AGE
-  podgang.scheduler.grove.io/simple1-0          86s
-  podgang.scheduler.grove.io/simple1-0-pcsg-0   11s # newly created `PodGang`, as a consequence of scaling `PodCliqueScalingGroup`
+  NAME                                         AGE
+  podgang.scheduler.grove.io/simple1-0         2m27s
+  podgang.scheduler.grove.io/simple1-0-sga-1   15s # newly created `PodGang`, as a consequence of scaling `PodCliqueScalingGroup`
 
   NAME                                  READY   STATUS    RESTARTS   AGE
-  pod/grove-operator-74cc5866c8-s7ssj   1/1     Running   0          94s
-  pod/simple1-0-pca-hk7pk               1/1     Running   0          86s
-  pod/simple1-0-pca-m8hm6               1/1     Running   0          86s
-  pod/simple1-0-pca-nrfs9               1/1     Running   0          86s
-  pod/simple1-0-pcb-f7gt9               1/1     Running   0          11s # newly created Pod, as a consequence of scaling `PodCliqueScalingGroup`
-  pod/simple1-0-pcb-pg5dr               1/1     Running   0          86s
-  pod/simple1-0-pcb-qw855               1/1     Running   0          11s # newly created Pod, as a consequence of scaling `PodCliqueScalingGroup`
-  pod/simple1-0-pcb-r46xn               1/1     Running   0          86s
-  pod/simple1-0-pcc-59mh8               1/1     Running   0          11s # newly created Pod, as a consequence of scaling `PodCliqueScalingGroup`
-  pod/simple1-0-pcc-hw9lf               1/1     Running   0          86s
-  pod/simple1-0-pcc-pb6hg               1/1     Running   0          86s
-  pod/simple1-0-pcc-sgkxz               1/1     Running   0          11s # newly created Pod, as a consequence of scaling `PodCliqueScalingGroup`
-  pod/simple1-0-pcd-7nvm5               1/1     Running   0          86s
-  pod/simple1-0-pcd-dtfr2               1/1     Running   0          86s
+  pod/grove-operator-699c77979f-7x2zc   1/1     Running   0          2m45s
+  pod/simple1-0-pca-pkl2b               1/1     Running   0          2m27s
+  pod/simple1-0-pca-s7dz2               1/1     Running   0          2m27s
+  pod/simple1-0-pca-wjfqz               1/1     Running   0          2m27s
+  pod/simple1-0-pcd-l4vnk               1/1     Running   0          2m27s
+  pod/simple1-0-pcd-s7687               1/1     Running   0          2m27s
+  pod/simple1-0-sga-0-pcb-m9shj         1/1     Running   0          2m27s
+  pod/simple1-0-sga-0-pcb-vnrqw         1/1     Running   0          2m27s
+  pod/simple1-0-sga-0-pcc-g8rg8         1/1     Running   0          2m27s
+  pod/simple1-0-sga-0-pcc-hx4zn         1/1     Running   0          2m27s
+  pod/simple1-0-sga-1-pcb-mbpjx         1/1     Running   0          15s # newly created Pod, as a consequence of scaling
+  pod/simple1-0-sga-1-pcb-v7h2d         1/1     Running   0          15s # newly created Pod, as a consequence of scaling
+  pod/simple1-0-sga-1-pcc-48fh5         1/1     Running   0          15s # newly created Pod, as a consequence of scaling
+  pod/simple1-0-sga-1-pcc-l9bgd         1/1     Running   0          15s # newly created Pod, as a consequence of scaling
   ```
 
   This scales the `PodCliques` `pcb`, and `pcc` as a group, and in-turn doubling the number of replicas of Pods that belong to `pcb`, and `pcc`, as can be seen in the specification of this sample in the [`podCliqueScalingGroups`](../operator/samples/simple/simple1.yaml) section.
@@ -157,46 +159,46 @@ As specified in the [README.md](../README.md) and the [docs](../docs), there are
   ```bash
   ❯ kubectl get pgs,pclq,pcsg,pg,pod -owide
   NAME                          AGE
-  podgangset.grove.io/simple1   14m
+  podgangset.grove.io/simple1   6m25s
 
-  NAME                               AGE
-  podclique.grove.io/simple1-0-pca   14m
-  podclique.grove.io/simple1-0-pcb   14m
-  podclique.grove.io/simple1-0-pcc   14m
-  podclique.grove.io/simple1-0-pcd   14m
-  podclique.grove.io/simple1-1-pca   79s # newly created `PodClique`, as a consequence of scaling `PodGangSet`
-  podclique.grove.io/simple1-1-pcb   79s # newly created `PodClique`, as a consequence of scaling `PodGangSet`
-  podclique.grove.io/simple1-1-pcc   79s # newly created `PodClique`, as a consequence of scaling `PodGangSet`
-  podclique.grove.io/simple1-1-pcd   79s # newly created `PodClique`, as a consequence of scaling `PodGangSet`
+  NAME                                     AGE
+  podclique.grove.io/simple1-0-pca         6m24s
+  podclique.grove.io/simple1-0-pcd         6m24s
+  podclique.grove.io/simple1-0-sga-0-pcb   6m24s
+  podclique.grove.io/simple1-0-sga-0-pcc   6m24s
+  podclique.grove.io/simple1-1-pca         51s # newly created `PodClique`, as a consequence of scaling `PodGangSet`
+  podclique.grove.io/simple1-1-pcd         51s # newly created `PodClique`, as a consequence of scaling `PodGangSet`
+  podclique.grove.io/simple1-1-sga-0-pcb   51s # newly created `PodClique`, as a consequence of scaling `PodGangSet`
+  podclique.grove.io/simple1-1-sga-0-pcc   51s # newly created `PodClique`, as a consequence of scaling `PodGangSet`
 
-  NAME                                            AGE
-  podcliquescalinggroup.grove.io/simple1-0-pcsg   14m
-  podcliquescalinggroup.grove.io/simple1-1-pcsg   79s # newly created `PodCliqueScalingGroup`, as a consequence of scaling `PodGangSet`
+  NAME                                           AGE
+  podcliquescalinggroup.grove.io/simple1-0-sga   6m24s
+  podcliquescalinggroup.grove.io/simple1-1-sga   51s # newly created `PodCliqueScalingGroup`, as a consequence of scaling `PodGangSet`
 
   NAME                                   AGE
-  podgang.scheduler.grove.io/simple1-0   14m
-  podgang.scheduler.grove.io/simple1-1   79s # newly created `PodGang`, as a consequence of scaling `PodGangSet`
+  podgang.scheduler.grove.io/simple1-0   6m24s
+  podgang.scheduler.grove.io/simple1-1   51s # newly created `PodGang`, as a consequence of scaling `PodGangSet`
 
   NAME                                  READY   STATUS    RESTARTS   AGE
-  pod/grove-operator-74cc5866c8-s7ssj   1/1     Running   0          14m
-  pod/simple1-0-pca-hk7pk               1/1     Running   0          14m
-  pod/simple1-0-pca-m8hm6               1/1     Running   0          14m
-  pod/simple1-0-pca-nrfs9               1/1     Running   0          14m
-  pod/simple1-0-pcb-pg5dr               1/1     Running   0          14m
-  pod/simple1-0-pcb-r46xn               1/1     Running   0          14m
-  pod/simple1-0-pcc-hw9lf               1/1     Running   0          14m
-  pod/simple1-0-pcc-pb6hg               1/1     Running   0          14m
-  pod/simple1-0-pcd-7nvm5               1/1     Running   0          14m
-  pod/simple1-0-pcd-dtfr2               1/1     Running   0          14m
-  pod/simple1-1-pca-nhv6h               1/1     Running   0          79s # newly created Pod, as a consequence of scaling `PodGangSet`
-  pod/simple1-1-pca-q7gxl               1/1     Running   0          79s # newly created Pod, as a consequence of scaling `PodGangSet`
-  pod/simple1-1-pca-xscll               1/1     Running   0          79s # newly created Pod, as a consequence of scaling `PodGangSet`
-  pod/simple1-1-pcb-4wcvh               1/1     Running   0          79s # newly created Pod, as a consequence of scaling `PodGangSet`
-  pod/simple1-1-pcb-8dbr7               1/1     Running   0          79s # newly created Pod, as a consequence of scaling `PodGangSet`
-  pod/simple1-1-pcc-ff9pr               1/1     Running   0          79s # newly created Pod, as a consequence of scaling `PodGangSet`
-  pod/simple1-1-pcc-rlx5t               1/1     Running   0          79s # newly created Pod, as a consequence of scaling `PodGangSet`
-  pod/simple1-1-pcd-7tbgc               1/1     Running   0          79s # newly created Pod, as a consequence of scaling `PodGangSet`
-  pod/simple1-1-pcd-vgv2z               1/1     Running   0          79s # newly created Pod, as a consequence of scaling `PodGangSet`
+  pod/grove-operator-699c77979f-7x2zc   1/1     Running   0          6m42s
+  pod/simple1-0-pca-pkl2b               1/1     Running   0          6m24s
+  pod/simple1-0-pca-s7dz2               1/1     Running   0          6m24s
+  pod/simple1-0-pca-wjfqz               1/1     Running   0          6m24s
+  pod/simple1-0-pcd-l4vnk               1/1     Running   0          6m24s
+  pod/simple1-0-pcd-s7687               1/1     Running   0          6m24s
+  pod/simple1-0-sga-0-pcb-m9shj         1/1     Running   0          6m24s
+  pod/simple1-0-sga-0-pcb-vnrqw         1/1     Running   0          6m24s
+  pod/simple1-0-sga-0-pcc-g8rg8         1/1     Running   0          6m24s
+  pod/simple1-0-sga-0-pcc-hx4zn         1/1     Running   0          6m24s
+  pod/simple1-1-pca-29njw               1/1     Running   0          51s # newly created Pod, as a consequence of scaling `PodGangSet`
+  pod/simple1-1-pca-9cgm8               1/1     Running   0          51s # newly created Pod, as a consequence of scaling `PodGangSet`
+  pod/simple1-1-pca-lhrw8               1/1     Running   0          51s # newly created Pod, as a consequence of scaling `PodGangSet`
+  pod/simple1-1-pcd-6fjzm               1/1     Running   0          51s # newly created Pod, as a consequence of scaling `PodGangSet`
+  pod/simple1-1-pcd-n288d               1/1     Running   0          51s # newly created Pod, as a consequence of scaling `PodGangSet`
+  pod/simple1-1-sga-0-pcb-5kvzx         1/1     Running   0          51s # newly created Pod, as a consequence of scaling `PodGangSet`
+  pod/simple1-1-sga-0-pcb-h8g8l         1/1     Running   0          51s # newly created Pod, as a consequence of scaling `PodGangSet`
+  pod/simple1-1-sga-0-pcc-6gxfb         1/1     Running   0          51s # newly created Pod, as a consequence of scaling `PodGangSet`
+  pod/simple1-1-sga-0-pcc-rqfqf         1/1     Running   0          51s # newly created Pod, as a consequence of scaling `PodGangSet`
   ```
 
   Similarly, the `PodGangSet` can be scaled back in to 1 replicas like so:
