@@ -113,7 +113,7 @@ func (r _resource) Sync(ctx context.Context, logger logr.Logger, pcsg *grovecore
 	}
 
 	terminationDelay := pgs.Spec.Template.TerminationDelay.Duration
-	podGangsToTerminate, podGangsRequiringRequeue := findPodGangsTerminationCandidates(existingPCLQs, terminationDelay, logger)
+	podGangsToTerminate, podGangsRequiringRequeue := findPodGangsTerminationCandidates(pcsg, existingPCLQs, terminationDelay, logger)
 	if len(podGangsToTerminate) > 0 {
 		reason := fmt.Sprintf("Delete PodCliques %v for PodCliqueScalingGroup %v which have breached MinAvailable longer than TerminationDelay: %s", podGangsToTerminate, client.ObjectKeyFromObject(pcsg), terminationDelay)
 		pclqGangTerminationTasks := r.createDeleteTasks(logger, pgs.ObjectMeta, podGangsToTerminate, reason)
@@ -149,7 +149,7 @@ func (r _resource) triggerDeletionOfExcessPodCliques(ctx context.Context, logger
 	return nil
 }
 
-func findPodGangsTerminationCandidates(existingPCLQs []grovecorev1alpha1.PodClique, terminationDelay time.Duration, logger logr.Logger) (podGangsToTerminate []string, requeueAfterForPodGangs *lo.Tuple2[[]string, time.Duration]) {
+func findPodGangsTerminationCandidates(pcsg *grovecorev1alpha1.PodCliqueScalingGroup, existingPCLQs []grovecorev1alpha1.PodClique, terminationDelay time.Duration, logger logr.Logger) (podGangsToTerminate []string, requeueAfterForPodGangs *lo.Tuple2[[]string, time.Duration]) {
 	now := time.Now()
 	// group existing PCLQs by PodGang name. These are PCLQs that belong to once replica of PCSG.
 	podGangPCLQs := componentutils.GroupPCLQsByPodGangName(existingPCLQs)
@@ -157,6 +157,9 @@ func findPodGangsTerminationCandidates(existingPCLQs []grovecorev1alpha1.PodCliq
 	podGangsRequiringRequeue := make([]string, 0, len(existingPCLQs))
 	// For each PodGang check if minAvailable for any constituent PCLQ has been violated. Those PodGangs should be marked for termination.
 	for podGangName, pclqs := range podGangPCLQs {
+		if !strings.HasPrefix(podGangName, pcsg.Name) {
+			continue
+		}
 		pclqNames, minWaitFor := componentutils.GetMinAvailableBreachedPCLQInfo(pclqs, terminationDelay, now)
 		if len(pclqNames) > 0 {
 			logger.Info("minAvailable breached for PCLQs", "podGang", podGangName, "pclqNames", pclqNames, "minWaitFor", minWaitFor)
@@ -266,7 +269,7 @@ func getExcessPodGangNamesToDelete(pcsg *grovecorev1alpha1.PodCliqueScalingGroup
 			return "", false
 		}
 		podGangName, ok := existingPCLQ.GetLabels()[grovecorev1alpha1.LabelPodGangName]
-		if !ok {
+		if !ok || !strings.HasPrefix(podGangName, pcsg.Name) {
 			return "", false
 		}
 		return podGangName, true
