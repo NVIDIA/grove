@@ -1,14 +1,32 @@
+// /*
+// Copyright 2025 The Grove Authors.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+// */
+
 package utils
 
 import (
 	"context"
+	"slices"
+	"time"
+
 	grovecorev1alpha1 "github.com/NVIDIA/grove/operator/api/core/v1alpha1"
+
 	"github.com/samber/lo"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"slices"
-	"time"
 )
 
 // GetPodCliquesByOwner retrieves PodClique objects that are owned by the specified owner kind and object key, and match the provided selector labels.
@@ -66,6 +84,7 @@ func GetMinAvailableBreachedPCLQInfo(pclqs []grovecorev1alpha1.PodClique, termin
 	return pclqCandidateNames, waitForDurations[0]
 }
 
+// FilterPCLQsWithMinAvailableBreached returns PodCliques which have number of ready Pods to be below the minAvailable specified, by checking the ConditionTypeMinAvailableBreached condition.
 func FilterPCLQsWithMinAvailableBreached(pclqs []grovecorev1alpha1.PodClique) []grovecorev1alpha1.PodClique {
 	return lo.Filter(pclqs, func(pclq grovecorev1alpha1.PodClique, _ int) bool {
 		cond := meta.FindStatusCondition(pclq.Status.Conditions, grovecorev1alpha1.ConditionTypeMinAvailableBreached)
@@ -73,6 +92,7 @@ func FilterPCLQsWithMinAvailableBreached(pclqs []grovecorev1alpha1.PodClique) []
 	})
 }
 
+// GetPCLQNames returns the names of pclqs.
 func GetPCLQNames(pclqs []grovecorev1alpha1.PodClique) []string {
 	return lo.Map(pclqs, func(pclq grovecorev1alpha1.PodClique, _ int) string {
 		return pclq.Name
