@@ -483,5 +483,5 @@ func emptyPodClique(objKey client.ObjectKey) *grovecorev1alpha1.PodClique {
 }
 
 func isPCSGPodGang(pcsgName, podGangName string) bool {
-	return !strings.HasPrefix(podGangName, pcsgName)
+	return strings.HasPrefix(podGangName, pcsgName)
 }

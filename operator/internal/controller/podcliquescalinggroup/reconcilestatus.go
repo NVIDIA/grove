@@ -105,12 +105,13 @@ func (r *Reconciler) computeMinAvailableBreachedCondition(ctx context.Context, l
 		}
 	}
 
-	if int(pcsg.Spec.Replicas)-len(minAvailableBreachedPodGangNames) < defaultPCSGMinAvailable {
+	numReadyPCSGReplicas := int(pcsg.Spec.Replicas) - len(minAvailableBreachedPodGangNames)
+	if numReadyPCSGReplicas < defaultPCSGMinAvailable {
 		return &metav1.Condition{
 			Type:    grovecorev1alpha1.ConditionTypeMinAvailableBreached,
 			Status:  metav1.ConditionTrue,
 			Reason:  "InsufficientReadyPodCliqueScalingGroupReplicas",
-			Message: fmt.Sprintf("Insufficient PodCliqueScalingGroup replicas, expected at least: %d, found: %d", defaultPCSGMinAvailable, len(minAvailableBreachedPodGangNames)),
+			Message: fmt.Sprintf("Insufficient PodCliqueScalingGroup replicas, expected at least: %d, found: %d", defaultPCSGMinAvailable, numReadyPCSGReplicas),
 		}, nil
 	}
 
@@ -118,7 +119,7 @@ func (r *Reconciler) computeMinAvailableBreachedCondition(ctx context.Context, l
 		Type:    grovecorev1alpha1.ConditionTypeMinAvailableBreached,
 		Status:  metav1.ConditionFalse,
 		Reason:  "SufficientReadyPodCliqueScalingGroupReplicas",
-		Message: fmt.Sprintf("Sufficient PodCliqueScalingGroup replicas, expected at least: %d, found: %d", defaultPCSGMinAvailable, len(minAvailableBreachedPodGangNames)),
+		Message: fmt.Sprintf("Sufficient PodCliqueScalingGroup replicas, expected at least: %d, found: %d", defaultPCSGMinAvailable, numReadyPCSGReplicas),
 	}, nil
 }
 
