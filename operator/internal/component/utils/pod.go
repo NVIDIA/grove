@@ -38,7 +38,7 @@ func GetPCLQPods(ctx context.Context, cl client.Client, pgsName string, pclq *gr
 			lo.Assign(
 				k8sutils.GetDefaultLabelsForPodGangSetManagedResources(pgsName),
 				map[string]string{
-					grovecorev1alpha1.LabelPodCliqueName: pclq.Name,
+					grovecorev1alpha1.LabelPodClique: pclq.Name,
 				},
 			),
 		)); err != nil {

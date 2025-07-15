@@ -157,7 +157,7 @@ func findPodGangsTerminationCandidates(pcsg *grovecorev1alpha1.PodCliqueScalingG
 	podGangsRequiringRequeue := make([]string, 0, len(existingPCLQs))
 	// For each PodGang check if minAvailable for any constituent PCLQ has been violated. Those PodGangs should be marked for termination.
 	for podGangName, pclqs := range podGangPCLQs {
-		if !strings.HasPrefix(podGangName, pcsg.Name) {
+		if !isPCSGPodGang(pcsg.Name, podGangName) {
 			continue
 		}
 		pclqNames, minWaitFor := componentutils.GetMinAvailableBreachedPCLQInfo(pclqs, terminationDelay, now)
@@ -269,7 +269,7 @@ func getExcessPodGangNamesToDelete(pcsg *grovecorev1alpha1.PodCliqueScalingGroup
 			return "", false
 		}
 		podGangName, ok := existingPCLQ.GetLabels()[grovecorev1alpha1.LabelPodGangName]
-		if !ok || !strings.HasPrefix(podGangName, pcsg.Name) {
+		if !ok || !isPCSGPodGang(pcsg.Name, podGangName) {
 			return "", false
 		}
 		return podGangName, true
@@ -480,4 +480,8 @@ func emptyPodClique(objKey client.ObjectKey) *grovecorev1alpha1.PodClique {
 			Namespace: objKey.Namespace,
 		},
 	}
+}
+
+func isPCSGPodGang(pcsgName, podGangName string) bool {
+	return !strings.HasPrefix(podGangName, pcsgName)
 }

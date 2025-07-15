@@ -49,7 +49,7 @@ func (r *Reconciler) reconcileStatus(ctx context.Context, logger logr.Logger, pc
 	// mutate the selector that will be used by an autoscaler.
 	if err := mutateSelector(pgsName, pclq); err != nil {
 		logger.Error(err, "failed to update selector for PodClique")
-		ctrlcommon.ReconcileWithErrors("failed to set selector for PodClique", err)
+		return ctrlcommon.ReconcileWithErrors("failed to set selector for PodClique", err)
 	}
 
 	// update the PodClique status.
@@ -67,13 +67,17 @@ func (r *Reconciler) mutateStatusReplicaCounts(ctx context.Context, logger logr.
 		return err
 	}
 
+	nonTerminatingPods := lo.Filter(pods, func(pod *corev1.Pod, _ int) bool {
+		return !k8sutils.IsResourceTerminating(pod.ObjectMeta)
+	})
+
 	// mutate the PCLQ status with current number of schedule gated, ready pods and updated pods.
-	pclq.Status.Replicas = int32(len(pods))
-	readyPods, scheduleGatedPods := getReadyAndScheduleGatedPods(pods)
+	pclq.Status.Replicas = int32(len(nonTerminatingPods))
+	readyPods, scheduleGatedPods := getReadyAndScheduleGatedPods(nonTerminatingPods)
 	pclq.Status.ReadyReplicas = int32(len(readyPods))
 	pclq.Status.ScheduleGatedReplicas = int32(len(scheduleGatedPods))
 	// TODO: change this when rolling update is implemented
-	pclq.Status.UpdatedReplicas = int32(len(pods))
+	pclq.Status.UpdatedReplicas = int32(len(nonTerminatingPods))
 
 	return nil
 }
@@ -85,7 +89,7 @@ func mutateSelector(pgsName string, pclq *grovecorev1alpha1.PodClique) error {
 	labels := lo.Assign(
 		k8sutils.GetDefaultLabelsForPodGangSetManagedResources(pgsName),
 		map[string]string{
-			grovecorev1alpha1.LabelPodCliqueName: pclq.Name,
+			grovecorev1alpha1.LabelPodClique: pclq.Name,
 		},
 	)
 	selector, err := metav1.LabelSelectorAsSelector(&metav1.LabelSelector{MatchLabels: labels})

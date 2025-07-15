@@ -25,11 +25,7 @@ import (
 	pcsgcomponent "github.com/NVIDIA/grove/operator/internal/component/podcliquescalinggroup"
 	ctrlcommon "github.com/NVIDIA/grove/operator/internal/controller/common"
 	ctrlutils "github.com/NVIDIA/grove/operator/internal/controller/utils"
-	k8sutils "github.com/NVIDIA/grove/operator/internal/utils/kubernetes"
 
-	"github.com/samber/lo"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/utils/ptr"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
@@ -78,7 +74,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		deletionOrSpecReconcileFlowResult = r.reconcileSpec(ctx, specLog, pcsg)
 	}
 
-	if statusReconcileResult := r.reconcileStatus(ctx, pcsg); ctrlcommon.ShortCircuitReconcileFlow(statusReconcileResult) {
+	if statusReconcileResult := r.reconcileStatus(ctx, logger, pcsg); ctrlcommon.ShortCircuitReconcileFlow(statusReconcileResult) {
 		return statusReconcileResult.Result()
 	}
 
@@ -87,28 +83,4 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	}
 
 	return ctrlcommon.DoNotRequeue().Result()
-}
-
-func (r *Reconciler) reconcileStatus(ctx context.Context, pcsg *grovecorev1alpha1.PodCliqueScalingGroup) ctrlcommon.ReconcileStepResult {
-	pcsg.Status.Replicas = pcsg.Spec.Replicas
-
-	pgsName := k8sutils.GetFirstOwnerName(pcsg.ObjectMeta)
-	labels := lo.Assign(
-		k8sutils.GetDefaultLabelsForPodGangSetManagedResources(pgsName),
-		map[string]string{
-			grovecorev1alpha1.LabelPodCliqueScalingGroup: pcsg.Name,
-		},
-	)
-
-	selector, err := metav1.LabelSelectorAsSelector(&metav1.LabelSelector{MatchLabels: labels})
-	if err != nil {
-		return ctrlcommon.ReconcileWithErrors("failed to generate label selector", err)
-	}
-	pcsg.Status.Selector = ptr.To(selector.String())
-
-	if err := r.client.Status().Update(ctx, pcsg); err != nil {
-		return ctrlcommon.ReconcileWithErrors("failed to update the status with label selector and replicas", err)
-	}
-
-	return ctrlcommon.ContinueReconcile()
 }

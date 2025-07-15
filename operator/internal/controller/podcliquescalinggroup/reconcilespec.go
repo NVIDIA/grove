@@ -36,7 +36,6 @@ func (r *Reconciler) reconcileSpec(ctx context.Context, logger logr.Logger, pcsg
 		r.ensureFinalizer,
 		r.recordReconcileStart,
 		r.syncPodCliqueScalingGroupResources,
-		// r.updatePodCliques,
 		r.recordReconcileSuccess,
 		r.updateObservedGeneration,
 	}

@@ -32,3 +32,12 @@ func HasConditionChanged(existingConditions []metav1.Condition, newCondition met
 		existingCond.Reason != newCondition.Reason ||
 		existingCond.Message != newCondition.Message
 }
+
+// IsConditionTrue checks for a specific Condition amongst a list of Conditions and returns if the Condition.Status is true otherwise false is returned.
+func IsConditionTrue(existingConditions []metav1.Condition, conditionType string) bool {
+	existingCond := meta.FindStatusCondition(existingConditions, conditionType)
+	if existingCond == nil {
+		return false
+	}
+	return existingCond.Status == metav1.ConditionTrue
+}

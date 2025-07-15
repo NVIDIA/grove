@@ -83,18 +83,3 @@ func GetMinAvailableBreachedPCLQInfo(pclqs []grovecorev1alpha1.PodClique, termin
 	}
 	return pclqCandidateNames, waitForDurations[0]
 }
-
-// FilterPCLQsWithMinAvailableBreached returns PodCliques which have number of ready Pods to be below the minAvailable specified, by checking the ConditionTypeMinAvailableBreached condition.
-func FilterPCLQsWithMinAvailableBreached(pclqs []grovecorev1alpha1.PodClique) []grovecorev1alpha1.PodClique {
-	return lo.Filter(pclqs, func(pclq grovecorev1alpha1.PodClique, _ int) bool {
-		cond := meta.FindStatusCondition(pclq.Status.Conditions, grovecorev1alpha1.ConditionTypeMinAvailableBreached)
-		return cond != nil && cond.Status == metav1.ConditionTrue
-	})
-}
-
-// GetPCLQNames returns the names of pclqs.
-func GetPCLQNames(pclqs []grovecorev1alpha1.PodClique) []string {
-	return lo.Map(pclqs, func(pclq grovecorev1alpha1.PodClique, _ int) string {
-		return pclq.Name
-	})
-}
