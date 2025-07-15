@@ -131,21 +131,6 @@ func (r _resource) Sync(ctx context.Context, logger logr.Logger, pgs *grovecorev
 	return nil
 }
 
-//// computeExpectedPCLQNames computes the expected PodClique names that are solely managed by the PodGangSet reconciler.
-//// All cliques that are part of a PodCliqueScalingGroup are excluded from this list, as they are managed by the PodCliqueScalingGroup reconciler.
-//func computeExpectedPCLQNames(pgs *grovecorev1alpha1.PodGangSet) []string {
-//	pcsgConfigs := pgs.Spec.Template.PodCliqueScalingGroupConfigs
-//	pcsgCliqueNames := make([]string, 0, len(pcsgConfigs))
-//	for _, pcsgConfig := range pcsgConfigs {
-//		pcsgCliqueNames = append(pcsgCliqueNames, pcsgConfig.CliqueNames...)
-//	}
-//	pgsCliqueNames := lo.Map(pgs.Spec.Template.Cliques, func(pclqTemplateSpec *grovecorev1alpha1.PodCliqueTemplateSpec, _ int) string {
-//		return pclqTemplateSpec.Name
-//	})
-//	expectedCliqueNames, _ := lo.Difference(pgsCliqueNames, pcsgCliqueNames)
-//	return expectedCliqueNames
-//}
-
 func (r _resource) triggerDeletionOfExcessPodCliques(ctx context.Context, logger logr.Logger, pgs *grovecorev1alpha1.PodGangSet, deletionCandidateNames []string) error {
 	deletionTasks := make([]utils.Task, 0, len(deletionCandidateNames))
 	for _, pclqName := range deletionCandidateNames {

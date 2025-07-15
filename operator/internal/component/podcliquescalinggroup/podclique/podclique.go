@@ -117,16 +117,16 @@ func (r _resource) Sync(ctx context.Context, logger logr.Logger, pcsg *grovecore
 	}
 
 	terminationDelay := pgs.Spec.Template.TerminationDelay.Duration
-	pclqsToGangTerminate, pclqsRequiringRequeue := findPodGangsTerminationCandidates(existingPCLQs, terminationDelay)
-	if len(pclqsToGangTerminate) > 0 {
-		reason := fmt.Sprintf("Delete PodCliques %v for PodCliqueScalingGroup %v which have breached MinAvailable longer than TerminationDelay: %s", pclqsToGangTerminate, client.ObjectKeyFromObject(pcsg), terminationDelay)
-		pclqGangTerminationTasks := r.createDeleteTasks(logger, pcsg, pclqsToGangTerminate, reason)
+	podGangsToTerminate, podGangsRequiringRequeue := findPodGangsTerminationCandidates(existingPCLQs, terminationDelay, logger)
+	if len(podGangsToTerminate) > 0 {
+		reason := fmt.Sprintf("Delete PodCliques %v for PodCliqueScalingGroup %v which have breached MinAvailable longer than TerminationDelay: %s", podGangsToTerminate, client.ObjectKeyFromObject(pcsg), terminationDelay)
+		pclqGangTerminationTasks := r.createDeleteTasks(logger, pcsg, podGangsToTerminate, reason)
 		if err = r.triggerDeletionOfPodCliques(ctx, logger, client.ObjectKeyFromObject(pcsg), pclqGangTerminationTasks); err != nil {
 			return err
 		}
 	}
-	if pclqsRequiringRequeue != nil {
-		logger.Info("Found PCLQs with MinAvailable breached but which have not crossed TerminationDelay", "pclqs", pclqsRequiringRequeue.A, "terminationDelay", terminationDelay)
+	if podGangsRequiringRequeue != nil {
+		logger.Info("Found PCLQs with MinAvailable breached but which have not crossed TerminationDelay", "pclqs", podGangsRequiringRequeue.A, "terminationDelay", terminationDelay)
 		return groveerr.New(groveerr.ErrCodeRequeueAfter,
 			component.OperationSync,
 			fmt.Sprintf("Requeuing to re-process PCLQs that have breached MinAvailable but not crossed TerminationDelay"),
@@ -154,27 +154,28 @@ func (r _resource) triggerDeletionOfExcessPodCliques(ctx context.Context, logger
 	return nil
 }
 
-func findPodGangsTerminationCandidates(existingPCLQs []grovecorev1alpha1.PodClique, terminationDelay time.Duration) (pclqsToDelete []string, requeueAfterForPCLQs *lo.Tuple2[[]string, time.Duration]) {
+func findPodGangsTerminationCandidates(existingPCLQs []grovecorev1alpha1.PodClique, terminationDelay time.Duration, logger logr.Logger) (podGangsToTerminate []string, requeueAfterForPodGangs *lo.Tuple2[[]string, time.Duration]) {
 	now := time.Now()
 	// group existing PCLQs by PodGang name. These are PCLQs that belong to once replica of PCSG.
 	podGangPCLQs := componentutils.GroupPCLQsByPodGangName(existingPCLQs)
 	var minWaitForDurations []time.Duration
-	pclqNamesRequiringRequeue := make([]string, 0, len(existingPCLQs))
+	podGangsRequiringRequeue := make([]string, 0, len(existingPCLQs))
 	// For each PodGang check if minAvailable for any constituent PCLQ has been violated. Those PodGangs should be marked for termination.
-	for _, pclqs := range podGangPCLQs {
+	for podGangName, pclqs := range podGangPCLQs {
 		pclqNames, minWaitFor := componentutils.GetMinAvailableBreachedPCLQInfo(pclqs, terminationDelay, now)
+		logger.Info("minAvailable breached for PCLQs", "podGang", podGangName, "pclqNames", pclqNames, "minWaitFor", minWaitFor)
 		if len(pclqNames) > 0 {
 			if minWaitFor <= 0 {
-				pclqsToDelete = append(pclqsToDelete, pclqNames...)
+				podGangsToTerminate = append(podGangsToTerminate, podGangName)
 			} else {
 				minWaitForDurations = append(minWaitForDurations, minWaitFor)
-				pclqNamesRequiringRequeue = append(pclqNamesRequiringRequeue, pclqNames...)
+				podGangsRequiringRequeue = append(podGangsRequiringRequeue, podGangName)
 			}
 		}
 	}
 	if len(minWaitForDurations) > 0 {
 		slices.Sort(minWaitForDurations)
-		requeueAfterForPCLQs = &lo.Tuple2[[]string, time.Duration]{A: pclqNamesRequiringRequeue, B: minWaitForDurations[0]}
+		requeueAfterForPodGangs = &lo.Tuple2[[]string, time.Duration]{A: podGangsRequiringRequeue, B: minWaitForDurations[0]}
 	}
 	return
 }
@@ -247,19 +248,17 @@ func (r _resource) triggerDeletionOfPodCliques(ctx context.Context, logger logr.
 	return nil
 }
 
-func (r _resource) createDeleteTasks(logger logr.Logger, pcsg *grovecorev1alpha1.PodCliqueScalingGroup, deletionCandidateNames []string, reason string) []utils.Task {
-	deletionTasks := make([]utils.Task, 0, len(deletionCandidateNames))
-	for _, pclqName := range deletionCandidateNames {
-		pclqObjectKey := client.ObjectKey{
-			Name:      pclqName,
-			Namespace: pcsg.Namespace,
-		}
-		pclq := emptyPodClique(pclqObjectKey)
+func (r _resource) createDeleteTasks(logger logr.Logger, pgsName string, pcsg *grovecorev1alpha1.PodCliqueScalingGroup, podGangsToTerminate []string, reason string) []utils.Task {
+	deletionTasks := make([]utils.Task, 0, len(podGangsToTerminate))
+	for _, podGangName := range podGangsToTerminate {
 		task := utils.Task{
-			Name: "DeletePodClique-" + pclqName,
+			Name: "DeletePodGangPodCliques-" + podGangName,
 			Fn: func(ctx context.Context) error {
-				if err := client.IgnoreNotFound(r.client.Delete(ctx, pclq)); err != nil {
-					logger.Error(err, "failed to delete PodClique", "objectKey", pclqObjectKey, "reason", reason)
+				if err := r.client.DeleteAllOf(ctx,
+					&grovecorev1alpha1.PodClique{},
+					client.InNamespace(pcsg.Namespace),
+					client.MatchingLabels(getLabelsToDeletePodGangPCLQs(pgsName, podGangName))); err != nil {
+					logger.Error(err, "failed to delete PodCliques for PodGang", "podGangName", podGangName)
 					return err
 				}
 				return nil
@@ -268,6 +267,16 @@ func (r _resource) createDeleteTasks(logger logr.Logger, pcsg *grovecorev1alpha1
 		deletionTasks = append(deletionTasks, task)
 	}
 	return deletionTasks
+}
+
+func getLabelsToDeletePodGangPCLQs(pgsName, podGangName string) map[string]string {
+	return lo.Assign(
+		k8sutils.GetDefaultLabelsForPodGangSetManagedResources(pgsName),
+		map[string]string{
+			grovecorev1alpha1.LabelComponentKey: component.NamePCSGPodClique,
+			grovecorev1alpha1.LabelPodGangName:  podGangName,
+		},
+	)
 }
 
 func getPodCliqueNamesToDelete(pgsName string, pcsgReplicas int, existingPCLQNames []string) ([]string, error) {

@@ -341,25 +341,6 @@ func (r _resource) getPodsPendingCreationOrAssociation(sc *syncContext, podGang 
 	return numPodsPendingCreateOrAssociate
 }
 
-//func (r _resource) getPodsPendingCreationOrAssociation(sc *syncContext, podGang podGangInfo) (int, error) {
-//	pclqs := sc.getPodCliques(podGang)
-//	var numTotalPendingPodsToAssociate int
-//	for _, pclq := range pclqs {
-//		associatedPodNames, unassociatedPods := sc.getAssociatedAndUnassociatedPods(podGang, &pclq)
-//		numPCLQPendingPodsToAssociate := podGang.computePendingPodsToAssociate(pclq.Name, len(associatedPodNames))
-//		if numPCLQPendingPodsToAssociate > 0 {
-//			assignedPodNames, err := r.assignPodsToPodGang(sc.ctx, podGang.fqn, unassociatedPods, numPCLQPendingPodsToAssociate)
-//			if err != nil {
-//				sc.logger.Error(err, "failed to assign pods to PodGang", "podGangName", podGang.fqn, "pclqObjectKey", client.ObjectKeyFromObject(&pclq), "numPCLQPendingPodsToAssociate", numPCLQPendingPodsToAssociate, "assignedPodNames", assignedPodNames)
-//				return numTotalPendingPodsToAssociate, err
-//			}
-//			numTotalPendingPodsToAssociate += numPCLQPendingPodsToAssociate - len(assignedPodNames)
-//			sc.refreshPodGangPCLQPods(&podGang, pclq.Name, assignedPodNames...)
-//		}
-//	}
-//	return numTotalPendingPodsToAssociate, nil
-//}
-
 func (r _resource) createOrUpdatePodGang(sc *syncContext, pgInfo podGangInfo) error {
 	pgObjectKey := client.ObjectKey{
 		Namespace: sc.pgs.Namespace,
