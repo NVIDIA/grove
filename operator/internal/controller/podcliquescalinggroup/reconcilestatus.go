@@ -82,7 +82,7 @@ func (r *Reconciler) computeMinAvailableBreachedCondition(ctx context.Context, l
 			grovecorev1alpha1.LabelComponentKey:          component.NamePCSGPodClique,
 		},
 	)
-	pcsgPCLQs, err := componentutils.GetPodCliquesByOwner(ctx,
+	pcsgPCLQs, err := componentutils.GetPCLQsByOwner(ctx,
 		r.client,
 		grovecorev1alpha1.PodCliqueScalingGroupKind,
 		client.ObjectKeyFromObject(pcsg),

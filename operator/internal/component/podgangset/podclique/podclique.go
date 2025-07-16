@@ -39,9 +39,11 @@ import (
 )
 
 const (
-	errListPodClique   grovecorev1alpha1.ErrorCode = "ERR_LIST_PODCLIQUE"
-	errSyncPodClique   grovecorev1alpha1.ErrorCode = "ERR_SYNC_PODCLIQUE"
-	errDeletePodClique grovecorev1alpha1.ErrorCode = "ERR_DELETE_PODCLIQUE"
+	errListPodClique                 grovecorev1alpha1.ErrorCode = "ERR_LIST_PODCLIQUE"
+	errSyncPodClique                 grovecorev1alpha1.ErrorCode = "ERR_SYNC_PODCLIQUE"
+	errDeletePodClique               grovecorev1alpha1.ErrorCode = "ERR_DELETE_PODCLIQUE"
+	errCodeListPodCliqueScalingGroup grovecorev1alpha1.ErrorCode = "ERR_LIST_PODCLIQUESCALINGGROUP"
+	errCodeListPodCliques            grovecorev1alpha1.ErrorCode = "ERR_LIST_PODCLIQUES"
 )
 
 type _resource struct {
@@ -102,6 +104,10 @@ func (r _resource) Sync(ctx context.Context, logger logr.Logger, pgs *grovecorev
 		}
 	}
 
+	if err = r.checkMinAvailableBreachAndDeletePGSReplicaPodGang(ctx, logger, pgs); err != nil {
+		return err
+	}
+
 	// Update or create PodCliques
 	tasks := make([]utils.Task, 0, len(expectedPCLQNames))
 
@@ -129,6 +135,29 @@ func (r _resource) Sync(ctx context.Context, logger logr.Logger, pgs *grovecorev
 		)
 	}
 	return nil
+}
+
+func (r _resource) checkMinAvailableBreachAndDeletePGSReplicaPodGang(ctx context.Context, logger logr.Logger, pgs *grovecorev1alpha1.PodGangSet) error {
+	pgsObjectKey := client.ObjectKeyFromObject(pgs)
+	for pgsReplicaIndex := range int(pgs.Spec.Replicas) {
+		pcsgs, err := componentutils.GetPCSGsForPGSReplicaIndex(ctx, r.client, pgsObjectKey, pgsReplicaIndex)
+		if err != nil {
+			return groveerr.WrapError(err,
+				errCodeListPodCliqueScalingGroup,
+				component.OperationSync,
+				fmt.Sprintf("failed to list PodCliqueScalingGroups for PodGangSet: %v,  replica Index: %d", pgsObjectKey, pgsReplicaIndex))
+		}
+		pclqFQNsNotInPCSG := componentutils.GetPodCliqueFQNsForPGSReplicaNotInPCSG(pgs, pgsReplicaIndex)
+		pclqsNotInPGS, notFoundPCLQFQNs, err := componentutils.GetPCLQsByNames(ctx, r.client, pgs.Namespace, pclqFQNsNotInPCSG)
+		if err != nil {
+			return groveerr.WrapError(err,
+				errCodeListPodCliques,
+				component.OperationSync,
+				fmt.Sprintf("failed to list PodCliques: %v for PodGangSet: %v, replica Index: %d", pclqFQNsNotInPCSG, pgsObjectKey, pgsReplicaIndex),
+			)
+		}
+
+	}
 }
 
 func (r _resource) triggerDeletionOfExcessPodCliques(ctx context.Context, logger logr.Logger, pgs *grovecorev1alpha1.PodGangSet, deletionCandidateNames []string) error {
@@ -330,7 +359,7 @@ func getLabels(pgsName string, pgsReplica int, pclqObjectKey client.ObjectKey, p
 		grovecorev1alpha1.LabelAppNameKey:             pclqObjectKey.Name,
 		grovecorev1alpha1.LabelComponentKey:           component.NamePGSPodClique,
 		grovecorev1alpha1.LabelPodGangSetReplicaIndex: strconv.Itoa(pgsReplica),
-		grovecorev1alpha1.LabelPodGangName:            podGangName,
+		grovecorev1alpha1.LabelPodGang:                podGangName,
 	}
 	return lo.Assign(
 		pclqTemplateSpec.Labels,

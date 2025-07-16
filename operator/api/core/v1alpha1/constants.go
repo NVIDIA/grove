@@ -34,8 +34,8 @@ const (
 	LabelPodClique = "grove.io/podclique"
 	// LabelPodCliqueScalingGroup is a key for a label that sets the PodCliqueScalingGroup name.
 	LabelPodCliqueScalingGroup = "grove.io/podcliquescalinggroup"
-	// LabelPodGangName is a key for a label that sets the PodGang name.
-	LabelPodGangName = "grove.io/podgang"
+	// LabelPodGang is a key for a label that sets the PodGang name.
+	LabelPodGang = "grove.io/podgang"
 )
 
 // Constants for finalizers.

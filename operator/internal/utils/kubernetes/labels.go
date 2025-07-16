@@ -27,3 +27,11 @@ func GetPodGangSetReplicaIndex(objMeta metav1.ObjectMeta) (int, error) {
 	}
 	return pgsReplicaIndex, nil
 }
+
+// GetDefaultLabelsForPodGangSetManagedResources gets the default labels for resources managed by PodGangset.
+func GetDefaultLabelsForPodGangSetManagedResources(pgsName string) map[string]string {
+	return map[string]string{
+		grovev1alpha1.LabelManagedByKey: grovev1alpha1.LabelManagedByValue,
+		grovev1alpha1.LabelPartOfKey:    pgsName,
+	}
+}

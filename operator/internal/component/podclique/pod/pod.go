@@ -186,6 +186,6 @@ func getLabels(pclqObjectMeta metav1.ObjectMeta, podGangName string) (map[string
 		map[string]string{
 			grovecorev1alpha1.LabelPodClique:              pclqObjectMeta.Name,
 			grovecorev1alpha1.LabelPodGangSetReplicaIndex: strconv.Itoa(pgsReplicaIndex),
-			grovecorev1alpha1.LabelPodGangName:            podGangName,
+			grovecorev1alpha1.LabelPodGang:                podGangName,
 		}), nil
 }

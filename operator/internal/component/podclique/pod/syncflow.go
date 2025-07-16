@@ -73,11 +73,11 @@ func (r _resource) prepareSyncFlow(ctx context.Context, logger logr.Logger, pclq
 }
 
 func (r _resource) getAssociatedPodGangName(pclqObjectMeta metav1.ObjectMeta) (string, error) {
-	podGangName, ok := pclqObjectMeta.GetLabels()[grovecorev1alpha1.LabelPodGangName]
+	podGangName, ok := pclqObjectMeta.GetLabels()[grovecorev1alpha1.LabelPodGang]
 	if !ok {
 		return "", groveerr.New(errCodeMissingPodGangLabelOnPCLQ,
 			component.OperationSync,
-			fmt.Sprintf("PodClique: %v is missing required label: %s", k8sutils.GetObjectKeyFromObjectMeta(pclqObjectMeta), grovecorev1alpha1.LabelPodGangName),
+			fmt.Sprintf("PodClique: %v is missing required label: %s", k8sutils.GetObjectKeyFromObjectMeta(pclqObjectMeta), grovecorev1alpha1.LabelPodGang),
 		)
 	}
 	return podGangName, nil

@@ -68,26 +68,25 @@ func New(client client.Client, scheme *runtime.Scheme, eventRecorder record.Even
 // GetExistingResourceNames returns the names of all the existing resources that the PodClique Operator manages.
 func (r _resource) GetExistingResourceNames(ctx context.Context, logger logr.Logger, pcsgObjectMeta metav1.ObjectMeta) ([]string, error) {
 	logger.Info("Looking for existing PodCliques managed by PodCliqueScalingGroup")
-	objMetaList := &metav1.PartialObjectMetadataList{}
-	objMetaList.SetGroupVersionKind(grovecorev1alpha1.SchemeGroupVersion.WithKind("PodClique"))
-	if err := r.client.List(ctx,
-		objMetaList,
-		client.InNamespace(pcsgObjectMeta.Namespace),
-		client.MatchingLabels(getPodCliqueSelectorLabels(pcsgObjectMeta)),
-	); err != nil {
+	pclqPartialObjMetaList, err := k8sutils.ListExistingPartialObjectMetadata(ctx,
+		r.client,
+		grovecorev1alpha1.SchemeGroupVersion.WithKind("PodClique"),
+		pcsgObjectMeta,
+		getPodCliqueSelectorLabels(pcsgObjectMeta))
+	if err != nil {
 		return nil, groveerr.WrapError(err,
 			errListPodClique,
 			component.OperationGetExistingResourceNames,
-			fmt.Sprintf("Error listing PodCliques for PodGangSet: %v", k8sutils.GetObjectKeyFromObjectMeta(pcsgObjectMeta)),
+			fmt.Sprintf("Error listing PodCliques for PodCliqueScalingGroup: %v", k8sutils.GetObjectKeyFromObjectMeta(pcsgObjectMeta)),
 		)
 	}
-	return k8sutils.FilterMapOwnedResourceNames(pcsgObjectMeta, objMetaList.Items), nil
+	return k8sutils.FilterMapOwnedResourceNames(pcsgObjectMeta, pclqPartialObjMetaList), nil
 }
 
 // Sync synchronizes all resources that the PodClique Operator manages.
 func (r _resource) Sync(ctx context.Context, logger logr.Logger, pcsg *grovecorev1alpha1.PodCliqueScalingGroup) error {
 	expectedPCLQs := int(pcsg.Spec.Replicas) * len(pcsg.Spec.CliqueNames)
-	existingPCLQs, err := componentutils.GetPodCliquesByOwner(ctx, r.client, grovecorev1alpha1.PodCliqueScalingGroupKind, client.ObjectKeyFromObject(pcsg), getPodCliqueSelectorLabels(pcsg.ObjectMeta))
+	existingPCLQs, err := componentutils.GetPCLQsByOwner(ctx, r.client, grovecorev1alpha1.PodCliqueScalingGroupKind, client.ObjectKeyFromObject(pcsg), getPodCliqueSelectorLabels(pcsg.ObjectMeta))
 	if err != nil {
 		return groveerr.WrapError(err,
 			errCodeListPodCliquesForPCSG,
@@ -257,7 +256,7 @@ func getLabelsToDeletePodGangPCLQs(pgsName, podGangName string) map[string]strin
 		k8sutils.GetDefaultLabelsForPodGangSetManagedResources(pgsName),
 		map[string]string{
 			grovecorev1alpha1.LabelComponentKey: component.NamePCSGPodClique,
-			grovecorev1alpha1.LabelPodGangName:  podGangName,
+			grovecorev1alpha1.LabelPodGang:      podGangName,
 		},
 	)
 }
@@ -268,7 +267,7 @@ func getExcessPodGangNamesToDelete(pcsg *grovecorev1alpha1.PodCliqueScalingGroup
 		if slices.Contains(expectedPCLQNames, existingPCLQ.Name) {
 			return "", false
 		}
-		podGangName, ok := existingPCLQ.GetLabels()[grovecorev1alpha1.LabelPodGangName]
+		podGangName, ok := existingPCLQ.GetLabels()[grovecorev1alpha1.LabelPodGang]
 		if !ok || !isPCSGPodGang(pcsg.Name, podGangName) {
 			return "", false
 		}
@@ -464,7 +463,7 @@ func getLabels(pgsName string, pgsReplicaIndex int, pcsgName string, pcsgReplica
 		grovecorev1alpha1.LabelComponentKey:           component.NamePCSGPodClique,
 		grovecorev1alpha1.LabelPodGangSetReplicaIndex: strconv.Itoa(pgsReplicaIndex),
 		grovecorev1alpha1.LabelPodCliqueScalingGroup:  pcsgName,
-		grovecorev1alpha1.LabelPodGangName:            podGangName,
+		grovecorev1alpha1.LabelPodGang:                podGangName,
 	}
 	return lo.Assign(
 		pclqTemplateSpec.Labels,

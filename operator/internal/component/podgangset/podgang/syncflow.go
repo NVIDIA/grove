@@ -326,7 +326,7 @@ func (r _resource) getPodsPendingCreationOrAssociation(sc *syncContext, podGang 
 
 		// For all existing pods in the PCLQ, check if they have the PodGang label set. If that is not set then add them to numPodsPendingCreateOrAssociate.
 		for _, existingPod := range existingPCLQPods {
-			podGangLabelValue, ok := existingPod.GetLabels()[grovecorev1alpha1.LabelPodGangName]
+			podGangLabelValue, ok := existingPod.GetLabels()[grovecorev1alpha1.LabelPodGang]
 			if !ok {
 				sc.logger.Info("Pod does not have a PodGang label yet", "podObjectKey", client.ObjectKeyFromObject(&existingPod), "expectedPodGangName", podGang.fqn)
 				numPodsPendingCreateOrAssociate += 1
@@ -408,8 +408,8 @@ func (sc *syncContext) getPodGangNamesPendingCreation() []string {
 func (sc *syncContext) initializeAssignedAndUnassignedPodsForPGS(podsByPLCQ map[string][]corev1.Pod) {
 	for pclqName, pods := range podsByPLCQ {
 		for _, pod := range pods {
-			if metav1.HasLabel(pod.ObjectMeta, grovecorev1alpha1.LabelPodGangName) {
-				podGangName := pod.GetLabels()[grovecorev1alpha1.LabelPodGangName]
+			if metav1.HasLabel(pod.ObjectMeta, grovecorev1alpha1.LabelPodGang) {
+				podGangName := pod.GetLabels()[grovecorev1alpha1.LabelPodGang]
 				pgi, ok := lo.Find(sc.expectedPodGangs, func(pgi podGangInfo) bool {
 					return podGangName == pgi.fqn
 				})

@@ -24,22 +24,19 @@ import (
 	grovecorev1alpha1 "github.com/NVIDIA/grove/operator/api/core/v1alpha1"
 
 	"github.com/samber/lo"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-// GetPodCliquesByOwner retrieves PodClique objects that are owned by the specified owner kind and object key, and match the provided selector labels.
-func GetPodCliquesByOwner(ctx context.Context, cl client.Client, ownerKind string, ownerObjectKey client.ObjectKey, selectorLabels map[string]string) ([]grovecorev1alpha1.PodClique, error) {
-	podCliqueList := &grovecorev1alpha1.PodCliqueList{}
-	if err := cl.List(ctx,
-		podCliqueList,
-		client.InNamespace(ownerObjectKey.Namespace),
-		client.MatchingLabels(selectorLabels)); err != nil {
-		return nil, err
+// GetPCLQsByOwner retrieves PodClique objects that are owned by the specified owner kind and object key, and match the provided selector labels.
+func GetPCLQsByOwner(ctx context.Context, cl client.Client, ownerKind string, ownerObjectKey client.ObjectKey, selectorLabels map[string]string) ([]grovecorev1alpha1.PodClique, error) {
+	pclqs, err := GetPCLQsMatchingLabels(ctx, cl, ownerObjectKey.Namespace, selectorLabels)
+	if err != nil {
+		return pclqs, err
 	}
-
-	filteredPCLQs := lo.Filter(podCliqueList.Items, func(pclq grovecorev1alpha1.PodClique, _ int) bool {
+	filteredPCLQs := lo.Filter(pclqs, func(pclq grovecorev1alpha1.PodClique, _ int) bool {
 		if len(pclq.OwnerReferences) == 0 {
 			return false
 		}
@@ -48,11 +45,39 @@ func GetPodCliquesByOwner(ctx context.Context, cl client.Client, ownerKind strin
 	return filteredPCLQs, nil
 }
 
+// GetPCLQsMatchingLabels gets all the PodClique's in a given namespace matching selectorLabels.
+func GetPCLQsMatchingLabels(ctx context.Context, cl client.Client, namespace string, selectorLabels map[string]string) ([]grovecorev1alpha1.PodClique, error) {
+	podCliqueList := &grovecorev1alpha1.PodCliqueList{}
+	if err := cl.List(ctx,
+		podCliqueList,
+		client.InNamespace(namespace),
+		client.MatchingLabels(selectorLabels)); err != nil {
+		return nil, err
+	}
+	return podCliqueList.Items, nil
+}
+
+// GetPCLQsByNames fetches PodClique objects. It returns the PCLQ objects that it found and a slice of PCLQ FQNs for which no PCLQ object exists. If there is an error it just returns the error.
+func GetPCLQsByNames(ctx context.Context, cl client.Client, namespace string, pclqFQNs []string) (pclqs []grovecorev1alpha1.PodClique, notFoundPCLQs []string, err error) {
+	for _, pclqFQN := range pclqFQNs {
+		pclq := grovecorev1alpha1.PodClique{}
+		if err := cl.Get(ctx, client.ObjectKey{Name: pclqFQN, Namespace: namespace}, &pclq); err != nil {
+			if apierrors.IsNotFound(err) {
+				notFoundPCLQs = append(notFoundPCLQs, pclqFQN)
+				continue
+			}
+			return nil, nil, err
+		}
+		pclqs = append(pclqs, pclq)
+	}
+	return pclqs, notFoundPCLQs, nil
+}
+
 // GroupPCLQsByPodGangName filters PCLQs that have a PodGang label and groups them by the PodGang name.
 func GroupPCLQsByPodGangName(pclqs []grovecorev1alpha1.PodClique) map[string][]grovecorev1alpha1.PodClique {
 	podGangPCLQs := make(map[string][]grovecorev1alpha1.PodClique, len(pclqs))
 	for _, pclq := range pclqs {
-		podGangName, ok := pclq.GetLabels()[grovecorev1alpha1.LabelPodGangName]
+		podGangName, ok := pclq.GetLabels()[grovecorev1alpha1.LabelPodGang]
 		if !ok {
 			continue
 		}
