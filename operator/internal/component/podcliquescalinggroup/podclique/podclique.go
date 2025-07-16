@@ -226,7 +226,7 @@ func (r _resource) triggerDeletionOfPodCliques(ctx context.Context, logger logr.
 			fmt.Sprintf("Error deleting PodCliques for PodCliqueScalingGroup: %v", pcsgObjectKey),
 		)
 	}
-	logger.Info("Deleted PodCliques")
+	logger.Info("Deleted PodCliques of PodCliqueScalingGroup", "pcsgObjectKey", pcsgObjectKey)
 	return nil
 }
 

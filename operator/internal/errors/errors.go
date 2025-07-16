@@ -31,6 +31,10 @@ var _ error = (*GroveError)(nil)
 // ErrCodeRequeueAfter is a special error code that indicates that the current step should be re-queued after a certain time,
 const ErrCodeRequeueAfter grovecorev1alpha1.ErrorCode = "ERR_REQUEUE_AFTER"
 
+// ErrCodeContinueReconcileAndRequeue is a special error code that indicates that the Sync of a current component errored,
+// but the following components should be attempted to be synced, and then the current step should be re-queued after a certain time.
+const ErrCodeContinueReconcileAndRequeue grovecorev1alpha1.ErrorCode = "ERR_CONTINUE_RECONCILE_AND_REQUEUE"
+
 // GroveError is a custom error type that should be used throughout grove which encapsulates
 // the underline error (cause), uniquely identifiable error code, contextual information captured
 // as operation during which an error occurred and any custom message.

@@ -68,6 +68,7 @@ func (r *Reconciler) recordReconcileStart(ctx context.Context, logger logr.Logge
 }
 
 func (r *Reconciler) syncPodGangSetResources(ctx context.Context, logger logr.Logger, pgs *grovecorev1alpha1.PodGangSet) ctrlcommon.ReconcileStepResult {
+	continueReconcileAndRequeueKinds := make([]component.Kind, 0)
 	for _, kind := range getOrderedKindsForSync() {
 		operator, err := r.operatorRegistry.GetOperator(kind)
 		if err != nil {
@@ -75,6 +76,11 @@ func (r *Reconciler) syncPodGangSetResources(ctx context.Context, logger logr.Lo
 		}
 		logger.Info("Syncing PodGangSet resource", "kind", kind)
 		if err = operator.Sync(ctx, logger, pgs); err != nil {
+			if ctrlutils.ShouldContinueReconcileAndRequeue(err) {
+				logger.Info("continuing sync due to component", "kind", kind)
+				continueReconcileAndRequeueKinds = append(continueReconcileAndRequeueKinds, kind)
+				continue
+			}
 			if ctrlutils.ShouldRequeueAfter(err) {
 				logger.Info("retrying sync due to component", "kind", kind, "syncRetryInterval", ctrlcommon.ComponentSyncRetryInterval)
 				return ctrlcommon.ReconcileAfter(ctrlcommon.ComponentSyncRetryInterval, fmt.Sprintf("requeueing sync due to component %s after %s", kind, ctrlcommon.ComponentSyncRetryInterval))
@@ -82,6 +88,9 @@ func (r *Reconciler) syncPodGangSetResources(ctx context.Context, logger logr.Lo
 			logger.Error(err, "failed to sync PodGangSet resources", "kind", kind)
 			return ctrlcommon.ReconcileWithErrors("error syncing managed resources", fmt.Errorf("failed to sync %s: %w", kind, err))
 		}
+	}
+	if len(continueReconcileAndRequeueKinds) > 0 {
+		return ctrlcommon.ReconcileAfter(ctrlcommon.ComponentSyncRetryInterval, fmt.Sprintf("requeueing sync due to component(s) %v after %s", continueReconcileAndRequeueKinds, ctrlcommon.ComponentSyncRetryInterval))
 	}
 	return ctrlcommon.ContinueReconcile()
 }

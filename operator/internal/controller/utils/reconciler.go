@@ -99,3 +99,13 @@ func ShouldRequeueAfter(err error) bool {
 	}
 	return false
 }
+
+// ShouldContinueReconcileAndRequeue checks if an error is a Grove error,
+// and if it is, returns true when the error code is groveerr.ErrCodeContinueReconcileAndRequeue.
+func ShouldContinueReconcileAndRequeue(err error) bool {
+	groveErr := &groveerr.GroveError{}
+	if errors.As(err, &groveErr) {
+		return groveErr.Code == groveerr.ErrCodeContinueReconcileAndRequeue
+	}
+	return false
+}
