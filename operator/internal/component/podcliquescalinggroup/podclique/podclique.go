@@ -86,14 +86,6 @@ func (r _resource) GetExistingResourceNames(ctx context.Context, logger logr.Log
 // Sync synchronizes all resources that the PodClique Operator manages.
 func (r _resource) Sync(ctx context.Context, logger logr.Logger, pcsg *grovecorev1alpha1.PodCliqueScalingGroup) error {
 	expectedPCLQs := int(pcsg.Spec.Replicas) * len(pcsg.Spec.CliqueNames)
-	existingPCLQs, err := componentutils.GetPCLQsByOwner(ctx, r.client, grovecorev1alpha1.PodCliqueScalingGroupKind, client.ObjectKeyFromObject(pcsg), getPodCliqueSelectorLabels(pcsg.ObjectMeta))
-	if err != nil {
-		return groveerr.WrapError(err,
-			errCodeListPodCliquesForPCSG,
-			component.OperationSync,
-			fmt.Sprintf("Unable to fetch existing PodCliques for PodCliqueScalingGroup: %v", client.ObjectKeyFromObject(pcsg)),
-		)
-	}
 	pgs, err := componentutils.GetOwnerPodGangSet(ctx, r.client, pcsg.ObjectMeta)
 	if err != nil {
 		return groveerr.WrapError(err,
@@ -103,42 +95,33 @@ func (r _resource) Sync(ctx context.Context, logger logr.Logger, pcsg *grovecore
 		)
 	}
 	// If there are excess PodCliques than expected, delete the ones that are no longer expected but existing.
-	if err = r.triggerDeletionOfExcessPodCliques(ctx, logger, pgs.ObjectMeta, pcsg, existingPCLQs, expectedPCLQs); err != nil {
+	// This can happen when PCSG replicas have been scaled-in.
+	if err = r.triggerDeletionOfExcessPCLQs(ctx, logger, pgs.ObjectMeta, pcsg, expectedPCLQs); err != nil {
 		return err
 	}
-	// Create or update the expected PodCliques as per the PodCliqueScalingGroup configurations defined in the PodGangSet.
-	if err = r.createOrUpdateExpectedPCLQs(ctx, logger, pgs, pcsg, existingPCLQs, expectedPCLQs); err != nil {
-		return err
-	}
+
 	// Identify PCSG replicas for which MinAvailable is breached for even a single constituent PCLQ. For such a PCSG replica terminate all PCLQs for that replica.
 	// This also maps directly to deleting a PodGang as each PCSG replica is a unique PodGang.
-	if err = r.triggerDeletionOfMinAvailableBreachedPodGangs(ctx, logger, pgs, pcsg, existingPCLQs); err != nil {
+	if err = r.triggerDeletionOfMinAvailableBreachedPodGangs(ctx, logger, pgs, pcsg); err != nil {
+		return err
+
+	}
+	// Create or update the expected PodCliques as per the PodCliqueScalingGroup configurations defined in the PodGangSet.
+	if err = r.createOrUpdateExpectedPCLQs(ctx, logger, pgs, pcsg, expectedPCLQs); err != nil {
 		return err
 	}
 	return nil
 }
 
-func (r _resource) triggerDeletionOfMinAvailableBreachedPodGangs(ctx context.Context, logger logr.Logger, pgs *grovecorev1alpha1.PodGangSet, pcsg *grovecorev1alpha1.PodCliqueScalingGroup, existingPCLQs []grovecorev1alpha1.PodClique) error {
-	terminationDelay := pgs.Spec.Template.TerminationDelay.Duration
-	podGangsToTerminate, podGangsRequiringRequeue := findPodGangsTerminationCandidates(pcsg, existingPCLQs, terminationDelay, logger)
-	if len(podGangsToTerminate) > 0 {
-		reason := fmt.Sprintf("Delete PodCliques %v for PodCliqueScalingGroup %v which have breached MinAvailable longer than TerminationDelay: %s", podGangsToTerminate, client.ObjectKeyFromObject(pcsg), terminationDelay)
-		pclqGangTerminationTasks := r.createDeleteTasks(logger, pgs.ObjectMeta, podGangsToTerminate, reason)
-		if err := r.triggerDeletionOfPodCliques(ctx, logger, client.ObjectKeyFromObject(pcsg), pclqGangTerminationTasks); err != nil {
-			return err
-		}
-	}
-	if podGangsRequiringRequeue != nil {
-		logger.Info("Found PCLQs with MinAvailable breached but which have not crossed TerminationDelay", "pclqs", podGangsRequiringRequeue.A, "terminationDelay", terminationDelay)
-		return groveerr.New(groveerr.ErrCodeRequeueAfter,
+func (r _resource) triggerDeletionOfExcessPCLQs(ctx context.Context, logger logr.Logger, pgsObjMeta metav1.ObjectMeta, pcsg *grovecorev1alpha1.PodCliqueScalingGroup, numExpectedPCLQs int) error {
+	existingPCLQs, err := componentutils.GetPCLQsByOwner(ctx, r.client, grovecorev1alpha1.PodCliqueScalingGroupKind, client.ObjectKeyFromObject(pcsg), getPodCliqueSelectorLabels(pcsg.ObjectMeta))
+	if err != nil {
+		return groveerr.WrapError(err,
+			errCodeListPodCliquesForPCSG,
 			component.OperationSync,
-			"Requeuing to re-process PCLQs that have breached MinAvailable but not crossed TerminationDelay",
+			fmt.Sprintf("Unable to fetch existing PodCliques for PodCliqueScalingGroup: %v", client.ObjectKeyFromObject(pcsg)),
 		)
 	}
-	return nil
-}
-
-func (r _resource) triggerDeletionOfExcessPodCliques(ctx context.Context, logger logr.Logger, pgsObjMeta metav1.ObjectMeta, pcsg *grovecorev1alpha1.PodCliqueScalingGroup, existingPCLQs []grovecorev1alpha1.PodClique, numExpectedPCLQs int) error {
 	// Check if the number of existing PodCliques is greater than expected, if so, we need to delete the extra ones.
 	diff := len(existingPCLQs) - numExpectedPCLQs
 	if diff > 0 {
@@ -152,36 +135,15 @@ func (r _resource) triggerDeletionOfExcessPodCliques(ctx context.Context, logger
 	return nil
 }
 
-func findPodGangsTerminationCandidates(pcsg *grovecorev1alpha1.PodCliqueScalingGroup, existingPCLQs []grovecorev1alpha1.PodClique, terminationDelay time.Duration, logger logr.Logger) (podGangsToTerminate []string, requeueAfterForPodGangs *lo.Tuple2[[]string, time.Duration]) {
-	now := time.Now()
-	// group existing PCLQs by PodGang name. These are PCLQs that belong to once replica of PCSG.
-	podGangPCLQs := componentutils.GroupPCLQsByPodGangName(existingPCLQs)
-	var minWaitForDurations []time.Duration
-	podGangsRequiringRequeue := make([]string, 0, len(existingPCLQs))
-	// For each PodGang check if minAvailable for any constituent PCLQ has been violated. Those PodGangs should be marked for termination.
-	for podGangName, pclqs := range podGangPCLQs {
-		if !isPCSGPodGang(pcsg.Name, podGangName) {
-			continue
-		}
-		pclqNames, minWaitFor := componentutils.GetMinAvailableBreachedPCLQInfo(pclqs, terminationDelay, now)
-		if len(pclqNames) > 0 {
-			logger.Info("minAvailable breached for PCLQs", "podGang", podGangName, "pclqNames", pclqNames, "minWaitFor", minWaitFor)
-			if minWaitFor <= 0 {
-				podGangsToTerminate = append(podGangsToTerminate, podGangName)
-			} else {
-				minWaitForDurations = append(minWaitForDurations, minWaitFor)
-				podGangsRequiringRequeue = append(podGangsRequiringRequeue, podGangName)
-			}
-		}
+func (r _resource) createOrUpdateExpectedPCLQs(ctx context.Context, logger logr.Logger, pgs *grovecorev1alpha1.PodGangSet, pcsg *grovecorev1alpha1.PodCliqueScalingGroup, numExpectedPCLQs int) error {
+	existingPCLQs, err := componentutils.GetPCLQsByOwner(ctx, r.client, grovecorev1alpha1.PodCliqueScalingGroupKind, client.ObjectKeyFromObject(pcsg), getPodCliqueSelectorLabels(pcsg.ObjectMeta))
+	if err != nil {
+		return groveerr.WrapError(err,
+			errCodeListPodCliquesForPCSG,
+			component.OperationSync,
+			fmt.Sprintf("Unable to fetch existing PodCliques for PodCliqueScalingGroup: %v", client.ObjectKeyFromObject(pcsg)),
+		)
 	}
-	if len(minWaitForDurations) > 0 {
-		slices.Sort(minWaitForDurations)
-		requeueAfterForPodGangs = &lo.Tuple2[[]string, time.Duration]{A: podGangsRequiringRequeue, B: minWaitForDurations[0]}
-	}
-	return
-}
-
-func (r _resource) createOrUpdateExpectedPCLQs(ctx context.Context, logger logr.Logger, pgs *grovecorev1alpha1.PodGangSet, pcsg *grovecorev1alpha1.PodCliqueScalingGroup, existingPCLQs []grovecorev1alpha1.PodClique, numExpectedPCLQs int) error {
 	existingPCLQNames := lo.Map(existingPCLQs, func(pclq grovecorev1alpha1.PodClique, _ int) string {
 		return pclq.Name
 	})
@@ -220,6 +182,67 @@ func (r _resource) createOrUpdateExpectedPCLQs(ctx context.Context, logger logr.
 		)
 	}
 	return nil
+}
+
+func (r _resource) triggerDeletionOfMinAvailableBreachedPodGangs(ctx context.Context, logger logr.Logger, pgs *grovecorev1alpha1.PodGangSet, pcsg *grovecorev1alpha1.PodCliqueScalingGroup) error {
+	terminationDelay := pgs.Spec.Template.TerminationDelay.Duration
+	podGangsToTerminate, podGangsRequiringRequeue, err := r.findPodGangsTerminationCandidates(ctx, pcsg, terminationDelay, logger)
+	if err != nil {
+		return err
+	}
+	if len(podGangsToTerminate) > 0 {
+		reason := fmt.Sprintf("Delete PodCliques %v for PodCliqueScalingGroup %v which have breached MinAvailable longer than TerminationDelay: %s", podGangsToTerminate, client.ObjectKeyFromObject(pcsg), terminationDelay)
+		pclqGangTerminationTasks := r.createDeleteTasks(logger, pgs.ObjectMeta, podGangsToTerminate, reason)
+		if err := r.triggerDeletionOfPodCliques(ctx, logger, client.ObjectKeyFromObject(pcsg), pclqGangTerminationTasks); err != nil {
+			return err
+		}
+	}
+	if podGangsRequiringRequeue != nil {
+		logger.Info("Found PCLQs with MinAvailable breached but which have not crossed TerminationDelay", "pclqs", podGangsRequiringRequeue.A, "terminationDelay", terminationDelay)
+		return groveerr.New(groveerr.ErrCodeRequeueAfter,
+			component.OperationSync,
+			"Requeuing to re-process PCLQs that have breached MinAvailable but not crossed TerminationDelay",
+		)
+	}
+	return nil
+}
+
+func (r _resource) findPodGangsTerminationCandidates(ctx context.Context, pcsg *grovecorev1alpha1.PodCliqueScalingGroup, terminationDelay time.Duration, logger logr.Logger) (podGangsToTerminate []string, requeueAfterForPodGangs *lo.Tuple2[[]string, time.Duration], err error) {
+	existingPCLQs, err := componentutils.GetPCLQsByOwner(ctx, r.client, grovecorev1alpha1.PodCliqueScalingGroupKind, client.ObjectKeyFromObject(pcsg), getPodCliqueSelectorLabels(pcsg.ObjectMeta))
+	if err != nil {
+		err = groveerr.WrapError(err,
+			errCodeListPodCliquesForPCSG,
+			component.OperationSync,
+			fmt.Sprintf("Unable to fetch existing PodCliques for PodCliqueScalingGroup: %v", client.ObjectKeyFromObject(pcsg)),
+		)
+		return
+	}
+	now := time.Now()
+	// group existing PCLQs by PodGang name. These are PCLQs that belong to once replica of PCSG.
+	podGangPCLQs := componentutils.GroupPCLQsByPodGangName(existingPCLQs)
+	var minWaitForDurations []time.Duration
+	podGangsRequiringRequeue := make([]string, 0, len(existingPCLQs))
+	// For each PodGang check if minAvailable for any constituent PCLQ has been violated. Those PodGangs should be marked for termination.
+	for podGangName, pclqs := range podGangPCLQs {
+		if !isPCSGPodGang(pcsg.Name, podGangName) {
+			continue
+		}
+		pclqNames, minWaitFor := componentutils.GetMinAvailableBreachedPCLQInfo(pclqs, terminationDelay, now)
+		if len(pclqNames) > 0 {
+			logger.Info("minAvailable breached for PCLQs", "podGang", podGangName, "pclqNames", pclqNames, "minWaitFor", minWaitFor)
+			if minWaitFor <= 0 {
+				podGangsToTerminate = append(podGangsToTerminate, podGangName)
+			} else {
+				minWaitForDurations = append(minWaitForDurations, minWaitFor)
+				podGangsRequiringRequeue = append(podGangsRequiringRequeue, podGangName)
+			}
+		}
+	}
+	if len(minWaitForDurations) > 0 {
+		slices.Sort(minWaitForDurations)
+		requeueAfterForPodGangs = &lo.Tuple2[[]string, time.Duration]{A: podGangsRequiringRequeue, B: minWaitForDurations[0]}
+	}
+	return
 }
 
 func (r _resource) triggerDeletionOfPodCliques(ctx context.Context, logger logr.Logger, pcsgObjectKey client.ObjectKey, deletionTasks []utils.Task) error {
