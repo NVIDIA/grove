@@ -63,20 +63,19 @@ func New(client client.Client, scheme *runtime.Scheme) component.Operator[grovec
 // GetExistingResourceNames returns the names of all the existing resources that the PodClique Operator manages.
 func (r _resource) GetExistingResourceNames(ctx context.Context, logger logr.Logger, pgsObjMeta metav1.ObjectMeta) ([]string, error) {
 	logger.Info("Looking for existing PodCliques")
-	objMetaList := &metav1.PartialObjectMetadataList{}
-	objMetaList.SetGroupVersionKind(grovecorev1alpha1.SchemeGroupVersion.WithKind("PodClique"))
-	if err := r.client.List(ctx,
-		objMetaList,
-		client.InNamespace(pgsObjMeta.Namespace),
-		client.MatchingLabels(getPodCliqueSelectorLabels(pgsObjMeta)),
-	); err != nil {
+	pclqPartialObjMetaList, err := k8sutils.ListExistingPartialObjectMetadata(ctx,
+		r.client,
+		grovecorev1alpha1.SchemeGroupVersion.WithKind("PodClique"),
+		pgsObjMeta,
+		getPodCliqueSelectorLabels(pgsObjMeta))
+	if err != nil {
 		return nil, groveerr.WrapError(err,
-			errListPodClique,
+			errCodeListPodCliques,
 			component.OperationGetExistingResourceNames,
 			fmt.Sprintf("Error listing PodCliques for PodGangSet: %v", k8sutils.GetObjectKeyFromObjectMeta(pgsObjMeta)),
 		)
 	}
-	return k8sutils.FilterMapOwnedResourceNames(pgsObjMeta, objMetaList.Items), nil
+	return k8sutils.FilterMapOwnedResourceNames(pgsObjMeta, pclqPartialObjMetaList), nil
 }
 
 // Sync synchronizes all resources that the PodClique Operator manages.
