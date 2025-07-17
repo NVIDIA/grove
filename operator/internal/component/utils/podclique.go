@@ -75,13 +75,22 @@ func GetPCLQsByNames(ctx context.Context, cl client.Client, namespace string, pc
 
 // GroupPCLQsByPodGangName filters PCLQs that have a PodGang label and groups them by the PodGang name.
 func GroupPCLQsByPodGangName(pclqs []grovecorev1alpha1.PodClique) map[string][]grovecorev1alpha1.PodClique {
+	return groupPCLQsByLabel(pclqs, grovecorev1alpha1.LabelPodGang)
+}
+
+// GroupPCLQsByPCSGReplicaIndex filters PCLQs that have a PodCliqueScalingGroupReplicaIndex label and groups them by the PCSG replica.
+func GroupPCLQsByPCSGReplicaIndex(pclqs []grovecorev1alpha1.PodClique) map[string][]grovecorev1alpha1.PodClique {
+	return groupPCLQsByLabel(pclqs, grovecorev1alpha1.LabelPodCliqueScalingGroupReplicaIndex)
+}
+
+func groupPCLQsByLabel(pclqs []grovecorev1alpha1.PodClique, labelKey string) map[string][]grovecorev1alpha1.PodClique {
 	podGangPCLQs := make(map[string][]grovecorev1alpha1.PodClique, len(pclqs))
 	for _, pclq := range pclqs {
-		podGangName, ok := pclq.GetLabels()[grovecorev1alpha1.LabelPodGang]
+		labelVal, ok := pclq.GetLabels()[labelKey]
 		if !ok {
 			continue
 		}
-		podGangPCLQs[podGangName] = append(podGangPCLQs[podGangName], pclq)
+		podGangPCLQs[labelVal] = append(podGangPCLQs[labelVal], pclq)
 	}
 	return podGangPCLQs
 }

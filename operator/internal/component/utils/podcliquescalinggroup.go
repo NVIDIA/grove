@@ -50,7 +50,7 @@ func GetPCSGsForPGSReplicaIndex(ctx context.Context, cl client.Client, pgsObjKey
 }
 
 // GetMinAvailableBreachedPCSGInfo filters PodCliqueScalingGroups that have grovecorev1alpha1.ConditionTypeMinAvailableBreached set to true.
-// For each such PodCliqueScalingGroup it returns the name of the PodCliqueScalingGroupand a duration to wait for before terminationDelay is breached.
+// It returns the names of all such PodCliqueScalingGroups and minimum of all the waitDurations.
 func GetMinAvailableBreachedPCSGInfo(pcsgs []grovecorev1alpha1.PodCliqueScalingGroup, terminationDelay time.Duration, since time.Time) ([]string, time.Duration) {
 	pcsgCandidateNames := make([]string, 0, len(pcsgs))
 	waitForDurations := make([]time.Duration, 0, len(pcsgs))
