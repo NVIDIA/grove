@@ -92,20 +92,41 @@ func (r *Reconciler) computeMinAvailableBreachedCondition(ctx context.Context, l
 		return nil, err
 	}
 
-	// group PodCliques per PodGang
-	podGangPCLQs := componentutils.GroupPCLQsByPodGangName(pcsgPCLQs)
-	minAvailableBreachedPodGangNames := make([]string, 0, len(podGangPCLQs))
-	for podGangName, pclqs := range podGangPCLQs {
-		minAvailableBreached := lo.Reduce(pclqs, func(agg bool, pclq grovecorev1alpha1.PodClique, _ int) bool {
-			return agg || k8sutils.IsConditionTrue(pclq.Status.Conditions, grovecorev1alpha1.ConditionTypeMinAvailableBreached)
-		}, false)
+	// group PodCliques per PodCliqueScalingGroup
+	pcsgReplicaPCLQs := componentutils.GroupPCLQsByPCSGReplicaIndex(pcsgPCLQs)
+	minAvailableBreachedPCSGReplicaNames := make([]string, 0, len(pcsgReplicaPCLQs))
+	var setPCSGToUnknownStatus bool
+	for pcsgReplicaIndex, pclqs := range pcsgReplicaPCLQs {
+		var minAvailableBreached bool
+		for _, pclq := range pclqs {
+			minAvailableBreached = minAvailableBreached || k8sutils.IsConditionTrue(pclq.Status.Conditions, grovecorev1alpha1.ConditionTypeMinAvailableBreached)
+			if pclq.Status.Conditions == nil ||
+				k8sutils.IsConditionUnknown(pclq.Status.Conditions, grovecorev1alpha1.ConditionTypeMinAvailableBreached) {
+				setPCSGToUnknownStatus = true
+			}
+		}
+		// minAvailableBreached = lo.Reduce(pclqs, func(agg bool, pclq grovecorev1alpha1.PodClique, _ int) bool {
+		// 	return agg || pclq.Status.Conditions == nil || k8sutils.IsConditionTrue(pclq.Status.Conditions, grovecorev1alpha1.ConditionTypeMinAvailableBreached)
+		// }, false)
+		if len(pclqs) < len(pcsg.Spec.CliqueNames) {
+			setPCSGToUnknownStatus = true
+		}
 		if minAvailableBreached {
-			minAvailableBreachedPodGangNames = append(minAvailableBreachedPodGangNames, podGangName)
-			logger.Info("PodGang has minAvailable breached", "podGangName", podGangName)
+			logger.Info("PodCliqueScalingGroup replica has minAvailable breached", "pcsgReplicaIndex", pcsgReplicaIndex)
+			minAvailableBreachedPCSGReplicaNames = append(minAvailableBreachedPCSGReplicaNames, pcsgReplicaIndex)
 		}
 	}
 
-	numReadyPCSGReplicas := int(pcsg.Spec.Replicas) - len(minAvailableBreachedPodGangNames)
+	if setPCSGToUnknownStatus {
+		return &metav1.Condition{
+			Type:    grovecorev1alpha1.ConditionTypeMinAvailableBreached,
+			Status:  metav1.ConditionUnknown,
+			Reason:  "PodCliqueScalingGroupReplicasInUnknownState",
+			Message: "PodCliqueScalingGroup replicas in unknown state",
+		}, nil
+	}
+
+	numReadyPCSGReplicas := int(pcsg.Spec.Replicas) - len(minAvailableBreachedPCSGReplicaNames)
 	if numReadyPCSGReplicas < defaultPCSGMinAvailable {
 		return &metav1.Condition{
 			Type:    grovecorev1alpha1.ConditionTypeMinAvailableBreached,

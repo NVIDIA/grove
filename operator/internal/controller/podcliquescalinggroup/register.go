@@ -133,12 +133,10 @@ func podCliquePredicate() predicate.Predicate {
 	return predicate.Funcs{
 		CreateFunc: func(_ event.CreateEvent) bool { return false },
 		DeleteFunc: func(deleteEvent event.DeleteEvent) bool {
-			return ctrlutils.IsManagedByGrove(deleteEvent.Object.GetLabels()) &&
-				ctrlutils.HasExpectedOwner(grovecorev1alpha1.PodCliqueScalingGroupKind, deleteEvent.Object.GetOwnerReferences())
+			return ctrlutils.IsManagedPodClique(deleteEvent.Object, grovecorev1alpha1.PodCliqueScalingGroupKind)
 		},
 		UpdateFunc: func(updateEvent event.UpdateEvent) bool {
-			return ctrlutils.IsManagedByGrove(updateEvent.ObjectOld.GetLabels()) &&
-				ctrlutils.HasExpectedOwner(grovecorev1alpha1.PodCliqueScalingGroupKind, updateEvent.ObjectOld.GetOwnerReferences()) &&
+			return ctrlutils.IsManagedPodClique(updateEvent.ObjectOld, grovecorev1alpha1.PodCliqueScalingGroupKind) &&
 				hasPodCliqueReadyReplicasChanged(updateEvent)
 		},
 	}

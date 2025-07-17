@@ -41,3 +41,12 @@ func IsConditionTrue(existingConditions []metav1.Condition, conditionType string
 	}
 	return existingCond.Status == metav1.ConditionTrue
 }
+
+// IsConditionUnknown checks for a specific Condition amongst a list of Conditions and returns if the Condition.Status is Unknown otherwise false is returned.
+func IsConditionUnknown(existingConditions []metav1.Condition, conditionType string) bool {
+	existingCond := meta.FindStatusCondition(existingConditions, conditionType)
+	if existingCond == nil {
+		return false
+	}
+	return existingCond.Status == metav1.ConditionUnknown
+}

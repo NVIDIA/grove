@@ -227,7 +227,7 @@ func (r _resource) checkMinAvailableBreachAndDeletePGSReplicaPodGang(ctx context
 			pclqGangTerminationTask := r.createPGSReplicaDeleteTask(logger, pgsObjectKey, pgsReplicaIndex, reason)
 			deletionTasks = append(deletionTasks, pclqGangTerminationTask)
 		} else if len(breachedPCSGNames) > 0 || len(breachedPCLQNames) > 0 {
-			pgsReplicaIndexRequiringRequeue = append(pgsReplicaIndexRequiringRequeue)
+			pgsReplicaIndexRequiringRequeue = append(pgsReplicaIndexRequiringRequeue, strconv.Itoa(pgsReplicaIndex))
 		}
 	}
 
