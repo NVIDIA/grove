@@ -44,7 +44,11 @@ func (r *Reconciler) reconcileStatus(ctx context.Context, logger logr.Logger, pc
 	}
 
 	// mutate the grovecorev1alpha1.ConditionTypeMinAvailableBreached condition based on the number of ready pods.
-	mutateMinAvailableBreachedCondition(pclq)
+	// Only do this if the PodClique has been successfully reconciled at least once. This prevents prematurely setting
+	// incorrect MinAvailable breached condition.
+	if pclq.Status.ObservedGeneration != nil {
+		mutateMinAvailableBreachedCondition(pclq)
+	}
 
 	// mutate the selector that will be used by an autoscaler.
 	if err := mutateSelector(pgsName, pclq); err != nil {
@@ -121,33 +125,33 @@ func getReadyAndScheduleGatedPods(pods []*corev1.Pod) (readyPods []*corev1.Pod, 
 }
 
 func computeMinAvailableBreachedCondition(pclq *grovecorev1alpha1.PodClique) metav1.Condition {
-	readyPods := pclq.Status.ReadyReplicas
+	readyOrScheduleGatedPods := pclq.Status.ReadyReplicas + pclq.Status.ScheduleGatedReplicas
 	minAvailable := pclq.Spec.MinAvailable
 	now := metav1.Now()
 
 	if minAvailable == nil {
 		return metav1.Condition{
-			Type:               string(grovecorev1alpha1.ConditionTypeMinAvailableBreached),
+			Type:               grovecorev1alpha1.ConditionTypeMinAvailableBreached,
 			Status:             metav1.ConditionUnknown,
 			Reason:             "MinAvailableNil",
 			Message:            "MinAvailable is nil, cannot determine if the condition is breached",
 			LastTransitionTime: now,
 		}
 	}
-	if readyPods < *minAvailable {
+	if readyOrScheduleGatedPods < *minAvailable {
 		return metav1.Condition{
-			Type:               string(grovecorev1alpha1.ConditionTypeMinAvailableBreached),
+			Type:               grovecorev1alpha1.ConditionTypeMinAvailableBreached,
 			Status:             metav1.ConditionTrue,
 			Reason:             "InsufficientReadyPods",
-			Message:            fmt.Sprintf("Insufficient ready pods. expected at least: %d, found: %d", *minAvailable, readyPods),
+			Message:            fmt.Sprintf("Insufficient ready pods. expected at least: %d, found: %d", *minAvailable, readyOrScheduleGatedPods),
 			LastTransitionTime: now,
 		}
 	}
 	return metav1.Condition{
-		Type:               string(grovecorev1alpha1.ConditionTypeMinAvailableBreached),
+		Type:               grovecorev1alpha1.ConditionTypeMinAvailableBreached,
 		Status:             metav1.ConditionFalse,
 		Reason:             "SufficientReadyPods",
-		Message:            fmt.Sprintf("Sufficient ready pods found. expected at least: %d, found: %d", *minAvailable, readyPods),
+		Message:            fmt.Sprintf("Sufficient ready pods found. expected at least: %d, found: %d", *minAvailable, readyOrScheduleGatedPods),
 		LastTransitionTime: now,
 	}
 }

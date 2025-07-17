@@ -94,39 +94,18 @@ func (r *Reconciler) computeMinAvailableBreachedCondition(ctx context.Context, l
 
 	// group PodCliques per PodCliqueScalingGroup
 	pcsgReplicaPCLQs := componentutils.GroupPCLQsByPCSGReplicaIndex(pcsgPCLQs)
-	minAvailableBreachedPCSGReplicaNames := make([]string, 0, len(pcsgReplicaPCLQs))
-	var setPCSGToUnknownStatus bool
+	minAvailableBreachedPCSGReplicaIndexes := make([]string, 0, pcsg.Spec.Replicas)
+	var atleastOnePCSGReplicaIsUnknown bool
 	for pcsgReplicaIndex, pclqs := range pcsgReplicaPCLQs {
-		var minAvailableBreached bool
-		for _, pclq := range pclqs {
-			minAvailableBreached = minAvailableBreached || k8sutils.IsConditionTrue(pclq.Status.Conditions, grovecorev1alpha1.ConditionTypeMinAvailableBreached)
-			if pclq.Status.Conditions == nil ||
-				k8sutils.IsConditionUnknown(pclq.Status.Conditions, grovecorev1alpha1.ConditionTypeMinAvailableBreached) {
-				setPCSGToUnknownStatus = true
-			}
-		}
-		// minAvailableBreached = lo.Reduce(pclqs, func(agg bool, pclq grovecorev1alpha1.PodClique, _ int) bool {
-		// 	return agg || pclq.Status.Conditions == nil || k8sutils.IsConditionTrue(pclq.Status.Conditions, grovecorev1alpha1.ConditionTypeMinAvailableBreached)
-		// }, false)
-		if len(pclqs) < len(pcsg.Spec.CliqueNames) {
-			setPCSGToUnknownStatus = true
-		}
-		if minAvailableBreached {
-			logger.Info("PodCliqueScalingGroup replica has minAvailable breached", "pcsgReplicaIndex", pcsgReplicaIndex)
-			minAvailableBreachedPCSGReplicaNames = append(minAvailableBreachedPCSGReplicaNames, pcsgReplicaIndex)
+		pcsgReplicaCondStatus := computeMinAvailableBreachedStatusForPSGReplica(logger, pcsgReplicaIndex, pclqs)
+		if pcsgReplicaCondStatus == metav1.ConditionTrue {
+			minAvailableBreachedPCSGReplicaIndexes = append(minAvailableBreachedPCSGReplicaIndexes, pcsgReplicaIndex)
+		} else if pcsgReplicaCondStatus == metav1.ConditionUnknown {
+			atleastOnePCSGReplicaIsUnknown = true
 		}
 	}
 
-	if setPCSGToUnknownStatus {
-		return &metav1.Condition{
-			Type:    grovecorev1alpha1.ConditionTypeMinAvailableBreached,
-			Status:  metav1.ConditionUnknown,
-			Reason:  "PodCliqueScalingGroupReplicasInUnknownState",
-			Message: "PodCliqueScalingGroup replicas in unknown state",
-		}, nil
-	}
-
-	numReadyPCSGReplicas := int(pcsg.Spec.Replicas) - len(minAvailableBreachedPCSGReplicaNames)
+	numReadyPCSGReplicas := int(pcsg.Spec.Replicas) - len(minAvailableBreachedPCSGReplicaIndexes)
 	if numReadyPCSGReplicas < defaultPCSGMinAvailable {
 		return &metav1.Condition{
 			Type:    grovecorev1alpha1.ConditionTypeMinAvailableBreached,
@@ -136,12 +115,41 @@ func (r *Reconciler) computeMinAvailableBreachedCondition(ctx context.Context, l
 		}, nil
 	}
 
+	if atleastOnePCSGReplicaIsUnknown {
+		return &metav1.Condition{
+			Type:    grovecorev1alpha1.ConditionTypeMinAvailableBreached,
+			Status:  metav1.ConditionUnknown,
+			Reason:  "PodCliqueScalingGroupReplicasInUnknownState",
+			Message: "PodCliqueScalingGroup replicas in unknown state",
+		}, nil
+	}
+
 	return &metav1.Condition{
 		Type:    grovecorev1alpha1.ConditionTypeMinAvailableBreached,
 		Status:  metav1.ConditionFalse,
 		Reason:  "SufficientReadyPodCliqueScalingGroupReplicas",
 		Message: fmt.Sprintf("Sufficient PodCliqueScalingGroup replicas, expected at least: %d, found: %d", defaultPCSGMinAvailable, numReadyPCSGReplicas),
 	}, nil
+}
+
+func computeMinAvailableBreachedStatusForPSGReplica(logger logr.Logger, pcsgReplicaIndex string, pclqs []grovecorev1alpha1.PodClique) metav1.ConditionStatus {
+	var atleastOneStatusIsUnknown bool
+	for _, pclq := range pclqs {
+		if k8sutils.IsResourceTerminating(pclq.ObjectMeta) {
+			// do not consider PCLQs that have already been marked for termination.
+			continue
+		}
+		if k8sutils.IsConditionTrue(pclq.Status.Conditions, grovecorev1alpha1.ConditionTypeMinAvailableBreached) {
+			logger.Info("PodClique has MinAvailableBreached condition set to true", "pcsgReplicaIndex", pcsgReplicaIndex, "pclq", client.ObjectKeyFromObject(&pclq))
+			return metav1.ConditionTrue
+		}
+		if pclq.Status.Conditions == nil ||
+			k8sutils.IsConditionUnknown(pclq.Status.Conditions, grovecorev1alpha1.ConditionTypeMinAvailableBreached) {
+			logger.Info("PodClique has MinAvailableBreached condition is either not set yet or is set to Unknown", "pcsgReplicaIndex", pcsgReplicaIndex, "pclq", client.ObjectKeyFromObject(&pclq))
+			atleastOneStatusIsUnknown = true
+		}
+	}
+	return lo.Ternary(atleastOneStatusIsUnknown, metav1.ConditionUnknown, metav1.ConditionFalse)
 }
 
 func mutateSelector(pgs *grovecorev1alpha1.PodGangSet, pcsg *grovecorev1alpha1.PodCliqueScalingGroup) error {

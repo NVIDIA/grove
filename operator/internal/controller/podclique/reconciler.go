@@ -65,25 +65,19 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		return result.Result()
 	}
 
-	var deletionOrSpecReconcileFlowResult ctrlcommon.ReconcileStepResult
 	if !pclq.DeletionTimestamp.IsZero() {
 		if !controllerutil.ContainsFinalizer(pclq, grovecorev1alpha1.FinalizerPodClique) {
 			return ctrlcommon.DoNotRequeue().Result()
 		}
 		dLog := logger.WithValues("operation", "delete")
-		deletionOrSpecReconcileFlowResult = r.triggerDeletionFlow(ctx, dLog, pclq)
-	} else {
-		specLog := logger.WithValues("operation", "specReconcile")
-		deletionOrSpecReconcileFlowResult = r.reconcileSpec(ctx, specLog, pclq)
+		return r.triggerDeletionFlow(ctx, dLog, pclq).Result()
 	}
+	specLog := logger.WithValues("operation", "specReconcile")
 
+	reconcileSpecFlowResult := r.reconcileSpec(ctx, specLog, pclq)
 	if statusReconcileResult := r.reconcileStatus(ctx, logger, pclq); ctrlcommon.ShortCircuitReconcileFlow(statusReconcileResult) {
 		return statusReconcileResult.Result()
 	}
 
-	if ctrlcommon.ShortCircuitReconcileFlow(deletionOrSpecReconcileFlowResult) {
-		return deletionOrSpecReconcileFlowResult.Result()
-	}
-
-	return ctrlcommon.DoNotRequeue().Result()
+	return reconcileSpecFlowResult.Result()
 }
