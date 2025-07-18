@@ -19,7 +19,7 @@ package podclique
 import (
 	"context"
 	"fmt"
-	"slices"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"strconv"
 	"strings"
 	"time"
@@ -45,6 +45,7 @@ const (
 	errDeletePodClique               grovecorev1alpha1.ErrorCode = "ERR_DELETE_PODCLIQUE"
 	errCodeListPodCliqueScalingGroup grovecorev1alpha1.ErrorCode = "ERR_LIST_PODCLIQUESCALINGGROUP"
 	errCodeListPodCliques            grovecorev1alpha1.ErrorCode = "ERR_LIST_PODCLIQUES"
+	errCodeCreatePodClique           grovecorev1alpha1.ErrorCode = "ERR_CREATE_PODCLIQUE"
 )
 
 type _resource struct {
@@ -91,7 +92,7 @@ func (r _resource) Sync(ctx context.Context, logger logr.Logger, pgs *grovecorev
 	if err != nil {
 		return err
 	}
-	if err = r.createOrUpdateExpectedPCLQs(ctx, logger, pgs, expectedPCLQNames); err != nil {
+	if err = r.createExpectedPCLQs(ctx, logger, pgs, expectedPCLQNames); err != nil {
 		return err
 	}
 
@@ -131,17 +132,7 @@ func (r _resource) triggerDeletionOfExcessPCLQs(ctx context.Context, logger logr
 	return nil
 }
 
-func (r _resource) createOrUpdateExpectedPCLQs(ctx context.Context, logger logr.Logger, pgs *grovecorev1alpha1.PodGangSet, expectedPCLQNames []string) error {
-	existingPCLQNames, err := r.GetExistingResourceNames(ctx, logger, pgs.ObjectMeta)
-	if err != nil {
-		return groveerr.WrapError(err,
-			errSyncPodClique,
-			component.OperationSync,
-			fmt.Sprintf("Unable to fetch existing PodClique names for PodGangSet: %v", client.ObjectKeyFromObject(pgs)),
-		)
-	}
-
-	// Update or create PodCliques
+func (r _resource) createExpectedPCLQs(ctx context.Context, logger logr.Logger, pgs *grovecorev1alpha1.PodGangSet, expectedPCLQNames []string) error {
 	tasks := make([]utils.Task, 0, len(expectedPCLQNames))
 
 	for pgsReplica := range pgs.Spec.Replicas {
@@ -150,21 +141,20 @@ func (r _resource) createOrUpdateExpectedPCLQs(ctx context.Context, logger logr.
 				Name:      grovecorev1alpha1.GeneratePodCliqueName(grovecorev1alpha1.ResourceNameReplica{Name: pgs.Name, Replica: int(pgsReplica)}, expectedPCLQName),
 				Namespace: pgs.Namespace,
 			}
-			exists := slices.Contains(existingPCLQNames, pclqObjectKey.Name)
-			createOrUpdateTask := utils.Task{
-				Name: fmt.Sprintf("CreateOrUpdatePodClique-%s", pclqObjectKey),
+			createTask := utils.Task{
+				Name: fmt.Sprintf("CreatePodClique-%s", pclqObjectKey),
 				Fn: func(ctx context.Context) error {
-					return r.doCreateOrUpdate(ctx, logger, pgs, pgsReplica, pclqObjectKey, exists)
+					return r.doCreate(ctx, logger, pgs, pgsReplica, pclqObjectKey)
 				},
 			}
-			tasks = append(tasks, createOrUpdateTask)
+			tasks = append(tasks, createTask)
 		}
 	}
 	if runResult := utils.RunConcurrently(ctx, logger, tasks); runResult.HasErrors() {
 		return groveerr.WrapError(runResult.GetAggregatedError(),
 			errSyncPodClique,
 			component.OperationSync,
-			fmt.Sprintf("Error CreateOrUpdate of PodCliques for PodGangSet: %v, run summary: %s", client.ObjectKeyFromObject(pgs), runResult.GetSummary()),
+			fmt.Sprintf("Error Create of PodCliques for PodGangSet: %v, run summary: %s", client.ObjectKeyFromObject(pgs), runResult.GetSummary()),
 		)
 	}
 	return nil
@@ -352,24 +342,29 @@ func (r _resource) Delete(ctx context.Context, logger logr.Logger, pgsObjectMeta
 	return nil
 }
 
-func (r _resource) doCreateOrUpdate(ctx context.Context, logger logr.Logger, pgs *grovecorev1alpha1.PodGangSet, pgsReplica int32, pclqObjectKey client.ObjectKey, exists bool) error {
+func (r _resource) doCreate(ctx context.Context, logger logr.Logger, pgs *grovecorev1alpha1.PodGangSet, pgsReplica int32, pclqObjectKey client.ObjectKey) error {
 	logger.Info("Running CreateOrUpdate PodClique", "pclqObjectKey", pclqObjectKey)
 	pclq := emptyPodClique(pclqObjectKey)
-	opResult, err := controllerutil.CreateOrPatch(ctx, r.client, pclq, func() error {
-		return r.buildResource(logger, pclq, pgs, int(pgsReplica), exists)
-	})
-	if err != nil {
+	pgsObjKey := client.ObjectKeyFromObject(pgs)
+	if err := r.buildResource(logger, pclq, pgs, int(pgsReplica)); err != nil {
+		return err
+	}
+	if err := r.client.Create(ctx, pclq); err != nil {
+		if apierrors.IsAlreadyExists(err) {
+			logger.Info("PodClique creation failed for PodGangSet as it already exists", "pgs", pgsObjKey, "pclq", client.ObjectKeyFromObject(pclq))
+			return nil
+		}
 		return groveerr.WrapError(err,
-			errSyncPodClique,
+			errCodeCreatePodClique,
 			component.OperationSync,
-			fmt.Sprintf("Error syncing PodClique: %v for PodGangSet: %v", pclqObjectKey, client.ObjectKeyFromObject(pgs)),
+			fmt.Sprintf("Error creating PodClique: %v for PodGangSet: %v", pclqObjectKey, pgsObjKey),
 		)
 	}
-	logger.Info("triggered create or update of PodClique", "pclqObjectKey", pclqObjectKey, "result", opResult)
+	logger.Info("triggered create of PodClique for PodGangSet", "pgs", pgsObjKey, "pclqObjectKey", pclqObjectKey)
 	return nil
 }
 
-func (r _resource) buildResource(logger logr.Logger, pclq *grovecorev1alpha1.PodClique, pgs *grovecorev1alpha1.PodGangSet, pgsReplica int, exists bool) error {
+func (r _resource) buildResource(logger logr.Logger, pclq *grovecorev1alpha1.PodClique, pgs *grovecorev1alpha1.PodGangSet, pgsReplica int) error {
 	var err error
 	pclqObjectKey, pgsObjectKey := client.ObjectKeyFromObject(pclq), client.ObjectKeyFromObject(pgs)
 	pclqTemplateSpec, foundAtIndex, ok := lo.FindIndexOf(pgs.Spec.Template.Cliques, func(pclqTemplateSpec *grovecorev1alpha1.PodCliqueTemplateSpec) bool {
@@ -395,14 +390,7 @@ func (r _resource) buildResource(logger logr.Logger, pclq *grovecorev1alpha1.Pod
 	pclq.Annotations = pclqTemplateSpec.Annotations
 	// set PodCliqueSpec
 	// ------------------------------------
-	if exists {
-		// If an HPA is mutating the number of replicas, then it should not be overwritten by the template spec replicas.
-		currentPCLQReplicas := pclq.Spec.Replicas
-		pclq.Spec = pclqTemplateSpec.Spec
-		pclq.Spec.Replicas = currentPCLQReplicas
-	} else {
-		pclq.Spec = pclqTemplateSpec.Spec
-	}
+	pclq.Spec = pclqTemplateSpec.Spec
 	var dependentPclqNames []string
 	if dependentPclqNames, err = identifyFullyQualifiedStartupDependencyNames(pgs, pclq, pgsReplica, foundAtIndex); err != nil {
 		return err

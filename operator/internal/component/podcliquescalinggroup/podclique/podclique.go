@@ -19,6 +19,7 @@ package podclique
 import (
 	"context"
 	"fmt"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"slices"
 	"strconv"
 	"strings"
@@ -48,6 +49,7 @@ const (
 	errMissingPGSReplicaIndex    grovecorev1alpha1.ErrorCode = "ERR_MISSING_PODGANGSET_REPLICA_INDEX"
 	errReplicaIndexIntConversion grovecorev1alpha1.ErrorCode = "ERR_PODGANGSET_REPLICA_INDEX_CONVERSION"
 	errCodeListPodCliquesForPCSG grovecorev1alpha1.ErrorCode = "ERR_LIST_PODCLIQUE_FOR_PCSG"
+	errCodeCreatePodClique       grovecorev1alpha1.ErrorCode = "ERR_CREATE_PODCLIQUE"
 )
 
 type _resource struct {
@@ -106,7 +108,7 @@ func (r _resource) Sync(ctx context.Context, logger logr.Logger, pcsg *grovecore
 		return err
 	}
 	// Create or update the expected PodCliques as per the PodCliqueScalingGroup configurations defined in the PodGangSet.
-	if err = r.createOrUpdateExpectedPCLQs(ctx, logger, pgs, pcsg, expectedPCLQs); err != nil {
+	if err = r.createExpectedPCLQs(ctx, logger, pgs, pcsg, expectedPCLQs); err != nil {
 		return err
 	}
 
@@ -172,20 +174,7 @@ func (r _resource) triggerDeletionOfMinAvailableBreachedPCSGReplicas(ctx context
 	return
 }
 
-func (r _resource) createOrUpdateExpectedPCLQs(ctx context.Context, logger logr.Logger, pgs *grovecorev1alpha1.PodGangSet, pcsg *grovecorev1alpha1.PodCliqueScalingGroup, numExpectedPCLQs int) error {
-	existingPCLQs, err := componentutils.GetPCLQsByOwner(ctx, r.client, grovecorev1alpha1.PodCliqueScalingGroupKind, client.ObjectKeyFromObject(pcsg), getPodCliqueSelectorLabels(pcsg.ObjectMeta))
-	if err != nil {
-		return groveerr.WrapError(err,
-			errCodeListPodCliquesForPCSG,
-			component.OperationSync,
-			fmt.Sprintf("Unable to fetch existing PodCliques for PodCliqueScalingGroup: %v", client.ObjectKeyFromObject(pcsg)),
-		)
-	}
-	existingPCLQNames := lo.Map(existingPCLQs, func(pclq grovecorev1alpha1.PodClique, _ int) string {
-		return pclq.Name
-	})
-
-	// Update or create PodCliques
+func (r _resource) createExpectedPCLQs(ctx context.Context, logger logr.Logger, pgs *grovecorev1alpha1.PodGangSet, pcsg *grovecorev1alpha1.PodCliqueScalingGroup, numExpectedPCLQs int) error {
 	tasks := make([]utils.Task, 0, numExpectedPCLQs)
 	for pcsgReplicaIndex := range pcsg.Spec.Replicas {
 		pclqFQNs := lo.FilterMap(pgs.Spec.Template.Cliques, func(pclqTemplateSpec *grovecorev1alpha1.PodCliqueTemplateSpec, _ int) (string, bool) {
@@ -201,21 +190,20 @@ func (r _resource) createOrUpdateExpectedPCLQs(ctx context.Context, logger logr.
 				Name:      pclqFQN,
 				Namespace: pcsg.Namespace,
 			}
-			exists := slices.Contains(existingPCLQNames, pclqObjectKey.Name)
-			createOrUpdateTask := utils.Task{
-				Name: fmt.Sprintf("CreateOrUpdatePodClique-%s", pclqObjectKey),
+			createTask := utils.Task{
+				Name: fmt.Sprintf("CreatePodClique-%s", pclqObjectKey),
 				Fn: func(ctx context.Context) error {
-					return r.doCreateOrUpdate(ctx, logger, pgs, pcsg, int(pcsgReplicaIndex), pclqObjectKey, exists)
+					return r.doCreate(ctx, logger, pgs, pcsg, int(pcsgReplicaIndex), pclqObjectKey)
 				},
 			}
-			tasks = append(tasks, createOrUpdateTask)
+			tasks = append(tasks, createTask)
 		}
 	}
 	if runResult := utils.RunConcurrently(ctx, logger, tasks); runResult.HasErrors() {
 		return groveerr.WrapError(runResult.GetAggregatedError(),
 			errSyncPodClique,
 			component.OperationSync,
-			fmt.Sprintf("Error CreateOrUpdate of PodCliques for PodCliqueScalingGroup: %v, run summary: %s", client.ObjectKeyFromObject(pcsg), runResult.GetSummary()),
+			fmt.Sprintf("Error Create of PodCliques for PodCliqueScalingGroup: %v, run summary: %s", client.ObjectKeyFromObject(pcsg), runResult.GetSummary()),
 		)
 	}
 	return nil
@@ -348,34 +336,39 @@ func (r _resource) Delete(ctx context.Context, logger logr.Logger, pcsgObjectMet
 	return nil
 }
 
-func (r _resource) doCreateOrUpdate(ctx context.Context, logger logr.Logger, pgs *grovecorev1alpha1.PodGangSet, pcsg *grovecorev1alpha1.PodCliqueScalingGroup, pcsgReplicaIndex int, pclqObjectKey client.ObjectKey, exists bool) error {
+func (r _resource) doCreate(ctx context.Context, logger logr.Logger, pgs *grovecorev1alpha1.PodGangSet, pcsg *grovecorev1alpha1.PodCliqueScalingGroup, pcsgReplicaIndex int, pclqObjectKey client.ObjectKey) error {
 	logger.Info("Running CreateOrUpdate PodClique", "pclqObjectKey", pclqObjectKey)
 	pclq := emptyPodClique(pclqObjectKey)
-	opResult, err := controllerutil.CreateOrPatch(ctx, r.client, pclq, func() error {
-		return r.buildResource(logger, pgs, pcsg, pcsgReplicaIndex, pclq, exists)
-	})
-	if err != nil {
+	pcsgObjKey := client.ObjectKeyFromObject(pclq)
+	if err := r.buildResource(logger, pgs, pcsg, pcsgReplicaIndex, pclq); err != nil {
+		return err
+	}
+	if err := r.client.Create(ctx, pclq); err != nil {
+		if apierrors.IsAlreadyExists(err) {
+			logger.Info("PodClique creation failed as it already exists", "pclq", pclqObjectKey)
+			return nil
+		}
 		return groveerr.WrapError(err,
-			errSyncPodClique,
+			errCodeCreatePodClique,
 			component.OperationSync,
-			fmt.Sprintf("Error syncing PodClique: %v for PodCliqueScalingGroup: %v", pclqObjectKey, client.ObjectKeyFromObject(pcsg)),
+			fmt.Sprintf("Error creating PodClique: %v for PodCliqueScalingGroup: %v", pclqObjectKey, pcsgObjKey),
 		)
 	}
-	logger.Info("triggered create or update of PodClique", "pclqObjectKey", pclqObjectKey, "result", opResult)
+	logger.Info("triggered create of PodClique For PodCliqueScalingGroup", "pcsg", pcsgObjKey, "pclqObjectKey", pclqObjectKey)
 	return nil
 }
 
-func (r _resource) buildResource(logger logr.Logger, pgs *grovecorev1alpha1.PodGangSet, pcsg *grovecorev1alpha1.PodCliqueScalingGroup, pcsgReplicaIndex int, pclq *grovecorev1alpha1.PodClique, exists bool) error {
+func (r _resource) buildResource(logger logr.Logger, pgs *grovecorev1alpha1.PodGangSet, pcsg *grovecorev1alpha1.PodCliqueScalingGroup, pcsgReplicaIndex int, pclq *grovecorev1alpha1.PodClique) error {
 	var err error
 	pclqObjectKey, pgsObjectKey := client.ObjectKeyFromObject(pclq), client.ObjectKeyFromObject(pgs)
 	pclqTemplateSpec, foundAtIndex, ok := lo.FindIndexOf(pgs.Spec.Template.Cliques, func(pclqTemplateSpec *grovecorev1alpha1.PodCliqueTemplateSpec) bool {
 		return strings.HasSuffix(pclq.Name, pclqTemplateSpec.Name)
 	})
 	if !ok {
-		logger.Info("PodClique template spec not found in PodGangSet", "podCliqueObjectKey", pclqObjectKey, "podGangSetObjectKey", pgsObjectKey)
+		logger.Info("Error building PodClique resource, PodClique template spec not found in PodGangSet", "podCliqueObjectKey", pclqObjectKey, "podGangSetObjectKey", pgsObjectKey)
 		return groveerr.New(errSyncPodClique,
 			component.OperationSync,
-			fmt.Sprintf("PodCliqueTemplateSpec for PodClique: %v not found in PodGangSet: %v", pclqObjectKey, pgsObjectKey),
+			fmt.Sprintf("Error building PodClique resource, PodCliqueTemplateSpec for PodClique: %v not found in PodGangSet: %v", pclqObjectKey, pgsObjectKey),
 		)
 	}
 	// Set PodClique.ObjectMeta
@@ -395,14 +388,7 @@ func (r _resource) buildResource(logger logr.Logger, pgs *grovecorev1alpha1.PodG
 	pclq.Annotations = pclqTemplateSpec.Annotations
 	// set PodCliqueSpec
 	// ------------------------------------
-	if exists {
-		// If an HPA is mutating the number of replicas, then it should not be overwritten by the template spec replicas.
-		currentPCLQReplicas := pclq.Spec.Replicas
-		pclq.Spec = pclqTemplateSpec.Spec
-		pclq.Spec.Replicas = currentPCLQReplicas
-	} else {
-		pclq.Spec = pclqTemplateSpec.Spec
-	}
+	pclq.Spec = pclqTemplateSpec.Spec
 	dependentPclqNames, err := identifyFullyQualifiedStartupDependencyNames(pgs, pclq, pgsReplica, foundAtIndex)
 	if err != nil {
 		return err
