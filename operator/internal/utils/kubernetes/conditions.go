@@ -35,18 +35,28 @@ func HasConditionChanged(existingConditions []metav1.Condition, newCondition met
 
 // IsConditionTrue checks for a specific Condition amongst a list of Conditions and returns if the Condition.Status is true otherwise false is returned.
 func IsConditionTrue(existingConditions []metav1.Condition, conditionType string) bool {
-	existingCond := meta.FindStatusCondition(existingConditions, conditionType)
-	if existingCond == nil {
+	condStatus := GetConditionStatus(existingConditions, conditionType)
+	if condStatus == nil {
 		return false
 	}
-	return existingCond.Status == metav1.ConditionTrue
+	return *condStatus == metav1.ConditionTrue
 }
 
 // IsConditionUnknown checks for a specific Condition amongst a list of Conditions and returns if the Condition.Status is Unknown otherwise false is returned.
 func IsConditionUnknown(existingConditions []metav1.Condition, conditionType string) bool {
-	existingCond := meta.FindStatusCondition(existingConditions, conditionType)
-	if existingCond == nil {
+	condStatus := GetConditionStatus(existingConditions, conditionType)
+	if condStatus == nil {
 		return false
 	}
-	return existingCond.Status == metav1.ConditionUnknown
+	return *condStatus == metav1.ConditionUnknown
+}
+
+// GetConditionStatus looks up the conditionType from a slice of conditions. If the condition is found then it returns
+// the status else it will return nil.
+func GetConditionStatus(conditions []metav1.Condition, conditionType string) *metav1.ConditionStatus {
+	foundCond := meta.FindStatusCondition(conditions, conditionType)
+	if foundCond == nil {
+		return nil
+	}
+	return &foundCond.Status
 }

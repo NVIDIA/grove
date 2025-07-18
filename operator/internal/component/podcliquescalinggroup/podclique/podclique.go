@@ -104,7 +104,6 @@ func (r _resource) Sync(ctx context.Context, logger logr.Logger, pcsg *grovecore
 	shouldRequeue, err := r.triggerDeletionOfMinAvailableBreachedPCSGReplicas(ctx, logger, pgs, pcsg)
 	if err != nil {
 		return err
-
 	}
 	// Create or update the expected PodCliques as per the PodCliqueScalingGroup configurations defined in the PodGangSet.
 	if err = r.createOrUpdateExpectedPCLQs(ctx, logger, pgs, pcsg, expectedPCLQs); err != nil {
@@ -144,25 +143,33 @@ func (r _resource) triggerDeletionOfExcessPCLQs(ctx context.Context, logger logr
 	return nil
 }
 
-func (r _resource) triggerDeletionOfMinAvailableBreachedPCSGReplicas(ctx context.Context, logger logr.Logger, pgs *grovecorev1alpha1.PodGangSet, pcsg *grovecorev1alpha1.PodCliqueScalingGroup) (bool, error) {
+func (r _resource) triggerDeletionOfMinAvailableBreachedPCSGReplicas(ctx context.Context, logger logr.Logger, pgs *grovecorev1alpha1.PodGangSet, pcsg *grovecorev1alpha1.PodCliqueScalingGroup) (shouldRequeue bool, err error) {
 	terminationDelay := pgs.Spec.Template.TerminationDelay.Duration
 	pcsgReplicaIndexesToDelete, pcsgReplicaIndexesRequiringRequeue, err := r.findPCSGReplicasToDelete(ctx, pcsg, terminationDelay, logger)
 	if err != nil {
-		return false, err
+		return
+	}
+	numMinAvailableBreachedPCSGReplicas := len(pcsgReplicaIndexesToDelete) + len(pcsgReplicaIndexesRequiringRequeue)
+	// If all the PCSG *replicas* are having MinAvailableBreached condition set to true, then that means that now PCSG.Status.Condition will have
+	// MinAvailableBreached set to true. At this point of time, it is now the responsibility of PGS reconciler to ensure that it deletes the PGS replica.
+	if numMinAvailableBreachedPCSGReplicas == int(pcsg.Spec.Replicas) {
+		logger.Info("For each PCSG replica, MinAvailableBreached is true, delegating the responsibility to PGS reconciler to trigger the deletion of PGS replica.")
+		return
 	}
 	if len(pcsgReplicaIndexesToDelete) > 0 {
 		reason := fmt.Sprintf("Delete PodCliques %v for PodCliqueScalingGroup %v which have breached MinAvailable longer than TerminationDelay: %s", pcsgReplicaIndexesToDelete, client.ObjectKeyFromObject(pcsg), terminationDelay)
 		pclqGangTerminationTasks := r.createDeleteTasks(logger, pgs.ObjectMeta, pcsgReplicaIndexesToDelete, reason)
-		if err := r.triggerDeletionOfPodCliques(ctx, logger, client.ObjectKeyFromObject(pcsg), pclqGangTerminationTasks); err != nil {
-			return false, err
+		if err = r.triggerDeletionOfPodCliques(ctx, logger, client.ObjectKeyFromObject(pcsg), pclqGangTerminationTasks); err != nil {
+			return
 		}
 	}
-	if pcsgReplicaIndexesRequiringRequeue != nil {
-		logger.Info("Found PCLQs with MinAvailable breached but which have not crossed TerminationDelay", "pclqs", pcsgReplicaIndexesRequiringRequeue.A, "terminationDelay", terminationDelay)
+	if len(pcsgReplicaIndexesRequiringRequeue) > 0 {
+		logger.Info("Found PCLQs with MinAvailable breached but which have not crossed TerminationDelay", "pclqs", pcsgReplicaIndexesRequiringRequeue, "terminationDelay", terminationDelay)
+		shouldRequeue = true
 		// return true to trigger a requeue
-		return true, nil
+		return
 	}
-	return false, nil
+	return
 }
 
 func (r _resource) createOrUpdateExpectedPCLQs(ctx context.Context, logger logr.Logger, pgs *grovecorev1alpha1.PodGangSet, pcsg *grovecorev1alpha1.PodCliqueScalingGroup, numExpectedPCLQs int) error {
@@ -214,7 +221,7 @@ func (r _resource) createOrUpdateExpectedPCLQs(ctx context.Context, logger logr.
 	return nil
 }
 
-func (r _resource) findPCSGReplicasToDelete(ctx context.Context, pcsg *grovecorev1alpha1.PodCliqueScalingGroup, terminationDelay time.Duration, logger logr.Logger) (pcsgReplicaIndexesToTerminate []string, requeueAfterForPCSGReplicaIndexes *lo.Tuple2[[]string, time.Duration], err error) {
+func (r _resource) findPCSGReplicasToDelete(ctx context.Context, pcsg *grovecorev1alpha1.PodCliqueScalingGroup, terminationDelay time.Duration, logger logr.Logger) (pcsgReplicaIndexesToTerminate []string, pcsgReplicaIndexToRequeue []string, err error) {
 	existingPCLQs, err := componentutils.GetPCLQsByOwner(ctx, r.client, grovecorev1alpha1.PodCliqueScalingGroupKind, client.ObjectKeyFromObject(pcsg), getPodCliqueSelectorLabels(pcsg.ObjectMeta))
 	if err != nil {
 		err = groveerr.WrapError(err,
@@ -227,8 +234,6 @@ func (r _resource) findPCSGReplicasToDelete(ctx context.Context, pcsg *grovecore
 	now := time.Now()
 	// group existing PCLQs by PCSG replica index. These are PCLQs that belong to once replica of PCSG.
 	pcsgReplicaIndexPCLQs := componentutils.GroupPCLQsByPCSGReplicaIndex(existingPCLQs)
-	var minWaitForDurations []time.Duration
-	pcsgReplicaIndexesRequiringRequeue := make([]string, 0, len(existingPCLQs))
 	// For each PCSG replica check if minAvailable for any constituent PCLQ has been violated. Those PCSG replicas should be marked for termination.
 	for pcsgReplicaIndex, pclqs := range pcsgReplicaIndexPCLQs {
 		pclqNames, minWaitFor := componentutils.GetMinAvailableBreachedPCLQInfo(pclqs, terminationDelay, now)
@@ -237,14 +242,9 @@ func (r _resource) findPCSGReplicasToDelete(ctx context.Context, pcsg *grovecore
 			if minWaitFor <= 0 {
 				pcsgReplicaIndexesToTerminate = append(pcsgReplicaIndexesToTerminate, pcsgReplicaIndex)
 			} else {
-				minWaitForDurations = append(minWaitForDurations, minWaitFor)
-				pcsgReplicaIndexesRequiringRequeue = append(pcsgReplicaIndexesRequiringRequeue, pcsgReplicaIndex)
+				pcsgReplicaIndexToRequeue = append(pcsgReplicaIndexToRequeue, pcsgReplicaIndex)
 			}
 		}
-	}
-	if len(minWaitForDurations) > 0 {
-		slices.Sort(minWaitForDurations)
-		requeueAfterForPCSGReplicaIndexes = &lo.Tuple2[[]string, time.Duration]{A: pcsgReplicaIndexesRequiringRequeue, B: minWaitForDurations[0]}
 	}
 	return
 }
@@ -511,8 +511,4 @@ func emptyPodClique(objKey client.ObjectKey) *grovecorev1alpha1.PodClique {
 			Namespace: objKey.Namespace,
 		},
 	}
-}
-
-func isPCSGPodGang(pcsgName, podGangName string) bool {
-	return strings.HasPrefix(podGangName, pcsgName)
 }

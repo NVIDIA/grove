@@ -98,9 +98,11 @@ func (r *Reconciler) computeMinAvailableBreachedCondition(ctx context.Context, l
 	var atleastOnePCSGReplicaIsUnknown bool
 	for pcsgReplicaIndex, pclqs := range pcsgReplicaPCLQs {
 		pcsgReplicaCondStatus := computeMinAvailableBreachedStatusForPSGReplica(logger, pcsgReplicaIndex, pclqs)
-		if pcsgReplicaCondStatus == metav1.ConditionTrue {
+		logger.Info("MinAvailableBreached condition status for PCSG replica", "pcsgReplicaIndex", pcsgReplicaIndex, "conditionStatus", pcsgReplicaCondStatus)
+		switch pcsgReplicaCondStatus {
+		case metav1.ConditionTrue:
 			minAvailableBreachedPCSGReplicaIndexes = append(minAvailableBreachedPCSGReplicaIndexes, pcsgReplicaIndex)
-		} else if pcsgReplicaCondStatus == metav1.ConditionUnknown {
+		case metav1.ConditionFalse:
 			atleastOnePCSGReplicaIsUnknown = true
 		}
 	}
@@ -135,13 +137,15 @@ func (r *Reconciler) computeMinAvailableBreachedCondition(ctx context.Context, l
 func computeMinAvailableBreachedStatusForPSGReplica(logger logr.Logger, pcsgReplicaIndex string, pclqs []grovecorev1alpha1.PodClique) metav1.ConditionStatus {
 	var atleastOneStatusIsUnknown bool
 	for _, pclq := range pclqs {
-		if k8sutils.IsResourceTerminating(pclq.ObjectMeta) {
-			// do not consider PCLQs that have already been marked for termination.
-			continue
-		}
+		logger.Info("MinAvailable condition status for PCLQ", "pclq", client.ObjectKeyFromObject(&pclq), "status", k8sutils.GetConditionStatus(pclq.Status.Conditions, grovecorev1alpha1.ConditionTypeMinAvailableBreached))
 		if k8sutils.IsConditionTrue(pclq.Status.Conditions, grovecorev1alpha1.ConditionTypeMinAvailableBreached) {
 			logger.Info("PodClique has MinAvailableBreached condition set to true", "pcsgReplicaIndex", pcsgReplicaIndex, "pclq", client.ObjectKeyFromObject(&pclq))
 			return metav1.ConditionTrue
+		}
+		if k8sutils.IsResourceTerminating(pclq.ObjectMeta) {
+			atleastOneStatusIsUnknown = true
+			logger.Info("PCLQ is marked for termination, cannot determine the MinAvailableBreached condition status, assuming Unknown", "pcsgReplicaIndex", pcsgReplicaIndex, "pclq", client.ObjectKeyFromObject(&pclq))
+			continue
 		}
 		if pclq.Status.Conditions == nil ||
 			k8sutils.IsConditionUnknown(pclq.Status.Conditions, grovecorev1alpha1.ConditionTypeMinAvailableBreached) {

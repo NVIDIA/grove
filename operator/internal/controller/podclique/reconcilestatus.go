@@ -125,7 +125,7 @@ func getReadyAndScheduleGatedPods(pods []*corev1.Pod) (readyPods []*corev1.Pod, 
 }
 
 func computeMinAvailableBreachedCondition(pclq *grovecorev1alpha1.PodClique) metav1.Condition {
-	readyOrScheduleGatedPods := pclq.Status.ReadyReplicas + pclq.Status.ScheduleGatedReplicas
+	readyPods := pclq.Status.ReadyReplicas
 	minAvailable := pclq.Spec.MinAvailable
 	now := metav1.Now()
 
@@ -138,12 +138,12 @@ func computeMinAvailableBreachedCondition(pclq *grovecorev1alpha1.PodClique) met
 			LastTransitionTime: now,
 		}
 	}
-	if readyOrScheduleGatedPods < *minAvailable {
+	if readyPods < *minAvailable {
 		return metav1.Condition{
 			Type:               grovecorev1alpha1.ConditionTypeMinAvailableBreached,
 			Status:             metav1.ConditionTrue,
 			Reason:             "InsufficientReadyPods",
-			Message:            fmt.Sprintf("Insufficient ready pods. expected at least: %d, found: %d", *minAvailable, readyOrScheduleGatedPods),
+			Message:            fmt.Sprintf("Insufficient ready pods. expected at least: %d, found: %d", *minAvailable, readyPods),
 			LastTransitionTime: now,
 		}
 	}
@@ -151,7 +151,7 @@ func computeMinAvailableBreachedCondition(pclq *grovecorev1alpha1.PodClique) met
 		Type:               grovecorev1alpha1.ConditionTypeMinAvailableBreached,
 		Status:             metav1.ConditionFalse,
 		Reason:             "SufficientReadyPods",
-		Message:            fmt.Sprintf("Sufficient ready pods found. expected at least: %d, found: %d", *minAvailable, readyOrScheduleGatedPods),
+		Message:            fmt.Sprintf("Sufficient ready pods found. expected at least: %d, found: %d", *minAvailable, readyPods),
 		LastTransitionTime: now,
 	}
 }
