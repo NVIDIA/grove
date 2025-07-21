@@ -139,7 +139,7 @@ func (r _resource) triggerDeletionOfExcessPCLQs(ctx context.Context, logger logr
 		// collect the names of the extra PodCliques to delete
 		deletionCandidatePodGangNames := getExcessPCSGReplicaIndexesToDelete(pcsg, existingPCLQs)
 		reason := fmt.Sprintf("Delete excess PodCliques associated to PodGangs %v for PodCliqueScalingGroup %v", deletionCandidatePodGangNames, client.ObjectKeyFromObject(pcsg))
-		deletionTasks := r.createDeleteTasks(logger, pgsObjMeta, deletionCandidatePodGangNames, reason)
+		deletionTasks := r.createDeleteTasks(logger, pgsObjMeta, pcsg.Name, deletionCandidatePodGangNames, reason)
 		return r.triggerDeletionOfPodCliques(ctx, logger, client.ObjectKeyFromObject(pcsg), deletionTasks)
 	}
 	return nil
@@ -160,7 +160,7 @@ func (r _resource) triggerDeletionOfMinAvailableBreachedPCSGReplicas(ctx context
 	}
 	if len(pcsgReplicaIndexesToDelete) > 0 {
 		reason := fmt.Sprintf("Delete PodCliques %v for PodCliqueScalingGroup %v which have breached MinAvailable longer than TerminationDelay: %s", pcsgReplicaIndexesToDelete, client.ObjectKeyFromObject(pcsg), terminationDelay)
-		pclqGangTerminationTasks := r.createDeleteTasks(logger, pgs.ObjectMeta, pcsgReplicaIndexesToDelete, reason)
+		pclqGangTerminationTasks := r.createDeleteTasks(logger, pgs.ObjectMeta, pcsg.Name, pcsgReplicaIndexesToDelete, reason)
 		if err = r.triggerDeletionOfPodCliques(ctx, logger, client.ObjectKeyFromObject(pcsg), pclqGangTerminationTasks); err != nil {
 			return
 		}
@@ -249,7 +249,7 @@ func (r _resource) triggerDeletionOfPodCliques(ctx context.Context, logger logr.
 	return nil
 }
 
-func (r _resource) createDeleteTasks(logger logr.Logger, pgsObjMeta metav1.ObjectMeta, pcsgReplicaIndexesToDelete []string, reason string) []utils.Task {
+func (r _resource) createDeleteTasks(logger logr.Logger, pgsObjMeta metav1.ObjectMeta, pcsgName string, pcsgReplicaIndexesToDelete []string, reason string) []utils.Task {
 	deletionTasks := make([]utils.Task, 0, len(pcsgReplicaIndexesToDelete))
 	for _, pcsgReplicaIndex := range pcsgReplicaIndexesToDelete {
 		task := utils.Task{
@@ -258,7 +258,7 @@ func (r _resource) createDeleteTasks(logger logr.Logger, pgsObjMeta metav1.Objec
 				if err := r.client.DeleteAllOf(ctx,
 					&grovecorev1alpha1.PodClique{},
 					client.InNamespace(pgsObjMeta.Namespace),
-					client.MatchingLabels(getLabelsToDeletePCSGReplicaIndexPCLQs(pgsObjMeta.Name, pcsgReplicaIndex))); err != nil {
+					client.MatchingLabels(getLabelsToDeletePCSGReplicaIndexPCLQs(pgsObjMeta.Name, pcsgName, pcsgReplicaIndex))); err != nil {
 					logger.Error(err, "failed to delete PodCliques for PCSG replica index", "pcsgReplicaIndex", pcsgReplicaIndex, "reason", reason)
 					return err
 				}
@@ -270,11 +270,12 @@ func (r _resource) createDeleteTasks(logger logr.Logger, pgsObjMeta metav1.Objec
 	return deletionTasks
 }
 
-func getLabelsToDeletePCSGReplicaIndexPCLQs(pgsName, pcsgReplicaIndex string) map[string]string {
+func getLabelsToDeletePCSGReplicaIndexPCLQs(pgsName, pcsgName, pcsgReplicaIndex string) map[string]string {
 	return lo.Assign(
 		k8sutils.GetDefaultLabelsForPodGangSetManagedResources(pgsName),
 		map[string]string{
 			grovecorev1alpha1.LabelComponentKey:                      component.NamePCSGPodClique,
+			grovecorev1alpha1.LabelPodCliqueScalingGroup:             pcsgName,
 			grovecorev1alpha1.LabelPodCliqueScalingGroupReplicaIndex: pcsgReplicaIndex,
 		},
 	)
