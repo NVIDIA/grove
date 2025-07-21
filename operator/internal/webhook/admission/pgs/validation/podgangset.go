@@ -202,6 +202,34 @@ func (v *pgsValidator) validatePodCliqueScalingGroupConfigs(fldPath *field.Path)
 		// validate that scaling groups only contains clique names that are defined in the PodGangSet.
 		allErrs = append(allErrs, v.validateScalingGroupPodCliqueNames(scalingGroupConfig.Name, allPodGangSetCliqueNames,
 			scalingGroupConfig.CliqueNames, fldPath.Child("cliqueNames"), groupNameFiledPath)...)
+
+		// validate Replicas field
+		if scalingGroupConfig.Replicas != nil {
+			if *scalingGroupConfig.Replicas <= 0 {
+				allErrs = append(allErrs, field.Invalid(fldPath.Child("replicas"), *scalingGroupConfig.Replicas, "must be greater than 0"))
+			}
+		}
+
+		// validate MinAvailable field
+		if scalingGroupConfig.MinAvailable != nil {
+			if *scalingGroupConfig.MinAvailable <= 0 {
+				allErrs = append(allErrs, field.Invalid(fldPath.Child("minAvailable"), *scalingGroupConfig.MinAvailable, "must be greater than 0"))
+			}
+		}
+
+		// validate MinAvailable <= Replicas
+		if scalingGroupConfig.Replicas != nil && scalingGroupConfig.MinAvailable != nil {
+			if *scalingGroupConfig.MinAvailable > *scalingGroupConfig.Replicas {
+				allErrs = append(allErrs, field.Invalid(fldPath.Child("minAvailable"), *scalingGroupConfig.MinAvailable, "minAvailable must not be greater than replicas"))
+			}
+		}
+
+		// validate ScaleConfig.MinReplicas >= MinAvailable
+		if scalingGroupConfig.ScaleConfig != nil && scalingGroupConfig.MinAvailable != nil {
+			if scalingGroupConfig.ScaleConfig.MinReplicas != nil && *scalingGroupConfig.ScaleConfig.MinReplicas < *scalingGroupConfig.MinAvailable {
+				allErrs = append(allErrs, field.Invalid(fldPath.Child("scaleConfig", "minReplicas"), *scalingGroupConfig.ScaleConfig.MinReplicas, "scaleConfig.minReplicas must be greater than or equal to minAvailable"))
+			}
+		}
 	}
 
 	// validate that the scaling group names are unique

@@ -22,6 +22,7 @@ import (
 	"fmt"
 	"slices"
 	"sort"
+	"strings"
 
 	grovecorev1alpha1 "github.com/NVIDIA/grove/operator/api/core/v1alpha1"
 	"github.com/NVIDIA/grove/operator/internal/component"
@@ -194,21 +195,41 @@ func selectExcessPodsToDelete(sc *syncContext, logger logr.Logger) []*corev1.Pod
 func (r _resource) checkAndRemovePodSchedulingGates(sc *syncContext, logger logr.Logger) ([]string, error) {
 	tasks := make([]utils.Task, 0, len(sc.existingPCLQPods))
 	skippedScheduleGatedPods := make([]string, 0, len(sc.existingPCLQPods))
-	for _, p := range sc.existingPCLQPods {
+	for i, p := range sc.existingPCLQPods {
 		if hasPodGangSchedulingGate(p) {
 			if !slices.Contains(sc.podNamesUpdatedInPCLQPodGangs, p.Name) {
 				logger.Info("Pod has scheduling gate but it has not yet been updated in PodGang", "podObjectKey", client.ObjectKeyFromObject(p))
 				skippedScheduleGatedPods = append(skippedScheduleGatedPods, p.Name)
 				continue
 			}
+			// Check if this pod belongs to an individual PodGang and if base PodGang is ready
+			podGangName, ok := p.GetLabels()[grovecorev1alpha1.LabelPodGangName]
+			if ok && isIndividualPodGang(podGangName) {
+				// This is an individual PodGang pod - check if base PodGang is ready
+				if !isBasePodGangReady(sc.ctx, r.client, logger, p.Namespace, podGangName) {
+					logger.Info("Individual PodGang pod has scheduling gate but base PodGang is not ready yet",
+						"podObjectKey", client.ObjectKeyFromObject(p),
+						"individualPodGangName", podGangName)
+					skippedScheduleGatedPods = append(skippedScheduleGatedPods, p.Name)
+					continue
+				}
+				logger.Info("Base PodGang is ready, removing scheduling gate from individual PodGang pod",
+					"podObjectKey", client.ObjectKeyFromObject(p),
+					"individualPodGangName", podGangName)
+			}
+
+			// Capture pod to avoid loop variable issues in concurrent execution
+			podToUpdate := p
+			podObjectKey := client.ObjectKeyFromObject(podToUpdate)
 			task := utils.Task{
-				Name: fmt.Sprintf("RemoveSchedulingGate-%s", p.Name),
+				Name: fmt.Sprintf("RemoveSchedulingGate-%s-%d", podToUpdate.Name, i),
 				Fn: func(ctx context.Context) error {
-					podClone := p.DeepCopy()
-					p.Spec.SchedulingGates = nil
-					if err := client.IgnoreNotFound(r.client.Patch(ctx, p, client.MergeFrom(podClone))); err != nil {
+					podClone := podToUpdate.DeepCopy()
+					podToUpdate.Spec.SchedulingGates = nil
+					if err := client.IgnoreNotFound(r.client.Patch(ctx, podToUpdate, client.MergeFrom(podClone))); err != nil {
 						return err
 					}
+					logger.Info("Removed scheduling gate from pod", "podObjectKey", podObjectKey)
 					return nil
 				},
 			}
@@ -230,6 +251,69 @@ func (r _resource) checkAndRemovePodSchedulingGates(sc *syncContext, logger logr
 	}
 
 	return skippedScheduleGatedPods, nil
+}
+
+// isIndividualPodGang determines if a PodGang is an individual PodGang (beyond MinAvailable).
+// Individual PodGangs have names like: "simple1-0-sga-0", "simple1-0-sga-1", etc.
+func isIndividualPodGang(podGangName string) bool {
+	// Individual PodGangs contain the pattern "-sga-" followed by a 0-based index
+	// This is based on the naming convention: {pgsName}-{pgsReplica}-{scalingGroupName}-{individualPodGangIndex}
+	return strings.Contains(podGangName, "-sga-") && strings.Count(podGangName, "-") >= 3
+}
+
+// extractBasePodGangName extracts the base PodGang name from an individual PodGang name.
+// Example: "simple1-0-sga-0" -> "simple1-0"
+func extractBasePodGangName(individualPodGangName string) string {
+	// Find the scaling group pattern "-sga-"
+	sgaIndex := strings.Index(individualPodGangName, "-sga-")
+	if sgaIndex == -1 {
+		// This shouldn't happen for individual PodGangs, but return the original name as fallback
+		return individualPodGangName
+	}
+
+	// Return everything before "-sga-"
+	return individualPodGangName[:sgaIndex]
+}
+
+// isBasePodGangReady checks if all PodCliques in the base PodGang meet their MinAvailable requirements.
+func isBasePodGangReady(ctx context.Context, c client.Client, logger logr.Logger, namespace, individualPodGangName string) bool {
+	basePodGangName := extractBasePodGangName(individualPodGangName)
+
+	// Get the base PodGang
+	basePodGang := &groveschedulerv1alpha1.PodGang{}
+	basePodGangKey := client.ObjectKey{Name: basePodGangName, Namespace: namespace}
+
+	if err := c.Get(ctx, basePodGangKey, basePodGang); err != nil {
+		logger.Error(err, "failed to get base PodGang for readiness check", "basePodGangName", basePodGangName)
+		return false
+	}
+
+	// Check if all PodCliques in base PodGang meet MinAvailable requirements
+	for _, podGroup := range basePodGang.Spec.PodGroups {
+		pclqName := podGroup.Name
+
+		// Get the PodClique
+		pclq := &grovecorev1alpha1.PodClique{}
+		pclqKey := client.ObjectKey{Name: pclqName, Namespace: namespace}
+		if err := c.Get(ctx, pclqKey, pclq); err != nil {
+			logger.Error(err, "failed to get PodClique for base PodGang readiness check", "pclqName", pclqName)
+			return false
+		}
+
+		// Check if ReadyReplicas meets MinAvailable requirement
+		minAvailable := *pclq.Spec.MinAvailable
+		if pclq.Status.ReadyReplicas < minAvailable {
+			logger.Info("PodClique in base PodGang not ready",
+				"pclqName", pclqName,
+				"readyReplicas", pclq.Status.ReadyReplicas,
+				"minAvailable", minAvailable,
+				"basePodGangName", basePodGangName)
+			return false
+		}
+	}
+
+	logger.Info("All PodCliques in base PodGang meet MinAvailable requirements", "basePodGangName", basePodGangName)
+	return true
 }
 
 func hasPodGangSchedulingGate(pod *corev1.Pod) bool {

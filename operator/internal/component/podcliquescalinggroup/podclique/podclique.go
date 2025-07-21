@@ -385,7 +385,7 @@ func (r _resource) buildResource(logger logr.Logger, pgs *grovecorev1alpha1.PodG
 	if err != nil {
 		return err
 	}
-	pclq.Labels = getLabels(pgs.Name, pgsReplica, pcsg.Name, pcsgReplicaIndex, pclqObjectKey, pclqTemplateSpec)
+	pclq.Labels = getLabels(pgs, pgsReplica, pcsg.Name, pcsgReplicaIndex, pclqObjectKey, pclqTemplateSpec)
 	pclq.Annotations = pclqTemplateSpec.Annotations
 	// set PodCliqueSpec
 	// ------------------------------------
@@ -474,8 +474,11 @@ func getPodCliqueSelectorLabels(pcsgObjectMeta metav1.ObjectMeta) map[string]str
 	)
 }
 
-func getLabels(pgsName string, pgsReplicaIndex int, pcsgName string, pcsgReplicaIndex int, pclqObjectKey client.ObjectKey, pclqTemplateSpec *grovecorev1alpha1.PodCliqueTemplateSpec) map[string]string {
-	podGangName := componentutils.CreatePodGangNameForPCSG(pgsName, pgsReplicaIndex, pcsgName, pcsgReplicaIndex)
+func getLabels(pgs *grovecorev1alpha1.PodGangSet, pgsReplicaIndex int, pcsgName string, pcsgReplicaIndex int, pclqObjectKey client.ObjectKey, pclqTemplateSpec *grovecorev1alpha1.PodCliqueTemplateSpec) map[string]string {
+	// Use the shared utility to determine the correct PodGang name
+	// This handles minAvailable logic: replicas < minAvailable go to base PodGang
+	podGangName := componentutils.DeterminePodGangNameForPodClique(pgs, pgsReplicaIndex, pclqObjectKey.Name)
+
 	pclqComponentLabels := map[string]string{
 		grovecorev1alpha1.LabelAppNameKey:                        pclqObjectKey.Name,
 		grovecorev1alpha1.LabelComponentKey:                      component.NamePCSGPodClique,
@@ -486,7 +489,7 @@ func getLabels(pgsName string, pgsReplicaIndex int, pcsgName string, pcsgReplica
 	}
 	return lo.Assign(
 		pclqTemplateSpec.Labels,
-		k8sutils.GetDefaultLabelsForPodGangSetManagedResources(pgsName),
+		k8sutils.GetDefaultLabelsForPodGangSetManagedResources(pgs.Name),
 		pclqComponentLabels,
 	)
 }

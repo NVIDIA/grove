@@ -102,7 +102,7 @@ func (r _resource) Sync(ctx context.Context, logger logr.Logger, pgs *grovecorev
 			createTask := utils.Task{
 				Name: fmt.Sprintf("CreateOrUpdatePodCliqueScalingGroup-%s", pcsgObjectKey),
 				Fn: func(ctx context.Context) error {
-					return r.doCreate(ctx, logger, pgs, pcsgObjectKey, int(pgsReplica), pcsgConfig.CliqueNames)
+					return r.doCreate(ctx, logger, pgs, pcsgObjectKey, int(pgsReplica), pcsgConfig)
 				},
 			}
 			tasks = append(tasks, createTask)
@@ -154,11 +154,11 @@ func (r _resource) Delete(ctx context.Context, logger logr.Logger, pgsObjMeta me
 	return nil
 }
 
-func (r _resource) doCreate(ctx context.Context, logger logr.Logger, pgs *grovecorev1alpha1.PodGangSet, pcsgObjectKey client.ObjectKey, pgsReplica int, cliqueNames []string) error {
+func (r _resource) doCreate(ctx context.Context, logger logr.Logger, pgs *grovecorev1alpha1.PodGangSet, pcsgObjectKey client.ObjectKey, pgsReplica int, pcsgConfig grovecorev1alpha1.PodCliqueScalingGroupConfig) error {
 	logger.Info("Create PodCliqueScalingGroup", "objectKey", pcsgObjectKey)
 	pclqScalingGrp := emptyPodCliqueScalingGroup(pcsgObjectKey)
 
-	if err := r.buildResource(pclqScalingGrp, pgs, pgsReplica, cliqueNames); err != nil {
+	if err := r.buildResource(pclqScalingGrp, pgs, pgsReplica, pcsgConfig); err != nil {
 		return groveerr.WrapError(err,
 			errCodeBuildPodCliqueScalingGroup,
 			component.OperationSync,
@@ -192,7 +192,7 @@ func (r _resource) doDelete(ctx context.Context, logger logr.Logger, pcsgObjectK
 	return nil
 }
 
-func (r _resource) buildResource(pcsg *grovecorev1alpha1.PodCliqueScalingGroup, pgs *grovecorev1alpha1.PodGangSet, pgsReplica int, cliqueNames []string) error {
+func (r _resource) buildResource(pcsg *grovecorev1alpha1.PodCliqueScalingGroup, pgs *grovecorev1alpha1.PodGangSet, pgsReplica int, pcsgConfig grovecorev1alpha1.PodCliqueScalingGroupConfig) error {
 	if err := controllerutil.SetControllerReference(pgs, pcsg, r.scheme); err != nil {
 		return groveerr.WrapError(err,
 			errSyncPodCliqueScalingGroup,
@@ -200,8 +200,11 @@ func (r _resource) buildResource(pcsg *grovecorev1alpha1.PodCliqueScalingGroup, 
 			fmt.Sprintf("Error setting controller reference for PodCliqueScalingGroup: %v", client.ObjectKeyFromObject(pcsg)),
 		)
 	}
-	pcsg.Spec.Replicas = 1 // default to 1 replica if creating the resource.
-	pcsg.Spec.CliqueNames = cliqueNames
+	// Use the Replicas from the config (already defaulted to 1 by the webhook if not specified)
+	pcsg.Spec.Replicas = *pcsgConfig.Replicas
+	// Use the MinAvailable from the config (already defaulted to 1 by the webhook if not specified)
+	pcsg.Spec.MinAvailable = pcsgConfig.MinAvailable
+	pcsg.Spec.CliqueNames = pcsgConfig.CliqueNames
 	pcsg.Labels = getLabels(pgs.Name, pgsReplica, client.ObjectKeyFromObject(pcsg))
 	return nil
 }
