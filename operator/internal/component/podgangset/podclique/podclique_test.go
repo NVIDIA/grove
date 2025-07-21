@@ -83,7 +83,7 @@ func TestGetExistingResourceNames(t *testing.T) {
 			podCliqueTemplateNames: []string{"howl"},
 			listErr:                testutils.TestAPIInternalErr,
 			expectedErr: &groveerr.GroveError{
-				Code:      errListPodClique,
+				Code:      errCodeListPodCliques,
 				Cause:     testutils.TestAPIInternalErr,
 				Operation: component.OperationGetExistingResourceNames,
 			},
