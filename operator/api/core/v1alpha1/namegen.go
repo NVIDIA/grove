@@ -65,10 +65,16 @@ func GeneratePodCliqueScalingGroupName(pgsNameReplica ResourceNameReplica, pclqS
 	return fmt.Sprintf("%s-%d-%s", pgsNameReplica.Name, pgsNameReplica.Replica, pclqScalingGroupName)
 }
 
+// GenerateBasePodGangName generates a base PodGang name for a PodGangSet replica.
+// This is used for PodGangs that are not part of scaled scaling group replicas.
+func GenerateBasePodGangName(pgsNameReplica ResourceNameReplica) string {
+	return fmt.Sprintf("%s-%d", pgsNameReplica.Name, pgsNameReplica.Replica)
+}
+
 // GeneratePodGangName generates a PodGang name based on pgs and pcsg name and replicas.
 func GeneratePodGangName(pgsNameReplica ResourceNameReplica, pcsgNameReplica *ResourceNameReplica) string {
 	if pcsgNameReplica == nil || pcsgNameReplica.Replica == 1 {
-		return fmt.Sprintf("%s-%d", pgsNameReplica.Name, pgsNameReplica.Replica)
+		return GenerateBasePodGangName(pgsNameReplica)
 	}
 	return fmt.Sprintf("%s%d", GeneratePCSGPodGangNamePrefix(pgsNameReplica, pcsgNameReplica.Name), pcsgNameReplica.Replica-1)
 }
@@ -76,4 +82,11 @@ func GeneratePodGangName(pgsNameReplica ResourceNameReplica, pcsgNameReplica *Re
 // GeneratePCSGPodGangNamePrefix generates a PodGang name prefix for Podgangs created due to PCSG replica scale-out.
 func GeneratePCSGPodGangNamePrefix(pgsNameReplica ResourceNameReplica, pcsgName string) string {
 	return fmt.Sprintf("%s-%d-%s-", pgsNameReplica.Name, pgsNameReplica.Replica, pcsgName)
+}
+
+// ExtractScalingGroupNameFromPCSGFQN extracts the scaling group name from a PodCliqueScalingGroup FQN.
+// For example, "simple1-0-sga" with pgsNameReplica="simple1-0" returns "sga".
+func ExtractScalingGroupNameFromPCSGFQN(pcsgFQN string, pgsNameReplica ResourceNameReplica) string {
+	prefix := fmt.Sprintf("%s-%d-", pgsNameReplica.Name, pgsNameReplica.Replica)
+	return pcsgFQN[len(prefix):]
 }

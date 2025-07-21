@@ -9067,11 +9067,28 @@ spec:
                           items:
                             type: string
                           type: array
+                        minAvailable:
+                          description: |-
+                            MinAvailable specifies the minimum number of ready replicas required for the group to be considered operational.
+                            A scaling group replica is considered "ready" when its associated PodClique has sufficient ready Pods
+                            (PodClique.Status.ReadyReplicas >= PodGroup.MinReplicas), where a Pod is ready when its PodReady condition is True.
+                            If MinAvailable is breached, it will trigger gang-termination of the scaling group replica.
+                            MinAvailable will be validated to be less than or equal to Replicas.
+                            If not specified, it defaults to 1.
+                          format: int32
+                          type: integer
                         name:
                           description: |-
                             Name is the name of the PodCliqueScalingGroupConfig. This should be unique within the PodGangSet.
                             It allows consumers to give a semantic name to a group of PodCliques that needs to be scaled together.
                           type: string
+                        replicas:
+                          description: |-
+                            Replicas is the desired number of replicas for the scaling group at template level.
+                            This allows one to control the replicas of the scaling group at startup.
+                            If not specified, it defaults to 1.
+                          format: int32
+                          type: integer
                         scaleConfig:
                           description: ScaleConfig is the horizontal pod autoscaler
                             configuration for the pod clique scaling group.

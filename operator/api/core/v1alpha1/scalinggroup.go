@@ -52,6 +52,18 @@ type PodCliqueScalingGroupSpec struct {
 	// Replicas is the desired number of replicas for the PodCliqueScalingGroup.
 	// If not specified, it defaults to 1.
 	Replicas int32 `json:"replicas"`
+	// MinAvailable specifies the minimum number of ready replicas required for the group to be considered operational.
+	// A scaling group replica is considered "ready" when its associated PodClique has sufficient ready Pods
+	// (PodClique.Status.ReadyReplicas >= PodGroup.MinReplicas), where a Pod is ready when its PodReady condition is True.
+	//
+	// It serves two main purposes:
+	// 1. Gang Scheduling: Replicas 0 through (MinAvailable-1) are grouped into the base PodGang and scheduled together.
+	//    Additional replicas (MinAvailable and above) are scaled PodGangs that wait for the base PodGang to be ready
+	//    before their scheduling gates are removed.
+	// 2. Gang Termination: If MinAvailable is breached, it will trigger gang-termination of the scaling group replica.
+	// If not specified, it defaults to 1.
+	// +optional
+	MinAvailable *int32 `json:"minAvailable,omitempty"`
 	// CliqueNames is the list of PodClique names that are configured in the
 	// matching PodCliqueScalingGroup in PodGangSet.Spec.Template.PodCliqueScalingGroupConfigs.
 	CliqueNames []string `json:"cliqueNames"`

@@ -22,7 +22,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/NVIDIA/grove/operator/api/core/v1alpha1"
+	grovecorev1alpha1 "github.com/NVIDIA/grove/operator/api/core/v1alpha1"
 
 	"github.com/stretchr/testify/assert"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -46,14 +46,14 @@ func TestWrapError(t *testing.T) {
 
 func TestMapToLastErrors(t *testing.T) {
 	err1 := &GroveError{
-		Code:       v1alpha1.ErrorCode("ERR_TEST1"),
+		Code:       grovecorev1alpha1.ErrorCode("ERR_TEST1"),
 		Cause:      fmt.Errorf("test-error1"),
 		Operation:  "test-op",
 		Message:    "test-message1",
 		ObservedAt: time.Now().UTC(),
 	}
 	err2 := &GroveError{
-		Code:       v1alpha1.ErrorCode("ERR_TEST2"),
+		Code:       grovecorev1alpha1.ErrorCode("ERR_TEST2"),
 		Cause:      fmt.Errorf("test-error2"),
 		Operation:  "test-op",
 		Message:    "test-message2",
@@ -62,17 +62,17 @@ func TestMapToLastErrors(t *testing.T) {
 	testCases := []struct {
 		name             string
 		errs             []error
-		expectedLastErrs []v1alpha1.LastError
+		expectedLastErrs []grovecorev1alpha1.LastError
 	}{
 		{
 			name:             "No errors",
 			errs:             []error{},
-			expectedLastErrs: []v1alpha1.LastError{},
+			expectedLastErrs: []grovecorev1alpha1.LastError{},
 		},
 		{
 			name: "A slice of Grove errors",
 			errs: []error{err1, err2},
-			expectedLastErrs: []v1alpha1.LastError{
+			expectedLastErrs: []grovecorev1alpha1.LastError{
 				{Code: err1.Code, Description: err1.Error(), ObservedAt: metav1.NewTime(err1.ObservedAt)},
 				{Code: err2.Code, Description: err2.Error(), ObservedAt: metav1.NewTime(err2.ObservedAt)},
 			},
@@ -80,7 +80,7 @@ func TestMapToLastErrors(t *testing.T) {
 		{
 			name: "A slice of Grove errors and other errors",
 			errs: []error{err1, err2, fmt.Errorf("test-error3")},
-			expectedLastErrs: []v1alpha1.LastError{
+			expectedLastErrs: []grovecorev1alpha1.LastError{
 				{Code: err1.Code, Description: err1.Error(), ObservedAt: metav1.NewTime(err1.ObservedAt)},
 				{Code: err2.Code, Description: err2.Error(), ObservedAt: metav1.NewTime(err2.ObservedAt)},
 			},

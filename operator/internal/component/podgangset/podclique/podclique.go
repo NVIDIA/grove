@@ -32,7 +32,6 @@ import (
 
 	"github.com/go-logr/logr"
 	"github.com/samber/lo"
-	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -349,11 +348,30 @@ func (r _resource) doCreate(ctx context.Context, logger logr.Logger, pgs *grovec
 	if err := r.buildResource(logger, pclq, pgs, int(pgsReplica)); err != nil {
 		return err
 	}
-	if err := r.client.Create(ctx, pclq); err != nil {
-		if apierrors.IsAlreadyExists(err) {
-			logger.Info("PodClique creation failed for PodGangSet as it already exists", "pgs", pgsObjKey, "pclq", client.ObjectKeyFromObject(pclq))
-			return nil
-		}
+	// CRITICAL: Use IgnoreAlreadyExists to prevent cascading sync failures
+	// =====================================================================
+	//
+	// WHY THIS IS NECESSARY:
+	// The PodGangSet controller's sync logic attempts to create ALL PodCliques on every reconciliation,
+	// including ones that already exist. Without IgnoreAlreadyExists, this creates a cascading failure:
+	//
+	// 1. Every sync tries to create ALL PodCliques (even existing ones)
+	// 2. client.Create() fails: When trying to create existing PodCliques (returns "already exists" error)
+	// 3. Sync operation fails: The error bubbles up and fails the entire PodClique sync
+	// 4. PodGangSet reconciliation incomplete: Failed PodClique sync prevents PodGang updates
+	// 5. Scaled PodGangs never updated: They remain with empty podReferences
+	// 6. Scheduling gates never removed: Because pods aren't "updated in PodGang"
+	//
+	// RESULT WITHOUT IgnoreAlreadyExists:
+	// - All pods remain in "Pending" state with scheduling gates
+	// - PodGangSet reconciliation loop gets stuck
+	// - System becomes non-functional
+	//
+	// SOLUTION:
+	// IgnoreAlreadyExists allows the sync to continue even when PodCliques already exist,
+	// enabling the critical PodGang update flow to proceed and scheduling gates to be removed.
+	//
+	if err := client.IgnoreAlreadyExists(r.client.Create(ctx, pclq)); err != nil {
 		return groveerr.WrapError(err,
 			errCodeCreatePodClique,
 			component.OperationSync,
@@ -386,7 +404,7 @@ func (r _resource) buildResource(logger logr.Logger, pclq *grovecorev1alpha1.Pod
 			fmt.Sprintf("Error setting controller reference for PodClique: %v", client.ObjectKeyFromObject(pclq)),
 		)
 	}
-	pclq.Labels = getLabels(pgs.Name, pgsReplica, pclqObjectKey, pclqTemplateSpec)
+	pclq.Labels = getLabels(pgs, pgsReplica, pclqObjectKey, pclqTemplateSpec, pclq)
 	pclq.Annotations = pclqTemplateSpec.Annotations
 	// set PodCliqueSpec
 	// ------------------------------------
@@ -443,8 +461,10 @@ func getPodCliqueSelectorLabels(pgsObjectMeta metav1.ObjectMeta) map[string]stri
 	)
 }
 
-func getLabels(pgsName string, pgsReplica int, pclqObjectKey client.ObjectKey, pclqTemplateSpec *grovecorev1alpha1.PodCliqueTemplateSpec) map[string]string {
-	podGangName := grovecorev1alpha1.GeneratePodGangName(grovecorev1alpha1.ResourceNameReplica{Name: pgsName, Replica: pgsReplica}, nil)
+func getLabels(pgs *grovecorev1alpha1.PodGangSet, pgsReplica int, pclqObjectKey client.ObjectKey, pclqTemplateSpec *grovecorev1alpha1.PodCliqueTemplateSpec, pclq *grovecorev1alpha1.PodClique) map[string]string {
+	// Use owner reference to determine PodGang name (standalone PodCliques are owned by PGS)
+	podGangName := componentutils.DeterminePodGangNameForPodClique(pclq, pgs, pgsReplica, 0)
+
 	pclqComponentLabels := map[string]string{
 		grovecorev1alpha1.LabelAppNameKey:             pclqObjectKey.Name,
 		grovecorev1alpha1.LabelComponentKey:           component.NamePGSPodClique,
@@ -453,7 +473,7 @@ func getLabels(pgsName string, pgsReplica int, pclqObjectKey client.ObjectKey, p
 	}
 	return lo.Assign(
 		pclqTemplateSpec.Labels,
-		k8sutils.GetDefaultLabelsForPodGangSetManagedResources(pgsName),
+		k8sutils.GetDefaultLabelsForPodGangSetManagedResources(pgs.Name),
 		pclqComponentLabels,
 	)
 }

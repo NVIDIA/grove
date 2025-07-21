@@ -31,6 +31,16 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
+// FindScalingGroupConfigForClique searches through the scaling group configurations to find
+// the one that contains the specified clique name in its CliqueNames list.
+//
+// Returns the matching PodCliqueScalingGroupConfig and true if found, or an empty config and false if not found.
+func FindScalingGroupConfigForClique(scalingGroupConfigs []grovecorev1alpha1.PodCliqueScalingGroupConfig, cliqueName string) (grovecorev1alpha1.PodCliqueScalingGroupConfig, bool) {
+	return lo.Find(scalingGroupConfigs, func(pcsgConfig grovecorev1alpha1.PodCliqueScalingGroupConfig) bool {
+		return slices.Contains(pcsgConfig.CliqueNames, cliqueName)
+	})
+}
+
 // GetPCSGsForPGSReplicaIndex fetches all PodCliqueScalingGroups for a PodGangSet replica index.
 func GetPCSGsForPGSReplicaIndex(ctx context.Context, cl client.Client, pgsObjKey client.ObjectKey, pgsReplicaIndex int) ([]grovecorev1alpha1.PodCliqueScalingGroup, error) {
 	pcsgList := &grovecorev1alpha1.PodCliqueScalingGroupList{}

@@ -37,9 +37,94 @@ func GetPodGangSelectorLabels(pgsObjMeta metav1.ObjectMeta) map[string]string {
 }
 
 // CreatePodGangNameForPCSG generates the PodGang name for a replica of a PodCliqueScalingGroup.
-func CreatePodGangNameForPCSG(pgsName string, pgsReplicaIndex int, pcsgFQN string, pcsgReplicaIndex int) string {
-	if pcsgReplicaIndex == 0 {
-		return grovecorev1alpha1.GeneratePodGangName(grovecorev1alpha1.ResourceNameReplica{Name: pgsName, Replica: pgsReplicaIndex}, nil)
-	}
+// This is used for scaled scaling group replicas beyond minAvailable.
+func CreatePodGangNameForPCSG(pgsName string, pgsReplicaIndex int, pcsgName string, pcsgReplicaIndex int) string {
+	pcsgFQN := grovecorev1alpha1.GeneratePodCliqueScalingGroupName(grovecorev1alpha1.ResourceNameReplica{Name: pgsName, Replica: pgsReplicaIndex}, pcsgName)
 	return fmt.Sprintf("%s-%d", pcsgFQN, pcsgReplicaIndex)
+}
+
+// CreatePodGangNameForPCSGFromFQN generates the PodGang name for a replica of a PodCliqueScalingGroup
+// when the PCSG name is already fully qualified (e.g., "simple1-0-sga").
+func CreatePodGangNameForPCSGFromFQN(pcsgFQN string, pcsgReplicaIndex int) string {
+	return fmt.Sprintf("%s-%d", pcsgFQN, pcsgReplicaIndex)
+}
+
+// DeterminePodGangNameForPodClique determines the correct PodGang name for a PodClique
+// based on its owner reference and scaling group configuration. This centralizes the PodGang assignment
+// logic so both PodClique and PodGang components use the same rules.
+func DeterminePodGangNameForPodClique(pclq *grovecorev1alpha1.PodClique, pgs *grovecorev1alpha1.PodGangSet, pgsReplica int, pcsgReplicaIndex int) string {
+	// Check owner reference to determine if this PodClique belongs to a scaling group
+	if isOwnedByPodCliqueScalingGroup(pclq) {
+		return determinePodGangNameForScalingGroupPodClique(pclq, pgs, pgsReplica, pcsgReplicaIndex)
+	}
+
+	// Default: standalone PodClique uses PGS replica PodGang
+	return grovecorev1alpha1.GenerateBasePodGangName(grovecorev1alpha1.ResourceNameReplica{Name: pgs.Name, Replica: pgsReplica})
+}
+
+// determinePodGangNameForScalingGroupPodClique handles PodGang name determination for PodCliques
+// that belong to a scaling group. It extracts scaling group configuration and applies minAvailable
+// logic to determine whether the PodClique belongs to a base PodGang or scaled PodGang.
+func determinePodGangNameForScalingGroupPodClique(pclq *grovecorev1alpha1.PodClique, pgs *grovecorev1alpha1.PodGangSet, pgsReplica int, pcsgReplicaIndex int) string {
+	// Extract scaling group name from the PCSG owner's name
+	pcsgName := getPodCliqueScalingGroupOwnerName(pclq)
+	scalingGroupName := grovecorev1alpha1.ExtractScalingGroupNameFromPCSGFQN(pcsgName, grovecorev1alpha1.ResourceNameReplica{
+		Name:    pgs.Name,
+		Replica: pgsReplica,
+	})
+
+	// Find scaling group configuration and apply minAvailable logic
+	pcsgConfig := findScalingGroupConfig(pgs, scalingGroupName)
+	return applyMinAvailableLogicForPodGang(pgs, pgsReplica, scalingGroupName, pcsgConfig, pcsgReplicaIndex)
+}
+
+// findScalingGroupConfig locates the scaling group configuration by name in the PodGangSet template.
+func findScalingGroupConfig(pgs *grovecorev1alpha1.PodGangSet, scalingGroupName string) grovecorev1alpha1.PodCliqueScalingGroupConfig {
+	for _, pcsgConfig := range pgs.Spec.Template.PodCliqueScalingGroupConfigs {
+		if pcsgConfig.Name == scalingGroupName {
+			return pcsgConfig
+		}
+	}
+	// Return empty config if not found (shouldn't happen in normal operation)
+	return grovecorev1alpha1.PodCliqueScalingGroupConfig{}
+}
+
+// applyMinAvailableLogicForPodGang determines the correct PodGang name based on minAvailable logic.
+// Replicas 0..(minAvailable-1) belong to the base PodGang, while replicas minAvailable+ get scaled PodGangs.
+func applyMinAvailableLogicForPodGang(pgs *grovecorev1alpha1.PodGangSet, pgsReplica int, scalingGroupName string, pcsgConfig grovecorev1alpha1.PodCliqueScalingGroupConfig, pcsgReplicaIndex int) string {
+	minAvailable := int32(1) // Default
+	if pcsgConfig.MinAvailable != nil {
+		minAvailable = *pcsgConfig.MinAvailable
+	}
+
+	// Apply the same logic as PodGang creation:
+	// Replicas 0..(minAvailable-1) → PGS replica PodGang (base PodGang)
+	// Replicas minAvailable+ → Scaled PodGangs (0-based indexing)
+	if pcsgReplicaIndex < int(minAvailable) {
+		return grovecorev1alpha1.GenerateBasePodGangName(grovecorev1alpha1.ResourceNameReplica{Name: pgs.Name, Replica: pgsReplica})
+	} else {
+		// Convert scaling group replica index to 0-based scaled PodGang index
+		scaledPodGangIndex := pcsgReplicaIndex - int(minAvailable)
+		return CreatePodGangNameForPCSG(pgs.Name, pgsReplica, scalingGroupName, scaledPodGangIndex)
+	}
+}
+
+// isOwnedByPodCliqueScalingGroup checks if the PodClique is owned by a PodCliqueScalingGroup
+func isOwnedByPodCliqueScalingGroup(pclq *grovecorev1alpha1.PodClique) bool {
+	for _, ownerRef := range pclq.GetOwnerReferences() {
+		if ownerRef.Kind == string(component.KindPodCliqueScalingGroup) {
+			return true
+		}
+	}
+	return false
+}
+
+// getPodCliqueScalingGroupOwnerName returns the name of the PodCliqueScalingGroup that owns this PodClique
+func getPodCliqueScalingGroupOwnerName(pclq *grovecorev1alpha1.PodClique) string {
+	for _, ownerRef := range pclq.GetOwnerReferences() {
+		if ownerRef.Kind == string(component.KindPodCliqueScalingGroup) {
+			return ownerRef.Name
+		}
+	}
+	return ""
 }

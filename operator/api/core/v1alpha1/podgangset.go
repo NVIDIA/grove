@@ -171,6 +171,19 @@ type PodCliqueScalingGroupConfig struct {
 	Name string `json:"name"`
 	// CliqueNames is the list of names of the PodClique's that are part of the scaling group.
 	CliqueNames []string `json:"cliqueNames"`
+	// Replicas is the desired number of replicas for the scaling group at template level.
+	// This allows one to control the replicas of the scaling group at startup.
+	// If not specified, it defaults to 1.
+	// +optional
+	Replicas *int32 `json:"replicas,omitempty"`
+	// MinAvailable specifies the minimum number of ready replicas required for the group to be considered operational.
+	// A scaling group replica is considered "ready" when its associated PodClique has sufficient ready Pods
+	// (PodClique.Status.ReadyReplicas >= PodGroup.MinReplicas), where a Pod is ready when its PodReady condition is True.
+	// If MinAvailable is breached, it will trigger gang-termination of the scaling group replica.
+	// MinAvailable will be validated to be less than or equal to Replicas.
+	// If not specified, it defaults to 1.
+	// +optional
+	MinAvailable *int32 `json:"minAvailable,omitempty"`
 	// ScaleConfig is the horizontal pod autoscaler configuration for the pod clique scaling group.
 	// +optional
 	ScaleConfig *AutoScalingConfig `json:"scaleConfig,omitempty"`
