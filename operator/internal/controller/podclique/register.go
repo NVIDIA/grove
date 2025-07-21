@@ -122,7 +122,7 @@ func hasReadyConditionChanged(oldPodConditions, newPodConditions []corev1.PodCon
 	newPodReadyCondition, newOk := getReadyCondition(newPodConditions)
 	oldPodReady := oldOk && oldPodReadyCondition.Status == corev1.ConditionTrue
 	newPodReady := newOk && newPodReadyCondition.Status == corev1.ConditionTrue
-	return !oldPodReady && newPodReady
+	return oldPodReady != newPodReady
 }
 
 // mapPodGangToPCLQs maps a PodGang to one or more reconcile.Request(s) for its constituent PodClique's.
