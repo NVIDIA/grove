@@ -17,13 +17,13 @@
 package opts
 
 import (
-	"flag"
 	"fmt"
 	"os"
 
 	configv1alpha1 "github.com/NVIDIA/grove/operator/api/config/v1alpha1"
 	operatorvalidation "github.com/NVIDIA/grove/operator/api/config/validation"
 
+	"github.com/spf13/pflag"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/serializer"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
@@ -45,7 +45,7 @@ type CLIOptions struct {
 }
 
 // NewCLIOptions creates a new CLIOptions and adds the required CLI flags to the flag.flagSet.
-func NewCLIOptions(fs *flag.FlagSet) *CLIOptions {
+func NewCLIOptions(fs *pflag.FlagSet) *CLIOptions {
 	cliOpts := &CLIOptions{}
 	cliOpts.addFlags(fs)
 	return cliOpts
@@ -75,6 +75,6 @@ func (o *CLIOptions) Validate() error {
 	return nil
 }
 
-func (o *CLIOptions) addFlags(fs *flag.FlagSet) {
+func (o *CLIOptions) addFlags(fs *pflag.FlagSet) {
 	fs.StringVar(&o.configFile, "config", o.configFile, "Path to configuration file.")
 }

@@ -74,6 +74,9 @@ deployment:
     app.kubernetes.io/component: operator-deployment
     app.kubernetes.io/name: grove-operator
     app.kubernetes.io/part-of: grove
+  env:
+    - name: GROVE_INIT_CONTAINER_IMAGE
+      value: grove-initc
 
 # This is for setting up a service more information can be found here: https://kubernetes.io/docs/concepts/services-networking/service/
 service:

@@ -44,13 +44,21 @@ func (r _resource) prepareSyncFlow(ctx context.Context, logger logr.Logger, pclq
 		pclq: pclq,
 	}
 
-	pgsName := componentutils.GetPodGangSetName(pclq.ObjectMeta)
-
 	associatedPodGangName, err := r.getAssociatedPodGangName(pclq.ObjectMeta)
 	if err != nil {
 		return nil, err
 	}
 	sc.associatedPodGangName = associatedPodGangName
+
+	associatedPodGangSet, err := componentutils.GetOwnerPodGangSet(ctx, r.client, pclq.ObjectMeta)
+	if err != nil {
+		return nil, groveerr.WrapError(err,
+			errCodeGetPodGangSet,
+			component.OperationSync,
+			fmt.Sprintf("failed to get owner PodGangSet of PodClique: %v", client.ObjectKeyFromObject(pclq)),
+		)
+	}
+	sc.pgs = associatedPodGangSet
 
 	existingPodGang, err := r.getAssociatedPodGang(ctx, associatedPodGangName, pclq.Namespace)
 	if err != nil {
@@ -58,7 +66,7 @@ func (r _resource) prepareSyncFlow(ctx context.Context, logger logr.Logger, pclq
 	}
 	sc.podNamesUpdatedInPCLQPodGangs = r.getPodNamesUpdatedInAssociatedPodGang(existingPodGang, pclq.Name)
 
-	existingPCLQPods, err := componentutils.GetPCLQPods(ctx, r.client, pgsName, pclq)
+	existingPCLQPods, err := componentutils.GetPCLQPods(ctx, r.client, sc.pgs.Name, pclq)
 	if err != nil {
 		logger.Error(err, "Failed to list pods that belong to PodClique", "pclqObjectKey", client.ObjectKeyFromObject(pclq))
 		return nil, groveerr.WrapError(err,
@@ -120,7 +128,7 @@ func (r _resource) runSyncFlow(sc *syncContext, logger logr.Logger) syncFlowResu
 	if diff < 0 {
 		logger.Info("found fewer pods than desired", "pclq", client.ObjectKeyFromObject(sc.pclq), "specReplicas", sc.pclq.Spec.Replicas, "delta", diff)
 		diff *= -1
-		numScheduleGatedPods, err := r.createPods(sc.ctx, logger, sc.pclq, sc.associatedPodGangName, diff)
+		numScheduleGatedPods, err := r.createPods(sc.ctx, logger, sc.pgs, sc.pclq, sc.associatedPodGangName, diff)
 		logger.Info("created unassigned and scheduled gated pods", "numberOfCreatedPods", numScheduleGatedPods)
 		if err != nil {
 			logger.Error(err, "failed to create pods", "pclqObjectKey", client.ObjectKeyFromObject(sc.pclq))
@@ -238,14 +246,14 @@ func hasPodGangSchedulingGate(pod *corev1.Pod) bool {
 	})
 }
 
-func (r _resource) createPods(ctx context.Context, logger logr.Logger, pclq *grovecorev1alpha1.PodClique, podGangName string, numPods int) (int, error) {
+func (r _resource) createPods(ctx context.Context, logger logr.Logger, pgs *grovecorev1alpha1.PodGangSet, pclq *grovecorev1alpha1.PodClique, podGangName string, numPods int) (int, error) {
 	createTasks := make([]utils.Task, 0, numPods)
 	for i := range numPods {
 		createTask := utils.Task{
 			Name: fmt.Sprintf("CreatePod-%s-%d", pclq.Name, i),
 			Fn: func(ctx context.Context) error {
 				pod := &corev1.Pod{}
-				if err := r.buildResource(pclq, podGangName, pod); err != nil {
+				if err := r.buildResource(pgs, pclq, podGangName, pod); err != nil {
 					return groveerr.WrapError(err,
 						errCodeSyncPod,
 						component.OperationSync,
@@ -288,6 +296,7 @@ func (r _resource) createPods(ctx context.Context, logger logr.Logger, pclq *gro
 type syncContext struct {
 	ctx                           context.Context
 	pclq                          *grovecorev1alpha1.PodClique
+	pgs                           *grovecorev1alpha1.PodGangSet
 	associatedPodGangName         string
 	existingPCLQPods              []*corev1.Pod
 	podNamesUpdatedInPCLQPodGangs []string

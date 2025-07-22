@@ -141,8 +141,8 @@ func (r _resource) buildResource(pgs *grovecorev1alpha1.PodGangSet, role *rbacv1
 	}
 	role.Rules = []rbacv1.PolicyRule{
 		{
-			APIGroups: []string{grovecorev1alpha1.GroupName},
-			Resources: []string{"podcliques", "podcliques/status"},
+			APIGroups: []string{""},
+			Resources: []string{"pods", "pods/status"},
 			Verbs:     []string{"get", "list", "watch"},
 		},
 	}
