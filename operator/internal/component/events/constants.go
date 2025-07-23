@@ -1,0 +1,60 @@
+package events
+
+// constants used for pod lifecycle events
+const (
+	// ReasonPodCreationSuccessful is an event reason which represents a successful creation of a Pod.
+	ReasonPodCreationSuccessful = "PodCreationSuccessful"
+	// ReasonPodCreationFailed is an event reason which represents that the creation of a Pod failed.
+	ReasonPodCreationFailed = "PodCreationFailed"
+	// ReasonPodDeletionSuccessful is an event reason which represents a successful deletion of a Pod.
+	ReasonPodDeletionSuccessful = "PodDeletionSuccessful"
+	// ReasonPodDeletionFailed is an event reason which represents that the deletion of a Pod failed.
+	ReasonPodDeletionFailed = "PodDeletionFailed"
+)
+
+// constants for PodClique lifecycle events
+const (
+	// ReasonPodCliqueCreationSuccessful is an event reason which represents a successful creation of a PodClique.
+	ReasonPodCliqueCreationSuccessful = "PodCliqueCreationSuccessful"
+	// ReasonPodCliqueCreationFailed is an event reason which represents that the creation of a PodClique failed.
+	ReasonPodCliqueCreationFailed = "PodCliqueCreationFailed"
+	// ReasonPodCliqueDeletionSuccessful is an event reason which represents a successful deletion of a PodClique.
+	ReasonPodCliqueDeletionSuccessful = "PodCliqueDeletionSuccessful"
+	// ReasonPodCliqueDeletionFailed is an event reason which represents that the deletion of a PodClique failed.
+	ReasonPodCliqueDeletionFailed = "PodCliqueDeletionFailed"
+)
+
+// constants for PodCliqueScalingGroup lifecycle events
+const (
+	// ReasonPodCliqueScalingGroupCreationSuccessful is an event which represents a successful creation of PodCliqueScalingGroup.
+	ReasonPodCliqueScalingGroupCreationSuccessful = "PodCliqueScalingGroupCreationSuccessful"
+	// ReasonPodCliqueScalingGroupCreationFailed is an event which represents that creation of PodCliqueScalingGroup failed.
+	ReasonPodCliqueScalingGroupCreationFailed = "PodCliqueScalingGroupCreationFailed"
+	// ReasonPodCliqueScalingGroupDeletionSuccessful is an event reason which represents a successful deletion of PodCliqueScalingGroup.
+	ReasonPodCliqueScalingGroupDeletionSuccessful = "PodCliqueScalingGroupDeletionSuccessful"
+	// ReasonPodCliqueScalingGroupDeletionFailed is an event which represents that the deletion of PodCliqueScalingGroup failed.
+	ReasonPodCliqueScalingGroupDeletionFailed = "PodCliqueScalingGroupDeletionFailed"
+	// ReasonPodCliqueScalingGroupReplicaDeletionSuccessful is an event reason which represents a successful deletion of a PodCliqueScalingGroup replica.
+	ReasonPodCliqueScalingGroupReplicaDeletionSuccessful = "PodCliqueScalingGroupReplicaDeletionSuccessful"
+	// ReasonPodCliqueScalingGroupReplicaDeletionFailed is an event which represents that the deletion of a replica of PodCliqueScalingGroup failed.
+	ReasonPodCliqueScalingGroupReplicaDeletionFailed = "PodCliqueScalingGroupReplicaDeletionFailed"
+)
+
+// constants for PodGang lifecycle events
+const (
+	// ReasonPodGangCreateOrUpdateSuccessful is an event reason which represents a successful creation or updating of a PodGang.
+	ReasonPodGangCreateOrUpdateSuccessful = "PodGangCreationOrUpdateSuccessful"
+	// ReasonPodGangCreateOrUpdateFailed is an event reason which represents that the creation or updating of PodGang failed.
+	ReasonPodGangCreateOrUpdateFailed = "PodGangCreationOrUpdateFailed"
+	// ReasonPodGangDeletionSuccessful is an event reason which represents a successful deletion of a PodGang.
+	ReasonPodGangDeletionSuccessful = "PodGangDeletionSuccessful"
+	// ReasonPodGangDeletionFailed is an event reason which represents that the deletion of a PodGang failed.
+	ReasonPodGangDeletionFailed = "PodGangDeletionFailed"
+)
+
+// constants for PodGangSet lifecycle events
+const (
+	ReasonPodGangSetReplicaDeletionSuccessful = "PodGangSetReplicaDeletionSuccessful"
+
+	ReasonPodGangSetReplicaDeletionFailed = "PodGangSetReplicaDeletionFailed"
+)

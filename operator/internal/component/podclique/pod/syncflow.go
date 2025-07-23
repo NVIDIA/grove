@@ -36,36 +36,45 @@ import (
 	"github.com/samber/lo"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
+// prepareSyncFlow gathers information in preparation for the sync flow to run.
 func (r _resource) prepareSyncFlow(ctx context.Context, logger logr.Logger, pclq *grovecorev1alpha1.PodClique) (*syncContext, error) {
 	sc := &syncContext{
 		ctx:  ctx,
 		pclq: pclq,
 	}
-
-	pgsName := componentutils.GetPodGangSetName(pclq.ObjectMeta)
-
+	pclqObjKey := client.ObjectKeyFromObject(pclq)
+	// get the PCLQ expectations key
+	pclqExpStoreKey, err := getPodCliqueExpectationsStoreKey(logger, component.OperationSync, pclq.ObjectMeta)
+	if err != nil {
+		return nil, err
+	}
+	sc.pclqExpectationsStoreKey = pclqExpStoreKey
+	// get the associated PodGang name.
 	associatedPodGangName, err := r.getAssociatedPodGangName(pclq.ObjectMeta)
 	if err != nil {
 		return nil, err
 	}
 	sc.associatedPodGangName = associatedPodGangName
-
+	// get the associated PodGang resource.
 	existingPodGang, err := r.getAssociatedPodGang(ctx, associatedPodGangName, pclq.Namespace)
 	if err != nil {
 		return nil, err
 	}
+	// initialize the Pod names that are updated in the PodGang resource for this PCLQ.
 	sc.podNamesUpdatedInPCLQPodGangs = r.getPodNamesUpdatedInAssociatedPodGang(existingPodGang, pclq.Name)
-
+	// Get all existing pods for this PCLQ.
+	pgsName := componentutils.GetPodGangSetName(pclq.ObjectMeta)
 	existingPCLQPods, err := componentutils.GetPCLQPods(ctx, r.client, pgsName, pclq)
 	if err != nil {
-		logger.Error(err, "Failed to list pods that belong to PodClique", "pclqObjectKey", client.ObjectKeyFromObject(pclq))
+		logger.Error(err, "Failed to list pods that belong to PodClique")
 		return nil, groveerr.WrapError(err,
 			errCodeListPod,
 			component.OperationSync,
-			fmt.Sprintf("failed to list pods that belong to the PodClique %v", client.ObjectKeyFromObject(pclq)),
+			fmt.Sprintf("failed to list pods that belong to the PodClique %v", pclqObjKey),
 		)
 	}
 	sc.existingPCLQPods = existingPCLQPods
@@ -73,6 +82,7 @@ func (r _resource) prepareSyncFlow(ctx context.Context, logger logr.Logger, pclq
 	return sc, nil
 }
 
+// getAssociatedPodGangName gets the associated PodGang name from PodClique labels. Returns an error if the label is not found.
 func (r _resource) getAssociatedPodGangName(pclqObjectMeta metav1.ObjectMeta) (string, error) {
 	podGangName, ok := pclqObjectMeta.GetLabels()[grovecorev1alpha1.LabelPodGang]
 	if !ok {
@@ -84,6 +94,8 @@ func (r _resource) getAssociatedPodGangName(pclqObjectMeta metav1.ObjectMeta) (s
 	return podGangName, nil
 }
 
+// getAssociatedPodGang gets the associated PodGang resource. If the PodGang is not found then it will not return an error.
+// The error is only returned if the error is other than `NotFound` error.
 func (r _resource) getAssociatedPodGang(ctx context.Context, podGangName, namespace string) (*groveschedulerv1alpha1.PodGang, error) {
 	podGang := &groveschedulerv1alpha1.PodGang{}
 	podGangObjectKey := client.ObjectKey{Namespace: namespace, Name: podGangName}
@@ -100,6 +112,7 @@ func (r _resource) getAssociatedPodGang(ctx context.Context, podGangName, namesp
 	return podGang, nil
 }
 
+// getPodNamesUpdatedInAssociatedPodGang gathers all Pod names that are already updated in PodGroups defined in the PodGang resource.
 func (r _resource) getPodNamesUpdatedInAssociatedPodGang(existingPodGang *groveschedulerv1alpha1.PodGang, pclqFQN string) []string {
 	if existingPodGang == nil {
 		return nil
@@ -115,16 +128,17 @@ func (r _resource) getPodNamesUpdatedInAssociatedPodGang(existingPodGang *groves
 	})
 }
 
-func (r _resource) runSyncFlow(sc *syncContext, logger logr.Logger) syncFlowResult {
+// runSyncFlow runs the synchronization flow for this component.
+func (r _resource) runSyncFlow(logger logr.Logger, sc *syncContext) syncFlowResult {
 	result := syncFlowResult{}
-	diff := len(sc.existingPCLQPods) - int(sc.pclq.Spec.Replicas)
+	diff := r.syncExpectationsAndComputeDifference(logger, sc)
 	if diff < 0 {
-		logger.Info("found fewer pods than desired", "pclq", client.ObjectKeyFromObject(sc.pclq), "specReplicas", sc.pclq.Spec.Replicas, "delta", diff)
+		logger.Info("found fewer pods than desired", "pclq.spec.replicas", sc.pclq.Spec.Replicas, "delta", diff)
 		diff *= -1
-		numScheduleGatedPods, err := r.createPods(sc.ctx, logger, sc.pclq, sc.associatedPodGangName, diff, sc.existingPCLQPods)
+		numScheduleGatedPods, err := r.createPods(sc.ctx, logger, sc, diff)
 		logger.Info("created unassigned and scheduled gated pods", "numberOfCreatedPods", numScheduleGatedPods)
 		if err != nil {
-			logger.Error(err, "failed to create pods", "pclqObjectKey", client.ObjectKeyFromObject(sc.pclq))
+			logger.Error(err, "failed to create pods")
 			result.recordError(err)
 		}
 	} else if diff > 0 {
@@ -141,37 +155,43 @@ func (r _resource) runSyncFlow(sc *syncContext, logger logr.Logger) syncFlowResu
 	return result
 }
 
+// syncExpectationsAndComputeDifference synchronizes expectations that are captured against the owning PodClique resource.
+// It takes in the existing pods and adjusts the captured create/delete expectations in the ExpectationStore. Post synchronization
+// it computes the difference of pods using => as-is-pods + pods-expecting-creation - desired-pods - pods-expecting-deletion
+func (r _resource) syncExpectationsAndComputeDifference(logger logr.Logger, sc *syncContext) int {
+	r.expectationsStore.SyncExpectations(logger, sc.pclqExpectationsStoreKey, lo.Map(sc.existingPCLQPods, func(pod *corev1.Pod, _ int) types.UID { return pod.GetUID() })...)
+	createExpectations := r.expectationsStore.GetCreateExpectations(sc.pclqExpectationsStoreKey)
+	deleteExpectations := r.expectationsStore.GetDeleteExpectations(sc.pclqExpectationsStoreKey)
+	diff := len(sc.existingPCLQPods) + len(createExpectations) - int(sc.pclq.Spec.Replicas) - len(deleteExpectations)
+
+	logger.Info("synced expectations",
+		"pclq.spec.replicas", sc.pclq.Spec.Replicas,
+		"existingPCLPodNames", lo.Map(sc.existingPCLQPods, func(pod *corev1.Pod, _ int) string { return pod.Name }),
+		"createExpectations", createExpectations,
+		"deleteExpectations", deleteExpectations,
+		"diff", diff,
+	)
+	return diff
+}
+
+// deleteExcessPods deletes `diff` number of excess Pods from this PodClique concurrently.
+// It selects the pods using `DeletionSorter`. For details please see `DeletionSorter.Less` method.
+// The deletion of Pods are done in batches of increasing size. This is done to prevent burst of load
+// on the kube-apiserver. It will fail fast in case there is an
 func (r _resource) deleteExcessPods(sc *syncContext, logger logr.Logger, diff int) error {
 	candidatePodsToDelete := selectExcessPodsToDelete(sc, logger)
 	numPodsToSelectForDeletion := min(diff, len(candidatePodsToDelete))
 	selectedPodsToDelete := candidatePodsToDelete[:numPodsToSelectForDeletion]
 
 	deleteTasks := make([]utils.Task, 0, len(selectedPodsToDelete))
-	for i, podToDelete := range selectedPodsToDelete {
-		podObjectKey := client.ObjectKeyFromObject(podToDelete)
-		deleteTask := utils.Task{
-			Name: fmt.Sprintf("DeletePod-%s-%d", podToDelete.Name, i),
-			Fn: func(ctx context.Context) error {
-				if err := client.IgnoreNotFound(r.client.Delete(ctx, podToDelete)); err != nil {
-					r.eventRecorder.Eventf(sc.pclq, corev1.EventTypeWarning, reasonPodDeletionFailed, "Error deleting pod: %v", err)
-					return groveerr.WrapError(err,
-						errCodeDeletePod,
-						component.OperationSync,
-						fmt.Sprintf("failed to delete Pod: %v for PodClique %v", podObjectKey, client.ObjectKeyFromObject(sc.pclq)),
-					)
-				}
-				logger.Info("Deleted Pod", "podObjectKey", podObjectKey)
-				r.eventRecorder.Eventf(sc.pclq, corev1.EventTypeNormal, reasonPodDeletionSuccessful, "Deleted Pod: %s", podToDelete.Name)
-				return nil
-			},
-		}
-		deleteTasks = append(deleteTasks, deleteTask)
+	for _, podToDelete := range selectedPodsToDelete {
+		deleteTasks = append(deleteTasks, r.podDeletionTask(logger, sc.pclq, podToDelete, sc.pclqExpectationsStoreKey))
 	}
 
 	if runResult := utils.RunConcurrentlyWithSlowStart(sc.ctx, logger, 1, deleteTasks); runResult.HasErrors() {
 		err := runResult.GetAggregatedError()
 		pclqObjectKey := client.ObjectKeyFromObject(sc.pclq)
-		logger.Error(err, "failed to delete pods for PCLQ", "pclqObjectKey", pclqObjectKey, "runSummary", runResult.GetSummary())
+		logger.Error(err, "failed to delete pods for PCLQ", "runSummary", runResult.GetSummary())
 		return groveerr.WrapError(err,
 			errCodeDeletePod,
 			component.OperationSync,
@@ -185,7 +205,7 @@ func (r _resource) deleteExcessPods(sc *syncContext, logger logr.Logger, diff in
 func selectExcessPodsToDelete(sc *syncContext, logger logr.Logger) []*corev1.Pod {
 	var candidatePodsToDelete []*corev1.Pod
 	if diff := len(sc.existingPCLQPods) - int(sc.pclq.Spec.Replicas); diff > 0 {
-		logger.Info("found excess pods for PodClique", "pclqObjectKey", client.ObjectKeyFromObject(sc.pclq), "numExcessPods", diff)
+		logger.Info("found excess pods for PodClique", "numExcessPods", diff)
 		sort.Sort(DeletionSorter(sc.existingPCLQPods))
 		candidatePodsToDelete = append(candidatePodsToDelete, sc.existingPCLQPods[:diff]...)
 	}
@@ -221,7 +241,7 @@ func (r _resource) checkAndRemovePodSchedulingGates(sc *syncContext, logger logr
 		pclqObjectKey := client.ObjectKeyFromObject(sc.pclq)
 		if runResult := utils.RunConcurrentlyWithSlowStart(sc.ctx, logger, 1, tasks); runResult.HasErrors() {
 			err := runResult.GetAggregatedError()
-			logger.Error(err, "failed to remove scheduling gates from pods for PCLQ", "pclqObjectKey", pclqObjectKey, "runSummary", runResult.GetSummary())
+			logger.Error(err, "failed to remove scheduling gates from pods for PCLQ", "runSummary", runResult.GetSummary())
 			return skippedScheduleGatedPods, groveerr.WrapError(err,
 				errCodeRemovePodSchedulingGate,
 				component.OperationSync,
@@ -239,52 +259,28 @@ func hasPodGangSchedulingGate(pod *corev1.Pod) bool {
 	})
 }
 
-func (r _resource) createPods(ctx context.Context, logger logr.Logger, pclq *grovecorev1alpha1.PodClique, podGangName string, numPods int, existingPods []*corev1.Pod) (int, error) {
+func (r _resource) createPods(ctx context.Context, logger logr.Logger, sc *syncContext, numPods int) (int, error) {
 	// Pre-calculate all needed indices to avoid race conditions
-	availableIndices, err := index.GetAvailableIndices(existingPods, numPods)
+	availableIndices, err := index.GetAvailableIndices(sc.existingPCLQPods, numPods)
 	if err != nil {
 		return 0, groveerr.WrapError(err,
-			errCodeSyncPod,
+			errCodeGetAvailablePodHostNameIndices,
 			component.OperationSync,
-			fmt.Sprintf("error getting available indices for Pods in PodClique %v", client.ObjectKeyFromObject(pclq)),
+			fmt.Sprintf("error getting available indices for Pods in PodClique %v", client.ObjectKeyFromObject(sc.pclq)),
 		)
 	}
-
 	createTasks := make([]utils.Task, 0, numPods)
-
 	for i := range numPods {
-		podIndex := availableIndices[i] // Capture the specific index for this pod
-		createTask := utils.Task{
-			Name: fmt.Sprintf("CreatePod-%s-%d", pclq.Name, i),
-			Fn: func(ctx context.Context) error {
-				pod := &corev1.Pod{}
-				if err := r.buildResource(pclq, podGangName, pod, podIndex); err != nil {
-					return groveerr.WrapError(err,
-						errCodeSyncPod,
-						component.OperationSync,
-						fmt.Sprintf("failed to build Pod resource for PodClique %v", client.ObjectKeyFromObject(pclq)),
-					)
-				}
-				if err := r.client.Create(ctx, pod); err != nil {
-					r.eventRecorder.Eventf(pclq, corev1.EventTypeWarning, reasonPodCreationFailed, "Error creating pod: %v", err)
-					return groveerr.WrapError(err,
-						errCodeSyncPod,
-						component.OperationSync,
-						fmt.Sprintf("failed to create Pod: %v for PodClique %v", client.ObjectKeyFromObject(pod), client.ObjectKeyFromObject(pclq)),
-					)
-				}
-				logger.Info("Created pod for PodClique", "pclqName", pclq.Name, "podName", pod.Name)
-				r.eventRecorder.Eventf(pclq, corev1.EventTypeNormal, reasonPodCreationSuccessful, "Created Pod: %s", pod.Name)
-				return nil
-			},
-		}
-		createTasks = append(createTasks, createTask)
+		// Get the available Pod host name index. This ensures that we fill the holes in the indices if there are any when creating
+		// new pods.
+		podHostNameIndex := availableIndices[i]
+		createTasks = append(createTasks, r.podCreationTask(logger, sc.pclq, sc.associatedPodGangName, sc.pclqExpectationsStoreKey, i, podHostNameIndex))
 	}
 	runResult := utils.RunConcurrentlyWithSlowStart(ctx, logger, 1, createTasks)
 	if runResult.HasErrors() {
 		err := runResult.GetAggregatedError()
-		pclqObjectKey := client.ObjectKeyFromObject(pclq)
-		logger.Error(err, "failed to create pods for PCLQ", "pclqObjectKey", pclqObjectKey, "runSummary", runResult.GetSummary())
+		pclqObjectKey := client.ObjectKeyFromObject(sc.pclq)
+		logger.Error(err, "failed to create pods for PCLQ", "runSummary", runResult.GetSummary())
 		return 0, groveerr.WrapError(err,
 			errCodeCreatePods,
 			component.OperationSync,
@@ -294,7 +290,7 @@ func (r _resource) createPods(ctx context.Context, logger logr.Logger, pclq *gro
 	return len(runResult.SuccessfulTasks), nil
 }
 
-// Convenience types and methods on these types that are used during sync flow run.
+// Convenience functions, types and methods on these types that are used during sync flow run.
 // ------------------------------------------------------------------------------------------------
 
 // syncContext holds the relevant state required during the sync flow run.
@@ -304,6 +300,7 @@ type syncContext struct {
 	associatedPodGangName         string
 	existingPCLQPods              []*corev1.Pod
 	podNamesUpdatedInPCLQPodGangs []string
+	pclqExpectationsStoreKey      string
 }
 
 // syncFlowResult captures the result of a sync flow run.
@@ -332,4 +329,19 @@ func (sfr *syncFlowResult) recordPendingScheduleGatedPods(podNames []string) {
 
 func (sfr *syncFlowResult) hasErrors() bool {
 	return len(sfr.errs) > 0
+}
+
+// getPodCliqueExpectationsStoreKey creates the PodClique key against which expectations will be stored in the ExpectationStore.
+func getPodCliqueExpectationsStoreKey(logger logr.Logger, operation string, pclqObjMeta metav1.ObjectMeta) (string, error) {
+	pclqObjKey := k8sutils.GetObjectKeyFromObjectMeta(pclqObjMeta)
+	pclqExpStoreKey, err := utils.ControlleeKeyFunc(&grovecorev1alpha1.PodClique{ObjectMeta: pclqObjMeta})
+	if err != nil {
+		logger.Error(err, "failed to construct expectations store key", "pclq", pclqObjKey)
+		return "", groveerr.WrapError(err,
+			errCodeCreatePodCliqueExpectationsStoreKey,
+			operation,
+			fmt.Sprintf("failed to construct expectations store key for PodClique %v", pclqObjKey),
+		)
+	}
+	return pclqExpStoreKey, nil
 }

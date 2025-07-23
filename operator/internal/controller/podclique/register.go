@@ -154,9 +154,9 @@ func extractPCLQNameFromPodName(podName string) string {
 
 func podGangPredicate() predicate.Predicate {
 	return predicate.Funcs{
-		CreateFunc:  func(_ event.CreateEvent) bool { return true },
-		DeleteFunc:  func(_ event.DeleteEvent) bool { return true },
-		UpdateFunc:  func(_ event.UpdateEvent) bool { return true },
+		CreateFunc:  func(e event.CreateEvent) bool { return true },
+		DeleteFunc:  func(_ event.DeleteEvent) bool { return false },
+		UpdateFunc:  func(e event.UpdateEvent) bool { return true },
 		GenericFunc: func(_ event.GenericEvent) bool { return false },
 	}
 }

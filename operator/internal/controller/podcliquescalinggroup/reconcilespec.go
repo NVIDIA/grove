@@ -31,7 +31,6 @@ import (
 )
 
 func (r *Reconciler) reconcileSpec(ctx context.Context, logger logr.Logger, pcsg *grovecorev1alpha1.PodCliqueScalingGroup) ctrlcommon.ReconcileStepResult {
-	rLog := logger.WithValues("operation", "spec-reconcile")
 	reconcileStepFns := []ctrlcommon.ReconcileStepFn[grovecorev1alpha1.PodCliqueScalingGroup]{
 		r.ensureFinalizer,
 		r.recordReconcileStart,
@@ -41,7 +40,7 @@ func (r *Reconciler) reconcileSpec(ctx context.Context, logger logr.Logger, pcsg
 	}
 
 	for _, fn := range reconcileStepFns {
-		if stepResult := fn(ctx, rLog, pcsg); ctrlcommon.ShortCircuitReconcileFlow(stepResult) {
+		if stepResult := fn(ctx, logger, pcsg); ctrlcommon.ShortCircuitReconcileFlow(stepResult) {
 			return r.recordIncompleteReconcile(ctx, logger, pcsg, &stepResult)
 		}
 	}
