@@ -28,20 +28,21 @@ import (
 	"github.com/NVIDIA/grove/operator/internal/component/podgangset/service"
 	"github.com/NVIDIA/grove/operator/internal/component/podgangset/serviceaccount"
 
+	"k8s.io/client-go/tools/record"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 )
 
 // CreateOperatorRegistry initializes the operator registry for the PodGangSet reconciler.
-func CreateOperatorRegistry(mgr manager.Manager) component.OperatorRegistry[v1alpha1.PodGangSet] {
+func CreateOperatorRegistry(mgr manager.Manager, eventRecorder record.EventRecorder) component.OperatorRegistry[v1alpha1.PodGangSet] {
 	cl := mgr.GetClient()
 	reg := component.NewOperatorRegistry[v1alpha1.PodGangSet]()
-	reg.Register(component.KindPodClique, podclique.New(cl, mgr.GetScheme()))
+	reg.Register(component.KindPodClique, podclique.New(cl, mgr.GetScheme(), eventRecorder))
 	reg.Register(component.KindHeadlessService, service.New(cl, mgr.GetScheme()))
 	reg.Register(component.KindRole, role.New(cl, mgr.GetScheme()))
 	reg.Register(component.KindRoleBinding, rolebinding.New(cl, mgr.GetScheme()))
 	reg.Register(component.KindServiceAccount, serviceaccount.New(cl, mgr.GetScheme()))
-	reg.Register(component.KindPodCliqueScalingGroup, podcliquescalinggroup.New(cl, mgr.GetScheme()))
+	reg.Register(component.KindPodCliqueScalingGroup, podcliquescalinggroup.New(cl, mgr.GetScheme(), eventRecorder))
 	reg.Register(component.KindHorizontalPodAutoscaler, hpa.New(cl, mgr.GetScheme()))
-	reg.Register(component.KindPodGang, podgang.New(cl, mgr.GetScheme()))
+	reg.Register(component.KindPodGang, podgang.New(cl, mgr.GetScheme(), eventRecorder))
 	return reg
 }

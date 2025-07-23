@@ -37,17 +37,24 @@ import (
 func (r *Reconciler) reconcileStatus(ctx context.Context, logger logr.Logger, pclq *grovecorev1alpha1.PodClique) ctrlcommon.ReconcileStepResult {
 	pgsName := componentutils.GetPodGangSetName(pclq.ObjectMeta)
 
-	// mutate PodClique Status Replicas, ReadyReplicas, ScheduleGatedReplicas and UpdatedReplicas.
-	if err := r.mutateStatusReplicaCounts(ctx, logger, pgsName, pclq); err != nil {
-		logger.Error(err, "failed to mutate PodClique status with replica counts")
-		return ctrlcommon.ReconcileWithErrors("failed to mutate PodClique status with replica counts", err)
+	existingPods, err := componentutils.GetPCLQPods(ctx, r.client, pgsName, pclq)
+	if err != nil {
+		logger.Error(err, "failed to list pods for PodClique")
+		return ctrlcommon.ReconcileWithErrors(fmt.Sprintf("failed to list pods for PodClique: %q", client.ObjectKeyFromObject(pclq)), err)
 	}
+
+	podCategories := k8sutils.CategorizePodsByConditionType(logger, existingPods)
+
+	// mutate PodClique Status Replicas, ReadyReplicas, ScheduleGatedReplicas and UpdatedReplicas.
+	r.mutateStatusReplicaCounts(pclq, podCategories)
 
 	// mutate the grovecorev1alpha1.ConditionTypeMinAvailableBreached condition based on the number of ready pods.
 	// Only do this if the PodClique has been successfully reconciled at least once. This prevents prematurely setting
 	// incorrect MinAvailable breached condition.
 	if pclq.Status.ObservedGeneration != nil {
-		mutateMinAvailableBreachedCondition(pclq)
+		mutateMinAvailableBreachedCondition(pclq,
+			len(podCategories[k8sutils.PodHasAtleastOneContainerWithNonZeroExitCode]),
+			len(podCategories[k8sutils.PodStartedButNotReady]))
 	}
 
 	// mutate the selector that will be used by an autoscaler.
@@ -64,26 +71,14 @@ func (r *Reconciler) reconcileStatus(ctx context.Context, logger logr.Logger, pc
 	return ctrlcommon.ContinueReconcile()
 }
 
-func (r *Reconciler) mutateStatusReplicaCounts(ctx context.Context, logger logr.Logger, pgsName string, pclq *grovecorev1alpha1.PodClique) error {
-	pods, err := componentutils.GetPCLQPods(ctx, r.client, pgsName, pclq)
-	if err != nil {
-		logger.Error(err, "failed to list pods for PodClique")
-		return err
-	}
-
-	nonTerminatingPods := lo.Filter(pods, func(pod *corev1.Pod, _ int) bool {
-		return !k8sutils.IsResourceTerminating(pod.ObjectMeta)
-	})
-
+func (r *Reconciler) mutateStatusReplicaCounts(pclq *grovecorev1alpha1.PodClique, podCategories map[corev1.PodConditionType][]*corev1.Pod) {
 	// mutate the PCLQ status with current number of schedule gated, ready pods and updated pods.
-	pclq.Status.Replicas = int32(len(nonTerminatingPods))
-	readyPods, scheduleGatedPods := getReadyAndScheduleGatedPods(nonTerminatingPods)
-	pclq.Status.ReadyReplicas = int32(len(readyPods))
-	pclq.Status.ScheduleGatedReplicas = int32(len(scheduleGatedPods))
+	numNonTerminatingPods := pclq.Spec.Replicas - int32(len(podCategories[k8sutils.TerminatingPod]))
+	pclq.Status.Replicas = numNonTerminatingPods
+	pclq.Status.ReadyReplicas = int32(len(podCategories[corev1.PodReady]))
+	pclq.Status.ScheduleGatedReplicas = int32(len(podCategories[k8sutils.ScheduleGatedPod]))
 	// TODO: change this when rolling update is implemented
-	pclq.Status.UpdatedReplicas = int32(len(nonTerminatingPods))
-
-	return nil
+	pclq.Status.UpdatedReplicas = numNonTerminatingPods
 }
 
 func mutateSelector(pgsName string, pclq *grovecorev1alpha1.PodClique) error {
@@ -104,46 +99,30 @@ func mutateSelector(pgsName string, pclq *grovecorev1alpha1.PodClique) error {
 	return nil
 }
 
-func mutateMinAvailableBreachedCondition(pclq *grovecorev1alpha1.PodClique) {
-	newCondition := computeMinAvailableBreachedCondition(pclq)
+func mutateMinAvailableBreachedCondition(pclq *grovecorev1alpha1.PodClique, numNotReadyPodsWithContainersInError, numPodsStartedButNotReady int) {
+	newCondition := computeMinAvailableBreachedCondition(pclq, numNotReadyPodsWithContainersInError, numPodsStartedButNotReady)
 	if k8sutils.HasConditionChanged(pclq.Status.Conditions, newCondition) {
 		meta.SetStatusCondition(&pclq.Status.Conditions, newCondition)
 	}
 }
 
-func getReadyAndScheduleGatedPods(pods []*corev1.Pod) (readyPods []*corev1.Pod, scheduleGatedPods []*corev1.Pod) {
-	for _, pod := range pods {
-		for _, cond := range pod.Status.Conditions {
-			if cond.Type == corev1.PodReady && cond.Status == corev1.ConditionTrue {
-				readyPods = append(readyPods, pod)
-			} else if cond.Type == corev1.PodScheduled && cond.Status == corev1.ConditionFalse && cond.Reason == corev1.PodReasonSchedulingGated {
-				scheduleGatedPods = append(scheduleGatedPods, pod)
-			}
-		}
-	}
-	return
-}
-
-func computeMinAvailableBreachedCondition(pclq *grovecorev1alpha1.PodClique) metav1.Condition {
-	readyPods := pclq.Status.ReadyReplicas
-	minAvailable := pclq.Spec.MinAvailable
+func computeMinAvailableBreachedCondition(pclq *grovecorev1alpha1.PodClique, numPodsHavingAtleastOneContainerWithNonZeroExitCode, numPodsStartedButNotReady int) metav1.Condition {
+	readyOrStartingPods := int(pclq.Status.Replicas) - numPodsHavingAtleastOneContainerWithNonZeroExitCode - numPodsStartedButNotReady
+	// dereferencing is considered safe as MinAvailable will always be set by the defaulting webhook. If this changes in the future,
+	// make sure that you check for nil explicitly.
+	minAvailable := int(*pclq.Spec.MinAvailable)
 	now := metav1.Now()
 
-	if minAvailable == nil {
-		return metav1.Condition{
-			Type:               grovecorev1alpha1.ConditionTypeMinAvailableBreached,
-			Status:             metav1.ConditionUnknown,
-			Reason:             "MinAvailableNil",
-			Message:            "MinAvailable is nil, cannot determine if the condition is breached",
-			LastTransitionTime: now,
-		}
-	}
-	if readyPods < *minAvailable {
+	// pclq.Status.ReadyReplicas do not account for Pods which are not yet ready and are in the process of starting/initializing.
+	// This allows sufficient time specially for pods that have long-running init containers or slow-to-start main containers.
+	// Therefore, we take Pods that are NotReady and at least one of their containers have exited with a non-zero exit code. Kubelet
+	// has attempted to start the containers within the Pod at least once and failed. These pods count towards unavailability.
+	if readyOrStartingPods < minAvailable {
 		return metav1.Condition{
 			Type:               grovecorev1alpha1.ConditionTypeMinAvailableBreached,
 			Status:             metav1.ConditionTrue,
 			Reason:             "InsufficientReadyPods",
-			Message:            fmt.Sprintf("Insufficient ready pods. expected at least: %d, found: %d", *minAvailable, readyPods),
+			Message:            fmt.Sprintf("Insufficient ready or starting pods. expected at least: %d, found: %d", minAvailable, readyOrStartingPods),
 			LastTransitionTime: now,
 		}
 	}
@@ -151,7 +130,7 @@ func computeMinAvailableBreachedCondition(pclq *grovecorev1alpha1.PodClique) met
 		Type:               grovecorev1alpha1.ConditionTypeMinAvailableBreached,
 		Status:             metav1.ConditionFalse,
 		Reason:             "SufficientReadyPods",
-		Message:            fmt.Sprintf("Sufficient ready pods found. expected at least: %d, found: %d", *minAvailable, readyPods),
+		Message:            fmt.Sprintf("Sufficient ready or starting pods found. expected at least: %d, found: %d", minAvailable, readyOrStartingPods),
 		LastTransitionTime: now,
 	}
 }

@@ -120,7 +120,7 @@ _Appears in:_
 | `type` _[LastOperationType](#lastoperationtype)_ | Type is the type of the last operation. |  |  |
 | `state` _[LastOperationState](#lastoperationstate)_ | State is the state of the last operation. |  |  |
 | `description` _string_ | Description is a human-readable description of the last operation. |  |  |
-| `lastTransitionTime` _[Time](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.33/#time-v1-meta)_ | LastUpdateTime is the time at which the last operation was updated. |  |  |
+| `lastUpdateTime` _[Time](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.33/#time-v1-meta)_ | LastUpdateTime is the time at which the last operation was updated. |  |  |
 
 
 #### LastOperationState
@@ -315,7 +315,6 @@ _Appears in:_
 | `lastErrors` _[LastError](#lasterror) array_ | LastErrors captures the last errors observed by the controller when reconciling the PodClique. |  |  |
 | `replicas` _integer_ | Replicas is the total number of non-terminated Pods targeted by this PodClique. |  |  |
 | `readyReplicas` _integer_ | ReadyReplicas is the number of ready Pods targeted by this PodClique. |  |  |
-| `updatedReplicas` _integer_ | UpdatedReplicas is the number of Pods that have been updated and are at the desired revision of the PodClique. |  |  |
 | `scheduleGatedReplicas` _integer_ | ScheduleGatedReplicas is the number of Pods that have been created with one or more scheduling gate(s) set.<br />Sum of ReadyReplicas and ScheduleGatedReplicas will always be <= Replicas. |  |  |
 | `hpaPodSelector` _string_ | Selector is the label selector that determines which pods are part of the PodClique.<br />PodClique is a unit of scale and this selector is used by HPA to scale the PodClique based on metrics captured for the pods that match this selector. |  |  |
 | `conditions` _[Condition](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.33/#condition-v1-meta) array_ | Conditions represents the latest available observations of the clique by its controller. |  |  |

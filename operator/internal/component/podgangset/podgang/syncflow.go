@@ -21,10 +21,12 @@ import (
 	"errors"
 	"fmt"
 	"slices"
+	"sort"
 	"strconv"
 
 	grovecorev1alpha1 "github.com/NVIDIA/grove/operator/api/core/v1alpha1"
 	"github.com/NVIDIA/grove/operator/internal/component"
+	groveevents "github.com/NVIDIA/grove/operator/internal/component/events"
 	componentutils "github.com/NVIDIA/grove/operator/internal/component/utils"
 	groveerr "github.com/NVIDIA/grove/operator/internal/errors"
 	k8sutils "github.com/NVIDIA/grove/operator/internal/utils/kubernetes"
@@ -360,12 +362,14 @@ func (r _resource) deleteExcessPodGangs(sc *syncContext) error {
 		pg := emptyPodGang(pgObjectKey)
 		sc.logger.Info("Delete excess PodGang", "objectKey", client.ObjectKeyFromObject(pg))
 		if err := client.IgnoreNotFound(r.client.Delete(sc.ctx, pg)); err != nil {
+			r.eventRecorder.Eventf(sc.pgs, corev1.EventTypeWarning, groveevents.ReasonPodGangDeletionFailed, "Error deleting PodGang %v: %v", pgObjectKey, err)
 			return groveerr.WrapError(err,
 				errCodeDeleteExcessPodGang,
 				component.OperationSync,
 				fmt.Sprintf("failed to delete PodGang %v", pgObjectKey),
 			)
 		}
+		r.eventRecorder.Eventf(sc.pgs, corev1.EventTypeNormal, groveevents.ReasonPodGangDeletionSuccessful, "Deleted PodGang %v", pgObjectKey)
 		sc.deletedPodGangNames = append(sc.deletedPodGangNames, podGangToDelete)
 		sc.logger.Info("Triggered delete of excess PodGang", "objectKey", client.ObjectKeyFromObject(pg))
 	}
@@ -433,12 +437,14 @@ func (r _resource) createOrUpdatePodGang(sc *syncContext, pgInfo podGangInfo) er
 		return r.buildResource(sc.pgs, pgInfo, pg)
 	})
 	if err != nil {
+		r.eventRecorder.Eventf(sc.pgs, corev1.EventTypeWarning, groveevents.ReasonPodGangCreateOrUpdateFailed, "Error Creating/Updating PodGang %v: %v", pgObjectKey, err)
 		return groveerr.WrapError(err,
 			errCodeCreateOrPatchPodGang,
 			component.OperationSync,
 			fmt.Sprintf("Failed to CreateOrPatch PodGang %v", pgObjectKey),
 		)
 	}
+	r.eventRecorder.Eventf(sc.pgs, corev1.EventTypeNormal, groveevents.ReasonPodGangCreateOrUpdateSuccessful, "Created/Updated PodGang %v", pgObjectKey)
 	sc.logger.Info("Triggered CreateOrPatch of PodGang", "objectKey", pgObjectKey)
 	return nil
 }
@@ -450,6 +456,11 @@ func createPodGroupsForPodGang(namespace string, pgInfo podGangInfo) []grovesche
 				Namespace: namespace,
 				Name:      associatedPodName,
 			}
+		})
+		// sorting the slice of NamespaceName. This prevents unnecessary updates to the PodGang resource if the only thing
+		// that is difference is the order of NamespaceNames.
+		sort.Slice(namespacedNames, func(i, j int) bool {
+			return namespacedNames[i].Name < namespacedNames[j].Name
 		})
 		return groveschedulerv1alpha1.PodGroup{
 			Name:          pclq.fqn,

@@ -42,19 +42,18 @@ type Reconciler struct {
 
 // NewReconciler creates a new instance of the PodClique Reconciler.
 func NewReconciler(mgr ctrl.Manager, controllerCfg groveconfigv1alpha1.PodCliqueScalingGroupControllerConfiguration) *Reconciler {
+	eventRecorder := mgr.GetEventRecorderFor(controllerName)
 	return &Reconciler{
 		config:                  controllerCfg,
 		client:                  mgr.GetClient(),
-		reconcileStatusRecorder: ctrlcommon.NewReconcileStatusRecorder(mgr.GetClient(), mgr.GetEventRecorderFor(controllerName)),
-		operatorRegistry:        pcsgcomponent.CreateOperatorRegistry(mgr, nil),
+		reconcileStatusRecorder: ctrlcommon.NewReconcileStatusRecorder(mgr.GetClient(), eventRecorder),
+		operatorRegistry:        pcsgcomponent.CreateOperatorRegistry(mgr, eventRecorder),
 	}
 }
 
 // Reconcile reconciles a PodCliqueScalingGroup resource.
 func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	logger := ctrllogger.FromContext(ctx).
-		WithName(controllerName).
-		WithValues("pcsg-name", req.Name, "pcsg-namespace", req.Namespace)
+	logger := ctrllogger.FromContext(ctx).WithName(controllerName)
 
 	pcsg := &grovecorev1alpha1.PodCliqueScalingGroup{}
 	if result := ctrlutils.GetPodCliqueScalingGroup(ctx, r.client, logger, req.NamespacedName, pcsg); ctrlcommon.ShortCircuitReconcileFlow(result) {

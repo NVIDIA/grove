@@ -25,6 +25,7 @@ import (
 	pclqcomponent "github.com/NVIDIA/grove/operator/internal/component/podclique"
 	ctrlcommon "github.com/NVIDIA/grove/operator/internal/controller/common"
 	ctrlutils "github.com/NVIDIA/grove/operator/internal/controller/utils"
+	"github.com/NVIDIA/grove/operator/internal/expect"
 
 	"k8s.io/client-go/tools/record"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -39,26 +40,27 @@ type Reconciler struct {
 	client                  ctrlclient.Client
 	eventRecorder           record.EventRecorder
 	reconcileStatusRecorder ctrlcommon.ReconcileStatusRecorder
+	expectationsStore       *expect.ExpectationsStore
 	operatorRegistry        component.OperatorRegistry[grovecorev1alpha1.PodClique]
 }
 
 // NewReconciler creates a new instance of the PodClique Reconciler.
 func NewReconciler(mgr ctrl.Manager, controllerCfg configv1alpha1.PodCliqueControllerConfiguration) *Reconciler {
 	eventRecorder := mgr.GetEventRecorderFor(controllerName)
+	expectationsStore := expect.NewExpectationsStore()
 	return &Reconciler{
 		config:                  controllerCfg,
 		client:                  mgr.GetClient(),
 		eventRecorder:           eventRecorder,
 		reconcileStatusRecorder: ctrlcommon.NewReconcileStatusRecorder(mgr.GetClient(), mgr.GetEventRecorderFor(controllerName)),
-		operatorRegistry:        pclqcomponent.CreateOperatorRegistry(mgr, eventRecorder),
+		expectationsStore:       expectationsStore,
+		operatorRegistry:        pclqcomponent.CreateOperatorRegistry(mgr, eventRecorder, expectationsStore),
 	}
 }
 
 // Reconcile reconciles the `PodClique` resource.
 func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	logger := ctrllogger.FromContext(ctx).
-		WithName(controllerName).
-		WithValues("pclq-name", req.Name, "pclq-namespace", req.Namespace)
+	logger := ctrllogger.FromContext(ctx).WithName(controllerName)
 
 	pclq := &grovecorev1alpha1.PodClique{}
 	if result := ctrlutils.GetPodClique(ctx, r.client, logger, req.NamespacedName, pclq, true); ctrlcommon.ShortCircuitReconcileFlow(result) {

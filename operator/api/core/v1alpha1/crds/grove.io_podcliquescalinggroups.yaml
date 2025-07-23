@@ -169,7 +169,7 @@ spec:
                     description: Description is a human-readable description of the
                       last operation.
                     type: string
-                  lastTransitionTime:
+                  lastUpdateTime:
                     description: LastUpdateTime is the time at which the last operation
                       was updated.
                     format: date-time
@@ -182,7 +182,7 @@ spec:
                     type: string
                 required:
                 - description
-                - lastTransitionTime
+                - lastUpdateTime
                 - state
                 - type
                 type: object

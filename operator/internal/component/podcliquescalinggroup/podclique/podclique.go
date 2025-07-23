@@ -26,6 +26,7 @@ import (
 
 	grovecorev1alpha1 "github.com/NVIDIA/grove/operator/api/core/v1alpha1"
 	"github.com/NVIDIA/grove/operator/internal/component"
+	groveevents "github.com/NVIDIA/grove/operator/internal/component/events"
 	componentutils "github.com/NVIDIA/grove/operator/internal/component/utils"
 	groveerr "github.com/NVIDIA/grove/operator/internal/errors"
 	"github.com/NVIDIA/grove/operator/internal/utils"
@@ -43,14 +44,17 @@ import (
 )
 
 const (
-	errListPodClique             grovecorev1alpha1.ErrorCode = "ERR_LIST_PODCLIQUE"
-	errSyncPodClique             grovecorev1alpha1.ErrorCode = "ERR_SYNC_PODCLIQUE"
-	errDeletePodClique           grovecorev1alpha1.ErrorCode = "ERR_DELETE_PODCLIQUE"
-	errGetPodGangSet             grovecorev1alpha1.ErrorCode = "ERR_GET_PODGANGSET"
-	errMissingPGSReplicaIndex    grovecorev1alpha1.ErrorCode = "ERR_MISSING_PODGANGSET_REPLICA_INDEX"
-	errReplicaIndexIntConversion grovecorev1alpha1.ErrorCode = "ERR_PODGANGSET_REPLICA_INDEX_CONVERSION"
-	errCodeListPodCliquesForPCSG grovecorev1alpha1.ErrorCode = "ERR_LIST_PODCLIQUE_FOR_PCSG"
-	errCodeCreatePodClique       grovecorev1alpha1.ErrorCode = "ERR_CREATE_PODCLIQUE"
+	errCodeListPodClique              grovecorev1alpha1.ErrorCode = "ERR_LIST_PODCLIQUE"
+	errCodeMissingStartupType         grovecorev1alpha1.ErrorCode = "ERR_UNDEFINED_STARTUP_TYPE"
+	errCodeSetPodCliqueOwnerReference grovecorev1alpha1.ErrorCode = "ERR_SET_PODCLIQUE_OWNER_REFERENCE"
+	errCodeBuildPodClique             grovecorev1alpha1.ErrorCode = "ERR_BUILD_PODCLIQUE"
+	errCodeCreatePodCliques           grovecorev1alpha1.ErrorCode = "ERR_CREATE_PODCLIQUES"
+	errCodeDeletePodClique            grovecorev1alpha1.ErrorCode = "ERR_DELETE_PODCLIQUE"
+	errCodeGetPodGangSet              grovecorev1alpha1.ErrorCode = "ERR_GET_PODGANGSET"
+	errCodeMissingPGSReplicaIndex     grovecorev1alpha1.ErrorCode = "ERR_MISSING_PODGANGSET_REPLICA_INDEX"
+	errCodeReplicaIndexIntConversion  grovecorev1alpha1.ErrorCode = "ERR_PODGANGSET_REPLICA_INDEX_CONVERSION"
+	errCodeListPodCliquesForPCSG      grovecorev1alpha1.ErrorCode = "ERR_LIST_PODCLIQUE_FOR_PCSG"
+	errCodeCreatePodClique            grovecorev1alpha1.ErrorCode = "ERR_CREATE_PODCLIQUE"
 )
 
 type _resource struct {
@@ -78,7 +82,7 @@ func (r _resource) GetExistingResourceNames(ctx context.Context, logger logr.Log
 		getPodCliqueSelectorLabels(pcsgObjMeta))
 	if err != nil {
 		return nil, groveerr.WrapError(err,
-			errListPodClique,
+			errCodeListPodClique,
 			component.OperationGetExistingResourceNames,
 			fmt.Sprintf("Error listing PodCliques for PodCliqueScalingGroup: %v", k8sutils.GetObjectKeyFromObjectMeta(pcsgObjMeta)),
 		)
@@ -92,7 +96,7 @@ func (r _resource) Sync(ctx context.Context, logger logr.Logger, pcsg *grovecore
 	pgs, err := componentutils.GetOwnerPodGangSet(ctx, r.client, pcsg.ObjectMeta)
 	if err != nil {
 		return groveerr.WrapError(err,
-			errGetPodGangSet,
+			errCodeGetPodGangSet,
 			component.OperationSync,
 			fmt.Sprintf("failed to get owner PodGangSet for PodCliqueScalingGroup %s", client.ObjectKeyFromObject(pcsg)),
 		)
@@ -104,7 +108,7 @@ func (r _resource) Sync(ctx context.Context, logger logr.Logger, pcsg *grovecore
 	}
 	// If there are excess PodCliques than expected, delete the ones that are no longer expected but existing.
 	// This can happen when PCSG replicas have been scaled-in.
-	if err = r.triggerDeletionOfExcessPCLQs(ctx, logger, pgs.ObjectMeta, pcsg, existingPCLQs, expectedPCLQs); err != nil {
+	if err = r.triggerDeletionOfExcessPCLQs(ctx, logger, pgs, pcsg, existingPCLQs, expectedPCLQs); err != nil {
 		return err
 	}
 	// Identify PCSG replicas for which MinAvailable is breached for even a single constituent PCLQ. For such a PCSG replica terminate all PCLQs for that replica.
@@ -140,7 +144,7 @@ func (r _resource) getExistingPCLQs(ctx context.Context, pcsg *grovecorev1alpha1
 	return existingPCLQs, nil
 }
 
-func (r _resource) triggerDeletionOfExcessPCLQs(ctx context.Context, logger logr.Logger, pgsObjMeta metav1.ObjectMeta, pcsg *grovecorev1alpha1.PodCliqueScalingGroup, existingPCLQs []grovecorev1alpha1.PodClique, numExpectedPCLQs int) error {
+func (r _resource) triggerDeletionOfExcessPCLQs(ctx context.Context, logger logr.Logger, pgs *grovecorev1alpha1.PodGangSet, pcsg *grovecorev1alpha1.PodCliqueScalingGroup, existingPCLQs []grovecorev1alpha1.PodClique, numExpectedPCLQs int) error {
 	// Check if the number of existing PodCliques is greater than expected, if so, we need to delete the extra ones.
 	diff := len(existingPCLQs) - numExpectedPCLQs
 	if diff > 0 {
@@ -148,7 +152,7 @@ func (r _resource) triggerDeletionOfExcessPCLQs(ctx context.Context, logger logr
 		// collect the names of the extra PodCliques to delete
 		deletionCandidatePodGangNames := getExcessPCSGReplicaIndexesToDelete(pcsg, existingPCLQs)
 		reason := fmt.Sprintf("Delete excess PodCliques associated to PodGangs %v for PodCliqueScalingGroup %v", deletionCandidatePodGangNames, client.ObjectKeyFromObject(pcsg))
-		deletionTasks := r.createDeleteTasks(logger, pgsObjMeta, pcsg.Name, deletionCandidatePodGangNames, reason)
+		deletionTasks := r.createDeleteTasks(logger, pgs, pcsg.Name, deletionCandidatePodGangNames, reason)
 		return r.triggerDeletionOfPodCliques(ctx, logger, client.ObjectKeyFromObject(pcsg), deletionTasks)
 	}
 	return nil
@@ -169,7 +173,7 @@ func (r _resource) triggerDeletionOfMinAvailableBreachedPCSGReplicas(ctx context
 	}
 	if len(pcsgReplicaIndexesToDelete) > 0 {
 		reason := fmt.Sprintf("Delete PodCliques %v for PodCliqueScalingGroup %v which have breached MinAvailable longer than TerminationDelay: %s", pcsgReplicaIndexesToDelete, client.ObjectKeyFromObject(pcsg), terminationDelay)
-		pclqGangTerminationTasks := r.createDeleteTasks(logger, pgs.ObjectMeta, pcsg.Name, pcsgReplicaIndexesToDelete, reason)
+		pclqGangTerminationTasks := r.createDeleteTasks(logger, pgs, pcsg.Name, pcsgReplicaIndexesToDelete, reason)
 		if err = r.triggerDeletionOfPodCliques(ctx, logger, client.ObjectKeyFromObject(pcsg), pclqGangTerminationTasks); err != nil {
 			return
 		}
@@ -213,7 +217,7 @@ func (r _resource) createExpectedPCLQs(ctx context.Context, logger logr.Logger, 
 	}
 	if runResult := utils.RunConcurrently(ctx, logger, tasks); runResult.HasErrors() {
 		return groveerr.WrapError(runResult.GetAggregatedError(),
-			errSyncPodClique,
+			errCodeCreatePodCliques,
 			component.OperationSync,
 			fmt.Sprintf("Error Create of PodCliques for PodCliqueScalingGroup: %v, run summary: %s", client.ObjectKeyFromObject(pcsg), runResult.GetSummary()),
 		)
@@ -252,7 +256,7 @@ func (r _resource) findPCSGReplicasToDelete(ctx context.Context, pcsg *grovecore
 func (r _resource) triggerDeletionOfPodCliques(ctx context.Context, logger logr.Logger, pcsgObjectKey client.ObjectKey, deletionTasks []utils.Task) error {
 	if runResult := utils.RunConcurrently(ctx, logger, deletionTasks); runResult.HasErrors() {
 		return groveerr.WrapError(runResult.GetAggregatedError(),
-			errSyncPodClique,
+			errCodeDeletePodClique,
 			component.OperationSync,
 			fmt.Sprintf("Error deleting PodCliques for PodCliqueScalingGroup: %v", pcsgObjectKey),
 		)
@@ -261,7 +265,7 @@ func (r _resource) triggerDeletionOfPodCliques(ctx context.Context, logger logr.
 	return nil
 }
 
-func (r _resource) createDeleteTasks(logger logr.Logger, pgsObjMeta metav1.ObjectMeta, pcsgName string, pcsgReplicaIndexesToDelete []string, reason string) []utils.Task {
+func (r _resource) createDeleteTasks(logger logr.Logger, pgs *grovecorev1alpha1.PodGangSet, pcsgName string, pcsgReplicaIndexesToDelete []string, reason string) []utils.Task {
 	deletionTasks := make([]utils.Task, 0, len(pcsgReplicaIndexesToDelete))
 	for _, pcsgReplicaIndex := range pcsgReplicaIndexesToDelete {
 		task := utils.Task{
@@ -269,11 +273,13 @@ func (r _resource) createDeleteTasks(logger logr.Logger, pgsObjMeta metav1.Objec
 			Fn: func(ctx context.Context) error {
 				if err := r.client.DeleteAllOf(ctx,
 					&grovecorev1alpha1.PodClique{},
-					client.InNamespace(pgsObjMeta.Namespace),
-					client.MatchingLabels(getLabelsToDeletePCSGReplicaIndexPCLQs(pgsObjMeta.Name, pcsgName, pcsgReplicaIndex))); err != nil {
+					client.InNamespace(pgs.Namespace),
+					client.MatchingLabels(getLabelsToDeletePCSGReplicaIndexPCLQs(pgs.Name, pcsgName, pcsgReplicaIndex))); err != nil {
+					r.eventRecorder.Eventf(pgs, corev1.EventTypeWarning, groveevents.ReasonPodCliqueScalingGroupReplicaDeletionFailed, "Error deleting PodCliqueScalingGroup %s Replica %s : %v", pcsgName, pcsgReplicaIndex, err)
 					logger.Error(err, "failed to delete PodCliques for PCSG replica index", "pcsgReplicaIndex", pcsgReplicaIndex, "reason", reason)
 					return err
 				}
+				r.eventRecorder.Eventf(pgs, corev1.EventTypeNormal, groveevents.ReasonPodCliqueScalingGroupReplicaDeletionSuccessful, "Deleted PodCliqueScalingGroup %s replica: %s", pcsgName, pcsgReplicaIndex)
 				return nil
 			},
 		}
@@ -313,7 +319,7 @@ func (r _resource) Delete(ctx context.Context, logger logr.Logger, pcsgObjectMet
 	existingPCLQNames, err := r.GetExistingResourceNames(ctx, logger, pcsgObjectMeta)
 	if err != nil {
 		return groveerr.WrapError(err,
-			errListPodClique,
+			errCodeListPodClique,
 			component.OperationDelete,
 			fmt.Sprintf("Unable to fetch existing PodClique names for PodCliqueScalingGroup: %v", k8sutils.GetObjectKeyFromObjectMeta(pcsgObjectMeta)),
 		)
@@ -326,7 +332,7 @@ func (r _resource) Delete(ctx context.Context, logger logr.Logger, pcsgObjectMet
 			Fn: func(ctx context.Context) error {
 				if err := client.IgnoreNotFound(r.client.Delete(ctx, emptyPodClique(pclqObjectKey))); err != nil {
 					return groveerr.WrapError(err,
-						errDeletePodClique,
+						errCodeDeletePodClique,
 						component.OperationDelete,
 						fmt.Sprintf("Failed to delete PodClique: %v for PodCliqueScalingGroup: %v", pclqObjectKey, k8sutils.GetObjectKeyFromObjectMeta(pcsgObjectMeta)),
 					)
@@ -339,7 +345,7 @@ func (r _resource) Delete(ctx context.Context, logger logr.Logger, pcsgObjectMet
 	if runResult := utils.RunConcurrently(ctx, logger, deleteTasks); runResult.HasErrors() {
 		logger.Error(runResult.GetAggregatedError(), "Error deleting PodCliques", "run summary", runResult.GetSummary())
 		return groveerr.WrapError(runResult.GetAggregatedError(),
-			errDeletePodClique,
+			errCodeDeletePodClique,
 			component.OperationDelete,
 			fmt.Sprintf("Error deleting PodCliques for PodCliqueScalingGroup: %v", k8sutils.GetObjectKeyFromObjectMeta(pcsgObjectMeta)),
 		)
@@ -377,12 +383,14 @@ func (r _resource) doCreate(ctx context.Context, logger logr.Logger, pgs *grovec
 			logger.Info("PodClique creation failed as it already exists", "pclq", pclqObjectKey)
 			return nil
 		}
+		r.eventRecorder.Eventf(pcsg, corev1.EventTypeWarning, groveevents.ReasonPodCliqueCreationFailed, "PodClique %v creation failed: %v", pclqObjectKey, err)
 		return groveerr.WrapError(err,
 			errCodeCreatePodClique,
 			component.OperationSync,
 			fmt.Sprintf("Error creating PodClique: %v for PodCliqueScalingGroup: %v", pclqObjectKey, pcsgObjKey),
 		)
 	}
+	r.eventRecorder.Eventf(pcsg, corev1.EventTypeNormal, groveevents.ReasonPodCliqueCreationSuccessful, "PodClique %v created successfully", pclqObjectKey)
 	logger.Info("Successfully created PodClique", "pclqObjectKey", pclqObjectKey)
 	return nil
 }
@@ -395,7 +403,7 @@ func (r _resource) buildResource(logger logr.Logger, pgs *grovecorev1alpha1.PodG
 	})
 	if !ok {
 		logger.Info("Error building PodClique resource, PodClique template spec not found in PodGangSet", "podCliqueObjectKey", pclqObjectKey, "podGangSetObjectKey", pgsObjectKey)
-		return groveerr.New(errSyncPodClique,
+		return groveerr.New(errCodeBuildPodClique,
 			component.OperationSync,
 			fmt.Sprintf("Error building PodClique resource, PodCliqueTemplateSpec for PodClique: %v not found in PodGangSet: %v", pclqObjectKey, pgsObjectKey),
 		)
@@ -404,7 +412,7 @@ func (r _resource) buildResource(logger logr.Logger, pgs *grovecorev1alpha1.PodG
 	// ------------------------------------
 	if err = controllerutil.SetControllerReference(pcsg, pclq, r.scheme); err != nil {
 		return groveerr.WrapError(err,
-			errSyncPodClique,
+			errCodeSetPodCliqueOwnerReference,
 			component.OperationSync,
 			fmt.Sprintf("Error setting controller reference for PodClique: %v", client.ObjectKeyFromObject(pclq)),
 		)
@@ -477,12 +485,12 @@ func getExpectedPodCliqueFQNs(pcsg *grovecorev1alpha1.PodCliqueScalingGroup) []s
 func getPGSReplicaFromPCSG(pcsg *grovecorev1alpha1.PodCliqueScalingGroup) (int, error) {
 	pgsReplicaIndex, ok := pcsg.GetLabels()[grovecorev1alpha1.LabelPodGangSetReplicaIndex]
 	if !ok {
-		return 0, groveerr.New(errMissingPGSReplicaIndex, component.OperationSync, fmt.Sprintf("failed to get the PodGangSet replica ind value from the labels for PodCliqueScalingGroup %s", client.ObjectKeyFromObject(pcsg)))
+		return 0, groveerr.New(errCodeMissingPGSReplicaIndex, component.OperationSync, fmt.Sprintf("failed to get the PodGangSet replica ind value from the labels for PodCliqueScalingGroup %s", client.ObjectKeyFromObject(pcsg)))
 	}
 	pgsReplica, err := strconv.Atoi(pgsReplicaIndex)
 	if err != nil {
 		return 0, groveerr.WrapError(err,
-			errReplicaIndexIntConversion,
+			errCodeReplicaIndexIntConversion,
 			component.OperationSync,
 			"failed to convert replica index value from string to integer",
 		)
@@ -495,7 +503,7 @@ func identifyFullyQualifiedStartupDependencyNames(pgs *grovecorev1alpha1.PodGang
 	if cliqueStartupType == nil {
 		// Ideally this should never happen as the defaulting webhook should set it v1alpha1.CliqueStartupTypeInOrder as the default value.
 		// If it is still nil, then by not returning an error we break the API contract. It is a bug that should be fixed.
-		return nil, groveerr.New(errSyncPodClique, component.OperationSync, fmt.Sprintf("PodClique: %v has nil StartupType", client.ObjectKeyFromObject(pclq)))
+		return nil, groveerr.New(errCodeMissingStartupType, component.OperationSync, fmt.Sprintf("PodClique: %v has nil StartupType", client.ObjectKeyFromObject(pclq)))
 	}
 	switch *cliqueStartupType {
 	case grovecorev1alpha1.CliqueStartupTypeInOrder:
