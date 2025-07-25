@@ -421,7 +421,7 @@ func createTestPod(podGangName string, hasGate bool, inPodGang bool) *corev1.Pod
 	}
 
 	if inPodGang {
-		pod.Labels[grovecorev1alpha1.LabelPodGangName] = podGangName
+		pod.Labels[grovecorev1alpha1.LabelPodGang] = podGangName
 	}
 
 	return pod

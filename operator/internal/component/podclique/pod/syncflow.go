@@ -203,7 +203,7 @@ func (r _resource) checkAndRemovePodSchedulingGates(sc *syncContext, logger logr
 				continue
 			}
 			// Check if this pod belongs to an individual PodGang and if base PodGang is ready
-			podGangName, ok := p.GetLabels()[grovecorev1alpha1.LabelPodGangName]
+			podGangName, ok := p.GetLabels()[grovecorev1alpha1.LabelPodGang]
 			if ok && isIndividualPodGang(podGangName) {
 				// This is an individual PodGang pod - check if base PodGang is ready
 				if !isBasePodGangReady(sc.ctx, r.client, logger, p.Namespace, podGangName) {
