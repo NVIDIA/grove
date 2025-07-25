@@ -16,9 +16,42 @@
 
 package utils
 
-import "strings"
+import (
+	"strings"
+
+	corev1 "k8s.io/api/core/v1"
+)
 
 // IsEmptyStringType returns true if value (which is a string or has an underline type string) is empty or contains only whitespace characters.
 func IsEmptyStringType[T ~string](val T) bool {
 	return len(strings.TrimSpace(string(val))) == 0
+}
+
+// MergeEnvVars merges new environment variables into existing ones, replacing any with the same name.
+// This prevents duplicate environment variables and ensures new values take precedence.
+func MergeEnvVars(existing []corev1.EnvVar, newEnvVars []corev1.EnvVar) []corev1.EnvVar {
+	// Create a map of new environment variables for quick lookup
+	newEnvMap := make(map[string]corev1.EnvVar)
+	for _, envVar := range newEnvVars {
+		newEnvMap[envVar.Name] = envVar
+	}
+
+	result := make([]corev1.EnvVar, 0, len(existing)+len(newEnvVars))
+
+	// Process existing environment variables
+	for _, envVar := range existing {
+		if newEnvVar, exists := newEnvMap[envVar.Name]; exists {
+			result = append(result, newEnvVar) // Replace with new value
+			delete(newEnvMap, envVar.Name)     // Mark as processed
+		} else {
+			result = append(result, envVar) // Keep existing
+		}
+	}
+
+	// Add any remaining new environment variables that weren't replacements
+	for _, envVar := range newEnvMap {
+		result = append(result, envVar)
+	}
+
+	return result
 }

@@ -30,14 +30,14 @@ const (
 	LabelComponentKey = "app.kubernetes.io/component"
 	// LabelPodClique is a key for a label that sets the PodClique name.
 	LabelPodClique = "grove.io/podclique"
-	// LabelPodCliqueScalingGroup is a key for a label that sets the PodCliqueScalingGroup name.
-	LabelPodCliqueScalingGroup = "grove.io/podcliquescalinggroup"
-	// LabelPodCliqueScalingGroupReplicaIndex is a key for a label that sets the replica index of a PodCliqueScalingGroup.
-	LabelPodCliqueScalingGroupReplicaIndex = "grove.io/podcliquescalinggroup-replica-index"
 	// LabelPodGang is a key for a label that sets the PodGang name.
 	LabelPodGang = "grove.io/podgang"
 	// LabelPodGangSetReplicaIndex is a key for a label that sets the replica index of a PodGangSet.
 	LabelPodGangSetReplicaIndex = "grove.io/podgangset-replica-index"
+	// LabelPodCliqueScalingGroup is a key for a label that sets the PodCliqueScalingGroup name.
+	LabelPodCliqueScalingGroup = "grove.io/podcliquescalinggroup"
+	// LabelPodCliqueScalingGroupReplicaIndex is a key for a label that sets the replica index of a PCSG within PodGangSet.
+	LabelPodCliqueScalingGroupReplicaIndex = "grove.io/podcliquescalinggroup-replica-index"
 )
 
 // Constants for finalizers.

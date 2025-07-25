@@ -23,7 +23,9 @@ import (
 
 	grovecorev1alpha1 "github.com/NVIDIA/grove/operator/api/core/v1alpha1"
 	"github.com/NVIDIA/grove/operator/internal/component"
+	componentutils "github.com/NVIDIA/grove/operator/internal/component/utils"
 	groveerr "github.com/NVIDIA/grove/operator/internal/errors"
+	"github.com/NVIDIA/grove/operator/internal/indexer"
 	"github.com/NVIDIA/grove/operator/internal/utils"
 	k8sutils "github.com/NVIDIA/grove/operator/internal/utils/kubernetes"
 
@@ -39,9 +41,10 @@ import (
 
 // constants for error codes
 const (
-	errCodeGetPod                    grovecorev1alpha1.ErrorCode = "ERR_GET_POD"
-	errCodeSyncPod                   grovecorev1alpha1.ErrorCode = "ERR_SYNC_POD"
-	errCodeDeletePod                 grovecorev1alpha1.ErrorCode = "ERR_DELETE_POD"
+	errCodeGetPod    grovecorev1alpha1.ErrorCode = "ERR_GET_POD"
+	errCodeSyncPod   grovecorev1alpha1.ErrorCode = "ERR_SYNC_POD"
+	errCodeDeletePod grovecorev1alpha1.ErrorCode = "ERR_DELETE_POD"
+
 	errCodeGetPodGang                grovecorev1alpha1.ErrorCode = "ERR_GET_PODGANG"
 	errCodeListPod                   grovecorev1alpha1.ErrorCode = "ERR_LIST_POD"
 	errCodeRemovePodSchedulingGate   grovecorev1alpha1.ErrorCode = "ERR_REMOVE_POD_SCHEDULING_GATE"
@@ -59,6 +62,15 @@ const (
 
 const (
 	podGangSchedulingGate = "grove.io/podgang-pending-creation"
+)
+
+// constants for Grove environment variables
+const (
+	envVarGrovePGSName         = "GROVE_PGS_NAME"
+	envVarGrovePGSIndex        = "GROVE_PGS_INDEX"
+	envVarGrovePCLQName        = "GROVE_PCLQ_NAME"
+	envVarGroveHeadlessService = "GROVE_HEADLESS_SERVICE"
+	envVarGrovePodIndex        = "GROVE_PCLQ_POD_INDEX"
 )
 
 type _resource struct {
@@ -121,21 +133,25 @@ func (r _resource) Sync(ctx context.Context, logger logr.Logger, pclq *grovecore
 	return nil
 }
 
-func (r _resource) buildResource(pclq *grovecorev1alpha1.PodClique, podGangName string, pod *corev1.Pod) error {
-	labels, err := getLabels(pclq.ObjectMeta, podGangName)
+func (r _resource) buildResource(pclq *grovecorev1alpha1.PodClique, podGangName string, pod *corev1.Pod, indexMg *indexer.PodIndexTracker) error {
+	// Extract PGS replica index from PodClique name for now (will be replaced with direct parameter)
+	pgsName := componentutils.GetPodGangSetName(pclq.ObjectMeta)
+	pgsReplicaIndex, err := utils.GetPodGangSetReplicaIndexFromPodCliqueFQN(pgsName, pclq.Name)
 	if err != nil {
 		return groveerr.WrapError(err,
 			errCodeSyncPod,
 			component.OperationSync,
-			fmt.Sprintf("error building Pod resource for PodClique %v", client.ObjectKeyFromObject(pclq)),
+			fmt.Sprintf("error extracting PGS replica index for PodClique %v", client.ObjectKeyFromObject(pclq)),
 		)
 	}
+
+	labels := getLabels(pclq.ObjectMeta, pgsName, podGangName, pgsReplicaIndex)
 	pod.ObjectMeta = metav1.ObjectMeta{
-		GenerateName: fmt.Sprintf("%s-", pclq.Name),
-		Namespace:    pclq.Namespace,
-		Labels:       labels,
+		Name:      grovecorev1alpha1.GeneratePodName(pclq.Name),
+		Namespace: pclq.Namespace,
+		Labels:    labels,
 	}
-	if err := controllerutil.SetControllerReference(pclq, pod, r.scheme); err != nil {
+	if err = controllerutil.SetControllerReference(pclq, pod, r.scheme); err != nil {
 		return groveerr.WrapError(err,
 			errCodeSyncPod,
 			component.OperationSync,
@@ -143,7 +159,21 @@ func (r _resource) buildResource(pclq *grovecorev1alpha1.PodClique, podGangName 
 		)
 	}
 	pod.Spec = *pclq.Spec.PodSpec.DeepCopy()
+
 	pod.Spec.SchedulingGates = []corev1.PodSchedulingGate{{Name: podGangSchedulingGate}}
+	podIndex, err := indexMg.GetIndex(pod)
+	if err != nil {
+		// should never happen we dont allow to manually set pods index
+		return groveerr.WrapError(err,
+			errCodeSyncPod,
+			component.OperationSync,
+			fmt.Sprintf("error getting index for Pod %v", client.ObjectKeyFromObject(pod)),
+		)
+	}
+	addGroveEnvironmentVariables(pod, pgsName, pgsReplicaIndex, podIndex)
+
+	// Configure hostname and subdomain for service discovery
+	configurePodHostname(pod, pclq.Name, podIndex, pgsName, pgsReplicaIndex)
 
 	return nil
 }
@@ -174,18 +204,69 @@ func getSelectorLabelsForPods(pclqObjectMeta metav1.ObjectMeta) map[string]strin
 	)
 }
 
-func getLabels(pclqObjectMeta metav1.ObjectMeta, podGangName string) (map[string]string, error) {
-	pgsName := k8sutils.GetFirstOwnerName(pclqObjectMeta)
-	pgsReplicaIndex, err := utils.GetPodGangSetReplicaIndexFromPodCliqueFQN(pgsName, pclqObjectMeta.Name)
-	if err != nil {
-		return nil, err
+func getLabels(pclqObjectMeta metav1.ObjectMeta, pgsName, podGangName string, pgsReplicaIndex int) map[string]string {
+	labels := map[string]string{
+		grovecorev1alpha1.LabelPodClique:              pclqObjectMeta.Name,
+		grovecorev1alpha1.LabelPodGangSetReplicaIndex: strconv.Itoa(pgsReplicaIndex),
+		grovecorev1alpha1.LabelPodGang:                podGangName,
 	}
 	return lo.Assign(
 		k8sutils.GetDefaultLabelsForPodGangSetManagedResources(pgsName),
 		pclqObjectMeta.Labels,
-		map[string]string{
-			grovecorev1alpha1.LabelPodClique:              pclqObjectMeta.Name,
-			grovecorev1alpha1.LabelPodGangSetReplicaIndex: strconv.Itoa(pgsReplicaIndex),
-			grovecorev1alpha1.LabelPodGang:                podGangName,
-		}), nil
+		labels)
+}
+
+// addGroveEnvironmentVariables adds Grove-specific environment variables
+func addGroveEnvironmentVariables(pod *corev1.Pod, pgsName string, pgsReplicaIndex, podIndex int) {
+	groveEnvVars := []corev1.EnvVar{
+		{
+			Name: envVarGrovePGSName,
+			ValueFrom: &corev1.EnvVarSource{
+				FieldRef: &corev1.ObjectFieldSelector{
+					FieldPath: fmt.Sprintf("metadata.labels['%s']", grovecorev1alpha1.LabelPartOfKey),
+				},
+			},
+		},
+		{
+			Name: envVarGrovePGSIndex,
+			ValueFrom: &corev1.EnvVarSource{
+				FieldRef: &corev1.ObjectFieldSelector{
+					FieldPath: fmt.Sprintf("metadata.labels['%s']", grovecorev1alpha1.LabelPodGangSetReplicaIndex),
+				},
+			},
+		},
+		{
+			Name: envVarGrovePCLQName,
+			ValueFrom: &corev1.EnvVarSource{
+				FieldRef: &corev1.ObjectFieldSelector{
+					FieldPath: fmt.Sprintf("metadata.labels['%s']", grovecorev1alpha1.LabelPodClique),
+				},
+			},
+		},
+		{
+			Name: envVarGroveHeadlessService,
+			Value: grovecorev1alpha1.GenerateHeadlessServiceAddress(
+				grovecorev1alpha1.ResourceNameReplica{Name: pgsName, Replica: pgsReplicaIndex},
+				pod.Namespace),
+		},
+		{
+			Name:  envVarGrovePodIndex,
+			Value: strconv.Itoa(podIndex),
+		},
+	}
+
+	// Add Grove environment variables to all containers in the pod
+	for i := range pod.Spec.Containers {
+		pod.Spec.Containers[i].Env = utils.MergeEnvVars(pod.Spec.Containers[i].Env, groveEnvVars)
+	}
+}
+
+// configurePodHostname sets the pod hostname and subdomain for service discovery
+func configurePodHostname(pod *corev1.Pod, pclqName string, podIndex int, pgsName string, pgsReplicaIndex int) {
+	// Set hostname for service discovery (e.g., "my-pclq-0")
+	pod.Spec.Hostname = fmt.Sprintf("%s-%d", pclqName, podIndex)
+
+	// Set subdomain to headless service name (reusing existing logic)
+	pod.Spec.Subdomain = grovecorev1alpha1.GenerateHeadlessServiceName(
+		grovecorev1alpha1.ResourceNameReplica{Name: pgsName, Replica: pgsReplicaIndex})
 }

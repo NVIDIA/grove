@@ -18,6 +18,13 @@ package v1alpha1
 
 import (
 	"fmt"
+
+	"k8s.io/apimachinery/pkg/util/rand"
+)
+
+const (
+	// podSuffixSize is the number of random characters to append to the end of the Pod name to ensure uniqueness.
+	podSuffixSize = 5
 )
 
 // ResourceNameReplica is a type that holds a resource name and its replica index.
@@ -31,6 +38,12 @@ type ResourceNameReplica struct {
 // GenerateHeadlessServiceName generates a headless service name based on the PodGangSet name and replica index.
 func GenerateHeadlessServiceName(pgsNameReplica ResourceNameReplica) string {
 	return fmt.Sprintf("%s-%d", pgsNameReplica.Name, pgsNameReplica.Replica)
+}
+
+// GenerateHeadlessServiceAddress generates a headless service address based on the PodGangSet name, replica index, and namespace.
+// The address is in the format: <headless-service-name>.<namespace>.svc.cluster.local
+func GenerateHeadlessServiceAddress(pgsNameReplica ResourceNameReplica, namespace string) string {
+	return fmt.Sprintf("%s.%s.svc.cluster.local", GenerateHeadlessServiceName(pgsNameReplica), namespace)
 }
 
 // GeneratePodRoleName generates a Pod role name based on the PodGangSet name.
@@ -55,8 +68,9 @@ func GeneratePodCliqueName(ownerNameReplica ResourceNameReplica, pclqTemplateNam
 }
 
 // GeneratePodName generates a Pod name based on the PodClique name and replica index.
-func GeneratePodName(pclqNameReplica ResourceNameReplica) string {
-	return fmt.Sprintf("%s-%d", pclqNameReplica.Name, pclqNameReplica.Replica)
+// add 5 random characters to the end of the name to ensure uniqueness in case of multiple replicas.
+func GeneratePodName(pclqName string) string {
+	return fmt.Sprintf("%s-%s", pclqName, rand.String(podSuffixSize))
 }
 
 // GeneratePodCliqueScalingGroupName generates a PodCliqueScalingGroup name based on the PodGangSet name, replica index and PodCliqueScalingGroup name.
