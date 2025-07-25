@@ -138,9 +138,12 @@ func TestCheckAndRemovePodSchedulingGates_MinAvailableAware(t *testing.T) {
 
 			// Create fake client
 			scheme := runtime.NewScheme()
-			corev1.AddToScheme(scheme)
-			grovecorev1alpha1.AddToScheme(scheme)
-			groveschedulerv1alpha1.AddToScheme(scheme)
+			err := corev1.AddToScheme(scheme)
+			require.NoError(t, err)
+			err = grovecorev1alpha1.AddToScheme(scheme)
+			require.NoError(t, err)
+			err = groveschedulerv1alpha1.AddToScheme(scheme)
+			require.NoError(t, err)
 			fakeClient := fake.NewClientBuilder().WithScheme(scheme).WithObjects(objects...).Build()
 
 			// Create a test PodClique for the sync context
