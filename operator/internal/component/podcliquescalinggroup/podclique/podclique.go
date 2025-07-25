@@ -385,7 +385,7 @@ func (r _resource) buildResource(logger logr.Logger, pgs *grovecorev1alpha1.PodG
 	if err != nil {
 		return err
 	}
-	pclq.Labels = getLabels(pgs, pgsReplica, pcsg.Name, pcsgReplicaIndex, pclqObjectKey, pclqTemplateSpec)
+	pclq.Labels = getLabels(pgs, pgsReplica, pcsg, pcsgReplicaIndex, pclqObjectKey, pclqTemplateSpec)
 	pclq.Annotations = pclqTemplateSpec.Annotations
 	// set PodCliqueSpec
 	// ------------------------------------
@@ -474,19 +474,36 @@ func getPodCliqueSelectorLabels(pcsgObjectMeta metav1.ObjectMeta) map[string]str
 	)
 }
 
-func getLabels(pgs *grovecorev1alpha1.PodGangSet, pgsReplicaIndex int, pcsgName string, pcsgReplicaIndex int, pclqObjectKey client.ObjectKey, pclqTemplateSpec *grovecorev1alpha1.PodCliqueTemplateSpec) map[string]string {
+func getLabels(pgs *grovecorev1alpha1.PodGangSet, pgsReplicaIndex int, pcsg *grovecorev1alpha1.PodCliqueScalingGroup, pcsgReplicaIndex int, pclqObjectKey client.ObjectKey, pclqTemplateSpec *grovecorev1alpha1.PodCliqueTemplateSpec) map[string]string {
+	// Extract scaling group name using centralized utility function
+	scalingGroupName := grovecorev1alpha1.ExtractScalingGroupNameFromPCSG(pcsg.Name, grovecorev1alpha1.ResourceNameReplica{
+		Name:    pgs.Name,
+		Replica: pgsReplicaIndex,
+	})
+
 	// Use the shared utility to determine the correct PodGang name
 	// This handles minAvailable logic: replicas < minAvailable go to base PodGang
-	podGangName := componentutils.DeterminePodGangNameForPodClique(pgs, pgsReplicaIndex, pclqObjectKey.Name)
+	podGangName := componentutils.DeterminePodGangNameForPodClique(pgs, pgsReplicaIndex, pclqTemplateSpec.Name, scalingGroupName, pcsgReplicaIndex)
 
 	pclqComponentLabels := map[string]string{
 		grovecorev1alpha1.LabelAppNameKey:                        pclqObjectKey.Name,
 		grovecorev1alpha1.LabelComponentKey:                      component.NamePCSGPodClique,
-		grovecorev1alpha1.LabelPodCliqueScalingGroup:             pcsgName,
+		grovecorev1alpha1.LabelPodCliqueScalingGroup:             pcsg.Name,
 		grovecorev1alpha1.LabelPodGang:                           podGangName,
 		grovecorev1alpha1.LabelPodGangSetReplicaIndex:            strconv.Itoa(pgsReplicaIndex),
 		grovecorev1alpha1.LabelPodCliqueScalingGroupReplicaIndex: strconv.Itoa(pcsgReplicaIndex),
 	}
+
+	// Add base-podgang label for individual PodGang pods (beyond minAvailable)
+	basePodGangName := grovecorev1alpha1.GeneratePodGangName(
+		grovecorev1alpha1.ResourceNameReplica{Name: pgs.Name, Replica: pgsReplicaIndex},
+		nil,
+	)
+	if podGangName != basePodGangName {
+		// This pod belongs to an individual PodGang - add the base PodGang label
+		pclqComponentLabels[grovecorev1alpha1.LabelBasePodGang] = basePodGangName
+	}
+
 	return lo.Assign(
 		pclqTemplateSpec.Labels,
 		k8sutils.GetDefaultLabelsForPodGangSetManagedResources(pgs.Name),

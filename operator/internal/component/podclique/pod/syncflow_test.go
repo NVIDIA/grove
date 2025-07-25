@@ -19,6 +19,7 @@ package pod
 import (
 	"context"
 	"fmt"
+	"strings"
 	"testing"
 
 	grovecorev1alpha1 "github.com/NVIDIA/grove/operator/api/core/v1alpha1"
@@ -121,10 +122,42 @@ func TestCheckAndRemovePodSchedulingGates_MinAvailableAware(t *testing.T) {
 			var objects []client.Object
 			objects = append(objects, pod)
 
-			if tt.basePodGangExists {
+			// Check if this is testing a base PodGang or individual PodGang based on name pattern
+			isIndividualPodGangTest := strings.Contains(tt.podGangName, "-sga-")
+
+			if isIndividualPodGangTest {
+				// Always create the individual PodGang for individual PodGang tests
+				individualPodGang := &groveschedulerv1alpha1.PodGang{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      tt.podGangName,
+						Namespace: "default",
+						Labels: map[string]string{
+							grovecorev1alpha1.LabelBasePodGang: "simple1-0",
+						},
+					},
+					Spec: groveschedulerv1alpha1.PodGangSpec{
+						PodGroups: []groveschedulerv1alpha1.PodGroup{
+							{
+								Name:        "simple1-0-sga-pcb",
+								MinReplicas: 1,
+							},
+						},
+					},
+				}
+				objects = append(objects, individualPodGang)
+
+				// Only create base PodGang if it's supposed to exist
+				if tt.basePodGangExists {
+					basePodGang := createTestBasePodGang(tt.podGangName, tt.basePodGangReady)
+					objects = append(objects, basePodGang)
+				}
+			} else if tt.basePodGangExists {
+				// Just create the base PodGang for base PodGang tests
 				basePodGang := createTestBasePodGang(tt.podGangName, tt.basePodGangReady)
 				objects = append(objects, basePodGang)
+			}
 
+			if tt.basePodGangExists {
 				if tt.basePodGangReady {
 					// Add ready PodClique for base PodGang
 					basePclq := createTestPodClique("simple1-0-pcb", 2, 2) // ReadyReplicas >= MinAvailable
@@ -203,6 +236,24 @@ func TestCheckAndRemovePodSchedulingGates_ConcurrentExecution(t *testing.T) {
 		objects = append(objects, pod)
 	}
 
+	// Create a base PodGang resource (needed for the logic to work correctly)
+	basePodGang := &groveschedulerv1alpha1.PodGang{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "simple1-0",
+			Namespace: "default",
+			// No base-podgang label - this indicates it's a base PodGang
+		},
+		Spec: groveschedulerv1alpha1.PodGangSpec{
+			PodGroups: []groveschedulerv1alpha1.PodGroup{
+				{
+					Name:        "simple1-0-pcb",
+					MinReplicas: 2,
+				},
+			},
+		},
+	}
+	objects = append(objects, basePodGang)
+
 	// Create fake client
 	scheme := runtime.NewScheme()
 	corev1.AddToScheme(scheme)
@@ -245,83 +296,6 @@ func TestCheckAndRemovePodSchedulingGates_ConcurrentExecution(t *testing.T) {
 
 		hasGateAfter := hasPodGangSchedulingGate(updatedPod)
 		assert.False(t, hasGateAfter, "Pod %d should not have scheduling gate after removal", i)
-	}
-}
-
-func TestIsIndividualPodGang(t *testing.T) {
-	tests := []struct {
-		name        string
-		podGangName string
-		expected    bool
-	}{
-		{
-			name:        "Base PodGang",
-			podGangName: "simple1-0",
-			expected:    false,
-		},
-		{
-			name:        "Individual PodGang with sga",
-			podGangName: "simple1-0-sga-2",
-			expected:    true,
-		},
-		{
-			name:        "Individual PodGang with different scaling group",
-			podGangName: "test-pgs-1-mysg-5",
-			expected:    false, // doesn't contain "-sga-"
-		},
-		{
-			name:        "Invalid name format",
-			podGangName: "simple1",
-			expected:    false,
-		},
-		{
-			name:        "Individual PodGang with many segments",
-			podGangName: "complex-name-0-sga-10",
-			expected:    true,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			result := isIndividualPodGang(tt.podGangName)
-			assert.Equal(t, tt.expected, result)
-		})
-	}
-}
-
-func TestExtractBasePodGangName(t *testing.T) {
-	tests := []struct {
-		name                    string
-		individualPodGangName   string
-		expectedBasePodGangName string
-	}{
-		{
-			name:                    "Simple individual PodGang",
-			individualPodGangName:   "simple1-0-sga-2",
-			expectedBasePodGangName: "simple1-0",
-		},
-		{
-			name:                    "Complex individual PodGang",
-			individualPodGangName:   "complex-name-1-sga-5",
-			expectedBasePodGangName: "complex-name-1",
-		},
-		{
-			name:                    "No sga pattern",
-			individualPodGangName:   "simple1-0-other-2",
-			expectedBasePodGangName: "simple1-0-other-2", // Returns original
-		},
-		{
-			name:                    "Multiple dashes before sga",
-			individualPodGangName:   "multi-part-name-0-sga-1",
-			expectedBasePodGangName: "multi-part-name-0",
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			result := extractBasePodGangName(tt.individualPodGangName)
-			assert.Equal(t, tt.expectedBasePodGangName, result)
-		})
 	}
 }
 
@@ -376,6 +350,27 @@ func TestIsBasePodGangReady(t *testing.T) {
 			var objects []client.Object
 
 			if tt.basePodGangExists {
+				// Create the individual PodGang with the base-podgang label
+				individualPodGang := &groveschedulerv1alpha1.PodGang{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "simple1-0-sga-2",
+						Namespace: "default",
+						Labels: map[string]string{
+							grovecorev1alpha1.LabelBasePodGang: "simple1-0",
+						},
+					},
+					Spec: groveschedulerv1alpha1.PodGangSpec{
+						PodGroups: []groveschedulerv1alpha1.PodGroup{
+							{
+								Name:        "simple1-0-sga-pcb",
+								MinReplicas: 1,
+							},
+						},
+					},
+				}
+				objects = append(objects, individualPodGang)
+
+				// Create the base PodGang
 				basePodGang := createTestBasePodGangWithPodCliques(tt.podCliques)
 				objects = append(objects, basePodGang)
 
@@ -393,7 +388,8 @@ func TestIsBasePodGangReady(t *testing.T) {
 			fakeClient := fake.NewClientBuilder().WithScheme(scheme).WithObjects(objects...).Build()
 
 			// Test the readiness check
-			result := isBasePodGangReady(context.Background(), fakeClient, logr.Discard(), "default", "simple1-0-sga-2")
+			r := &_resource{client: fakeClient}
+			result := r.isBasePodGangReady(context.Background(), logr.Discard(), "default", "simple1-0")
 			assert.Equal(t, tt.expectedReady, result, tt.description)
 		})
 	}
@@ -425,14 +421,46 @@ func createTestPod(podGangName string, hasGate bool, inPodGang bool) *corev1.Pod
 
 	if inPodGang {
 		pod.Labels[grovecorev1alpha1.LabelPodGang] = podGangName
+
+		// Add base-podgang label for individual PodGang pods
+		if strings.Contains(podGangName, "-sga-") {
+			// Extract base PodGang name: "simple1-0-sga-2" -> "simple1-0"
+			if sgaIndex := strings.Index(podGangName, "-sga-"); sgaIndex != -1 {
+				basePodGangName := podGangName[:sgaIndex]
+				pod.Labels[grovecorev1alpha1.LabelBasePodGang] = basePodGangName
+			}
+		}
 	}
 
 	return pod
 }
 
-func createTestBasePodGang(individualPodGangName string, ready bool) *groveschedulerv1alpha1.PodGang {
-	basePodGangName := extractBasePodGangName(individualPodGangName)
+// createTestPodGangs creates both individual and base PodGangs for testing
+func createTestPodGangs(individualPodGangName string, ready bool) []client.Object {
+	basePodGangName := "simple1-0"
+	var objects []client.Object
 
+	// Create the individual PodGang with the base-podgang label
+	individualPodGang := &groveschedulerv1alpha1.PodGang{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      individualPodGangName,
+			Namespace: "default",
+			Labels: map[string]string{
+				grovecorev1alpha1.LabelBasePodGang: basePodGangName,
+			},
+		},
+		Spec: groveschedulerv1alpha1.PodGangSpec{
+			PodGroups: []groveschedulerv1alpha1.PodGroup{
+				{
+					Name:        "simple1-0-sga-pcb",
+					MinReplicas: 1,
+				},
+			},
+		},
+	}
+	objects = append(objects, individualPodGang)
+
+	// Create the base PodGang
 	podGroups := []groveschedulerv1alpha1.PodGroup{
 		{
 			Name:        "simple1-0-pcb",
@@ -448,7 +476,7 @@ func createTestBasePodGang(individualPodGangName string, ready bool) *grovesched
 		})
 	}
 
-	return &groveschedulerv1alpha1.PodGang{
+	basePodGang := &groveschedulerv1alpha1.PodGang{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      basePodGangName,
 			Namespace: "default",
@@ -457,6 +485,16 @@ func createTestBasePodGang(individualPodGangName string, ready bool) *grovesched
 			PodGroups: podGroups,
 		},
 	}
+	objects = append(objects, basePodGang)
+
+	return objects
+}
+
+// Legacy function for backwards compatibility - now returns just the base PodGang
+func createTestBasePodGang(individualPodGangName string, ready bool) *groveschedulerv1alpha1.PodGang {
+	objects := createTestPodGangs(individualPodGangName, ready)
+	// Return the base PodGang (last object in the list)
+	return objects[len(objects)-1].(*groveschedulerv1alpha1.PodGang)
 }
 
 func createTestBasePodGangWithPodCliques(podCliques []testPodClique) *groveschedulerv1alpha1.PodGang {

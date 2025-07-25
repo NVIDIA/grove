@@ -53,7 +53,11 @@ type PodCliqueScalingGroupSpec struct {
 	// If not specified, it defaults to 1.
 	Replicas int32 `json:"replicas"`
 	// MinAvailable specifies the minimum number of ready replicas required for the group to be considered operational.
-	// If MinAvailable is breached, it will trigger gang-termination of the scaling group replica.
+	// It serves two main purposes:
+	// 1. Gang Scheduling: Replicas 0 through (MinAvailable-1) are grouped into the base PodGang and scheduled together.
+	//    Additional replicas (MinAvailable and above) are individual PodGangs that wait for the base PodGang to be ready
+	//    before their scheduling gates are removed.
+	// 2. Gang Termination: If MinAvailable is breached, it will trigger gang-termination of the scaling group replica.
 	// If not specified, it defaults to 1.
 	// +optional
 	MinAvailable *int32 `json:"minAvailable,omitempty"`

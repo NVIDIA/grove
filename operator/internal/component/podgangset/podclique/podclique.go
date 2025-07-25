@@ -32,7 +32,6 @@ import (
 
 	"github.com/go-logr/logr"
 	"github.com/samber/lo"
-	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -349,11 +348,7 @@ func (r _resource) doCreate(ctx context.Context, logger logr.Logger, pgs *grovec
 	if err := r.buildResource(logger, pclq, pgs, int(pgsReplica)); err != nil {
 		return err
 	}
-	if err := r.client.Create(ctx, pclq); err != nil {
-		if apierrors.IsAlreadyExists(err) {
-			logger.Info("PodClique creation failed for PodGangSet as it already exists", "pgs", pgsObjKey, "pclq", client.ObjectKeyFromObject(pclq))
-			return nil
-		}
+	if err := client.IgnoreAlreadyExists(r.client.Create(ctx, pclq)); err != nil {
 		return groveerr.WrapError(err,
 			errCodeCreatePodClique,
 			component.OperationSync,
@@ -444,8 +439,8 @@ func getPodCliqueSelectorLabels(pgsObjectMeta metav1.ObjectMeta) map[string]stri
 }
 
 func getLabels(pgs *grovecorev1alpha1.PodGangSet, pgsReplica int, pclqObjectKey client.ObjectKey, pclqTemplateSpec *grovecorev1alpha1.PodCliqueTemplateSpec) map[string]string {
-	// Use the shared utility to determine the correct PodGang name upfront
-	podGangName := componentutils.DeterminePodGangNameForPodClique(pgs, pgsReplica, pclqObjectKey.Name)
+	// Standalone PodCliques don't belong to scaling groups
+	podGangName := componentutils.DeterminePodGangNameForPodClique(pgs, pgsReplica, pclqTemplateSpec.Name, "", 0)
 
 	pclqComponentLabels := map[string]string{
 		grovecorev1alpha1.LabelAppNameKey:             pclqObjectKey.Name,

@@ -132,8 +132,9 @@ func getExpectedPodGangForPGSReplicas(sc *syncContext) []podGangInfo {
 	for pgsReplica := range sc.pgs.Spec.Replicas {
 		replicaPodGangName := grovecorev1alpha1.GeneratePodGangName(grovecorev1alpha1.ResourceNameReplica{Name: sc.pgs.Name, Replica: int(pgsReplica)}, nil)
 		expectedPodGangs = append(expectedPodGangs, podGangInfo{
-			fqn:   replicaPodGangName,
-			pclqs: identifyConstituentPCLQsForPGSReplicaPodGang(sc, pgsReplica),
+			fqn:             replicaPodGangName,
+			pclqs:           identifyConstituentPCLQsForPGSReplicaPodGang(sc, pgsReplica),
+			basePodGangName: "", // Empty for base PodGangs (they are the base themselves)
 		})
 	}
 	return expectedPodGangs
@@ -163,9 +164,18 @@ func (r _resource) getExpectedPodGangsForPCSG(ctx context.Context, logger logr.L
 		individualPodGangIndex := 0
 		for pcsgReplicaIndex := int(minAvailable); pcsgReplicaIndex < int(pcsg.Spec.Replicas); pcsgReplicaIndex++ {
 			podGangName := componentutils.CreatePodGangNameForPCSGFromFQN(pcsg.Name, individualPodGangIndex)
+
+			// Generate the base PodGang name using the same logic as base PodGang creation
+			// This avoids name parsing and ensures consistency
+			basePodGangName := grovecorev1alpha1.GeneratePodGangName(
+				grovecorev1alpha1.ResourceNameReplica{Name: pgs.Name, Replica: pgsReplica},
+				nil,
+			)
+
 			expectedPodGangs = append(expectedPodGangs, podGangInfo{
-				fqn:   podGangName,
-				pclqs: identifyConstituentPCLQsForPCSGPodGang(logger, &pcsg, pcsgReplicaIndex, pgs),
+				fqn:             podGangName,
+				pclqs:           identifyConstituentPCLQsForPCSGPodGang(logger, &pcsg, pcsgReplicaIndex, pgs),
+				basePodGangName: basePodGangName,
 			})
 
 			logger.Info("Created individual PodGang for scaling group replica",
@@ -473,13 +483,15 @@ func (sc *syncContext) initializeAssignedAndUnassignedPodsForPGS(podsByPLCQ map[
 		for _, pod := range pods {
 			if metav1.HasLabel(pod.ObjectMeta, grovecorev1alpha1.LabelPodGang) {
 				podGangName := pod.GetLabels()[grovecorev1alpha1.LabelPodGang]
-				pgi, ok := lo.Find(sc.expectedPodGangs, func(pgi podGangInfo) bool {
+				// Find the index to work with the original slice element, not a copy
+				pgiIndex := slices.IndexFunc(sc.expectedPodGangs, func(pgi podGangInfo) bool {
 					return podGangName == pgi.fqn
 				})
-				if !ok {
+				if pgiIndex == -1 {
 					continue
 				}
-				pgi.refreshAssociatedPCLQPods(pclqName, pod.Name)
+				// Work with the original element in the slice, not a copy
+				sc.expectedPodGangs[pgiIndex].refreshAssociatedPCLQPods(pclqName, pod.Name)
 			} else {
 				sc.unassignedPodsByPCLQ[pclqName] = append(sc.unassignedPodsByPCLQ[pclqName], pod)
 			}
@@ -543,6 +555,9 @@ type podGangInfo struct {
 	fqn string
 	// pclqs holds the relevant information for all constituent PodCliques for this PodGang.
 	pclqs []pclqInfo
+	// basePodGangName is the name of the base PodGang for individual PodGangs (beyond MinAvailable).
+	// This field is empty for base PodGangs themselves.
+	basePodGangName string
 }
 
 func (pgi *podGangInfo) refreshAssociatedPCLQPods(pclqName string, newlyAssociatedPods ...string) {

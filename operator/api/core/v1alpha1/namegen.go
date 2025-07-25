@@ -77,3 +77,10 @@ func GeneratePodGangName(pgsNameReplica ResourceNameReplica, pcsgNameReplica *Re
 func GeneratePCSGPodGangNamePrefix(pgsNameReplica ResourceNameReplica, pcsgName string) string {
 	return fmt.Sprintf("%s-%d-%s-", pgsNameReplica.Name, pgsNameReplica.Replica, pcsgName)
 }
+
+// ExtractScalingGroupNameFromPCSG extracts the scaling group name from a PodCliqueScalingGroup name.
+// For example, "simple1-0-sga" with pgsNameReplica="simple1-0" returns "sga".
+func ExtractScalingGroupNameFromPCSG(pcsgName string, pgsNameReplica ResourceNameReplica) string {
+	prefix := fmt.Sprintf("%s-%d-", pgsNameReplica.Name, pgsNameReplica.Replica)
+	return pcsgName[len(prefix):]
+}
