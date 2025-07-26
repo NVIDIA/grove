@@ -52,7 +52,7 @@ func (r _resource) prepareSyncFlow(ctx context.Context, logger logr.Logger, pclq
 	}
 	sc.associatedPodGangName = associatedPodGangName
 
-	existingPodGang, err := r.getAssociatedPodGang(ctx, associatedPodGangName, pclq.Namespace)
+	existingPodGang, err := r.getPodGang(ctx, associatedPodGangName, pclq.Namespace)
 	if err != nil {
 		return nil, err
 	}
@@ -83,7 +83,7 @@ func (r _resource) getAssociatedPodGangName(pclqObjectMeta metav1.ObjectMeta) (s
 	return podGangName, nil
 }
 
-func (r _resource) getAssociatedPodGang(ctx context.Context, podGangName, namespace string) (*groveschedulerv1alpha1.PodGang, error) {
+func (r _resource) getPodGang(ctx context.Context, podGangName, namespace string) (*groveschedulerv1alpha1.PodGang, error) {
 	podGang := &groveschedulerv1alpha1.PodGang{}
 	podGangObjectKey := client.ObjectKey{Namespace: namespace, Name: podGangName}
 	if err := r.client.Get(ctx, podGangObjectKey, podGang); err != nil {
@@ -93,7 +93,7 @@ func (r _resource) getAssociatedPodGang(ctx context.Context, podGangName, namesp
 		return nil, groveerr.WrapError(err,
 			errCodeGetPodGang,
 			component.OperationSync,
-			fmt.Sprintf("failed to get Podgang: %v", podGangObjectKey),
+			fmt.Sprintf("failed to get PodGang: %v", podGangObjectKey),
 		)
 	}
 	return podGang, nil
@@ -194,21 +194,46 @@ func selectExcessPodsToDelete(sc *syncContext, logger logr.Logger) []*corev1.Pod
 func (r _resource) checkAndRemovePodSchedulingGates(sc *syncContext, logger logr.Logger) ([]string, error) {
 	tasks := make([]utils.Task, 0, len(sc.existingPCLQPods))
 	skippedScheduleGatedPods := make([]string, 0, len(sc.existingPCLQPods))
-	for _, p := range sc.existingPCLQPods {
+	for i, p := range sc.existingPCLQPods {
 		if hasPodGangSchedulingGate(p) {
 			if !slices.Contains(sc.podNamesUpdatedInPCLQPodGangs, p.Name) {
 				logger.Info("Pod has scheduling gate but it has not yet been updated in PodGang", "podObjectKey", client.ObjectKeyFromObject(p))
 				skippedScheduleGatedPods = append(skippedScheduleGatedPods, p.Name)
 				continue
 			}
+			// Check if this pod belongs to an individual PodGang and if base PodGang is ready
+			if individualPodGangName, ok := p.GetLabels()[grovecorev1alpha1.LabelPodGang]; ok {
+				// Check if pod has a base-podgang label (indicating it's an individual PodGang pod)
+				if basePodGangName, hasBasePodGangLabel := p.GetLabels()[grovecorev1alpha1.LabelBasePodGang]; hasBasePodGangLabel && basePodGangName != "" {
+					// This is an individual PodGang pod - check if base PodGang is ready
+					if !r.isBasePodGangReady(sc.ctx, logger, p.Namespace, basePodGangName) {
+						logger.Info("Individual PodGang pod has scheduling gate but base PodGang is not ready yet",
+							"podObjectKey", client.ObjectKeyFromObject(p),
+							"individualPodGangName", individualPodGangName,
+							"basePodGangName", basePodGangName)
+						skippedScheduleGatedPods = append(skippedScheduleGatedPods, p.Name)
+						continue
+					}
+					logger.Info("Base PodGang is ready, removing scheduling gate from individual PodGang pod",
+						"podObjectKey", client.ObjectKeyFromObject(p),
+						"individualPodGangName", individualPodGangName,
+						"basePodGangName", basePodGangName)
+				}
+				// If no base-podgang label, this is a base PodGang pod - remove gates immediately
+			}
+
+			// Capture pod to avoid loop variable issues in concurrent execution
+			podToUpdate := p
+			podObjectKey := client.ObjectKeyFromObject(podToUpdate)
 			task := utils.Task{
-				Name: fmt.Sprintf("RemoveSchedulingGate-%s", p.Name),
+				Name: fmt.Sprintf("RemoveSchedulingGate-%s-%d", podToUpdate.Name, i),
 				Fn: func(ctx context.Context) error {
-					podClone := p.DeepCopy()
-					p.Spec.SchedulingGates = nil
-					if err := client.IgnoreNotFound(r.client.Patch(ctx, p, client.MergeFrom(podClone))); err != nil {
+					podClone := podToUpdate.DeepCopy()
+					podToUpdate.Spec.SchedulingGates = nil
+					if err := client.IgnoreNotFound(r.client.Patch(ctx, podToUpdate, client.MergeFrom(podClone))); err != nil {
 						return err
 					}
+					logger.Info("Removed scheduling gate from pod", "podObjectKey", podObjectKey)
 					return nil
 				},
 			}
@@ -230,6 +255,58 @@ func (r _resource) checkAndRemovePodSchedulingGates(sc *syncContext, logger logr
 	}
 
 	return skippedScheduleGatedPods, nil
+}
+
+// isBasePodGangReady checks if the base PodGang (identified by name) is ready.
+func (r _resource) isBasePodGangReady(ctx context.Context, logger logr.Logger, namespace, basePodGangName string) bool {
+	// Get the base PodGang
+	basePodGang, err := r.getPodGang(ctx, basePodGangName, namespace)
+	if err != nil {
+		logger.Error(err, "assuming PodGang is not ready due to base PodGang access failure", "basePodGangName", basePodGangName)
+		return false
+	}
+
+	if basePodGang == nil {
+		// Base PodGang not found
+		err := groveerr.New(
+			errCodeGetPodGang,
+			component.OperationSync,
+			fmt.Sprintf("base PodGang %s not found in namespace %s", basePodGangName, namespace),
+		)
+		logger.Error(err, "assuming PodGang is not ready due to missing base PodGang", "basePodGangName", basePodGangName)
+		return false
+	}
+
+	// Check if all PodGroups in the base PodGang have sufficient ready replicas
+	for _, podGroup := range basePodGang.Spec.PodGroups {
+		pclqName := podGroup.Name
+
+		// Get the PodClique
+		pclq := &grovecorev1alpha1.PodClique{}
+		pclqKey := client.ObjectKey{Name: pclqName, Namespace: namespace}
+		if err := r.client.Get(ctx, pclqKey, pclq); err != nil {
+			wrappedErr := groveerr.WrapError(err,
+				errCodeGetPodClique,
+				component.OperationSync,
+				fmt.Sprintf("failed to get PodClique %s in namespace %s for base PodGang readiness check", pclqName, namespace),
+			)
+			logger.Error(wrappedErr, "assuming PodGang is not ready due to PodClique access failure", "pclqName", pclqName)
+			return false
+		}
+
+		// Check if this PodClique meets its MinAvailable requirement
+		if pclq.Status.ReadyReplicas < podGroup.MinReplicas {
+			logger.Info("Base PodGang not ready: PodClique has insufficient ready replicas",
+				"basePodGangName", basePodGangName,
+				"pclqName", pclqName,
+				"readyReplicas", pclq.Status.ReadyReplicas,
+				"minReplicas", podGroup.MinReplicas)
+			return false
+		}
+	}
+
+	logger.Info("Base PodGang is ready - all PodCliques meet MinAvailable requirements", "basePodGangName", basePodGangName)
+	return true
 }
 
 func hasPodGangSchedulingGate(pod *corev1.Pod) bool {

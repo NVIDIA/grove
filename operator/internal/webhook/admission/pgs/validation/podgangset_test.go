@@ -504,3 +504,220 @@ func TestValidatePodNameConstraints(t *testing.T) {
 		})
 	}
 }
+
+func TestPodCliqueScalingGroupConfigValidation(t *testing.T) {
+	testCases := []struct {
+		description     string
+		pgsName         string
+		scalingGroups   []grovecorev1alpha1.PodCliqueScalingGroupConfig
+		cliqueTemplates []string
+		expectError     bool
+		expectedErrMsg  string
+	}{
+		{
+			description: "Valid scaling group with Replicas and MinAvailable",
+			pgsName:     "inference",
+			scalingGroups: []grovecorev1alpha1.PodCliqueScalingGroupConfig{
+				{
+					Name:         "workers",
+					CliqueNames:  []string{"prefill"},
+					Replicas:     ptr.To(int32(4)),
+					MinAvailable: ptr.To(int32(2)),
+				},
+			},
+			cliqueTemplates: []string{"prefill"},
+			expectError:     false,
+		},
+		{
+			description: "Invalid Replicas (negative value)",
+			pgsName:     "inference",
+			scalingGroups: []grovecorev1alpha1.PodCliqueScalingGroupConfig{
+				{
+					Name:         "workers",
+					CliqueNames:  []string{"prefill"},
+					Replicas:     ptr.To(int32(-1)),
+					MinAvailable: ptr.To(int32(1)),
+				},
+			},
+			cliqueTemplates: []string{"prefill"},
+			expectError:     true,
+			expectedErrMsg:  "must be greater than 0",
+		},
+		{
+			description: "Invalid Replicas (zero value)",
+			pgsName:     "inference",
+			scalingGroups: []grovecorev1alpha1.PodCliqueScalingGroupConfig{
+				{
+					Name:         "workers",
+					CliqueNames:  []string{"prefill"},
+					Replicas:     ptr.To(int32(0)),
+					MinAvailable: ptr.To(int32(1)),
+				},
+			},
+			cliqueTemplates: []string{"prefill"},
+			expectError:     true,
+			expectedErrMsg:  "must be greater than 0",
+		},
+		{
+			description: "Invalid MinAvailable (negative value)",
+			pgsName:     "inference",
+			scalingGroups: []grovecorev1alpha1.PodCliqueScalingGroupConfig{
+				{
+					Name:         "workers",
+					CliqueNames:  []string{"prefill"},
+					Replicas:     ptr.To(int32(4)),
+					MinAvailable: ptr.To(int32(-1)),
+				},
+			},
+			cliqueTemplates: []string{"prefill"},
+			expectError:     true,
+			expectedErrMsg:  "must be greater than 0",
+		},
+		{
+			description: "Invalid MinAvailable (zero value)",
+			pgsName:     "inference",
+			scalingGroups: []grovecorev1alpha1.PodCliqueScalingGroupConfig{
+				{
+					Name:         "workers",
+					CliqueNames:  []string{"prefill"},
+					Replicas:     ptr.To(int32(4)),
+					MinAvailable: ptr.To(int32(0)),
+				},
+			},
+			cliqueTemplates: []string{"prefill"},
+			expectError:     true,
+			expectedErrMsg:  "must be greater than 0",
+		},
+		{
+			description: "Invalid MinAvailable > Replicas",
+			pgsName:     "inference",
+			scalingGroups: []grovecorev1alpha1.PodCliqueScalingGroupConfig{
+				{
+					Name:         "workers",
+					CliqueNames:  []string{"prefill"},
+					Replicas:     ptr.To(int32(2)),
+					MinAvailable: ptr.To(int32(4)),
+				},
+			},
+			cliqueTemplates: []string{"prefill"},
+			expectError:     true,
+			expectedErrMsg:  "minAvailable must not be greater than replicas",
+		},
+		{
+			description: "Valid MinAvailable = Replicas",
+			pgsName:     "inference",
+			scalingGroups: []grovecorev1alpha1.PodCliqueScalingGroupConfig{
+				{
+					Name:         "workers",
+					CliqueNames:  []string{"prefill"},
+					Replicas:     ptr.To(int32(4)),
+					MinAvailable: ptr.To(int32(4)),
+				},
+			},
+			cliqueTemplates: []string{"prefill"},
+			expectError:     false,
+		},
+		{
+			description: "Invalid ScaleConfig.MinReplicas < MinAvailable",
+			pgsName:     "inference",
+			scalingGroups: []grovecorev1alpha1.PodCliqueScalingGroupConfig{
+				{
+					Name:         "workers",
+					CliqueNames:  []string{"prefill"},
+					Replicas:     ptr.To(int32(4)),
+					MinAvailable: ptr.To(int32(3)),
+					ScaleConfig: &grovecorev1alpha1.AutoScalingConfig{
+						MinReplicas: ptr.To(int32(2)),
+						MaxReplicas: 10,
+					},
+				},
+			},
+			cliqueTemplates: []string{"prefill"},
+			expectError:     true,
+			expectedErrMsg:  "scaleConfig.minReplicas must be greater than or equal to minAvailable",
+		},
+		{
+			description: "Valid ScaleConfig.MinReplicas >= MinAvailable",
+			pgsName:     "inference",
+			scalingGroups: []grovecorev1alpha1.PodCliqueScalingGroupConfig{
+				{
+					Name:         "workers",
+					CliqueNames:  []string{"prefill"},
+					Replicas:     ptr.To(int32(4)),
+					MinAvailable: ptr.To(int32(2)),
+					ScaleConfig: &grovecorev1alpha1.AutoScalingConfig{
+						MinReplicas: ptr.To(int32(3)),
+						MaxReplicas: 10,
+					},
+				},
+			},
+			cliqueTemplates: []string{"prefill"},
+			expectError:     false,
+		},
+		{
+			description: "Valid when only Replicas is specified",
+			pgsName:     "inference",
+			scalingGroups: []grovecorev1alpha1.PodCliqueScalingGroupConfig{
+				{
+					Name:        "workers",
+					CliqueNames: []string{"prefill"},
+					Replicas:    ptr.To(int32(4)),
+				},
+			},
+			cliqueTemplates: []string{"prefill"},
+			expectError:     false,
+		},
+		{
+			description: "Valid when only MinAvailable is specified",
+			pgsName:     "inference",
+			scalingGroups: []grovecorev1alpha1.PodCliqueScalingGroupConfig{
+				{
+					Name:         "workers",
+					CliqueNames:  []string{"prefill"},
+					MinAvailable: ptr.To(int32(2)),
+				},
+			},
+			cliqueTemplates: []string{"prefill"},
+			expectError:     false,
+		},
+		{
+			description: "Valid when neither Replicas nor MinAvailable is specified",
+			pgsName:     "inference",
+			scalingGroups: []grovecorev1alpha1.PodCliqueScalingGroupConfig{
+				{
+					Name:        "workers",
+					CliqueNames: []string{"prefill"},
+				},
+			},
+			cliqueTemplates: []string{"prefill"},
+			expectError:     false,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.description, func(t *testing.T) {
+			pgs := createDummyPodGangSet(tc.pgsName)
+
+			// Add PodClique templates
+			for _, cliqueName := range tc.cliqueTemplates {
+				pgs.Spec.Template.Cliques = append(pgs.Spec.Template.Cliques, createDummyPodCliqueTemplate(cliqueName))
+			}
+
+			// Add scaling groups
+			pgs.Spec.Template.PodCliqueScalingGroupConfigs = tc.scalingGroups
+
+			validator := newPGSValidator(pgs, admissionv1.Create)
+			warnings, err := validator.validate()
+
+			if tc.expectError {
+				assert.Error(t, err, "Expected validation error for test case: %s", tc.description)
+				assert.Contains(t, err.Error(), tc.expectedErrMsg, "Error message should contain expected text")
+			} else {
+				assert.NoError(t, err, "Expected no validation error for test case: %s", tc.description)
+			}
+
+			// Warnings should be empty for these test cases
+			assert.Empty(t, warnings, "No warnings expected for these test cases")
+		})
+	}
+}

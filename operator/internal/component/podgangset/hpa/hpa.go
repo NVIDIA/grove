@@ -138,10 +138,17 @@ func (r _resource) computeExpectedHPAs(pgs *grovecorev1alpha1.PodGangSet) []hpaI
 				Namespace: pgs.Namespace,
 				Name:      pclqFQN,
 			}
+			// Use the initial replicas count as minimum for PodClique HPAs
+			minReplicas := pclqTemplateSpec.Spec.Replicas
+			if pclqTemplateSpec.Spec.ScaleConfig.MinReplicas != nil {
+				minReplicas = *pclqTemplateSpec.Spec.ScaleConfig.MinReplicas
+			}
+
 			expectedHPAInfos = append(expectedHPAInfos, hpaInfo{
 				objectKey:               hpaObjectKey,
 				targetScaleResourceKind: grovecorev1alpha1.PodCliqueKind,
 				targetScaleResourceName: pclqFQN,
+				minReplicas:             minReplicas,
 				scaleConfig:             *pclqTemplateSpec.Spec.ScaleConfig,
 			})
 		}
@@ -154,11 +161,18 @@ func (r _resource) computeExpectedHPAs(pgs *grovecorev1alpha1.PodGangSet) []hpaI
 				Namespace: pgs.Namespace,
 				Name:      pcsgFQN,
 			}
+			// Use the initial replicas count as minimum, not minAvailable
+			// minAvailable is for gang scheduling, not autoscaling limits
+			minReplicas := *pcsgConfig.Replicas
+			if pcsgConfig.ScaleConfig.MinReplicas != nil {
+				minReplicas = *pcsgConfig.ScaleConfig.MinReplicas
+			}
+
 			expectedHPAInfos = append(expectedHPAInfos, hpaInfo{
 				objectKey:               hpaObjectKey,
 				targetScaleResourceKind: grovecorev1alpha1.PodCliqueScalingGroupKind,
 				targetScaleResourceName: pcsgFQN,
-				minReplicas:             1,
+				minReplicas:             minReplicas,
 				scaleConfig:             *pcsgConfig.ScaleConfig,
 			})
 		}
@@ -241,7 +255,7 @@ func (r _resource) doDeleteHPA(ctx context.Context, logger logr.Logger, pgsObjec
 }
 
 func (r _resource) buildResource(pgs *grovecorev1alpha1.PodGangSet, hpa *autoscalingv2.HorizontalPodAutoscaler, expectedHPAInfo hpaInfo) error {
-	hpa.Spec.MinReplicas = expectedHPAInfo.scaleConfig.MinReplicas
+	hpa.Spec.MinReplicas = &expectedHPAInfo.minReplicas
 	hpa.Spec.MaxReplicas = expectedHPAInfo.scaleConfig.MaxReplicas
 	hpa.Spec.ScaleTargetRef = autoscalingv2.CrossVersionObjectReference{
 		Kind:       expectedHPAInfo.targetScaleResourceKind,

@@ -83,3 +83,84 @@ func TestDefaultPodGangSet(t *testing.T) {
 	defaultPodGangSet(&input)
 	assert.Equal(t, want, input)
 }
+
+func TestDefaultPodCliqueScalingGroupConfig(t *testing.T) {
+	want := grovecorev1alpha1.PodGangSet{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "PGS1",
+			Namespace: "default",
+		},
+		Spec: grovecorev1alpha1.PodGangSetSpec{
+			Template: grovecorev1alpha1.PodGangSetTemplateSpec{
+				Cliques: []*grovecorev1alpha1.PodCliqueTemplateSpec{{
+					Name: "test",
+					Spec: grovecorev1alpha1.PodCliqueSpec{
+						Replicas: 1,
+						PodSpec: corev1.PodSpec{
+							RestartPolicy:                 corev1.RestartPolicyAlways,
+							TerminationGracePeriodSeconds: ptr.To[int64](30),
+						},
+						MinAvailable: ptr.To[int32](1),
+					},
+				}},
+				PodCliqueScalingGroupConfigs: []grovecorev1alpha1.PodCliqueScalingGroupConfig{
+					{
+						Name:         "workers",
+						CliqueNames:  []string{"prefill"},
+						Replicas:     ptr.To(int32(1)), // should default to 1
+						MinAvailable: ptr.To(int32(1)), // should default to 1
+					},
+					{
+						Name:         "decode",
+						CliqueNames:  []string{"decode"},
+						Replicas:     ptr.To(int32(5)), // explicit value, should remain 5
+						MinAvailable: ptr.To(int32(1)), // should default to 1
+					},
+					{
+						Name:         "embed",
+						CliqueNames:  []string{"embed"},
+						Replicas:     ptr.To(int32(1)), // should default to 1
+						MinAvailable: ptr.To(int32(3)), // explicit value, should remain 3
+					},
+				},
+				TerminationDelay: &metav1.Duration{Duration: time.Second * 30},
+			},
+		},
+	}
+	input := grovecorev1alpha1.PodGangSet{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "PGS1",
+		},
+		Spec: grovecorev1alpha1.PodGangSetSpec{
+			Template: grovecorev1alpha1.PodGangSetTemplateSpec{
+				Cliques: []*grovecorev1alpha1.PodCliqueTemplateSpec{{
+					Name: "test",
+					Spec: grovecorev1alpha1.PodCliqueSpec{
+						Replicas: 1,
+					},
+				}},
+				PodCliqueScalingGroupConfigs: []grovecorev1alpha1.PodCliqueScalingGroupConfig{
+					{
+						Name:        "workers",
+						CliqueNames: []string{"prefill"},
+						// No Replicas or MinAvailable specified - should get defaults
+					},
+					{
+						Name:        "decode",
+						CliqueNames: []string{"decode"},
+						Replicas:    ptr.To(int32(5)), // explicit value
+						// No MinAvailable specified - should get default
+					},
+					{
+						Name:         "embed",
+						CliqueNames:  []string{"embed"},
+						MinAvailable: ptr.To(int32(3)), // explicit value
+						// No Replicas specified - should get default
+					},
+				},
+			},
+		},
+	}
+	defaultPodGangSet(&input)
+	assert.Equal(t, want, input)
+}
