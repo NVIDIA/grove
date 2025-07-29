@@ -27,6 +27,7 @@ import (
 	"github.com/NVIDIA/grove/operator/internal/component"
 	componentutils "github.com/NVIDIA/grove/operator/internal/component/utils"
 	groveerr "github.com/NVIDIA/grove/operator/internal/errors"
+	"github.com/NVIDIA/grove/operator/internal/index"
 	"github.com/NVIDIA/grove/operator/internal/utils"
 	k8sutils "github.com/NVIDIA/grove/operator/internal/utils/kubernetes"
 
@@ -120,7 +121,7 @@ func (r _resource) runSyncFlow(sc *syncContext, logger logr.Logger) syncFlowResu
 	if diff < 0 {
 		logger.Info("found fewer pods than desired", "pclq", client.ObjectKeyFromObject(sc.pclq), "specReplicas", sc.pclq.Spec.Replicas, "delta", diff)
 		diff *= -1
-		numScheduleGatedPods, err := r.createPods(sc.ctx, logger, sc.pclq, sc.associatedPodGangName, diff)
+		numScheduleGatedPods, err := r.createPods(sc.ctx, logger, sc.pclq, sc.associatedPodGangName, diff, sc.existingPCLQPods)
 		logger.Info("created unassigned and scheduled gated pods", "numberOfCreatedPods", numScheduleGatedPods)
 		if err != nil {
 			logger.Error(err, "failed to create pods", "pclqObjectKey", client.ObjectKeyFromObject(sc.pclq))
@@ -238,14 +239,26 @@ func hasPodGangSchedulingGate(pod *corev1.Pod) bool {
 	})
 }
 
-func (r _resource) createPods(ctx context.Context, logger logr.Logger, pclq *grovecorev1alpha1.PodClique, podGangName string, numPods int) (int, error) {
+func (r _resource) createPods(ctx context.Context, logger logr.Logger, pclq *grovecorev1alpha1.PodClique, podGangName string, numPods int, existingPods []*corev1.Pod) (int, error) {
+	// Pre-calculate all needed indices to avoid race conditions
+	availableIndices, err := index.GetAvailableIndices(existingPods, numPods)
+	if err != nil {
+		return 0, groveerr.WrapError(err,
+			errCodeSyncPod,
+			component.OperationSync,
+			fmt.Sprintf("error getting available indices for Pods in PodClique %v", client.ObjectKeyFromObject(pclq)),
+		)
+	}
+
 	createTasks := make([]utils.Task, 0, numPods)
+
 	for i := range numPods {
+		podIndex := availableIndices[i] // Capture the specific index for this pod
 		createTask := utils.Task{
 			Name: fmt.Sprintf("CreatePod-%s-%d", pclq.Name, i),
 			Fn: func(ctx context.Context) error {
 				pod := &corev1.Pod{}
-				if err := r.buildResource(pclq, podGangName, pod); err != nil {
+				if err := r.buildResource(pclq, podGangName, pod, podIndex); err != nil {
 					return groveerr.WrapError(err,
 						errCodeSyncPod,
 						component.OperationSync,

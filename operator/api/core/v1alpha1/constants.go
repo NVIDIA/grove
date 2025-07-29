@@ -30,14 +30,15 @@ const (
 	LabelComponentKey = "app.kubernetes.io/component"
 	// LabelPodClique is a key for a label that sets the PodClique name.
 	LabelPodClique = "grove.io/podclique"
-	// LabelPodCliqueScalingGroup is a key for a label that sets the PodCliqueScalingGroup name.
-	LabelPodCliqueScalingGroup = "grove.io/podcliquescalinggroup"
-	// LabelPodCliqueScalingGroupReplicaIndex is a key for a label that sets the replica index of a PodCliqueScalingGroup.
-	LabelPodCliqueScalingGroupReplicaIndex = "grove.io/podcliquescalinggroup-replica-index"
 	// LabelPodGang is a key for a label that sets the PodGang name.
 	LabelPodGang = "grove.io/podgang"
 	// LabelPodGangSetReplicaIndex is a key for a label that sets the replica index of a PodGangSet.
 	LabelPodGangSetReplicaIndex = "grove.io/podgangset-replica-index"
+	// LabelPodCliqueScalingGroup is a key for a label that sets the PodCliqueScalingGroup name.
+	LabelPodCliqueScalingGroup = "grove.io/podcliquescalinggroup"
+
+	// LabelPodCliqueScalingGroupReplicaIndex is a key for a label that sets the replica index of a PCSG within PodGangSet.
+	LabelPodCliqueScalingGroupReplicaIndex = "grove.io/podcliquescalinggroup-replica-index"
 )
 
 // Constants for finalizers.
@@ -68,6 +69,26 @@ const (
 	EventDeleted = "Deleted"
 	// EventDeleteError is the event type which indicates that the delete operation has failed.
 	EventDeleteError = "DeleteError"
+)
+
+// Constants for Grove environment variables
+const (
+	// EnvVarPGSName is the environment variable name for PodGangSet name
+	EnvVarPGSName = "GROVE_PGS_NAME"
+	// EnvVarPGSIndex is the environment variable name for PodGangSet replica index
+	EnvVarPGSIndex = "GROVE_PGS_INDEX"
+	// EnvVarPCLQName is the environment variable name for PodClique name
+	EnvVarPCLQName = "GROVE_PCLQ_NAME"
+	// EnvVarHeadlessService is the environment variable name for headless service address
+	EnvVarHeadlessService = "GROVE_HEADLESS_SERVICE"
+	// EnvVarPodIndex is the environment variable name for pod index within PodClique
+	EnvVarPodIndex = "GROVE_PCLQ_POD_INDEX"
+	// EnvVarPCSGName is the environment variable name for PodCliqueScalingGroup name
+	EnvVarPCSGName = "GROVE_PCSG_NAME"
+	// EnvVarPCSGIndex is the environment variable name for PodCliqueScalingGroup replica index
+	EnvVarPCSGIndex = "GROVE_PCSG_INDEX"
+	// EnvVarPCSGTemplateNumPods is the environment variable name for total number of pods in PCSG template
+	EnvVarPCSGTemplateNumPods = "GROVE_PCSG_TEMPLATE_NUM_PODS"
 )
 
 // Constants for Condition Types
