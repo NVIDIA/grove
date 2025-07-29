@@ -54,42 +54,37 @@ func (r _resource) prepareSyncFlow(ctx context.Context, logger logr.Logger, pclq
 	}
 	sc.associatedPodGangName = associatedPodGangName
 
-	existingPodGang, found, err := r.tryGetPodGang(ctx, associatedPodGangName, pclq.Namespace)
+	// we treat NotFound as expected during startup flow
+	// SPECIAL CASE: Associated PodGang NotFound during startup flow
+	// =================================================================
+	//
+	// WHY THIS IS NORMAL AND EXPECTED:
+	//
+	// 1. NORMAL STARTUP SEQUENCE:
+	//    - PodGangSet controller creates PodCliques first
+	//    - PodClique controller starts syncing (creating pods)
+	//    - PodGangSet controller creates PodGang and associates existing pods
+	//    - This means PodClique MUST be able to sync before its PodGang exists
+	//
+	// 2. DIFFERENT FROM DEPENDENCY CHECKS:
+	//    - Base PodGang readiness: Scaled pods depend on base being ready (should requeue)
+	//    - PodClique readiness: Base depends on constituent PodCliques (should requeue)
+	//    - Associated PodGang lookup: Just checking sync state, not a dependency (can proceed)
+	//
+	// 3. PURPOSE OF THIS CHECK:
+	//    - Determines which pods in this PodClique are already "updated in PodGang"
+	//    - During startup: no PodGang exists → no pods are updated yet → empty list
+	//    - This allows sync to proceed with creating pods from scratch
+	//
+	// 4. BREAKING THIS LOGIC CAUSES DEADLOCK:
+	//    - PodClique waits for PodGang → PodGangSet can't create PodGang → infinite requeue
+	//
+	existingPodGang, err := r.getPodGang(ctx, associatedPodGangName, pclq.Namespace)
 	if err != nil {
-		// Actual API error - should requeue
+		// Actual API error (different from NotFound) - should requeue
 		return nil, err
 	}
-
-	if !found {
-		// SPECIAL CASE: Associated PodGang NotFound during startup flow
-		// =================================================================
-		//
-		// WHY THIS IS NORMAL AND EXPECTED:
-		//
-		// 1. NORMAL STARTUP SEQUENCE:
-		//    - PodGangSet controller creates PodCliques first
-		//    - PodClique controller starts syncing (creating pods)
-		//    - PodGangSet controller creates PodGang and associates existing pods
-		//    - This means PodClique MUST be able to sync before its PodGang exists
-		//
-		// 2. DIFFERENT FROM DEPENDENCY CHECKS:
-		//    - Base PodGang readiness: Scaled pods depend on base being ready (should requeue)
-		//    - PodClique readiness: Base depends on constituent PodCliques (should requeue)
-		//    - Associated PodGang lookup: Just checking sync state, not a dependency (can proceed)
-		//
-		// 3. PURPOSE OF THIS CHECK:
-		//    - Determines which pods in this PodClique are already "updated in PodGang"
-		//    - During startup: no PodGang exists → no pods are updated yet → empty list
-		//    - This allows sync to proceed with creating pods from scratch
-		//
-		// 4. BREAKING THIS LOGIC CAUSES DEADLOCK:
-		//    - PodClique waits for PodGang → PodGangSet can't create PodGang → infinite requeue
-		//
-		sc.podNamesUpdatedInPCLQPodGangs = []string{} // Empty list for new PodGang
-	} else {
-		sc.podNamesUpdatedInPCLQPodGangs = r.getPodNamesUpdatedInAssociatedPodGang(existingPodGang, pclq.Name)
-	}
-
+	sc.podNamesUpdatedInPCLQPodGangs = r.getPodNamesUpdatedInAssociatedPodGang(existingPodGang, pclq.Name)
 	existingPCLQPods, err := componentutils.GetPCLQPods(ctx, r.client, pgsName, pclq)
 	if err != nil {
 		logger.Error(err, "Failed to list pods that belong to PodClique", "pclqObjectKey", client.ObjectKeyFromObject(pclq))
@@ -115,11 +110,23 @@ func (r _resource) getAssociatedPodGangName(pclqObjectMeta metav1.ObjectMeta) (s
 	return podGangName, nil
 }
 
+// getPodGang attempts to get a PodGang and returns a nil podGang if it is not found.
+// This is specifically for cases where NotFound is a normal, expected condition
+// rather than an error that should be wrapped and propagated.
+//
+// Returns: (podGang, error)
+// - If error!=nil: actual API error occurred
+// - If error==nil: podGang contains the resource
+// - If error==nil and podGang==nil: podGang not found
 func (r _resource) getPodGang(ctx context.Context, podGangName, namespace string) (*groveschedulerv1alpha1.PodGang, error) {
 	podGang := &groveschedulerv1alpha1.PodGang{}
 	podGangObjectKey := client.ObjectKey{Namespace: namespace, Name: podGangName}
 	if err := r.client.Get(ctx, podGangObjectKey, podGang); err != nil {
-		// Wrap all errors consistently - no special cases needed
+		if apierrors.IsNotFound(err) {
+			// NotFound is expected in some scenarios - not an error
+			return nil, nil
+		}
+		// Wrap actual API errors (network, permissions, etc.)
 		return nil, groveerr.WrapError(err,
 			errCodeGetPodGang,
 			component.OperationSync,
@@ -127,32 +134,6 @@ func (r _resource) getPodGang(ctx context.Context, podGangName, namespace string
 		)
 	}
 	return podGang, nil
-}
-
-// tryGetPodGang attempts to get a PodGang and returns whether it was found.
-// This is specifically for cases where NotFound is a normal, expected condition
-// rather than an error that should be wrapped and propagated.
-//
-// Returns: (podGang, found, error)
-// - If found=true: podGang contains the resource, error is nil
-// - If found=false: podGang is nil, error is nil (NotFound is expected)
-// - If error!=nil: actual API error occurred, should requeue
-func (r _resource) tryGetPodGang(ctx context.Context, podGangName, namespace string) (*groveschedulerv1alpha1.PodGang, bool, error) {
-	podGang := &groveschedulerv1alpha1.PodGang{}
-	podGangObjectKey := client.ObjectKey{Namespace: namespace, Name: podGangName}
-	if err := r.client.Get(ctx, podGangObjectKey, podGang); err != nil {
-		if apierrors.IsNotFound(err) {
-			// NotFound is expected in some scenarios - not an error
-			return nil, false, nil
-		}
-		// Wrap actual API errors (network, permissions, etc.)
-		return nil, false, groveerr.WrapError(err,
-			errCodeGetPodGang,
-			component.OperationSync,
-			fmt.Sprintf("failed to get PodGang: %v", podGangObjectKey),
-		)
-	}
-	return podGang, true, nil
 }
 
 func (r _resource) getPodNamesUpdatedInAssociatedPodGang(existingPodGang *groveschedulerv1alpha1.PodGang, pclqFQN string) []string {
@@ -341,9 +322,18 @@ func (r _resource) isBasePodGangReady(ctx context.Context, logger logr.Logger, n
 	// Get the base PodGang - treat all errors (including NotFound) as requeue-able
 	basePodGang, err := r.getPodGang(ctx, basePodGangName, namespace)
 	if err != nil {
-		// All errors (including NotFound) should trigger requeue for reliable retry
+		// All errors should trigger requeue for reliable retry
 		// This ensures we actively check for base PodGang creation rather than waiting passively
 		return false, err
+	}
+	if basePodGang == nil {
+		// NotFound is not expected in this context - create proper error for requeue
+		notFoundErr := fmt.Errorf("base PodGang not found")
+		return false, groveerr.WrapError(notFoundErr,
+			errCodeGetPodGang,
+			component.OperationSync,
+			fmt.Sprintf("base PodGang %v not found", client.ObjectKey{Namespace: namespace, Name: basePodGangName}),
+		)
 	}
 
 	// Check if all PodGroups in the base PodGang have sufficient ready replicas
