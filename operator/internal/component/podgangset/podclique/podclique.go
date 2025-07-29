@@ -29,6 +29,7 @@ import (
 	groveerr "github.com/NVIDIA/grove/operator/internal/errors"
 	"github.com/NVIDIA/grove/operator/internal/utils"
 	k8sutils "github.com/NVIDIA/grove/operator/internal/utils/kubernetes"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 
 	"github.com/go-logr/logr"
 	"github.com/samber/lo"
@@ -348,30 +349,11 @@ func (r _resource) doCreate(ctx context.Context, logger logr.Logger, pgs *grovec
 	if err := r.buildResource(logger, pclq, pgs, int(pgsReplica)); err != nil {
 		return err
 	}
-	// CRITICAL: Use IgnoreAlreadyExists to prevent cascading sync failures
-	// =====================================================================
-	//
-	// WHY THIS IS NECESSARY:
-	// The PodGangSet controller's sync logic attempts to create ALL PodCliques on every reconciliation,
-	// including ones that already exist. Without IgnoreAlreadyExists, this creates a cascading failure:
-	//
-	// 1. Every sync tries to create ALL PodCliques (even existing ones)
-	// 2. client.Create() fails: When trying to create existing PodCliques (returns "already exists" error)
-	// 3. Sync operation fails: The error bubbles up and fails the entire PodClique sync
-	// 4. PodGangSet reconciliation incomplete: Failed PodClique sync prevents PodGang updates
-	// 5. Scaled PodGangs never updated: They remain with empty podReferences
-	// 6. Scheduling gates never removed: Because pods aren't "updated in PodGang"
-	//
-	// RESULT WITHOUT IgnoreAlreadyExists:
-	// - All pods remain in "Pending" state with scheduling gates
-	// - PodGangSet reconciliation loop gets stuck
-	// - System becomes non-functional
-	//
-	// SOLUTION:
-	// IgnoreAlreadyExists allows the sync to continue even when PodCliques already exist,
-	// enabling the critical PodGang update flow to proceed and scheduling gates to be removed.
-	//
-	if err := client.IgnoreAlreadyExists(r.client.Create(ctx, pclq)); err != nil {
+	if err := r.client.Create(ctx, pclq); err != nil {
+		if apierrors.IsAlreadyExists(err) {
+			logger.Info("PodClique creation failed for PodGangSet as it already exists", "pgs", pgsObjKey, "pclq", client.ObjectKeyFromObject(pclq))
+			return nil
+		}
 		return groveerr.WrapError(err,
 			errCodeCreatePodClique,
 			component.OperationSync,
