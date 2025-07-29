@@ -47,7 +47,6 @@ func TestComputeExpectedHPAs(t *testing.T) {
 						MinReplicas: ptr.To(int32(2)),
 						MaxReplicas: 5,
 					},
-					fallbackMinReplicas: 3, // replicas (validation ensures >= minAvailable)
 				},
 			},
 		},
@@ -65,8 +64,8 @@ func TestComputeExpectedHPAs(t *testing.T) {
 									Replicas:     3,
 									MinAvailable: ptr.To(int32(2)),
 									ScaleConfig: &grovecorev1alpha1.AutoScalingConfig{
+										MinReplicas: ptr.To(int32(3)), // Set by defaulting webhook to replicas
 										MaxReplicas: 5,
-										// MinReplicas not specified
 									},
 								},
 							},
@@ -79,10 +78,9 @@ func TestComputeExpectedHPAs(t *testing.T) {
 					targetScaleResourceKind: grovecorev1alpha1.PodCliqueKind,
 					targetScaleResourceName: "test-pgs-0-test-clique",
 					scaleConfig: grovecorev1alpha1.AutoScalingConfig{
+						MinReplicas: ptr.To(int32(3)), // Set by defaulting webhook to replicas
 						MaxReplicas: 5,
-						// MinReplicas not specified
 					},
-					fallbackMinReplicas: 3, // replicas (validation ensures >= minAvailable)
 				},
 			},
 		},
@@ -116,7 +114,6 @@ func TestComputeExpectedHPAs(t *testing.T) {
 						MinReplicas: ptr.To(int32(2)),
 						MaxReplicas: 6,
 					},
-					fallbackMinReplicas: 4, // replicas (validation ensures >= minAvailable)
 				},
 			},
 		},
@@ -134,8 +131,8 @@ func TestComputeExpectedHPAs(t *testing.T) {
 								MinAvailable: ptr.To(int32(1)),
 								CliqueNames:  []string{"test-clique"},
 								ScaleConfig: &grovecorev1alpha1.AutoScalingConfig{
+									MinReplicas: ptr.To(int32(4)), // Set by defaulting webhook to replicas
 									MaxReplicas: 6,
-									// MinReplicas not specified
 								},
 							},
 						},
@@ -147,10 +144,9 @@ func TestComputeExpectedHPAs(t *testing.T) {
 					targetScaleResourceKind: grovecorev1alpha1.PodCliqueScalingGroupKind,
 					targetScaleResourceName: "test-pgs-0-test-sg",
 					scaleConfig: grovecorev1alpha1.AutoScalingConfig{
+						MinReplicas: ptr.To(int32(4)), // Set by defaulting webhook to replicas
 						MaxReplicas: 6,
-						// MinReplicas not specified
 					},
-					fallbackMinReplicas: 4, // replicas (validation ensures >= minAvailable)
 				},
 			},
 		},
@@ -168,6 +164,7 @@ func TestComputeExpectedHPAs(t *testing.T) {
 									Replicas:     2,
 									MinAvailable: ptr.To(int32(1)),
 									ScaleConfig: &grovecorev1alpha1.AutoScalingConfig{
+										MinReplicas: ptr.To(int32(2)), // Set by defaulting webhook to replicas
 										MaxReplicas: 4,
 									},
 								},
@@ -193,10 +190,9 @@ func TestComputeExpectedHPAs(t *testing.T) {
 					targetScaleResourceKind: grovecorev1alpha1.PodCliqueKind,
 					targetScaleResourceName: "test-pgs-0-individual-clique",
 					scaleConfig: grovecorev1alpha1.AutoScalingConfig{
+						MinReplicas: ptr.To(int32(2)), // Set by defaulting webhook to replicas
 						MaxReplicas: 4,
-						// MinReplicas not specified
 					},
-					fallbackMinReplicas: 2, // replicas (validation ensures >= minAvailable)
 				},
 				{
 					targetScaleResourceKind: grovecorev1alpha1.PodCliqueScalingGroupKind,
@@ -205,7 +201,6 @@ func TestComputeExpectedHPAs(t *testing.T) {
 						MinReplicas: ptr.To(int32(1)),
 						MaxReplicas: 5,
 					},
-					fallbackMinReplicas: 3, // replicas (validation ensures >= minAvailable)
 				},
 			},
 		},
@@ -223,8 +218,6 @@ func TestComputeExpectedHPAs(t *testing.T) {
 				assert.Equal(t, expected.targetScaleResourceName, result[i].targetScaleResourceName)
 				assert.Equal(t, expected.scaleConfig, result[i].scaleConfig,
 					"scaleConfig should be correctly set for %s", expected.targetScaleResourceName)
-				assert.Equal(t, expected.fallbackMinReplicas, result[i].fallbackMinReplicas,
-					"fallbackMinReplicas should be correctly set for %s", expected.targetScaleResourceName)
 			}
 		})
 	}
@@ -243,20 +236,18 @@ func TestBuildResource(t *testing.T) {
 					MinReplicas: ptr.To(int32(2)),
 					MaxReplicas: 5,
 				},
-				fallbackMinReplicas: 3, // replicas (validation ensures >= minAvailable)
 			},
 			expectedMinReplicas: 2, // Should use explicit MinReplicas
 		},
 		{
-			name: "Uses replicas fallback when MinReplicas is nil",
+			name: "Uses MinReplicas set by defaulting webhook",
 			hpaInfo: hpaInfo{
 				scaleConfig: grovecorev1alpha1.AutoScalingConfig{
+					MinReplicas: ptr.To(int32(3)), // Set by defaulting webhook
 					MaxReplicas: 5,
-					// MinReplicas not specified
 				},
-				fallbackMinReplicas: 3, // replicas (validation ensures >= minAvailable)
 			},
-			expectedMinReplicas: 3, // Should use replicas fallback
+			expectedMinReplicas: 3, // Should use MinReplicas from defaulting webhook
 		},
 	}
 

@@ -48,6 +48,8 @@ func defaultPodGangSetSpec(spec *grovecorev1alpha1.PodGangSetSpec) {
 func defaultPodGangSetTemplateSpec(spec *grovecorev1alpha1.PodGangSetTemplateSpec) {
 	// default PodCliqueTemplateSpecs
 	spec.Cliques = defaultPodCliqueTemplateSpecs(spec.Cliques)
+	// default PodCliqueScalingGroupConfigs
+	spec.PodCliqueScalingGroupConfigs = defaultPodCliqueScalingGroupConfigs(spec.PodCliqueScalingGroupConfigs)
 	if spec.TerminationDelay == nil {
 		spec.TerminationDelay = &metav1.Duration{Duration: defaultTerminationDelay}
 	}
@@ -72,6 +74,21 @@ func defaultPodCliqueTemplateSpecs(cliqueSpecs []*grovecorev1alpha1.PodCliqueTem
 		defaultedCliqueSpecs = append(defaultedCliqueSpecs, defaultedCliqueSpec)
 	}
 	return defaultedCliqueSpecs
+}
+
+func defaultPodCliqueScalingGroupConfigs(scalingGroupConfigs []grovecorev1alpha1.PodCliqueScalingGroupConfig) []grovecorev1alpha1.PodCliqueScalingGroupConfig {
+	defaultedScalingGroupConfigs := make([]grovecorev1alpha1.PodCliqueScalingGroupConfig, 0, len(scalingGroupConfigs))
+	for _, scalingGroupConfig := range scalingGroupConfigs {
+		defaultedScalingGroupConfig := scalingGroupConfig.DeepCopy()
+		// Replicas is already set by kubebuilder default (API server runs before defaulting webhook)
+		if scalingGroupConfig.ScaleConfig != nil {
+			if scalingGroupConfig.ScaleConfig.MinReplicas == nil {
+				defaultedScalingGroupConfig.ScaleConfig.MinReplicas = ptr.To(*defaultedScalingGroupConfig.Replicas)
+			}
+		}
+		defaultedScalingGroupConfigs = append(defaultedScalingGroupConfigs, *defaultedScalingGroupConfig)
+	}
+	return defaultedScalingGroupConfigs
 }
 
 // defaultPodSpec adds defaults to PodSpec.

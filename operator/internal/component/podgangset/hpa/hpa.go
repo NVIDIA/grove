@@ -33,7 +33,6 @@ import (
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )
@@ -123,7 +122,6 @@ type hpaInfo struct {
 	targetScaleResourceKind string
 	targetScaleResourceName string
 	scaleConfig             grovecorev1alpha1.AutoScalingConfig
-	fallbackMinReplicas     int32
 }
 
 func (r _resource) computeExpectedHPAs(pgs *grovecorev1alpha1.PodGangSet) []hpaInfo {
@@ -139,13 +137,11 @@ func (r _resource) computeExpectedHPAs(pgs *grovecorev1alpha1.PodGangSet) []hpaI
 				Namespace: pgs.Namespace,
 				Name:      pclqFQN,
 			}
-			// Use replicas as fallback - validation hook ensures replicas >= minAvailable
 			expectedHPAInfos = append(expectedHPAInfos, hpaInfo{
 				objectKey:               hpaObjectKey,
 				targetScaleResourceKind: grovecorev1alpha1.PodCliqueKind,
 				targetScaleResourceName: pclqFQN,
 				scaleConfig:             *pclqTemplateSpec.Spec.ScaleConfig,
-				fallbackMinReplicas:     pclqTemplateSpec.Spec.Replicas,
 			})
 		}
 		for _, pcsgConfig := range pgs.Spec.Template.PodCliqueScalingGroupConfigs {
@@ -157,13 +153,11 @@ func (r _resource) computeExpectedHPAs(pgs *grovecorev1alpha1.PodGangSet) []hpaI
 				Namespace: pgs.Namespace,
 				Name:      pcsgFQN,
 			}
-			// Use replicas as fallback - validation hook ensures replicas >= minAvailable
 			expectedHPAInfos = append(expectedHPAInfos, hpaInfo{
 				objectKey:               hpaObjectKey,
 				targetScaleResourceKind: grovecorev1alpha1.PodCliqueScalingGroupKind,
 				targetScaleResourceName: pcsgFQN,
 				scaleConfig:             *pcsgConfig.ScaleConfig,
-				fallbackMinReplicas:     *pcsgConfig.Replicas,
 			})
 		}
 	}
@@ -245,8 +239,8 @@ func (r _resource) doDeleteHPA(ctx context.Context, logger logr.Logger, pgsObjec
 }
 
 func (r _resource) buildResource(pgs *grovecorev1alpha1.PodGangSet, hpa *autoscalingv2.HorizontalPodAutoscaler, expectedHPAInfo hpaInfo) error {
-	minReplicas := ptr.Deref(expectedHPAInfo.scaleConfig.MinReplicas, expectedHPAInfo.fallbackMinReplicas)
-	hpa.Spec.MinReplicas = &minReplicas
+	// MinReplicas is always set by defaulting webhook
+	hpa.Spec.MinReplicas = expectedHPAInfo.scaleConfig.MinReplicas
 	hpa.Spec.MaxReplicas = expectedHPAInfo.scaleConfig.MaxReplicas
 	hpa.Spec.ScaleTargetRef = autoscalingv2.CrossVersionObjectReference{
 		Kind:       expectedHPAInfo.targetScaleResourceKind,
