@@ -52,3 +52,10 @@ func GetPCLQPods(ctx context.Context, cl client.Client, pgsName string, pclq *gr
 	}
 	return ownedPods, nil
 }
+
+// AddEnvVarsToContainers adds the given environment variables to the Pod containers.
+func AddEnvVarsToContainers(containers []corev1.Container, envVars []corev1.EnvVar) {
+	for i := range containers {
+		containers[i].Env = append(containers[i].Env, envVars...)
+	}
+}
