@@ -179,7 +179,7 @@ type PodCliqueScalingGroupConfig struct {
 	Replicas *int32 `json:"replicas,omitempty"`
 	// MinAvailable specifies the minimum number of ready replicas required for the group to be considered operational.
 	// A scaling group replica is considered "ready" when its associated PodClique has sufficient ready Pods
-	// (PodClique.Status.ReadyReplicas >= PodGroup.MinReplicas), where a Pod is ready when its PodReady condition is True.
+	// (PodClique.Status.ReadyReplicas >= PodClique.Status.MinAvailable), where a Pod is ready when its PodReady condition is True.
 	// If MinAvailable is breached, it will trigger gang-termination of the podGangs.
 	// MinAvailable will be validated to be less than or equal to Replicas.
 	// If not specified, it defaults to 1.
