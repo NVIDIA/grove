@@ -175,14 +175,16 @@ type PodCliqueScalingGroupConfig struct {
 	// This allows one to control the replicas of the scaling group at startup.
 	// If not specified, it defaults to 1.
 	// +optional
+	// +kubebuilder:default=1
 	Replicas *int32 `json:"replicas,omitempty"`
 	// MinAvailable specifies the minimum number of ready replicas required for the group to be considered operational.
 	// A scaling group replica is considered "ready" when its associated PodClique has sufficient ready Pods
 	// (PodClique.Status.ReadyReplicas >= PodGroup.MinReplicas), where a Pod is ready when its PodReady condition is True.
-	// If MinAvailable is breached, it will trigger gang-termination of the scaling group replica.
+	// If MinAvailable is breached, it will trigger gang-termination of the podGangs.
 	// MinAvailable will be validated to be less than or equal to Replicas.
 	// If not specified, it defaults to 1.
 	// +optional
+	// +kubebuilder:default=1
 	MinAvailable *int32 `json:"minAvailable,omitempty"`
 	// ScaleConfig is the horizontal pod autoscaler configuration for the pod clique scaling group.
 	// +optional

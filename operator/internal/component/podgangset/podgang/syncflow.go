@@ -160,11 +160,8 @@ func (r _resource) getExpectedPodGangsForPCSG(ctx context.Context, logger logr.L
 			continue // Single replica scaling groups are handled in the base PGS replica PodGang
 		}
 
-		// Determine MinAvailable for this scaling group (defaults to 1)
-		minAvailable := int32(1)
-		if pcsg.Spec.MinAvailable != nil {
-			minAvailable = *pcsg.Spec.MinAvailable
-		}
+		// MinAvailable should always be non-nil due to kubebuilder default and defaulting webhook
+		minAvailable := *pcsg.Spec.MinAvailable
 
 		// Create scaled PodGangs for replicas starting from minAvailable
 		// The first 0..(minAvailable-1) replicas are handled by the PGS replica PodGang
@@ -229,10 +226,8 @@ func identifyConstituentPCLQsForPGSReplicaPodGang(sc *syncContext, pgsReplica in
 //   - This function creates PodCliques for replicas 0, 1, 2 → go into base PodGang "simple1-0"
 //   - PCSG controller creates PodCliques for replicas 3, 4 → get scaled PodGangs "simple1-0-sga-0", etc.
 func createScalingGroupPodCliques(sc *syncContext, pclqTemplateSpec *grovecorev1alpha1.PodCliqueTemplateSpec, pcsgConfig grovecorev1alpha1.PodCliqueScalingGroupConfig, pgsReplica int32) []pclqInfo {
-	minAvailable := int32(1) // Default to 1 if not specified
-	if pcsgConfig.MinAvailable != nil {
-		minAvailable = *pcsgConfig.MinAvailable
-	}
+	// MinAvailable should always be non-nil due to kubebuilder default and defaulting webhook
+	minAvailable := *pcsgConfig.MinAvailable
 
 	pclqs := make([]pclqInfo, 0, int(minAvailable))
 	for replicaIndex := 0; replicaIndex < int(minAvailable); replicaIndex++ {

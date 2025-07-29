@@ -144,27 +144,6 @@ func TestGenerateBasePodGangName(t *testing.T) {
 	}
 }
 
-func TestGeneratePodGangName_ConsistencyWithBase(t *testing.T) {
-	// Test that GeneratePodGangName with nil produces the same result as GenerateBasePodGangName
-	testCases := []ResourceNameReplica{
-		{Name: "simple1", Replica: 0},
-		{Name: "test-app", Replica: 2},
-		{Name: "complex-name", Replica: 1},
-	}
-
-	for _, tc := range testCases {
-		t.Run("consistency_test", func(t *testing.T) {
-			baseResult := GenerateBasePodGangName(tc)
-			generalResult := GeneratePodGangName(tc, nil)
-
-			if baseResult != generalResult {
-				t.Errorf("Consistency failed: GenerateBasePodGangName() = %q, GeneratePodGangName(..., nil) = %q",
-					baseResult, generalResult)
-			}
-		})
-	}
-}
-
 func TestExtractScalingGroupNameFromPCSGFQN_Consistency(t *testing.T) {
 	// Test that ExtractScalingGroupNameFromPCSGFQN is the inverse of GeneratePodCliqueScalingGroupName
 	testCases := []struct {

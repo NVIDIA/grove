@@ -72,14 +72,6 @@ func GenerateBasePodGangName(pgsNameReplica ResourceNameReplica) string {
 	return fmt.Sprintf("%s-%d", pgsNameReplica.Name, pgsNameReplica.Replica)
 }
 
-// GeneratePodGangName generates a PodGang name based on pgs and pcsg name and replicas.
-func GeneratePodGangName(pgsNameReplica ResourceNameReplica, pcsgNameReplica *ResourceNameReplica) string {
-	if pcsgNameReplica == nil || pcsgNameReplica.Replica == 1 {
-		return GenerateBasePodGangName(pgsNameReplica)
-	}
-	return fmt.Sprintf("%s%d", GeneratePCSGPodGangNamePrefix(pgsNameReplica, pcsgNameReplica.Name), pcsgNameReplica.Replica-1)
-}
-
 // GeneratePCSGPodGangNamePrefix generates a PodGang name prefix for Podgangs created due to PCSG replica scale-out.
 func GeneratePCSGPodGangNamePrefix(pgsNameReplica ResourceNameReplica, pcsgName string) string {
 	return fmt.Sprintf("%s-%d-%s-", pgsNameReplica.Name, pgsNameReplica.Replica, pcsgName)

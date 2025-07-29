@@ -92,10 +92,8 @@ func findScalingGroupConfig(pgs *grovecorev1alpha1.PodGangSet, scalingGroupName 
 // applyMinAvailableLogicForPodGang determines the correct PodGang name based on minAvailable logic.
 // Replicas 0..(minAvailable-1) belong to the base PodGang, while replicas minAvailable+ get scaled PodGangs.
 func applyMinAvailableLogicForPodGang(pgs *grovecorev1alpha1.PodGangSet, pgsReplica int, scalingGroupName string, pcsgConfig grovecorev1alpha1.PodCliqueScalingGroupConfig, pcsgReplicaIndex int) string {
-	minAvailable := int32(1) // Default
-	if pcsgConfig.MinAvailable != nil {
-		minAvailable = *pcsgConfig.MinAvailable
-	}
+	// MinAvailable should always be non-nil due to kubebuilder default and defaulting webhook
+	minAvailable := *pcsgConfig.MinAvailable
 
 	// Apply the same logic as PodGang creation:
 	// Replicas 0..(minAvailable-1) → PGS replica PodGang (base PodGang)

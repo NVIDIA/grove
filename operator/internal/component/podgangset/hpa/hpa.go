@@ -33,6 +33,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )
@@ -121,8 +122,8 @@ type hpaInfo struct {
 	objectKey               client.ObjectKey
 	targetScaleResourceKind string
 	targetScaleResourceName string
-	minReplicas             int32
 	scaleConfig             grovecorev1alpha1.AutoScalingConfig
+	fallbackMinReplicas     int32
 }
 
 func (r _resource) computeExpectedHPAs(pgs *grovecorev1alpha1.PodGangSet) []hpaInfo {
@@ -138,18 +139,13 @@ func (r _resource) computeExpectedHPAs(pgs *grovecorev1alpha1.PodGangSet) []hpaI
 				Namespace: pgs.Namespace,
 				Name:      pclqFQN,
 			}
-			// Use the initial replicas count as minimum for PodClique HPAs
-			minReplicas := pclqTemplateSpec.Spec.Replicas
-			if pclqTemplateSpec.Spec.ScaleConfig.MinReplicas != nil {
-				minReplicas = *pclqTemplateSpec.Spec.ScaleConfig.MinReplicas
-			}
-
+			// Use replicas as fallback - validation hook ensures replicas >= minAvailable
 			expectedHPAInfos = append(expectedHPAInfos, hpaInfo{
 				objectKey:               hpaObjectKey,
 				targetScaleResourceKind: grovecorev1alpha1.PodCliqueKind,
 				targetScaleResourceName: pclqFQN,
-				minReplicas:             minReplicas,
 				scaleConfig:             *pclqTemplateSpec.Spec.ScaleConfig,
+				fallbackMinReplicas:     pclqTemplateSpec.Spec.Replicas,
 			})
 		}
 		for _, pcsgConfig := range pgs.Spec.Template.PodCliqueScalingGroupConfigs {
@@ -161,19 +157,13 @@ func (r _resource) computeExpectedHPAs(pgs *grovecorev1alpha1.PodGangSet) []hpaI
 				Namespace: pgs.Namespace,
 				Name:      pcsgFQN,
 			}
-			// Use the initial replicas count as minimum, not minAvailable
-			// minAvailable is for gang scheduling, not autoscaling limits
-			minReplicas := *pcsgConfig.Replicas
-			if pcsgConfig.ScaleConfig.MinReplicas != nil {
-				minReplicas = *pcsgConfig.ScaleConfig.MinReplicas
-			}
-
+			// Use replicas as fallback - validation hook ensures replicas >= minAvailable
 			expectedHPAInfos = append(expectedHPAInfos, hpaInfo{
 				objectKey:               hpaObjectKey,
 				targetScaleResourceKind: grovecorev1alpha1.PodCliqueScalingGroupKind,
 				targetScaleResourceName: pcsgFQN,
-				minReplicas:             minReplicas,
 				scaleConfig:             *pcsgConfig.ScaleConfig,
+				fallbackMinReplicas:     *pcsgConfig.Replicas,
 			})
 		}
 	}
@@ -255,7 +245,8 @@ func (r _resource) doDeleteHPA(ctx context.Context, logger logr.Logger, pgsObjec
 }
 
 func (r _resource) buildResource(pgs *grovecorev1alpha1.PodGangSet, hpa *autoscalingv2.HorizontalPodAutoscaler, expectedHPAInfo hpaInfo) error {
-	hpa.Spec.MinReplicas = &expectedHPAInfo.minReplicas
+	minReplicas := ptr.Deref(expectedHPAInfo.scaleConfig.MinReplicas, expectedHPAInfo.fallbackMinReplicas)
+	hpa.Spec.MinReplicas = &minReplicas
 	hpa.Spec.MaxReplicas = expectedHPAInfo.scaleConfig.MaxReplicas
 	hpa.Spec.ScaleTargetRef = autoscalingv2.CrossVersionObjectReference{
 		Kind:       expectedHPAInfo.targetScaleResourceKind,
