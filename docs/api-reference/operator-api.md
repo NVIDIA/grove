@@ -231,6 +231,8 @@ _Appears in:_
 | --- | --- | --- | --- |
 | `name` _string_ | Name is the name of the PodCliqueScalingGroupConfig. This should be unique within the PodGangSet.<br />It allows consumers to give a semantic name to a group of PodCliques that needs to be scaled together. |  |  |
 | `cliqueNames` _string array_ | CliqueNames is the list of names of the PodClique's that are part of the scaling group. |  |  |
+| `replicas` _integer_ | Replicas is the desired number of replicas for the scaling group at template level.<br />This allows one to control the replicas of the scaling group at startup.<br />If not specified, it defaults to 1. | 1 |  |
+| `minAvailable` _integer_ | MinAvailable specifies the minimum number of ready replicas required for the group to be considered operational.<br />A scaling group replica is considered "ready" when its associated PodClique has sufficient ready Pods<br />(PodClique.Status.ReadyReplicas >= PodClique.Status.MinAvailable), where a Pod is ready when its PodReady condition is True.<br />If MinAvailable is breached, it will trigger gang-termination of the podGangs.<br />MinAvailable will be validated to be less than or equal to Replicas.<br />If not specified, it defaults to 1. | 1 |  |
 | `scaleConfig` _[AutoScalingConfig](#autoscalingconfig)_ | ScaleConfig is the horizontal pod autoscaler configuration for the pod clique scaling group. |  |  |
 
 
@@ -247,7 +249,8 @@ _Appears in:_
 
 | Field | Description | Default | Validation |
 | --- | --- | --- | --- |
-| `replicas` _integer_ | Replicas is the desired number of replicas for the PodCliqueScalingGroup.<br />If not specified, it defaults to 1. |  |  |
+| `replicas` _integer_ | Replicas is the desired number of replicas for the PodCliqueScalingGroup.<br />If not specified, it defaults to 1. | 1 |  |
+| `minAvailable` _integer_ | MinAvailable specifies the minimum number of ready replicas required for the group to be considered operational.<br />A scaling group replica is considered "ready" when its associated PodClique has sufficient ready Pods<br />(PodClique.Status.ReadyReplicas >= PodClique.Status.MinAvailable), where a Pod is ready when its PodReady condition is True.<br /><br />It serves two main purposes:<br />1. Gang Scheduling: Replicas 0 through (MinAvailable-1) are grouped into the base PodGang and scheduled together.<br />   Additional replicas (MinAvailable and above) are scaled PodGangs that wait for the base PodGang to be ready<br />   before their scheduling gates are removed.<br />2. Gang Termination: If MinAvailable is breached, it will trigger gang-termination of the podGangs.<br />If not specified, it defaults to 1. | 1 |  |
 | `cliqueNames` _string array_ | CliqueNames is the list of PodClique names that are configured in the<br />matching PodCliqueScalingGroup in PodGangSet.Spec.Template.PodCliqueScalingGroupConfigs. |  |  |
 
 

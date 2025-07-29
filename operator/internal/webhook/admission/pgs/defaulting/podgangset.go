@@ -77,6 +77,11 @@ func defaultPodCliqueTemplateSpecs(cliqueSpecs []*grovecorev1alpha1.PodCliqueTem
 }
 
 func defaultPodCliqueScalingGroupConfigs(scalingGroupConfigs []grovecorev1alpha1.PodCliqueScalingGroupConfig) []grovecorev1alpha1.PodCliqueScalingGroupConfig {
+	// Preserve nil when no scaling groups are specified
+	if len(scalingGroupConfigs) == 0 {
+		return scalingGroupConfigs
+	}
+
 	defaultedScalingGroupConfigs := make([]grovecorev1alpha1.PodCliqueScalingGroupConfig, 0, len(scalingGroupConfigs))
 	for _, scalingGroupConfig := range scalingGroupConfigs {
 		defaultedScalingGroupConfig := scalingGroupConfig.DeepCopy()
