@@ -234,7 +234,7 @@ func appendGroveInitContainerIfNeeded(pgs *grovecorev1alpha1.PodGangSet, pclq *g
 				return groveerr.New(
 					errCodeMissingPodCliqueTemplate,
 					component.OperationSync,
-					fmt.Sprintf("no PodClique %s specifiec in startsAfter present in the templates", parentClique),
+					fmt.Sprintf("no PodClique %s specified in startsAfter present in the templates", parentClique),
 				)
 			}
 			args = append(args, fmt.Sprintf("--podcliques=%s,%d", parentClique, *parentCliqueTemplateSpec.Spec.MinAvailable))

@@ -98,6 +98,8 @@ func NewPodCliqueState(podCliqueInfo map[string]int, log logr.Logger) (*PodCliqu
 
 // WaitForReady waits for all upstream start-up dependencies to be ready.
 func (c *PodCliqueState) WaitForReady(ctx context.Context) error {
+	defer close(c.allReadyCh) // Close the channel the informers write to *after* the context they use is cancelled.
+
 	for podCliqueName, minAvailable := range c.podCliqueInfo {
 		c.log.Info("Parent PodClique being waited on", "podCliqueName", podCliqueName, "minAvailable", minAvailable)
 	}
@@ -112,7 +114,7 @@ func (c *PodCliqueState) WaitForReady(ctx context.Context) error {
 		)
 	}
 
-	bareBonesClient, err := kubernetes.NewForConfig(restConfig)
+	client, err := kubernetes.NewForConfig(restConfig)
 	if err != nil {
 		return groveerr.WrapError(
 			err,
@@ -135,12 +137,10 @@ func (c *PodCliqueState) WaitForReady(ctx context.Context) error {
 	}
 
 	eventHandlerContext, cancel := context.WithCancel(ctx)
-
-	defer close(c.allReadyCh) // Close the channel the informers write to after the context they use is cancelled.
-	defer cancel()            // Cancel the context used by the informers if the wait is successful, or an err occurs.
+	defer cancel() // Cancel the context used by the informers if the wait is successful, or an err occurs.
 
 	factory := informers.NewSharedInformerFactoryWithOptions(
-		bareBonesClient,
+		client,
 		time.Second,
 		informers.WithNamespace(c.namespace),
 		informers.WithTweakListOptions(func(opts *metav1.ListOptions) {
@@ -159,8 +159,12 @@ func (c *PodCliqueState) WaitForReady(ctx context.Context) error {
 	factory.WaitForCacheSync(eventHandlerContext.Done())
 	factory.Start(eventHandlerContext.Done())
 
-	<-c.allReadyCh
-	return nil
+	select {
+	case <-c.allReadyCh:
+		return nil
+	case <-ctx.Done():
+		return ctx.Err()
+	}
 }
 
 func (c *PodCliqueState) registerEventHandler(factory informers.SharedInformerFactory) error {
