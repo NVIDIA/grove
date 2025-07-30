@@ -54,34 +54,8 @@ func (r _resource) prepareSyncFlow(ctx context.Context, logger logr.Logger, pclq
 	}
 	sc.associatedPodGangName = associatedPodGangName
 
-	// we treat NotFound as expected during startup flow
-	// SPECIAL CASE: Associated PodGang NotFound during startup flow
-	// =================================================================
-	//
-	// WHY THIS IS NORMAL AND EXPECTED:
-	//
-	// 1. NORMAL STARTUP SEQUENCE:
-	//    - PodGangSet controller creates PodCliques first
-	//    - PodClique controller starts syncing (creating pods)
-	//    - PodGangSet controller creates PodGang and associates existing pods
-	//    - This means PodClique MUST be able to sync before its PodGang exists
-	//
-	// 2. DIFFERENT FROM DEPENDENCY CHECKS:
-	//    - Base PodGang readiness: Scaled pods depend on base being ready (should requeue)
-	//    - PodClique readiness: Base depends on constituent PodCliques (should requeue)
-	//    - Associated PodGang lookup: Just checking sync state, not a dependency (can proceed)
-	//
-	// 3. PURPOSE OF THIS CHECK:
-	//    - Determines which pods in this PodClique are already "updated in PodGang"
-	//    - During startup: no PodGang exists → no pods are updated yet → empty list
-	//    - This allows sync to proceed with creating pods from scratch
-	//
-	// 4. BREAKING THIS LOGIC CAUSES DEADLOCK:
-	//    - PodClique waits for PodGang → PodGangSet can't create PodGang → infinite requeue
-	//
 	existingPodGang, err := r.getPodGang(ctx, associatedPodGangName, pclq.Namespace)
 	if err != nil {
-		// Actual API error (different from NotFound) - should requeue
 		return nil, err
 	}
 	sc.podNamesUpdatedInPCLQPodGangs = r.getPodNamesUpdatedInAssociatedPodGang(existingPodGang, pclq.Name)
@@ -400,8 +374,8 @@ func (r _resource) isBasePodGangReady(ctx context.Context, logger logr.Logger, n
 func (r _resource) shouldSkipPodSchedulingGateRemoval(ctx context.Context, logger logr.Logger, pod *corev1.Pod) (bool, string, error) {
 	scaledPodGangName, hasPodGangLabel := pod.GetLabels()[grovecorev1alpha1.LabelPodGang]
 	if !hasPodGangLabel {
-		// Pod not assigned to any PodGang yet
-		return false, "", nil
+		// Pod not assigned to any PodGang yet - keep the scheduling gate
+		return true, "pod not assigned to PodGang yet", nil
 	}
 
 	basePodGangName, hasBasePodGangLabel := pod.GetLabels()[grovecorev1alpha1.LabelBasePodGang]

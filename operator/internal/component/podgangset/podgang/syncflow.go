@@ -268,9 +268,17 @@ func createPodCliqueInfo(sc *syncContext, pclqTemplateSpec *grovecorev1alpha1.Po
 // determinePodCliqueReplicas determines the correct replicas count for a PodClique
 func determinePodCliqueReplicas(sc *syncContext, pclqTemplateSpec *grovecorev1alpha1.PodCliqueTemplateSpec, pclqFQN string) int32 {
 	if pclqTemplateSpec.Spec.ScaleConfig != nil {
-		matchingPCLQ, _ := lo.Find(sc.pclqs, func(pclq grovecorev1alpha1.PodClique) bool {
+		matchingPCLQ, found := lo.Find(sc.pclqs, func(pclq grovecorev1alpha1.PodClique) bool {
 			return pclqFQN == pclq.Name
 		})
+		if !found {
+			// PodClique resource not found - might be during initial creation
+			// Fall back to template replicas but log warning for visibility
+			sc.logger.Info("[WARN]: PodClique resource not found, using template replicas",
+				"podCliqueFQN", pclqFQN,
+				"templateReplicas", pclqTemplateSpec.Spec.Replicas)
+			return pclqTemplateSpec.Spec.Replicas
+		}
 		return matchingPCLQ.Spec.Replicas
 	}
 	return pclqTemplateSpec.Spec.Replicas

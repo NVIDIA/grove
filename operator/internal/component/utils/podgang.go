@@ -38,15 +38,15 @@ func GetPodGangSelectorLabels(pgsObjMeta metav1.ObjectMeta) map[string]string {
 
 // CreatePodGangNameForPCSG generates the PodGang name for a replica of a PodCliqueScalingGroup.
 // This is used for scaled scaling group replicas beyond minAvailable.
-func CreatePodGangNameForPCSG(pgsName string, pgsReplicaIndex int, pcsgName string, pcsgReplicaIndex int) string {
+func CreatePodGangNameForPCSG(pgsName string, pgsReplicaIndex int, pcsgName string, scaledPodGangIndex int) string {
 	pcsgFQN := grovecorev1alpha1.GeneratePodCliqueScalingGroupName(grovecorev1alpha1.ResourceNameReplica{Name: pgsName, Replica: pgsReplicaIndex}, pcsgName)
-	return fmt.Sprintf("%s-%d", pcsgFQN, pcsgReplicaIndex)
+	return fmt.Sprintf("%s-%d", pcsgFQN, scaledPodGangIndex)
 }
 
 // CreatePodGangNameForPCSGFromFQN generates the PodGang name for a replica of a PodCliqueScalingGroup
 // when the PCSG name is already fully qualified (e.g., "simple1-0-sga").
-func CreatePodGangNameForPCSGFromFQN(pcsgFQN string, pcsgReplicaIndex int) string {
-	return fmt.Sprintf("%s-%d", pcsgFQN, pcsgReplicaIndex)
+func CreatePodGangNameForPCSGFromFQN(pcsgFQN string, scaledPodGangIndex int) string {
+	return fmt.Sprintf("%s-%d", pcsgFQN, scaledPodGangIndex)
 }
 
 // DeterminePodGangNameForPodClique determines the correct PodGang name for a PodClique
