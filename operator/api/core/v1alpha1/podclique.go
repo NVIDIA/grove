@@ -112,8 +112,6 @@ type PodCliqueStatus struct {
 	Replicas int32 `json:"replicas,omitempty"`
 	// ReadyReplicas is the number of ready Pods targeted by this PodClique.
 	ReadyReplicas int32 `json:"readyReplicas,omitempty"`
-	// UpdatedReplicas is the number of Pods that have been updated and are at the desired revision of the PodClique.
-	UpdatedReplicas int32 `json:"updatedReplicas,omitempty"`
 	// ScheduleGatedReplicas is the number of Pods that have been created with one or more scheduling gate(s) set.
 	// Sum of ReadyReplicas and ScheduleGatedReplicas will always be <= Replicas.
 	ScheduleGatedReplicas int32 `json:"scheduleGatedReplicas,omitempty"`

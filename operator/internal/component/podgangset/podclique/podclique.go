@@ -25,6 +25,7 @@ import (
 
 	grovecorev1alpha1 "github.com/NVIDIA/grove/operator/api/core/v1alpha1"
 	"github.com/NVIDIA/grove/operator/internal/component"
+	groveevents "github.com/NVIDIA/grove/operator/internal/component/events"
 	componentutils "github.com/NVIDIA/grove/operator/internal/component/utils"
 	groveerr "github.com/NVIDIA/grove/operator/internal/errors"
 	"github.com/NVIDIA/grove/operator/internal/utils"
@@ -32,9 +33,11 @@ import (
 
 	"github.com/go-logr/logr"
 	"github.com/samber/lo"
+	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/client-go/tools/record"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )
@@ -49,15 +52,17 @@ const (
 )
 
 type _resource struct {
-	client client.Client
-	scheme *runtime.Scheme
+	client        client.Client
+	scheme        *runtime.Scheme
+	eventRecorder record.EventRecorder
 }
 
 // New creates an instance of PodClique component operator.
-func New(client client.Client, scheme *runtime.Scheme) component.Operator[grovecorev1alpha1.PodGangSet] {
+func New(client client.Client, scheme *runtime.Scheme, eventRecorder record.EventRecorder) component.Operator[grovecorev1alpha1.PodGangSet] {
 	return &_resource{
-		client: client,
-		scheme: scheme,
+		client:        client,
+		scheme:        scheme,
+		eventRecorder: eventRecorder,
 	}
 }
 
@@ -126,7 +131,7 @@ func (r _resource) triggerDeletionOfExcessPCLQs(ctx context.Context, logger logr
 		if err != nil {
 			return err
 		}
-		deletePCLQTasks := r.createDeleteTasks(logger, pgs.Namespace, deletionCandidateNames)
+		deletePCLQTasks := r.createDeleteTasks(logger, pgs, deletionCandidateNames)
 		return r.triggerDeletionOfPodCliques(ctx, logger, client.ObjectKeyFromObject(pgs), deletePCLQTasks)
 	}
 	return nil
@@ -214,7 +219,7 @@ func (r _resource) checkMinAvailableBreachAndDeletePGSReplicaPodGang(ctx context
 			(len(breachedPCLQNames) > 0 && minPCLQWaitFor <= 0) {
 			// terminate all PodCliques for this PGS replica index
 			reason := fmt.Sprintf("Delete all PodCliques for PodGangSet %v with replicaIndex :%d due to MinAvailable breached longer than TerminationDelay: %s", pgsObjectKey, pgsReplicaIndex, terminationDelay)
-			pclqGangTerminationTask := r.createPGSReplicaDeleteTask(logger, pgsObjectKey, pgsReplicaIndex, reason)
+			pclqGangTerminationTask := r.createPGSReplicaDeleteTask(logger, pgs, pgsReplicaIndex, reason)
 			deletionTasks = append(deletionTasks, pclqGangTerminationTask)
 		} else if len(breachedPCSGNames) > 0 || len(breachedPCLQNames) > 0 {
 			pgsReplicaIndexRequiringRequeue = append(pgsReplicaIndexRequiringRequeue, strconv.Itoa(pgsReplicaIndex))
@@ -224,23 +229,26 @@ func (r _resource) checkMinAvailableBreachAndDeletePGSReplicaPodGang(ctx context
 	return pgsReplicaIndexRequiringRequeue, r.triggerDeletionOfPodCliques(ctx, logger, pgsObjectKey, deletionTasks)
 }
 
-func (r _resource) createPGSReplicaDeleteTask(logger logr.Logger, pgsObjKey client.ObjectKey, pgsReplicaIndex int, reason string) utils.Task {
+func (r _resource) createPGSReplicaDeleteTask(logger logr.Logger, pgs *grovecorev1alpha1.PodGangSet, pgsReplicaIndex int, reason string) utils.Task {
 	return utils.Task{
 		Name: fmt.Sprintf("DeletePGSReplicaPodCliques-%d", pgsReplicaIndex),
 		Fn: func(ctx context.Context) error {
 			if err := r.client.DeleteAllOf(ctx,
 				&grovecorev1alpha1.PodClique{},
-				client.InNamespace(pgsObjKey.Namespace),
+				client.InNamespace(pgs.Namespace),
 				client.MatchingLabels(
 					lo.Assign(
-						k8sutils.GetDefaultLabelsForPodGangSetManagedResources(pgsObjKey.Name),
+						k8sutils.GetDefaultLabelsForPodGangSetManagedResources(pgs.Name),
 						map[string]string{
 							grovecorev1alpha1.LabelPodGangSetReplicaIndex: strconv.Itoa(pgsReplicaIndex),
 						},
 					))); err != nil {
 				logger.Error(err, "failed to delete PodCliques for PGS Replica index", "pgsReplicaIndex", pgsReplicaIndex, "reason", reason)
+				r.eventRecorder.Eventf(pgs, corev1.EventTypeWarning, groveevents.ReasonPodGangSetReplicaDeletionFailed, "Error deleting PodGangSet replica %d: %v", pgsReplicaIndex, err)
 				return err
 			}
+			logger.Info("Deleted PGS replica PodCliques", "pgsReplicaIndex", pgsReplicaIndex, "reason", reason)
+			r.eventRecorder.Eventf(pgs, corev1.EventTypeNormal, groveevents.ReasonPodGangSetReplicaDeletionSuccessful, "PodGangSet replica %d deleted", pgsReplicaIndex)
 			return nil
 		},
 	}
@@ -261,12 +269,12 @@ func (r _resource) triggerDeletionOfPodCliques(ctx context.Context, logger logr.
 	return nil
 }
 
-func (r _resource) createDeleteTasks(logger logr.Logger, namespace string, targetPCLQNames []string) []utils.Task {
+func (r _resource) createDeleteTasks(logger logr.Logger, pgs *grovecorev1alpha1.PodGangSet, targetPCLQNames []string) []utils.Task {
 	deletionTasks := make([]utils.Task, 0, len(targetPCLQNames))
 	for _, pclqName := range targetPCLQNames {
 		pclqObjectKey := client.ObjectKey{
 			Name:      pclqName,
-			Namespace: namespace,
+			Namespace: pgs.Namespace,
 		}
 		pclq := emptyPodClique(pclqObjectKey)
 		task := utils.Task{
@@ -274,8 +282,11 @@ func (r _resource) createDeleteTasks(logger logr.Logger, namespace string, targe
 			Fn: func(ctx context.Context) error {
 				if err := client.IgnoreNotFound(r.client.Delete(ctx, pclq)); err != nil {
 					logger.Error(err, "failed to delete excess PodClique", "objectKey", pclqObjectKey)
+					r.eventRecorder.Eventf(pgs, corev1.EventTypeWarning, groveevents.ReasonPodCliqueDeletionFailed, "Error deleting PodClique %v: %v", pclqObjectKey, err)
 					return err
 				}
+				logger.Info("Deleted PodClique", "pclqObjectKey", pclqObjectKey)
+				r.eventRecorder.Eventf(pgs, corev1.EventTypeNormal, groveevents.ReasonPodCliqueDeletionSuccessful, "Deleted PodClique: %s", pclqName)
 				return nil
 			},
 		}
@@ -351,15 +362,17 @@ func (r _resource) doCreate(ctx context.Context, logger logr.Logger, pgs *grovec
 	}
 	if err := r.client.Create(ctx, pclq); err != nil {
 		if apierrors.IsAlreadyExists(err) {
-			logger.Info("PodClique creation failed for PodGangSet as it already exists", "pgs", pgsObjKey, "pclq", client.ObjectKeyFromObject(pclq))
+			logger.Info("PodClique creation failed for PodGangSet as it already exists", "pgs", pgsObjKey, "pclq", pclqObjectKey)
 			return nil
 		}
+		r.eventRecorder.Eventf(pgs, corev1.EventTypeWarning, groveevents.ReasonPodCliqueCreationFailed, "PodClique %v creation failed: %v", pclqObjectKey, err)
 		return groveerr.WrapError(err,
 			errCodeCreatePodClique,
 			component.OperationSync,
 			fmt.Sprintf("Error creating PodClique: %v for PodGangSet: %v", pclqObjectKey, pgsObjKey),
 		)
 	}
+	r.eventRecorder.Eventf(pgs, corev1.EventTypeNormal, groveevents.ReasonPodCliqueCreationSuccessful, "PodClique %v created successfully", pclqObjectKey)
 	logger.Info("triggered create of PodClique for PodGangSet", "pgs", pgsObjKey, "pclqObjectKey", pclqObjectKey)
 	return nil
 }

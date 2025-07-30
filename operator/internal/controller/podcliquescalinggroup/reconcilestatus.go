@@ -102,7 +102,7 @@ func (r *Reconciler) computeMinAvailableBreachedCondition(ctx context.Context, l
 		switch pcsgReplicaCondStatus {
 		case metav1.ConditionTrue:
 			minAvailableBreachedPCSGReplicaIndexes = append(minAvailableBreachedPCSGReplicaIndexes, pcsgReplicaIndex)
-		case metav1.ConditionFalse:
+		case metav1.ConditionUnknown:
 			atleastOnePCSGReplicaIsUnknown = true
 		}
 	}

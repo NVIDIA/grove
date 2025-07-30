@@ -43,19 +43,18 @@ type Reconciler struct {
 
 // NewReconciler creates a new reconciler for PodGangSet.
 func NewReconciler(mgr ctrl.Manager, controllerCfg configv1alpha1.PodGangSetControllerConfiguration) *Reconciler {
+	eventRecorder := mgr.GetEventRecorderFor(controllerName)
 	return &Reconciler{
 		config:                  controllerCfg,
 		client:                  mgr.GetClient(),
-		reconcileStatusRecorder: ctrlcommon.NewReconcileStatusRecorder(mgr.GetClient(), mgr.GetEventRecorderFor(controllerName)),
-		operatorRegistry:        pgscomponent.CreateOperatorRegistry(mgr),
+		reconcileStatusRecorder: ctrlcommon.NewReconcileStatusRecorder(mgr.GetClient(), eventRecorder),
+		operatorRegistry:        pgscomponent.CreateOperatorRegistry(mgr, eventRecorder),
 	}
 }
 
 // Reconcile reconciles a PodGangSet resource.
 func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	logger := ctrllogger.FromContext(ctx).
-		WithName(controllerName).
-		WithValues("pgs-name", req.Name, "pgs-namespace", req.Namespace)
+	logger := ctrllogger.FromContext(ctx).WithName(controllerName)
 
 	pgs := &grovecorev1alpha1.PodGangSet{}
 	if result := ctrlutils.GetPodGangSet(ctx, r.client, logger, req.NamespacedName, pgs); ctrlcommon.ShortCircuitReconcileFlow(result) {

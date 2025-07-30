@@ -33,6 +33,7 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/tools/record"
 	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -106,7 +107,7 @@ func TestGetExistingResourceNames(t *testing.T) {
 			existingObjects := createExistingPodCliquesFromPGS(pgs, tc.podCliqueNamesNotOwnedByPGS)
 			// Create a fake client with PodCliques
 			cl := testutils.CreateFakeClientForObjectsMatchingLabels(nil, tc.listErr, pgs.Namespace, grovecorev1alpha1.SchemeGroupVersion.WithKind("PodClique"), getPodCliqueSelectorLabels(pgs.ObjectMeta), existingObjects...)
-			operator := New(cl, groveclientscheme.Scheme)
+			operator := New(cl, groveclientscheme.Scheme, record.NewFakeRecorder(10))
 			actualPCLQNames, err := operator.GetExistingResourceNames(context.Background(), logr.Discard(), pgs.ObjectMeta)
 			if tc.expectedErr == nil {
 				assert.NoError(t, err)
@@ -159,7 +160,7 @@ func TestDelete(t *testing.T) {
 			existingPodCliques := createDefaultPodCliques(pgsObjMeta, "howl", tc.numExistingPodCliques)
 			// Create a fake client with PodCliques
 			cl := testutils.CreateFakeClientForObjectsMatchingLabels(tc.deleteError, nil, testPGSNamespace, grovecorev1alpha1.SchemeGroupVersion.WithKind("PodClique"), getPodCliqueSelectorLabels(pgsObjMeta), existingPodCliques...)
-			operator := New(cl, groveclientscheme.Scheme)
+			operator := New(cl, groveclientscheme.Scheme, record.NewFakeRecorder(10))
 			err := operator.Delete(context.Background(), logr.Discard(), pgsObjMeta)
 			if tc.expectedError != nil {
 				testutils.CheckGroveError(t, tc.expectedError, err)

@@ -40,23 +40,19 @@ import (
 
 // constants for error codes
 const (
-	errCodeGetPod    grovecorev1alpha1.ErrorCode = "ERR_GET_POD"
-	errCodeSyncPod   grovecorev1alpha1.ErrorCode = "ERR_SYNC_POD"
-	errCodeDeletePod grovecorev1alpha1.ErrorCode = "ERR_DELETE_POD"
-
-	errCodeGetPodGang                grovecorev1alpha1.ErrorCode = "ERR_GET_PODGANG"
-	errCodeListPod                   grovecorev1alpha1.ErrorCode = "ERR_LIST_POD"
-	errCodeRemovePodSchedulingGate   grovecorev1alpha1.ErrorCode = "ERR_REMOVE_POD_SCHEDULING_GATE"
-	errCodeCreatePods                grovecorev1alpha1.ErrorCode = "ERR_CREATE_PODS"
-	errCodeMissingPodGangLabelOnPCLQ grovecorev1alpha1.ErrorCode = "ERR_MISSING_PODGANG_LABEL_ON_PODCLIQUE"
-)
-
-// constants used for pod events
-const (
-	reasonPodCreationSuccessful = "PodCreationSuccessful"
-	reasonPodCreationFailed     = "PodCreationFailed"
-	reasonPodDeletionSuccessful = "PodDeletionSuccessful"
-	reasonPodDeletionFailed     = "PodDeletionFailed"
+	errCodeGetPod                              grovecorev1alpha1.ErrorCode = "ERR_GET_POD"
+	errCodeDeletePod                           grovecorev1alpha1.ErrorCode = "ERR_DELETE_POD"
+	errCodeGetAvailablePodHostNameIndices      grovecorev1alpha1.ErrorCode = "ERR_GET_AVAILABLE_POD_HOSTNAME_INDICES"
+	errCodeGetPodGang                          grovecorev1alpha1.ErrorCode = "ERR_GET_PODGANG"
+	errCodeListPod                             grovecorev1alpha1.ErrorCode = "ERR_LIST_POD"
+	errCodeRemovePodSchedulingGate             grovecorev1alpha1.ErrorCode = "ERR_REMOVE_POD_SCHEDULING_GATE"
+	errCodeCreatePod                           grovecorev1alpha1.ErrorCode = "ERR_CREATE_POD"
+	errCodeMissingPodGangLabelOnPCLQ           grovecorev1alpha1.ErrorCode = "ERR_MISSING_PODGANG_LABEL_ON_PODCLIQUE"
+	errCodeCreatePodCliqueExpectationsStoreKey grovecorev1alpha1.ErrorCode = "ERR_CREATE_PODCLIQUE_EXPECTATIONS_STORE_KEY"
+	errCodeDeletePodCliqueExpectations         grovecorev1alpha1.ErrorCode = "ERR_DELETE_PODCLIQUE_EXPECTATIONS_STORE_KEY"
+	errCodeGetPodGangSetReplicaIndex           grovecorev1alpha1.ErrorCode = "ERR_GET_PODGANGSET_REPLICA_INDEX"
+	errCodeSetControllerReference              grovecorev1alpha1.ErrorCode = "ERR_SET_CONTROLLER_REFERENCE"
+	errCodeBuildPodResource                    grovecorev1alpha1.ErrorCode = "ERR_BUILD_POD_RESOURCE"
 )
 
 const (
@@ -64,17 +60,19 @@ const (
 )
 
 type _resource struct {
-	client        client.Client
-	scheme        *runtime.Scheme
-	eventRecorder record.EventRecorder
+	client            client.Client
+	scheme            *runtime.Scheme
+	eventRecorder     record.EventRecorder
+	expectationsStore *utils.ExpectationsStore
 }
 
 // New creates an instance of Pod component operator.
-func New(client client.Client, scheme *runtime.Scheme, eventRecorder record.EventRecorder) component.Operator[grovecorev1alpha1.PodClique] {
+func New(client client.Client, scheme *runtime.Scheme, eventRecorder record.EventRecorder, expectationsStore *utils.ExpectationsStore) component.Operator[grovecorev1alpha1.PodClique] {
 	return &_resource{
-		client:        client,
-		scheme:        scheme,
-		eventRecorder: eventRecorder,
+		client:            client,
+		scheme:            scheme,
+		eventRecorder:     eventRecorder,
+		expectationsStore: expectationsStore,
 	}
 }
 
@@ -110,7 +108,7 @@ func (r _resource) Sync(ctx context.Context, logger logr.Logger, pclq *grovecore
 	if err != nil {
 		return err
 	}
-	result := r.runSyncFlow(sc, logger)
+	result := r.runSyncFlow(logger, sc)
 	if result.hasErrors() {
 		return result.getAggregatedError()
 	}
@@ -123,13 +121,13 @@ func (r _resource) Sync(ctx context.Context, logger logr.Logger, pclq *grovecore
 	return nil
 }
 
-func (r _resource) buildResource(pclq *grovecorev1alpha1.PodClique, podGangName string, pod *corev1.Pod, podIndex int) error {
+func (r _resource) buildResource(pclq *grovecorev1alpha1.PodClique, podGangName string, pod *corev1.Pod, podHostNameIndex int) error {
 	// Extract PGS replica index from PodClique name for now (will be replaced with direct parameter)
 	pgsName := componentutils.GetPodGangSetName(pclq.ObjectMeta)
-	pgsReplicaIndex, err := utils.GetPodGangSetReplicaIndexFromPodCliqueFQN(pgsName, pclq.Name)
+	pgsReplicaIndex, err := k8sutils.GetPodGangSetReplicaIndex(pclq.ObjectMeta)
 	if err != nil {
 		return groveerr.WrapError(err,
-			errCodeSyncPod,
+			errCodeGetPodGangSetReplicaIndex,
 			component.OperationSync,
 			fmt.Sprintf("error extracting PGS replica index for PodClique %v", client.ObjectKeyFromObject(pclq)),
 		)
@@ -143,7 +141,7 @@ func (r _resource) buildResource(pclq *grovecorev1alpha1.PodClique, podGangName 
 	}
 	if err = controllerutil.SetControllerReference(pclq, pod, r.scheme); err != nil {
 		return groveerr.WrapError(err,
-			errCodeSyncPod,
+			errCodeSetControllerReference,
 			component.OperationSync,
 			fmt.Sprintf("error setting controller reference of PodClique: %v on Pod", client.ObjectKeyFromObject(pclq)),
 		)
@@ -151,9 +149,9 @@ func (r _resource) buildResource(pclq *grovecorev1alpha1.PodClique, podGangName 
 	pod.Spec = *pclq.Spec.PodSpec.DeepCopy()
 	pod.Spec.SchedulingGates = []corev1.PodSchedulingGate{{Name: podGangSchedulingGate}}
 
-	addEnvironmentVariables(pod, pclq, pgsName, pgsReplicaIndex, podIndex)
+	addEnvironmentVariables(pod, pclq, pgsName, pgsReplicaIndex, podHostNameIndex)
 	// Configure hostname and subdomain for service discovery
-	configurePodHostname(pod, pclq.Name, podIndex, pgsName, pgsReplicaIndex)
+	configurePodHostname(pod, pclq.Name, podHostNameIndex, pgsName, pgsReplicaIndex)
 
 	return nil
 }
@@ -169,6 +167,16 @@ func (r _resource) Delete(ctx context.Context, logger logr.Logger, pclqObjectMet
 			component.OperationDelete,
 			fmt.Sprintf("failed to delete all pods for PodClique %v", k8sutils.GetObjectKeyFromObjectMeta(pclqObjectMeta)),
 		)
+	}
+	pclqExpStoreKey, err := getPodCliqueExpectationsStoreKey(logger, component.OperationDelete, pclqObjectMeta)
+	if err != nil {
+		return err
+	}
+	if err = r.expectationsStore.DeleteExpectations(logger, pclqExpStoreKey); err != nil {
+		return groveerr.WrapError(err,
+			errCodeDeletePodCliqueExpectations,
+			component.OperationDelete,
+			fmt.Sprintf("failed to delete expectations store for PodClique %v", pclqObjectMeta.Name))
 	}
 	logger.Info("Successfully deleted all pods for the PodClique")
 	return nil
