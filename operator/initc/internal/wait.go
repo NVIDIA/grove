@@ -59,6 +59,7 @@ type PodCliqueState struct {
 	podCliqueInfo      map[string]int
 	currentlyReadyPods map[string]sets.Set[string]
 	allReadyCh         chan struct{}
+	signaled           bool
 }
 
 // NewPodCliqueState creates and initializes all parent PodCliques with an unready state.
@@ -91,6 +92,7 @@ func NewPodCliqueState(podCliqueInfo map[string]int, log logr.Logger) (*PodCliqu
 		podCliqueInfo:      podCliqueInfo,
 		currentlyReadyPods: currentlyReadyPods,
 		allReadyCh:         make(chan struct{}, len(podCliqueInfo)),
+		signaled:           false,
 	}
 
 	return state, nil
@@ -180,7 +182,7 @@ func (c *PodCliqueState) registerEventHandler(factory informers.SharedInformerFa
 
 			c.refreshReadyPodsOfPodClique(pod, false)
 			if c.checkAllParentsReady() {
-				c.allReadyCh <- struct{}{}
+				c.signalAllReady()
 			}
 		},
 		UpdateFunc: func(_, newObj any) {
@@ -193,7 +195,7 @@ func (c *PodCliqueState) registerEventHandler(factory informers.SharedInformerFa
 
 			c.refreshReadyPodsOfPodClique(pod, false)
 			if c.checkAllParentsReady() {
-				c.allReadyCh <- struct{}{}
+				c.signalAllReady()
 			}
 		},
 		DeleteFunc: func(obj any) {
@@ -209,7 +211,7 @@ func (c *PodCliqueState) registerEventHandler(factory informers.SharedInformerFa
 
 			c.refreshReadyPodsOfPodClique(pod, true)
 			if c.checkAllParentsReady() {
-				c.allReadyCh <- struct{}{}
+				c.signalAllReady()
 			}
 		},
 	}, cache.HandlerOptions{Logger: &c.log})
@@ -248,6 +250,13 @@ func (c *PodCliqueState) checkAllParentsReady() bool {
 		}
 	}
 	return true
+}
+
+func (c *PodCliqueState) signalAllReady() {
+	if !c.signaled {
+		c.signaled = true
+		c.allReadyCh <- struct{}{}
+	}
 }
 
 func getLabelSelectorForPods(podGangName string) map[string]string {
