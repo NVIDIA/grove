@@ -159,7 +159,7 @@ func (r _resource) runSyncFlow(logger logr.Logger, sc *syncContext) syncFlowResu
 // It takes in the existing pods and adjusts the captured create/delete expectations in the ExpectationStore. Post synchronization
 // it computes the difference of pods using => as-is-pods + pods-expecting-creation - desired-pods - pods-expecting-deletion
 func (r _resource) syncExpectationsAndComputeDifference(logger logr.Logger, sc *syncContext) int {
-	r.expectationsStore.SyncExpectations(logger, sc.pclqExpectationsStoreKey, lo.Map(sc.existingPCLQPods, func(pod *corev1.Pod, _ int) types.UID { return pod.GetUID() })...)
+	r.expectationsStore.SyncExpectations(sc.pclqExpectationsStoreKey, lo.Map(sc.existingPCLQPods, func(pod *corev1.Pod, _ int) types.UID { return pod.GetUID() })...)
 	createExpectations := r.expectationsStore.GetCreateExpectations(sc.pclqExpectationsStoreKey)
 	deleteExpectations := r.expectationsStore.GetDeleteExpectations(sc.pclqExpectationsStoreKey)
 	diff := len(sc.existingPCLQPods) + len(createExpectations) - int(sc.pclq.Spec.Replicas) - len(deleteExpectations)
@@ -278,14 +278,9 @@ func (r _resource) createPods(ctx context.Context, logger logr.Logger, sc *syncC
 	}
 	runResult := utils.RunConcurrentlyWithSlowStart(ctx, logger, 1, createTasks)
 	if runResult.HasErrors() {
-		err := runResult.GetAggregatedError()
-		pclqObjectKey := client.ObjectKeyFromObject(sc.pclq)
+		err = runResult.GetAggregatedError()
 		logger.Error(err, "failed to create pods for PCLQ", "runSummary", runResult.GetSummary())
-		return 0, groveerr.WrapError(err,
-			errCodeCreatePods,
-			component.OperationSync,
-			fmt.Sprintf("failed to create Pods for PodClique %v", pclqObjectKey),
-		)
+		return 0, err
 	}
 	return len(runResult.SuccessfulTasks), nil
 }

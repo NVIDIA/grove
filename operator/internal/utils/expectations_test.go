@@ -1,12 +1,29 @@
+// /*
+// Copyright 2025 The Grove Authors.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+// */
+
 package utils
 
 import (
+	"sync"
+	"testing"
+
 	"github.com/go-logr/logr"
 	"github.com/stretchr/testify/assert"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/sets"
-	"sync"
-	"testing"
 )
 
 const controlleeKey = "test-ns/test-resource"
@@ -36,7 +53,7 @@ func TestExpectCreations(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.description, func(t *testing.T) {
 			if tc.existingUIDs != nil {
-				initializeControlleeExpectations(expStore, controlleeKey, tc.existingUIDs, nil)
+				assert.NoError(t, initializeControlleeExpectations(expStore, controlleeKey, tc.existingUIDs, nil))
 			}
 			// test the method
 			wg := sync.WaitGroup{}
@@ -80,7 +97,7 @@ func TestObserveDeletions(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.description, func(t *testing.T) {
 			if tc.existingUIDs != nil {
-				initializeControlleeExpectations(expStore, controlleeKey, nil, tc.existingUIDs)
+				assert.NoError(t, initializeControlleeExpectations(expStore, controlleeKey, nil, tc.existingUIDs))
 			}
 			expStore.ObserveDeletions(logr.Discard(), controlleeKey, tc.observedDeleteExpectationUIDs...)
 			leftOverActualDeleteExpectations := expStore.GetDeleteExpectations(controlleeKey)
@@ -114,7 +131,7 @@ func TestExpectDeletions(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.description, func(t *testing.T) {
 			if tc.existingUIDs != nil {
-				initializeControlleeExpectations(expStore, controlleeKey, nil, tc.existingUIDs)
+				assert.NoError(t, initializeControlleeExpectations(expStore, controlleeKey, nil, tc.existingUIDs))
 			}
 			// test the method
 			wg := sync.WaitGroup{}
@@ -152,10 +169,10 @@ func TestDeleteExpectations(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.description, func(t *testing.T) {
 			if tc.expectationsExist {
-				initializeControlleeExpectations(expStore,
+				assert.NoError(t, initializeControlleeExpectations(expStore,
 					controlleeKey,
 					[]types.UID{"3"},
-					[]types.UID{"1", "2"})
+					[]types.UID{"1", "2"}))
 			}
 			err := expStore.DeleteExpectations(logr.Discard(), controlleeKey)
 			assert.NoError(t, err)
@@ -197,16 +214,16 @@ func TestSyncExpectations(t *testing.T) {
 	expStore := NewExpectationsStore()
 	for _, tc := range testCases {
 		t.Run(tc.description, func(t *testing.T) {
-			initializeControlleeExpectations(expStore, tc.controlleeKey, tc.createExpectationUIDs, tc.deleteExpectationsUIDs)
-			expStore.SyncExpectations(logr.Discard(), tc.controlleeKey, tc.existingUIDs...)
+			assert.NoError(t, initializeControlleeExpectations(expStore, tc.controlleeKey, tc.createExpectationUIDs, tc.deleteExpectationsUIDs))
+			expStore.SyncExpectations(tc.controlleeKey, tc.existingUIDs...)
 			assert.ElementsMatch(t, tc.createExpectationUIDsPostSync, expStore.GetCreateExpectations(tc.controlleeKey))
 			assert.ElementsMatch(t, tc.deleteExpectationUIDsPostSync, expStore.GetDeleteExpectations(tc.controlleeKey))
 		})
 	}
 }
 
-func initializeControlleeExpectations(expStore *ExpectationsStore, controlleeKey string, uidsToAdd, uidsToDelete []types.UID) {
-	expStore.Add(&ControlleeExpectations{
+func initializeControlleeExpectations(expStore *ExpectationsStore, controlleeKey string, uidsToAdd, uidsToDelete []types.UID) error {
+	return expStore.Add(&ControlleeExpectations{
 		key:          controlleeKey,
 		uidsToAdd:    sets.New(uidsToAdd...),
 		uidsToDelete: sets.New(uidsToDelete...),

@@ -22,3 +22,8 @@ import "strings"
 func IsEmptyStringType[T ~string](val T) bool {
 	return len(strings.TrimSpace(string(val))) == 0
 }
+
+// OnlyOneIsNil returns true if only one of the Objects is nil else it will return false.
+func OnlyOneIsNil[T any](objA, objB *T) bool {
+	return (objA == nil) != (objB == nil)
+}

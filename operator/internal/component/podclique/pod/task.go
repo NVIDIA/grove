@@ -1,3 +1,19 @@
+// /*
+// Copyright 2025 The Grove Authors.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+// */
+
 package pod
 
 import (
@@ -27,7 +43,7 @@ func (r _resource) podCreationTask(logger logr.Logger, pclq *grovecorev1alpha1.P
 			// build the Pod resource
 			if err := r.buildResource(pclq, podGangName, pod, podHostNameIndex); err != nil {
 				return groveerr.WrapError(err,
-					errCodeSyncPod,
+					errCodeBuildPodResource,
 					component.OperationSync,
 					fmt.Sprintf("failed to build Pod resource for PodClique %v", pclqObjKey),
 				)
@@ -40,7 +56,7 @@ func (r _resource) podCreationTask(logger logr.Logger, pclq *grovecorev1alpha1.P
 				}
 				r.eventRecorder.Eventf(pclq, corev1.EventTypeWarning, groveevents.ReasonPodCreationFailed, "Error creating pod %v: %v", pod.Name, err)
 				return groveerr.WrapError(err,
-					errCodeSyncPod,
+					errCodeCreatePod,
 					component.OperationSync,
 					fmt.Sprintf("failed to create Pod: %s for PodClique %v", pod.Name, pclqObjKey),
 				)

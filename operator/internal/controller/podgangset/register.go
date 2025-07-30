@@ -22,7 +22,10 @@ import (
 	grovecorev1alpha1 "github.com/NVIDIA/grove/operator/api/core/v1alpha1"
 	componentutils "github.com/NVIDIA/grove/operator/internal/component/utils"
 	grovectrlutils "github.com/NVIDIA/grove/operator/internal/controller/utils"
+	"github.com/NVIDIA/grove/operator/internal/utils"
 
+	"k8s.io/apimachinery/pkg/api/meta"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -48,13 +51,18 @@ func (r *Reconciler) RegisterWithManager(mgr manager.Manager) error {
 		For(&grovecorev1alpha1.PodGangSet{}, builder.WithPredicates(predicate.GenerationChangedPredicate{})).
 		Watches(
 			&grovecorev1alpha1.PodClique{},
-			handler.EnqueueRequestsFromMapFunc(mapPCLQToPodGangSet()),
+			handler.EnqueueRequestsFromMapFunc(mapPodCliqueToPodGangSet()),
 			builder.WithPredicates(podCliquePredicate()),
+		).
+		Watches(
+			&grovecorev1alpha1.PodCliqueScalingGroup{},
+			handler.EnqueueRequestsFromMapFunc(mapPodCliqueScaleGroupToPodGangSet()),
+			builder.WithPredicates(podCliqueScalingGroupPredicate()),
 		).
 		Complete(r)
 }
 
-func mapPCLQToPodGangSet() handler.MapFunc {
+func mapPodCliqueToPodGangSet() handler.MapFunc {
 	return func(_ context.Context, obj client.Object) []reconcile.Request {
 		pclq, ok := obj.(*grovecorev1alpha1.PodClique)
 		if !ok {
@@ -62,6 +70,17 @@ func mapPCLQToPodGangSet() handler.MapFunc {
 		}
 		pgsName := componentutils.GetPodGangSetName(pclq.ObjectMeta)
 		return []reconcile.Request{{NamespacedName: types.NamespacedName{Name: pgsName, Namespace: pclq.Namespace}}}
+	}
+}
+
+func mapPodCliqueScaleGroupToPodGangSet() handler.MapFunc {
+	return func(_ context.Context, obj client.Object) []reconcile.Request {
+		pcsg, ok := obj.(*grovecorev1alpha1.PodCliqueScalingGroup)
+		if !ok {
+			return nil
+		}
+		pgsName := componentutils.GetPodGangSetName(pcsg.ObjectMeta)
+		return []reconcile.Request{{NamespacedName: types.NamespacedName{Name: pgsName, Namespace: pcsg.Namespace}}}
 	}
 }
 
@@ -80,6 +99,22 @@ func podCliquePredicate() predicate.Predicate {
 	}
 }
 
+func podCliqueScalingGroupPredicate() predicate.Predicate {
+	return predicate.Funcs{
+		CreateFunc: func(_ event.CreateEvent) bool { return false },
+		DeleteFunc: func(_ event.DeleteEvent) bool { return false },
+		UpdateFunc: func(updateEvent event.UpdateEvent) bool {
+			oldPCSG, okOld := updateEvent.ObjectOld.(*grovecorev1alpha1.PodCliqueScalingGroup)
+			newPCSG, okNew := updateEvent.ObjectNew.(*grovecorev1alpha1.PodCliqueScalingGroup)
+			if !okOld || !okNew {
+				return false
+			}
+			return hasMinAvailableBreachedConditionChanged(oldPCSG.Status.Conditions, newPCSG.Status.Conditions)
+		},
+		GenericFunc: func(_ event.TypedGenericEvent[client.Object]) bool { return false },
+	}
+}
+
 func hasSpecChanged(updateEvent event.UpdateEvent) bool {
 	return updateEvent.ObjectOld.GetGeneration() != updateEvent.ObjectNew.GetGeneration()
 }
@@ -90,8 +125,24 @@ func hasStatusChanged(updateEvent event.UpdateEvent) bool {
 	if !okOld || !okNew {
 		return false
 	}
-	return oldPCLQ.Status.Replicas != newPCLQ.Status.Replicas ||
-		oldPCLQ.Status.ReadyReplicas != newPCLQ.Status.ReadyReplicas ||
-		oldPCLQ.Status.UpdatedReplicas != newPCLQ.Status.UpdatedReplicas ||
-		oldPCLQ.Status.ScheduleGatedReplicas != newPCLQ.Status.ScheduleGatedReplicas
+	return hasAnyStatusReplicasChanged(oldPCLQ.Status, newPCLQ.Status) ||
+		hasMinAvailableBreachedConditionChanged(oldPCLQ.Status.Conditions, newPCLQ.Status.Conditions)
+}
+
+func hasAnyStatusReplicasChanged(oldPCLQStatus, newPCLQStatus grovecorev1alpha1.PodCliqueStatus) bool {
+	return oldPCLQStatus.Replicas != newPCLQStatus.Replicas ||
+		oldPCLQStatus.ReadyReplicas != newPCLQStatus.ReadyReplicas ||
+		oldPCLQStatus.ScheduleGatedReplicas != newPCLQStatus.ScheduleGatedReplicas
+}
+
+func hasMinAvailableBreachedConditionChanged(oldConditions, newConditions []metav1.Condition) bool {
+	oldMinAvailableBreachedCond := meta.FindStatusCondition(oldConditions, grovecorev1alpha1.ConditionTypeMinAvailableBreached)
+	newMinAvailableBreachedCond := meta.FindStatusCondition(newConditions, grovecorev1alpha1.ConditionTypeMinAvailableBreached)
+	if utils.OnlyOneIsNil(oldMinAvailableBreachedCond, newMinAvailableBreachedCond) {
+		return true
+	}
+	if oldMinAvailableBreachedCond != nil && newMinAvailableBreachedCond != nil {
+		return oldMinAvailableBreachedCond.Status != newMinAvailableBreachedCond.Status
+	}
+	return false
 }

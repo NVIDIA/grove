@@ -136,17 +136,7 @@ func podCliquePredicate() predicate.Predicate {
 			return ctrlutils.IsManagedPodClique(deleteEvent.Object, grovecorev1alpha1.PodCliqueScalingGroupKind)
 		},
 		UpdateFunc: func(updateEvent event.UpdateEvent) bool {
-			return ctrlutils.IsManagedPodClique(updateEvent.ObjectOld, grovecorev1alpha1.PodCliqueScalingGroupKind) &&
-				hasPodCliqueReadyReplicasChanged(updateEvent)
+			return ctrlutils.IsManagedPodClique(updateEvent.ObjectOld, grovecorev1alpha1.PodCliqueScalingGroupKind)
 		},
 	}
-}
-
-func hasPodCliqueReadyReplicasChanged(updateEvent event.UpdateEvent) bool {
-	oldPCLQ, okOld := updateEvent.ObjectOld.(*grovecorev1alpha1.PodClique)
-	newPCLQ, okNew := updateEvent.ObjectNew.(*grovecorev1alpha1.PodClique)
-	if !okOld || !okNew {
-		return false
-	}
-	return oldPCLQ.Status.ReadyReplicas != newPCLQ.Status.ReadyReplicas
 }
