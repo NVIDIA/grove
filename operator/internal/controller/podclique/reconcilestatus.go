@@ -52,7 +52,9 @@ func (r *Reconciler) reconcileStatus(ctx context.Context, logger logr.Logger, pc
 	// Only do this if the PodClique has been successfully reconciled at least once. This prevents prematurely setting
 	// incorrect MinAvailable breached condition.
 	if pclq.Status.ObservedGeneration != nil {
-		mutateMinAvailableBreachedCondition(pclq, podCategories[k8sutils.NotReadyPodWithContainersInError])
+		mutateMinAvailableBreachedCondition(pclq,
+			len(podCategories[k8sutils.PodHasAtleastOneContainerWithNonZeroExitCode]),
+			len(podCategories[k8sutils.PodStartedButNotReady]))
 	}
 
 	// mutate the selector that will be used by an autoscaler.
@@ -94,16 +96,16 @@ func mutateSelector(pgsName string, pclq *grovecorev1alpha1.PodClique) error {
 	return nil
 }
 
-func mutateMinAvailableBreachedCondition(pclq *grovecorev1alpha1.PodClique, notReadyPodsWithContainersInError []*corev1.Pod) {
-	newCondition := computeMinAvailableBreachedCondition(pclq, notReadyPodsWithContainersInError)
+func mutateMinAvailableBreachedCondition(pclq *grovecorev1alpha1.PodClique, numNotReadyPodsWithContainersInError, numPodsStartedButNotReady int) {
+	newCondition := computeMinAvailableBreachedCondition(pclq, numNotReadyPodsWithContainersInError, numPodsStartedButNotReady)
 	if k8sutils.HasConditionChanged(pclq.Status.Conditions, newCondition) {
 		meta.SetStatusCondition(&pclq.Status.Conditions, newCondition)
 	}
 }
 
-func computeMinAvailableBreachedCondition(pclq *grovecorev1alpha1.PodClique, notReadyPodsWithContainersInError []*corev1.Pod) metav1.Condition {
-	readyOrStartingPods := int(pclq.Status.Replicas) - len(notReadyPodsWithContainersInError)
-	// dereferencing is considered safe as MinAvailable will always be set by the defaulting webhook. If this changes in future.
+func computeMinAvailableBreachedCondition(pclq *grovecorev1alpha1.PodClique, numPodsHavingAtleastOneContainerWithNonZeroExitCode, numPodsStartedButNotReady int) metav1.Condition {
+	readyOrStartingPods := int(pclq.Status.Replicas) - numPodsHavingAtleastOneContainerWithNonZeroExitCode - numPodsStartedButNotReady
+	// dereferencing is considered safe as MinAvailable will always be set by the defaulting webhook. If this changes in the future,
 	// make sure that you check for nil explicitly.
 	minAvailable := int(*pclq.Spec.MinAvailable)
 	now := metav1.Now()

@@ -25,14 +25,18 @@ import (
 
 // constants for extension PodConditionTypes.
 const (
-	// NotReadyPodWithContainersInError is a custom corev1.PodConditionType that represents a Pod which is NotReady and has at least one of its containers that
+	// PodHasAtleastOneContainerWithNonZeroExitCode is a custom corev1.PodConditionType that represents a Pod which is NotReady and has at least one of its containers that
 	// have exited with an exit code != 0. This condition type will be used towards setting of MinAvailableBreached condition
 	// on the owner resource of a Pod.
-	NotReadyPodWithContainersInError corev1.PodConditionType = "NotReadyPodWithContainersInError"
+	PodHasAtleastOneContainerWithNonZeroExitCode corev1.PodConditionType = "PodHasAtleastOneContainerWithNonZeroExitCode"
 	// ScheduleGatedPod is a custom corev1.PodConditionType that represents a Pod which has one or more scheduling gates set.
 	ScheduleGatedPod corev1.PodConditionType = "ScheduleGatedPod"
 	// TerminatingPod is a custom corev1.PodConditionType that represents that this Pod has deletionTimestamp set on it.
 	TerminatingPod corev1.PodConditionType = "TerminatingPod"
+	// PodStartedButNotReady is a custom corev1.PodConditionType that represents a Pod that has at least container whose
+	// status has started=true and ready=false.
+	// NOTE: We are currently NOT supporting any thresholds/initialDelays as defined in container probes. Supporf for that might come later.
+	PodStartedButNotReady corev1.PodConditionType = "PodStartedButNotReady"
 )
 
 // CategorizePodsByConditionType groups pods by their pod condition. Three condition types a.k.a. categories are of interest:
@@ -43,11 +47,13 @@ func CategorizePodsByConditionType(logger logr.Logger, pods []*corev1.Pod) map[c
 		if IsPodReady(pod) {
 			podCategories[corev1.PodReady] = append(podCategories[corev1.PodReady], pod)
 		} else if HasAnyContainerExitedErroneously(logger, pod) {
-			podCategories[NotReadyPodWithContainersInError] = append(podCategories[NotReadyPodWithContainersInError], pod)
+			podCategories[PodHasAtleastOneContainerWithNonZeroExitCode] = append(podCategories[PodHasAtleastOneContainerWithNonZeroExitCode], pod)
 		} else if IsPodScheduleGated(pod) {
 			podCategories[ScheduleGatedPod] = append(podCategories[ScheduleGatedPod], pod)
 		} else if IsResourceTerminating(pod.ObjectMeta) {
 			podCategories[TerminatingPod] = append(podCategories[TerminatingPod], pod)
+		} else if HasAnyStartedButNotReadyContainer(pod) {
+			podCategories[PodStartedButNotReady] = append(podCategories[PodStartedButNotReady], pod)
 		}
 	}
 	return podCategories
@@ -94,8 +100,18 @@ func HasAnyContainerExitedErroneously(logger logr.Logger, pod *corev1.Pod) bool 
 	return false
 }
 
-// GetContainerStatusIfTerminatedErroneously gets the corev1.ContainerStatus if any one of the containers (init, sidecar or main)
-// has a non-zero LastTerminationState.Terminated.ExitCode. The reason to choose `containerStatus.LastTerminationState` instead of `containerStatus.State` is that
+// HasAnyStartedButNotReadyContainer checks if there is at least one container which has started but not ready.
+func HasAnyStartedButNotReadyContainer(pod *corev1.Pod) bool {
+	for _, containerStatus := range pod.Status.ContainerStatuses {
+		if containerStatus.Started != nil && *containerStatus.Started && !containerStatus.Ready {
+			return true
+		}
+	}
+	return false
+}
+
+// GetContainerStatusIfTerminatedErroneously gets the first occurrence of corev1.ContainerStatus (across init, sidecar and main containers)
+// that has a non-zero LastTerminationState.Terminated.ExitCode. The reason to choose `containerStatus.LastTerminationState` instead of `containerStatus.State` is that
 // the `containerStatus.State` oscillates between waiting and terminating while the `containerStatus.LastTerminationState` captures the last termination state and
 // only changes when the container starts properly after multiple attempts, thus it is a more stable target state to observe.
 func GetContainerStatusIfTerminatedErroneously(containerStatuses []corev1.ContainerStatus) *corev1.ContainerStatus {

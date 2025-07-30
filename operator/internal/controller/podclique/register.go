@@ -112,7 +112,8 @@ func hasPodStatusChanged(updateEvent event.UpdateEvent) bool {
 	}
 	return hasReadyConditionChanged(oldPod.Status.Conditions, newPod.Status.Conditions) ||
 		hasLastTerminationStateChanged(oldPod.Status.InitContainerStatuses, newPod.Status.InitContainerStatuses) ||
-		hasLastTerminationStateChanged(oldPod.Status.ContainerStatuses, newPod.Status.ContainerStatuses)
+		hasLastTerminationStateChanged(oldPod.Status.ContainerStatuses, newPod.Status.ContainerStatuses) ||
+		hasStartedAndReadyChangedForAnyContainer(oldPod.Status.ContainerStatuses, newPod.Status.ContainerStatuses)
 }
 
 func hasReadyConditionChanged(oldPodConditions, newPodConditions []corev1.PodCondition) bool {
@@ -134,6 +135,22 @@ func hasLastTerminationStateChanged(oldContainerStatuses []corev1.ContainerStatu
 	if (oldErroneousContainerStatus == nil && newErroneousContainerStatus != nil) ||
 		(oldErroneousContainerStatus != nil && newErroneousContainerStatus == nil) {
 		return true
+	}
+	return false
+}
+
+func hasStartedAndReadyChangedForAnyContainer(oldContainerStatuses []corev1.ContainerStatus, newContainerStatuses []corev1.ContainerStatus) bool {
+	for _, oldContainerStatus := range oldContainerStatuses {
+		matchingNewContainerStatus, ok := lo.Find(newContainerStatuses, func(containerStatus corev1.ContainerStatus) bool {
+			return oldContainerStatus.Name == containerStatus.Name
+		})
+		if !ok {
+			return true
+		}
+		if matchingNewContainerStatus.Ready != oldContainerStatus.Ready ||
+			matchingNewContainerStatus.Started != oldContainerStatus.Started {
+			return true
+		}
 	}
 	return false
 }
