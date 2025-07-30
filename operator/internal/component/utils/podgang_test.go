@@ -24,97 +24,95 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-func TestDeterminePodGangNameForPodClique_OwnerReference(t *testing.T) {
+func TestGeneratePodGangNameForPodCliqueOwnedByPodGangSet(t *testing.T) {
 	// Create a PodGangSet for testing
 	pgs := &grovecorev1alpha1.PodGangSet{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: "simple1",
 		},
-		Spec: grovecorev1alpha1.PodGangSetSpec{
-			Template: grovecorev1alpha1.PodGangSetTemplateSpec{
-				PodCliqueScalingGroupConfigs: []grovecorev1alpha1.PodCliqueScalingGroupConfig{
-					{
-						Name:         "sga",
-						MinAvailable: intPtr(3),
-						Replicas:     intPtr(5),
-					},
-				},
-			},
+	}
+
+	tests := []struct {
+		name                string
+		pgsReplicaIndex     int
+		expectedPodGangName string
+	}{
+		{
+			name:                "PGS replica 0",
+			pgsReplicaIndex:     0,
+			expectedPodGangName: "simple1-0",
+		},
+		{
+			name:                "PGS replica 1",
+			pgsReplicaIndex:     1,
+			expectedPodGangName: "simple1-1",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := GeneratePodGangNameForPodCliqueOwnedByPodGangSet(pgs, tt.pgsReplicaIndex)
+			if result != tt.expectedPodGangName {
+				t.Errorf("GeneratePodGangNameForPodCliqueOwnedByPodGangSet() = %q, expected %q", result, tt.expectedPodGangName)
+			}
+		})
+	}
+}
+
+func TestGeneratePodGangNameForPodCliqueOwnedByPCSG(t *testing.T) {
+	// Create a PodGangSet for testing
+	pgs := &grovecorev1alpha1.PodGangSet{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "simple1",
 		},
 	}
 
 	tests := []struct {
 		name                string
-		pclq                *grovecorev1alpha1.PodClique
-		pgsReplica          int
+		pgsReplicaIndex     int
+		pcsg                *grovecorev1alpha1.PodCliqueScalingGroup
 		pcsgReplicaIndex    int
 		expectedPodGangName string
 	}{
 		{
-			name: "standalone PodClique owned by PGS",
-			pclq: &grovecorev1alpha1.PodClique{
+			name:            "PCSG PodClique within minAvailable",
+			pgsReplicaIndex: 0,
+			pcsg: &grovecorev1alpha1.PodCliqueScalingGroup{
 				ObjectMeta: metav1.ObjectMeta{
-					Name: "simple1-0-pcb",
-					OwnerReferences: []metav1.OwnerReference{
-						{
-							Kind: "PodGangSet",
-							Name: "simple1",
-						},
-					},
+					Name: "simple1-0-sga",
+				},
+				Spec: grovecorev1alpha1.PodCliqueScalingGroupSpec{
+					MinAvailable: intPtr(3),
 				},
 			},
-			pgsReplica:          0,
-			pcsgReplicaIndex:    0,
-			expectedPodGangName: "simple1-0",
-		},
-		{
-			name: "scaling group PodClique within minAvailable - owned by PCSG",
-			pclq: &grovecorev1alpha1.PodClique{
-				ObjectMeta: metav1.ObjectMeta{
-					Name: "simple1-0-sga-1-pcb",
-					OwnerReferences: []metav1.OwnerReference{
-						{
-							Kind: "PodCliqueScalingGroup",
-							Name: "simple1-0-sga",
-						},
-					},
-				},
-			},
-			pgsReplica:          0,
 			pcsgReplicaIndex:    1, // Within minAvailable (< 3)
 			expectedPodGangName: "simple1-0",
 		},
 		{
-			name: "scaling group PodClique beyond minAvailable - owned by PCSG",
-			pclq: &grovecorev1alpha1.PodClique{
+			name:            "PCSG PodClique beyond minAvailable - first scaled",
+			pgsReplicaIndex: 0,
+			pcsg: &grovecorev1alpha1.PodCliqueScalingGroup{
 				ObjectMeta: metav1.ObjectMeta{
-					Name: "simple1-0-sga-3-pcb",
-					OwnerReferences: []metav1.OwnerReference{
-						{
-							Kind: "PodCliqueScalingGroup",
-							Name: "simple1-0-sga",
-						},
-					},
+					Name: "simple1-0-sga",
+				},
+				Spec: grovecorev1alpha1.PodCliqueScalingGroupSpec{
+					MinAvailable: intPtr(3),
 				},
 			},
-			pgsReplica:          0,
 			pcsgReplicaIndex:    3,                 // Beyond minAvailable (>= 3)
 			expectedPodGangName: "simple1-0-sga-0", // First scaled PodGang (3-3=0)
 		},
 		{
-			name: "scaling group PodClique further beyond minAvailable - owned by PCSG",
-			pclq: &grovecorev1alpha1.PodClique{
+			name:            "PCSG PodClique beyond minAvailable - second scaled",
+			pgsReplicaIndex: 0,
+			pcsg: &grovecorev1alpha1.PodCliqueScalingGroup{
 				ObjectMeta: metav1.ObjectMeta{
-					Name: "simple1-0-sga-4-pcb",
-					OwnerReferences: []metav1.OwnerReference{
-						{
-							Kind: "PodCliqueScalingGroup",
-							Name: "simple1-0-sga",
-						},
-					},
+					Name: "simple1-0-sga",
+				},
+				Spec: grovecorev1alpha1.PodCliqueScalingGroupSpec{
+					MinAvailable: intPtr(3),
 				},
 			},
-			pgsReplica:          0,
 			pcsgReplicaIndex:    4,                 // Beyond minAvailable (>= 3)
 			expectedPodGangName: "simple1-0-sga-1", // Second scaled PodGang (4-3=1)
 		},
@@ -122,9 +120,9 @@ func TestDeterminePodGangNameForPodClique_OwnerReference(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := DeterminePodGangNameForPodClique(tt.pclq, pgs, tt.pgsReplica, tt.pcsgReplicaIndex)
+			result := GeneratePodGangNameForPodCliqueOwnedByPCSG(pgs, tt.pgsReplicaIndex, tt.pcsg, tt.pcsgReplicaIndex)
 			if result != tt.expectedPodGangName {
-				t.Errorf("DeterminePodGangNameForPodClique() = %q, expected %q", result, tt.expectedPodGangName)
+				t.Errorf("GeneratePodGangNameForPodCliqueOwnedByPCSG() = %q, expected %q", result, tt.expectedPodGangName)
 			}
 		})
 	}

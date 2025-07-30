@@ -5,7 +5,7 @@ PodGangSet CRD and Controller for Network Topology Aware Gang Scheduling & Autos
 
 ## Scaling Groups: MinAvailable and Gang Scheduling
 
-Grove's PodClique Scaling Groups provide sophisticated gang scheduling and autoscaling capabilities through two key configuration parameters: `replicas` and `minAvailable`.
+Grove's PodClique Scaling Groups provide sophisticated gang scheduling and termination protection through two key configuration parameters: `replicas` and `minAvailable`.
 
 ### Overview
 
