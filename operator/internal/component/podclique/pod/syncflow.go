@@ -229,15 +229,13 @@ func (r _resource) checkAndRemovePodSchedulingGates(sc *syncContext, logger logr
 				continue
 			}
 
-			// Capture pod to avoid loop variable issues in concurrent execution
-			podToUpdate := p
-			podObjectKey := client.ObjectKeyFromObject(podToUpdate)
+			podObjectKey := client.ObjectKeyFromObject(p)
 			task := utils.Task{
-				Name: fmt.Sprintf("RemoveSchedulingGate-%s-%d", podToUpdate.Name, i),
+				Name: fmt.Sprintf("RemoveSchedulingGate-%s-%d", p.Name, i),
 				Fn: func(ctx context.Context) error {
-					podClone := podToUpdate.DeepCopy()
-					podToUpdate.Spec.SchedulingGates = nil
-					if err := client.IgnoreNotFound(r.client.Patch(ctx, podToUpdate, client.MergeFrom(podClone))); err != nil {
+					podClone := p.DeepCopy()
+					p.Spec.SchedulingGates = nil
+					if err := client.IgnoreNotFound(r.client.Patch(ctx, p, client.MergeFrom(podClone))); err != nil {
 						return err
 					}
 					logger.Info("Removed scheduling gate from pod", "podObjectKey", podObjectKey)
@@ -372,20 +370,20 @@ func (r _resource) isBasePodGangReady(ctx context.Context, logger logr.Logger, n
 // Returns (shouldSkip, skipReason, error)
 // If error is non-nil, the caller should requeue rather than skip the pod
 func (r _resource) shouldSkipPodSchedulingGateRemoval(ctx context.Context, logger logr.Logger, pod *corev1.Pod) (bool, string, error) {
-	scaledPodGangName, hasPodGangLabel := pod.GetLabels()[grovecorev1alpha1.LabelPodGang]
+	podGangName, hasPodGangLabel := pod.GetLabels()[grovecorev1alpha1.LabelPodGang]
 	if !hasPodGangLabel {
 		// Pod not assigned to any PodGang yet - keep the scheduling gate
 		return true, "pod not assigned to PodGang yet", nil
 	}
 
 	basePodGangName, hasBasePodGangLabel := pod.GetLabels()[grovecorev1alpha1.LabelBasePodGang]
-	if !hasBasePodGangLabel || basePodGangName == scaledPodGangName {
+	if !hasBasePodGangLabel || basePodGangName == podGangName {
 		// BASE PODGANG POD: No base-podgang label or base-podgang equals scaled PodGang
 		// These pods form the core gang and get their gates removed immediately once assigned to PodGang
 		// They represent the minimum viable cluster (first minAvailable replicas) that must start together
 		logger.Info("Proceeding with gate removal for base PodGang pod",
 			"podObjectKey", client.ObjectKeyFromObject(pod),
-			"podGangName", scaledPodGangName)
+			"podGangName", podGangName)
 		return false, "", nil
 	}
 
@@ -402,14 +400,14 @@ func (r _resource) shouldSkipPodSchedulingGateRemoval(ctx context.Context, logge
 	if !ready {
 		logger.Info("Scaled PodGang pod has scheduling gate but base PodGang is not ready yet",
 			"podObjectKey", client.ObjectKeyFromObject(pod),
-			"scaledPodGangName", scaledPodGangName,
+			"scaledPodGangName", podGangName,
 			"basePodGangName", basePodGangName)
 		return true, "base PodGang not ready", nil
 	}
 
 	logger.Info("Base PodGang is ready, removing scheduling gate from scaled PodGang pod",
 		"podObjectKey", client.ObjectKeyFromObject(pod),
-		"scaledPodGangName", scaledPodGangName,
+		"scaledPodGangName", podGangName,
 		"basePodGangName", basePodGangName)
 	return false, "", nil
 }

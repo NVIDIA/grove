@@ -168,7 +168,7 @@ func (r _resource) getExpectedPodGangsForPCSG(ctx context.Context, logger logr.L
 		// Scaled PodGangs use 0-based indexing regardless of minAvailable value
 		scaledPodGangIndex := 0
 		for pcsgReplicaIndex := int(minAvailable); pcsgReplicaIndex < int(pcsg.Spec.Replicas); pcsgReplicaIndex++ {
-			podGangName := componentutils.CreatePodGangNameForPCSGFromFQN(pcsg.Name, scaledPodGangIndex)
+			podGangName := componentutils.CreatePodGangNameFromPCSGFQN(pcsg.Name, scaledPodGangIndex)
 
 			// Generate the base PodGang name using the same logic as base PodGang creation
 			// This avoids name parsing and ensures consistency
@@ -182,12 +182,6 @@ func (r _resource) getExpectedPodGangsForPCSG(ctx context.Context, logger logr.L
 				basePodGangName: basePodGangName,
 			})
 
-			logger.Info("Created scaled PodGang for scaling group replica",
-				"podGangName", podGangName,
-				"scalingGroup", pcsg.Name,
-				"scalingGroupReplicaIndex", pcsgReplicaIndex,
-				"scaledPodGangIndex", scaledPodGangIndex,
-				"minAvailable", minAvailable)
 			scaledPodGangIndex++
 		}
 	}
@@ -227,10 +221,10 @@ func identifyConstituentPCLQsForPGSReplicaPodGang(sc *syncContext, pgsReplica in
 //   - PCSG controller creates PodCliques for replicas 3, 4 → get scaled PodGangs "simple1-0-sga-0", etc.
 func createScalingGroupPodCliques(sc *syncContext, pclqTemplateSpec *grovecorev1alpha1.PodCliqueTemplateSpec, pcsgConfig grovecorev1alpha1.PodCliqueScalingGroupConfig, pgsReplica int32) []pclqInfo {
 	// MinAvailable should always be non-nil due to kubebuilder default and defaulting webhook
-	minAvailable := *pcsgConfig.MinAvailable
+	minAvailable := int(*pcsgConfig.MinAvailable)
 
-	pclqs := make([]pclqInfo, 0, int(minAvailable))
-	for replicaIndex := 0; replicaIndex < int(minAvailable); replicaIndex++ {
+	pclqs := make([]pclqInfo, 0, minAvailable)
+	for replicaIndex := 0; replicaIndex < minAvailable; replicaIndex++ {
 		pcsgFQN := grovecorev1alpha1.GeneratePodCliqueScalingGroupName(
 			grovecorev1alpha1.ResourceNameReplica{Name: sc.pgs.Name, Replica: int(pgsReplica)},
 			pcsgConfig.Name,

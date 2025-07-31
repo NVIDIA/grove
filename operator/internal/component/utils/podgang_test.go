@@ -133,7 +133,7 @@ func intPtr(i int32) *int32 {
 	return &i
 }
 
-func TestCreatePodGangNameForPCSGFromFQN(t *testing.T) {
+func TestCreatePodGangNameFromPCSGFQN(t *testing.T) {
 	tests := []struct {
 		name             string
 		pcsgFQN          string
@@ -162,9 +162,9 @@ func TestCreatePodGangNameForPCSGFromFQN(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := CreatePodGangNameForPCSGFromFQN(tt.pcsgFQN, tt.pcsgReplicaIndex)
+			result := CreatePodGangNameFromPCSGFQN(tt.pcsgFQN, tt.pcsgReplicaIndex)
 			if result != tt.expected {
-				t.Errorf("CreatePodGangNameForPCSGFromFQN() = %q, expected %q", result, tt.expected)
+				t.Errorf("CreatePodGangNameFromPCSGFQN() = %q, expected %q", result, tt.expected)
 			}
 		})
 	}

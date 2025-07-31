@@ -40,12 +40,12 @@ func GetPodGangSelectorLabels(pgsObjMeta metav1.ObjectMeta) map[string]string {
 // This is used for scaled scaling group replicas beyond minAvailable.
 func CreatePodGangNameForPCSG(pgsName string, pgsReplicaIndex int, pcsgName string, scaledPodGangIndex int) string {
 	pcsgFQN := grovecorev1alpha1.GeneratePodCliqueScalingGroupName(grovecorev1alpha1.ResourceNameReplica{Name: pgsName, Replica: pgsReplicaIndex}, pcsgName)
-	return CreatePodGangNameForPCSGFromFQN(pcsgFQN, scaledPodGangIndex)
+	return CreatePodGangNameFromPCSGFQN(pcsgFQN, scaledPodGangIndex)
 }
 
-// CreatePodGangNameForPCSGFromFQN generates the PodGang name for a replica of a PodCliqueScalingGroup
+// CreatePodGangNameFromPCSGFQN generates the PodGang name for a replica of a PodCliqueScalingGroup
 // when the PCSG name is already fully qualified (e.g., "simple1-0-sga").
-func CreatePodGangNameForPCSGFromFQN(pcsgFQN string, scaledPodGangIndex int) string {
+func CreatePodGangNameFromPCSGFQN(pcsgFQN string, scaledPodGangIndex int) string {
 	return fmt.Sprintf("%s-%d", pcsgFQN, scaledPodGangIndex)
 }
 
@@ -70,6 +70,6 @@ func GeneratePodGangNameForPodCliqueOwnedByPCSG(pgs *grovecorev1alpha1.PodGangSe
 		// Convert scaling group replica index to 0-based scaled PodGang index
 		scaledPodGangIndex := pcsgReplicaIndex - int(minAvailable)
 		// Use the PCSG name directly (it's already the FQN)
-		return CreatePodGangNameForPCSGFromFQN(pcsg.Name, scaledPodGangIndex)
+		return CreatePodGangNameFromPCSGFQN(pcsg.Name, scaledPodGangIndex)
 	}
 }
