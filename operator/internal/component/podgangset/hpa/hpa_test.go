@@ -20,10 +20,10 @@ import (
 	"testing"
 
 	grovecorev1alpha1 "github.com/NVIDIA/grove/operator/api/core/v1alpha1"
+	testutils "github.com/NVIDIA/grove/operator/test/utils"
 
 	"github.com/stretchr/testify/assert"
 	autoscalingv2 "k8s.io/api/autoscaling/v2"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/utils/ptr"
 )
 
@@ -34,28 +34,17 @@ func TestComputeExpectedHPAs(t *testing.T) {
 		expected []hpaInfo
 	}{
 		{
-			name: "PodClique HPA with explicit minReplicas",
-			pgs: &grovecorev1alpha1.PodGangSet{
-				ObjectMeta: metav1.ObjectMeta{Name: "test-pgs", Namespace: "default"},
-				Spec: grovecorev1alpha1.PodGangSetSpec{
-					Replicas: 1,
-					Template: grovecorev1alpha1.PodGangSetTemplateSpec{
-						Cliques: []*grovecorev1alpha1.PodCliqueTemplateSpec{
-							{
-								Name: "test-clique",
-								Spec: grovecorev1alpha1.PodCliqueSpec{
-									Replicas:     3,
-									MinAvailable: ptr.To(int32(1)),
-									ScaleConfig: &grovecorev1alpha1.AutoScalingConfig{
-										MinReplicas: ptr.To(int32(2)),
-										MaxReplicas: 5,
-									},
-								},
-							},
-						},
-					},
-				},
-			},
+			name: "PodClique HPA",
+			pgs: testutils.NewPodGangSetBuilder("test-pgs", "default").
+				WithReplicas(1).
+				WithPodCliqueTemplateSpec(
+					testutils.NewPodCliqueTemplateSpecBuilder("test-clique").
+						WithReplicas(3).
+						WithMinAvailable(1).
+						WithScaleConfig(ptr.To(int32(2)), 5).
+						Build(),
+				).
+				Build(),
 			expected: []hpaInfo{
 				{
 					targetScaleResourceKind: grovecorev1alpha1.PodCliqueKind,
@@ -68,61 +57,20 @@ func TestComputeExpectedHPAs(t *testing.T) {
 			},
 		},
 		{
-			name: "PodClique HPA without explicit minReplicas",
-			pgs: &grovecorev1alpha1.PodGangSet{
-				ObjectMeta: metav1.ObjectMeta{Name: "test-pgs", Namespace: "default"},
-				Spec: grovecorev1alpha1.PodGangSetSpec{
-					Replicas: 1,
-					Template: grovecorev1alpha1.PodGangSetTemplateSpec{
-						Cliques: []*grovecorev1alpha1.PodCliqueTemplateSpec{
-							{
-								Name: "test-clique",
-								Spec: grovecorev1alpha1.PodCliqueSpec{
-									Replicas:     3,
-									MinAvailable: ptr.To(int32(2)),
-									ScaleConfig: &grovecorev1alpha1.AutoScalingConfig{
-										MinReplicas: ptr.To(int32(3)), // Set by defaulting webhook to replicas
-										MaxReplicas: 5,
-									},
-								},
-							},
-						},
+			name: "PodCliqueScalingGroup HPA",
+			pgs: testutils.NewPodGangSetBuilder("test-pgs", "default").
+				WithReplicas(1).
+				WithPodCliqueScalingGroupConfig(grovecorev1alpha1.PodCliqueScalingGroupConfig{
+					Name:         "test-sg",
+					Replicas:     ptr.To(int32(4)),
+					MinAvailable: ptr.To(int32(3)),
+					CliqueNames:  []string{"test-clique"},
+					ScaleConfig: &grovecorev1alpha1.AutoScalingConfig{
+						MinReplicas: ptr.To(int32(2)),
+						MaxReplicas: 6,
 					},
-				},
-			},
-			expected: []hpaInfo{
-				{
-					targetScaleResourceKind: grovecorev1alpha1.PodCliqueKind,
-					targetScaleResourceName: "test-pgs-0-test-clique",
-					scaleConfig: grovecorev1alpha1.AutoScalingConfig{
-						MinReplicas: ptr.To(int32(3)), // Set by defaulting webhook to replicas
-						MaxReplicas: 5,
-					},
-				},
-			},
-		},
-		{
-			name: "PodCliqueScalingGroup HPA with explicit minReplicas",
-			pgs: &grovecorev1alpha1.PodGangSet{
-				ObjectMeta: metav1.ObjectMeta{Name: "test-pgs", Namespace: "default"},
-				Spec: grovecorev1alpha1.PodGangSetSpec{
-					Replicas: 1,
-					Template: grovecorev1alpha1.PodGangSetTemplateSpec{
-						PodCliqueScalingGroupConfigs: []grovecorev1alpha1.PodCliqueScalingGroupConfig{
-							{
-								Name:         "test-sg",
-								Replicas:     ptr.To(int32(4)),
-								MinAvailable: ptr.To(int32(3)),
-								CliqueNames:  []string{"test-clique"},
-								ScaleConfig: &grovecorev1alpha1.AutoScalingConfig{
-									MinReplicas: ptr.To(int32(2)),
-									MaxReplicas: 6,
-								},
-							},
-						},
-					},
-				},
-			},
+				}).
+				Build(),
 			expected: []hpaInfo{
 				{
 					targetScaleResourceKind: grovecorev1alpha1.PodCliqueScalingGroupKind,
@@ -135,79 +83,33 @@ func TestComputeExpectedHPAs(t *testing.T) {
 			},
 		},
 		{
-			name: "PodCliqueScalingGroup HPA without explicit minReplicas",
-			pgs: &grovecorev1alpha1.PodGangSet{
-				ObjectMeta: metav1.ObjectMeta{Name: "test-pgs", Namespace: "default"},
-				Spec: grovecorev1alpha1.PodGangSetSpec{
-					Replicas: 1,
-					Template: grovecorev1alpha1.PodGangSetTemplateSpec{
-						PodCliqueScalingGroupConfigs: []grovecorev1alpha1.PodCliqueScalingGroupConfig{
-							{
-								Name:         "test-sg",
-								Replicas:     ptr.To(int32(4)),
-								MinAvailable: ptr.To(int32(1)),
-								CliqueNames:  []string{"test-clique"},
-								ScaleConfig: &grovecorev1alpha1.AutoScalingConfig{
-									MinReplicas: ptr.To(int32(4)), // Set by defaulting webhook to replicas
-									MaxReplicas: 6,
-								},
-							},
-						},
+			name: "Both PodClique and PodCliqueScalingGroup HPAs",
+			pgs: testutils.NewPodGangSetBuilder("test-pgs", "default").
+				WithReplicas(1).
+				WithPodCliqueTemplateSpec(
+					testutils.NewPodCliqueTemplateSpecBuilder("individual-clique").
+						WithReplicas(2).
+						WithMinAvailable(1).
+						WithScaleConfig(ptr.To(int32(2)), 4).
+						Build(),
+				).
+				WithPodCliqueScalingGroupConfig(grovecorev1alpha1.PodCliqueScalingGroupConfig{
+					Name:         "scaling-group",
+					Replicas:     ptr.To(int32(3)),
+					MinAvailable: ptr.To(int32(2)),
+					CliqueNames:  []string{"sg-clique"},
+					ScaleConfig: &grovecorev1alpha1.AutoScalingConfig{
+						MinReplicas: ptr.To(int32(1)),
+						MaxReplicas: 5,
 					},
-				},
-			},
-			expected: []hpaInfo{
-				{
-					targetScaleResourceKind: grovecorev1alpha1.PodCliqueScalingGroupKind,
-					targetScaleResourceName: "test-pgs-0-test-sg",
-					scaleConfig: grovecorev1alpha1.AutoScalingConfig{
-						MinReplicas: ptr.To(int32(4)), // Set by defaulting webhook to replicas
-						MaxReplicas: 6,
-					},
-				},
-			},
-		},
-		{
-			name: "Mixed HPAs",
-			pgs: &grovecorev1alpha1.PodGangSet{
-				ObjectMeta: metav1.ObjectMeta{Name: "test-pgs", Namespace: "default"},
-				Spec: grovecorev1alpha1.PodGangSetSpec{
-					Replicas: 1,
-					Template: grovecorev1alpha1.PodGangSetTemplateSpec{
-						Cliques: []*grovecorev1alpha1.PodCliqueTemplateSpec{
-							{
-								Name: "individual-clique",
-								Spec: grovecorev1alpha1.PodCliqueSpec{
-									Replicas:     2,
-									MinAvailable: ptr.To(int32(1)),
-									ScaleConfig: &grovecorev1alpha1.AutoScalingConfig{
-										MinReplicas: ptr.To(int32(2)), // Set by defaulting webhook to replicas
-										MaxReplicas: 4,
-									},
-								},
-							},
-						},
-						PodCliqueScalingGroupConfigs: []grovecorev1alpha1.PodCliqueScalingGroupConfig{
-							{
-								Name:         "scaling-group",
-								Replicas:     ptr.To(int32(3)),
-								MinAvailable: ptr.To(int32(2)),
-								CliqueNames:  []string{"sg-clique"},
-								ScaleConfig: &grovecorev1alpha1.AutoScalingConfig{
-									MinReplicas: ptr.To(int32(1)),
-									MaxReplicas: 5,
-								},
-							},
-						},
-					},
-				},
-			},
+				}).
+				Build(),
 			expected: []hpaInfo{
 				{
 					targetScaleResourceKind: grovecorev1alpha1.PodCliqueKind,
 					targetScaleResourceName: "test-pgs-0-individual-clique",
 					scaleConfig: grovecorev1alpha1.AutoScalingConfig{
-						MinReplicas: ptr.To(int32(2)), // Set by defaulting webhook to replicas
+						MinReplicas: ptr.To(int32(2)),
 						MaxReplicas: 4,
 					},
 				},
@@ -245,46 +147,42 @@ func TestBuildResource(t *testing.T) {
 		name                string
 		hpaInfo             hpaInfo
 		expectedMinReplicas int32
+		expectedMaxReplicas int32
 	}{
 		{
-			name: "Uses explicit MinReplicas from scaleConfig",
+			name: "Sets HPA spec from scaleConfig",
 			hpaInfo: hpaInfo{
+				targetScaleResourceKind: grovecorev1alpha1.PodCliqueKind,
+				targetScaleResourceName: "test-resource",
 				scaleConfig: grovecorev1alpha1.AutoScalingConfig{
 					MinReplicas: ptr.To(int32(2)),
 					MaxReplicas: 5,
 				},
 			},
-			expectedMinReplicas: 2, // Should use explicit MinReplicas
-		},
-		{
-			name: "Uses MinReplicas set by defaulting webhook",
-			hpaInfo: hpaInfo{
-				scaleConfig: grovecorev1alpha1.AutoScalingConfig{
-					MinReplicas: ptr.To(int32(3)), // Set by defaulting webhook
-					MaxReplicas: 5,
-				},
-			},
-			expectedMinReplicas: 3, // Should use MinReplicas from defaulting webhook
+			expectedMinReplicas: 2,
+			expectedMaxReplicas: 5,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			r := &_resource{}
-			pgs := &grovecorev1alpha1.PodGangSet{
-				ObjectMeta: metav1.ObjectMeta{Name: "test-pgs", Namespace: "default"},
-			}
+			pgs := testutils.NewPodGangSetBuilder("test-pgs", "default").Build()
 			hpa := &autoscalingv2.HorizontalPodAutoscaler{}
 
 			// This would normally be set by the scheme, but for testing we can skip it
 			err := r.buildResource(pgs, hpa, tt.hpaInfo)
 
-			// We expect an error due to missing scheme, but we can still check MinReplicas
+			// We expect an error due to missing scheme, but we can still check the spec
 			assert.NotNil(t, err) // Expected due to SetControllerReference failing
 			assert.Equal(t, tt.expectedMinReplicas, *hpa.Spec.MinReplicas,
 				"MinReplicas should be correctly set")
-			assert.Equal(t, tt.hpaInfo.scaleConfig.MaxReplicas, hpa.Spec.MaxReplicas,
+			assert.Equal(t, tt.expectedMaxReplicas, hpa.Spec.MaxReplicas,
 				"MaxReplicas should be correctly set")
+			assert.Equal(t, tt.hpaInfo.targetScaleResourceKind, hpa.Spec.ScaleTargetRef.Kind,
+				"ScaleTargetRef Kind should be correctly set")
+			assert.Equal(t, tt.hpaInfo.targetScaleResourceName, hpa.Spec.ScaleTargetRef.Name,
+				"ScaleTargetRef Name should be correctly set")
 		})
 	}
 }

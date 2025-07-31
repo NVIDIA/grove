@@ -17,14 +17,16 @@
 package utils
 
 import (
-	"fmt"
+	"context"
 
 	grovecorev1alpha1 "github.com/NVIDIA/grove/operator/api/core/v1alpha1"
 	"github.com/NVIDIA/grove/operator/internal/component"
 	k8sutils "github.com/NVIDIA/grove/operator/internal/utils/kubernetes"
 
+	groveschedulerv1alpha1 "github.com/NVIDIA/grove/scheduler/api/core/v1alpha1"
 	"github.com/samber/lo"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 // GetPodGangSelectorLabels creates the label selector to list all the PodGangs for a PodGangSet.
@@ -36,40 +38,11 @@ func GetPodGangSelectorLabels(pgsObjMeta metav1.ObjectMeta) map[string]string {
 		})
 }
 
-// CreatePodGangNameForPCSG generates the PodGang name for a replica of a PodCliqueScalingGroup.
-// This is used for scaled scaling group replicas beyond minAvailable.
-func CreatePodGangNameForPCSG(pgsName string, pgsReplicaIndex int, pcsgName string, scaledPodGangIndex int) string {
-	pcsgFQN := grovecorev1alpha1.GeneratePodCliqueScalingGroupName(grovecorev1alpha1.ResourceNameReplica{Name: pgsName, Replica: pgsReplicaIndex}, pcsgName)
-	return CreatePodGangNameFromPCSGFQN(pcsgFQN, scaledPodGangIndex)
-}
-
-// CreatePodGangNameFromPCSGFQN generates the PodGang name for a replica of a PodCliqueScalingGroup
-// when the PCSG name is already fully qualified (e.g., "simple1-0-sga").
-func CreatePodGangNameFromPCSGFQN(pcsgFQN string, scaledPodGangIndex int) string {
-	return fmt.Sprintf("%s-%d", pcsgFQN, scaledPodGangIndex)
-}
-
-// GeneratePodGangNameForPodCliqueOwnedByPodGangSet generates the PodGang name for a PodClique
-// that is directly owned by a PodGangSet (standalone PodClique).
-func GeneratePodGangNameForPodCliqueOwnedByPodGangSet(pgs *grovecorev1alpha1.PodGangSet, pgsReplicaIndex int) string {
-	return grovecorev1alpha1.GenerateBasePodGangName(grovecorev1alpha1.ResourceNameReplica{Name: pgs.Name, Replica: pgsReplicaIndex})
-}
-
-// GeneratePodGangNameForPodCliqueOwnedByPCSG generates the PodGang name for a PodClique
-// that is owned by a PodCliqueScalingGroup, using the PCSG object directly (no config lookup needed).
-func GeneratePodGangNameForPodCliqueOwnedByPCSG(pgs *grovecorev1alpha1.PodGangSet, pgsReplicaIndex int, pcsg *grovecorev1alpha1.PodCliqueScalingGroup, pcsgReplicaIndex int) string {
-	// MinAvailable should always be non-nil due to kubebuilder default and defaulting webhook
-	minAvailable := *pcsg.Spec.MinAvailable
-
-	// Apply the same logic as PodGang creation:
-	// Replicas 0..(minAvailable-1) → PGS replica PodGang (base PodGang)
-	// Replicas minAvailable+ → Scaled PodGangs (0-based indexing)
-	if pcsgReplicaIndex < int(minAvailable) {
-		return grovecorev1alpha1.GenerateBasePodGangName(grovecorev1alpha1.ResourceNameReplica{Name: pgs.Name, Replica: pgsReplicaIndex})
-	} else {
-		// Convert scaling group replica index to 0-based scaled PodGang index
-		scaledPodGangIndex := pcsgReplicaIndex - int(minAvailable)
-		// Use the PCSG name directly (it's already the FQN)
-		return CreatePodGangNameFromPCSGFQN(pcsg.Name, scaledPodGangIndex)
+func GetPodGang(ctx context.Context, cl client.Client, podGangName, namespace string) (*groveschedulerv1alpha1.PodGang, error) {
+	podGang := &groveschedulerv1alpha1.PodGang{}
+	podGangObjectKey := client.ObjectKey{Namespace: namespace, Name: podGangName}
+	if err := cl.Get(ctx, podGangObjectKey, podGang); err != nil {
+		return nil, err
 	}
+	return podGang, nil
 }

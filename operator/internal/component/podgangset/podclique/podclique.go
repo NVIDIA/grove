@@ -386,7 +386,7 @@ func (r _resource) buildResource(logger logr.Logger, pclq *grovecorev1alpha1.Pod
 			fmt.Sprintf("Error setting controller reference for PodClique: %v", client.ObjectKeyFromObject(pclq)),
 		)
 	}
-	pclq.Labels = getLabels(pgs, pgsReplica, pclqObjectKey, pclqTemplateSpec, componentutils.GeneratePodGangNameForPodCliqueOwnedByPodGangSet(pgs, pgsReplica))
+	pclq.Labels = getLabels(pgs, pgsReplica, pclqObjectKey, pclqTemplateSpec, grovecorev1alpha1.GeneratePodGangNameForPodCliqueOwnedByPodGangSet(pgs, pgsReplica))
 	pclq.Annotations = pclqTemplateSpec.Annotations
 	// set PodCliqueSpec
 	// ------------------------------------

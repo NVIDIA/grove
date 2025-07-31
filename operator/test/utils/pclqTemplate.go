@@ -50,11 +50,36 @@ func (b *PodCliqueTemplateSpecBuilder) WithStartsAfter(startsAfter []string) *Po
 	return b
 }
 
+// WithMinAvailable sets the MinAvailable field for the PodCliqueTemplateSpec.
+func (b *PodCliqueTemplateSpecBuilder) WithMinAvailable(minAvailable int32) *PodCliqueTemplateSpecBuilder {
+	b.pclqTemplateSpec.Spec.MinAvailable = &minAvailable
+	return b
+}
+
+// WithScaleConfig sets the complete ScaleConfig for the PodCliqueTemplateSpec.
+func (b *PodCliqueTemplateSpecBuilder) WithScaleConfig(minReplicas *int32, maxReplicas int32) *PodCliqueTemplateSpecBuilder {
+	b.pclqTemplateSpec.Spec.ScaleConfig = &grovecorev1alpha1.AutoScalingConfig{
+		MinReplicas: minReplicas,
+		MaxReplicas: maxReplicas,
+	}
+	return b
+}
+
+// WithAutoScaleMinReplicas sets the minimum replicas in ScaleConfig for the PodClique.
+func (b *PodCliqueTemplateSpecBuilder) WithAutoScaleMinReplicas(minimum int32) *PodCliqueTemplateSpecBuilder {
+	if b.pclqTemplateSpec.Spec.ScaleConfig == nil {
+		b.pclqTemplateSpec.Spec.ScaleConfig = &grovecorev1alpha1.AutoScalingConfig{}
+	}
+	b.pclqTemplateSpec.Spec.ScaleConfig.MinReplicas = &minimum
+	return b
+}
+
 // WithAutoScaleMaxReplicas sets the maximum replicas in ScaleConfig for the PodClique.
 func (b *PodCliqueTemplateSpecBuilder) WithAutoScaleMaxReplicas(maximum int32) *PodCliqueTemplateSpecBuilder {
-	b.pclqTemplateSpec.Spec.ScaleConfig = &grovecorev1alpha1.AutoScalingConfig{
-		MaxReplicas: maximum,
+	if b.pclqTemplateSpec.Spec.ScaleConfig == nil {
+		b.pclqTemplateSpec.Spec.ScaleConfig = &grovecorev1alpha1.AutoScalingConfig{}
 	}
+	b.pclqTemplateSpec.Spec.ScaleConfig.MaxReplicas = maximum
 	return b
 }
 

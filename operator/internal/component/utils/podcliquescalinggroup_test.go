@@ -20,64 +20,73 @@ import (
 	"testing"
 
 	grovecorev1alpha1 "github.com/NVIDIA/grove/operator/api/core/v1alpha1"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func TestFindScalingGroupConfigForClique(t *testing.T) {
 	// Create test scaling group configurations
 	scalingGroupConfigs := []grovecorev1alpha1.PodCliqueScalingGroupConfig{
 		{
-			Name:         "sga",
-			CliqueNames:  []string{"pca", "pcb"},
-			MinAvailable: func() *int32 { v := int32(2); return &v }(),
-			Replicas:     func() *int32 { v := int32(5); return &v }(),
+			Name:        "sga",
+			CliqueNames: []string{"pca", "pcb"},
 		},
 		{
-			Name:         "sgb",
-			CliqueNames:  []string{"pcc", "pcd", "pce"},
-			MinAvailable: func() *int32 { v := int32(1); return &v }(),
-			Replicas:     func() *int32 { v := int32(3); return &v }(),
+			Name:        "sgb",
+			CliqueNames: []string{"pcc", "pcd", "pce"},
 		},
 		{
-			Name:         "sgc",
-			CliqueNames:  []string{"pcf"},
-			MinAvailable: func() *int32 { v := int32(1); return &v }(),
-			Replicas:     func() *int32 { v := int32(2); return &v }(),
+			Name:        "sgc",
+			CliqueNames: []string{"pcf"},
 		},
 	}
 
 	tests := []struct {
 		name               string
+		configs            []grovecorev1alpha1.PodCliqueScalingGroupConfig
 		cliqueName         string
 		expectedFound      bool
 		expectedConfigName string
 	}{
 		{
 			name:               "clique found in first scaling group",
+			configs:            scalingGroupConfigs,
 			cliqueName:         "pca",
 			expectedFound:      true,
 			expectedConfigName: "sga",
 		},
 		{
 			name:               "clique found in second scaling group",
+			configs:            scalingGroupConfigs,
 			cliqueName:         "pcd",
 			expectedFound:      true,
 			expectedConfigName: "sgb",
 		},
 		{
 			name:               "clique found in third scaling group",
+			configs:            scalingGroupConfigs,
 			cliqueName:         "pcf",
 			expectedFound:      true,
 			expectedConfigName: "sgc",
 		},
 		{
 			name:               "clique not found in any scaling group",
+			configs:            scalingGroupConfigs,
 			cliqueName:         "nonexistent",
 			expectedFound:      false,
 			expectedConfigName: "",
 		},
 		{
 			name:               "empty clique name",
+			configs:            scalingGroupConfigs,
 			cliqueName:         "",
+			expectedFound:      false,
+			expectedConfigName: "",
+		},
+		{
+			name:               "empty configs",
+			configs:            []grovecorev1alpha1.PodCliqueScalingGroupConfig{},
+			cliqueName:         "anyClique",
 			expectedFound:      false,
 			expectedConfigName: "",
 		},
@@ -85,37 +94,16 @@ func TestFindScalingGroupConfigForClique(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			config, found := FindScalingGroupConfigForClique(scalingGroupConfigs, tt.cliqueName)
+			config, found := FindScalingGroupConfigForClique(tt.configs, tt.cliqueName)
 
-			if found != tt.expectedFound {
-				t.Errorf("FindScalingGroupConfigForClique() found = %v, expectedFound = %v", found, tt.expectedFound)
-			}
+			assert.Equal(t, tt.expectedFound, found)
 
 			if tt.expectedFound {
-				if config.Name != tt.expectedConfigName {
-					t.Errorf("FindScalingGroupConfigForClique() config.Name = %v, expectedConfigName = %v", config.Name, tt.expectedConfigName)
-				}
+				assert.Equal(t, tt.expectedConfigName, config.Name)
 			} else {
 				// When not found, config should be zero value
-				if config.Name != "" {
-					t.Errorf("FindScalingGroupConfigForClique() expected empty config when not found, got config.Name = %v", config.Name)
-				}
+				assert.Empty(t, config.Name)
 			}
 		})
-	}
-}
-
-func TestFindScalingGroupConfigForClique_EmptyConfigs(t *testing.T) {
-	// Test with empty slice of scaling group configurations
-	var emptyConfigs []grovecorev1alpha1.PodCliqueScalingGroupConfig
-
-	config, found := FindScalingGroupConfigForClique(emptyConfigs, "anyClique")
-
-	if found {
-		t.Errorf("FindScalingGroupConfigForClique() with empty configs should return found = false, got found = true")
-	}
-
-	if config.Name != "" {
-		t.Errorf("FindScalingGroupConfigForClique() with empty configs should return empty config, got config.Name = %v", config.Name)
 	}
 }

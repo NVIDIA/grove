@@ -21,16 +21,19 @@ import (
 	"testing"
 
 	grovecorev1alpha1 "github.com/NVIDIA/grove/operator/api/core/v1alpha1"
+	testutils "github.com/NVIDIA/grove/operator/test/utils"
 
 	"github.com/go-logr/logr"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/utils/ptr"
-	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 )
 
+// This is a critical test for HPA scaling logic:
+// - Tests how PodGangs split when scaling: base vs scaled PodGangs
+// - Verifies minAvailable logic works correctly during scale up/down
+// - Ensures the first minAvailable replicas stay gang-scheduled together
 func TestMinAvailableWithHPAScaling(t *testing.T) {
 	tests := []struct {
 		name                   string
@@ -149,11 +152,8 @@ func TestMinAvailableWithHPAScaling(t *testing.T) {
 				},
 			}
 
-			// Create fake client with both PGS and PCSG
-			scheme := runtime.NewScheme()
-			_ = grovecorev1alpha1.AddToScheme(scheme)
-			fakeClient := fake.NewClientBuilder().
-				WithScheme(scheme).
+			// Create fake client with both PGS and PCSG using testutils
+			fakeClient := testutils.NewTestClientBuilder().
 				WithObjects(pgs, pcsg).
 				Build()
 
@@ -167,9 +167,9 @@ func TestMinAvailableWithHPAScaling(t *testing.T) {
 			require.NoError(t, err)
 
 			// Verify scaled PodGangs
-			actualScaledPodGangs := make([]string, len(expectedPodGangs))
-			for i, pg := range expectedPodGangs {
-				actualScaledPodGangs[i] = pg.fqn
+			actualScaledPodGangs := make([]string, 0, len(expectedPodGangs))
+			for _, pg := range expectedPodGangs {
+				actualScaledPodGangs = append(actualScaledPodGangs, pg.fqn)
 			}
 			assert.Equal(t, tt.expectedScaledPodGangs, actualScaledPodGangs,
 				"Scaled PodGangs should match expected after scaling")

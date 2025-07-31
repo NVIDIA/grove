@@ -64,6 +64,12 @@ func (b *PodGangSetBuilder) WithPodCliqueTemplateSpec(pclq *grovecorev1alpha1.Po
 	return b
 }
 
+// WithPodCliqueScalingGroupConfig adds a PodCliqueScalingGroupConfig to the PodGangSet.
+func (b *PodGangSetBuilder) WithPodCliqueScalingGroupConfig(config grovecorev1alpha1.PodCliqueScalingGroupConfig) *PodGangSetBuilder {
+	b.pgs.Spec.Template.PodCliqueScalingGroupConfigs = append(b.pgs.Spec.Template.PodCliqueScalingGroupConfigs, config)
+	return b
+}
+
 // Build creates a PodGangSet object.
 func (b *PodGangSetBuilder) Build() *grovecorev1alpha1.PodGangSet {
 	return b.pgs

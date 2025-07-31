@@ -113,7 +113,7 @@ func (r _resource) Delete(ctx context.Context, logger logr.Logger, pgsObjectMeta
 }
 
 func (r _resource) buildResource(pgs *grovecorev1alpha1.PodGangSet, pgInfo podGangInfo, pg *groveschedulerv1alpha1.PodGang) error {
-	pg.Labels = getLabels(pgs.Name, pgInfo.basePodGangName)
+	pg.Labels = getLabels(pgs.Name)
 	if err := controllerutil.SetControllerReference(pgs, pg, r.scheme); err != nil {
 		return groveerr.WrapError(
 			err,
@@ -144,17 +144,10 @@ func emptyPodGang(objKey client.ObjectKey) *groveschedulerv1alpha1.PodGang {
 	}
 }
 
-func getLabels(pgsName string, basePodGangName string) map[string]string {
-	labels := lo.Assign(
+func getLabels(pgsName string) map[string]string {
+	return lo.Assign(
 		k8sutils.GetDefaultLabelsForPodGangSetManagedResources(pgsName),
 		map[string]string{
 			grovecorev1alpha1.LabelComponentKey: component.NamePodGang,
 		})
-
-	// Add base-podgang label for scaled PodGangs (beyond MinAvailable)
-	if basePodGangName != "" {
-		labels[grovecorev1alpha1.LabelBasePodGang] = basePodGangName
-	}
-
-	return labels
 }

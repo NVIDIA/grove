@@ -139,9 +139,6 @@ func TestCheckAndRemovePodSchedulingGates_MinAvailableAware(t *testing.T) {
 					ObjectMeta: metav1.ObjectMeta{
 						Name:      tt.podGangName,
 						Namespace: "default",
-						Labels: map[string]string{
-							grovecorev1alpha1.LabelBasePodGang: "simple1-0",
-						},
 					},
 					Spec: groveschedulerv1alpha1.PodGangSpec{
 						PodGroups: []groveschedulerv1alpha1.PodGroup{
@@ -193,6 +190,14 @@ func TestCheckAndRemovePodSchedulingGates_MinAvailableAware(t *testing.T) {
 					Name:      "test-pclq",
 					Namespace: "default",
 				},
+			}
+
+			// For scaled PodGang tests, add the base PodGang label to the PodClique
+			// This is what the production code expects to read in checkBasePodGangReadinessForPodClique
+			if isScaledPodGangTest {
+				testPclq.Labels = map[string]string{
+					grovecorev1alpha1.LabelBasePodGang: "simple1-0",
+				}
 			}
 
 			// Create resource and sync context
@@ -468,14 +473,11 @@ func createTestPodGangs(scaledPodGangName string, ready bool) []client.Object {
 	basePodGangName := "simple1-0"
 	var objects []client.Object
 
-	// Create the scaled PodGang with the base-podgang label
+	// Create the scaled PodGang (no longer needs base-podgang label since production code doesn't add it)
 	scaledPodGang := &groveschedulerv1alpha1.PodGang{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      scaledPodGangName,
 			Namespace: "default",
-			Labels: map[string]string{
-				grovecorev1alpha1.LabelBasePodGang: basePodGangName,
-			},
 		},
 		Spec: groveschedulerv1alpha1.PodGangSpec{
 			PodGroups: []groveschedulerv1alpha1.PodGroup{

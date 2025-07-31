@@ -53,15 +53,14 @@ type PodCliqueScalingGroupSpec struct {
 	// If not specified, it defaults to 1.
 	// +kubebuilder:default=1
 	Replicas int32 `json:"replicas"`
-	// MinAvailable specifies the minimum number of ready replicas required for the group to be considered operational.
-	// A scaling group replica is considered "ready" when its associated PodClique has sufficient ready Pods
-	// (PodClique.Status.ReadyReplicas >= PodClique.Status.MinAvailable), where a Pod is ready when its PodReady condition is True.
+	// MinAvailable specifies the minimum number of ready replicas required for a PodCliqueScalingGroup to be considered operational.
+	// A PodCliqueScalingGroup replica is considered "ready" when its associated PodCliques have sufficient ready or starting pods.
+	// If MinAvailable is breached, it will be used to signal that the PodCliqueScalingGroup is no longer operating with the desired availability.
+	// MinAvailable cannot be greater than Replicas. If ScaleConfig is defined then its MinAvailable should not be less than ScaleConfig.MinReplicas.
 	//
 	// It serves two main purposes:
-	// 1. Gang Scheduling: Replicas 0 through (MinAvailable-1) are grouped into the base PodGang and scheduled together.
-	//    Additional replicas (MinAvailable and above) are scaled PodGangs that wait for the base PodGang to be ready
-	//    before their scheduling gates are removed.
-	// 2. Gang Termination: If MinAvailable is breached, it will trigger gang-termination of the podGangs.
+	// 1. Gang Scheduling: MinAvailable defines the minimum number of replicas that are guaranteed to be gang scheduled.
+	// 2. Gang Termination: MinAvailable is used as a lower bound below which a PodGang becomes a candidate for Gang termination.
 	// If not specified, it defaults to 1.
 	// +optional
 	// +kubebuilder:default=1

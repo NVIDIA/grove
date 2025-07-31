@@ -51,6 +51,7 @@ func TestDefaultPodGangSet(t *testing.T) {
 						MinAvailable: ptr.To[int32](2),
 					},
 				}},
+				PodCliqueScalingGroupConfigs: []grovecorev1alpha1.PodCliqueScalingGroupConfig{},
 				HeadlessServiceConfig: &grovecorev1alpha1.HeadlessServiceConfig{
 					PublishNotReadyAddresses: true,
 				},

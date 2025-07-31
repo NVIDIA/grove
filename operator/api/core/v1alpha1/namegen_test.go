@@ -18,6 +18,10 @@ package v1alpha1
 
 import (
 	"testing"
+
+	"github.com/stretchr/testify/assert"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/utils/ptr"
 )
 
 func TestExtractScalingGroupNameFromPCSGFQN(t *testing.T) {
@@ -104,9 +108,7 @@ func TestExtractScalingGroupNameFromPCSGFQN(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			result := ExtractScalingGroupNameFromPCSGFQN(tt.pcsgName, tt.pgsNameReplica)
-			if result != tt.expected {
-				t.Errorf("ExtractScalingGroupNameFromPCSGFQN() = %q, expected %q", result, tt.expected)
-			}
+			assert.Equal(t, tt.expected, result)
 		})
 	}
 }
@@ -137,9 +139,7 @@ func TestGenerateBasePodGangName(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			result := GenerateBasePodGangName(tt.pgsNameReplica)
-			if result != tt.expected {
-				t.Errorf("GenerateBasePodGangName() = %q, expected %q", result, tt.expected)
-			}
+			assert.Equal(t, tt.expected, result)
 		})
 	}
 }
@@ -164,7 +164,7 @@ func TestExtractScalingGroupNameFromPCSGFQN_Consistency(t *testing.T) {
 		},
 	}
 
-	for i, tc := range testCases {
+	for _, tc := range testCases {
 		t.Run("consistency_test", func(t *testing.T) {
 			// Generate PCSG name
 			generatedPCSGName := GeneratePodCliqueScalingGroupName(tc.pgsNameReplica, tc.scalingGroupName)
@@ -173,10 +173,142 @@ func TestExtractScalingGroupNameFromPCSGFQN_Consistency(t *testing.T) {
 			extractedScalingGroupName := ExtractScalingGroupNameFromPCSGFQN(generatedPCSGName, tc.pgsNameReplica)
 
 			// They should match
-			if extractedScalingGroupName != tc.scalingGroupName {
-				t.Errorf("Test case %d: Round-trip consistency failed: generated %q, extracted %q from %q",
-					i, tc.scalingGroupName, extractedScalingGroupName, generatedPCSGName)
-			}
+			assert.Equal(t, tc.scalingGroupName, extractedScalingGroupName)
+		})
+	}
+}
+
+func TestGeneratePodGangNameForPodCliqueOwnedByPodGangSet(t *testing.T) {
+	// Create a PodGangSet for testing
+	pgs := &PodGangSet{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "simple1",
+		},
+	}
+
+	tests := []struct {
+		name                string
+		pgsReplicaIndex     int
+		expectedPodGangName string
+	}{
+		{
+			name:                "PGS replica 0",
+			pgsReplicaIndex:     0,
+			expectedPodGangName: "simple1-0",
+		},
+		{
+			name:                "PGS replica 1",
+			pgsReplicaIndex:     1,
+			expectedPodGangName: "simple1-1",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := GeneratePodGangNameForPodCliqueOwnedByPodGangSet(pgs, tt.pgsReplicaIndex)
+			assert.Equal(t, tt.expectedPodGangName, result)
+		})
+	}
+}
+
+func TestGeneratePodGangNameForPodCliqueOwnedByPCSG(t *testing.T) {
+	// Create a PodGangSet for testing
+	pgs := &PodGangSet{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "simple1",
+		},
+	}
+
+	tests := []struct {
+		name                string
+		pgsReplicaIndex     int
+		pcsg                *PodCliqueScalingGroup
+		pcsgReplicaIndex    int
+		expectedPodGangName string
+	}{
+		{
+			name:            "PCSG PodClique within minAvailable",
+			pgsReplicaIndex: 0,
+			pcsg: &PodCliqueScalingGroup{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "simple1-0-sga",
+				},
+				Spec: PodCliqueScalingGroupSpec{
+					MinAvailable: ptr.To[int32](3),
+				},
+			},
+			pcsgReplicaIndex:    1, // Within minAvailable (< 3)
+			expectedPodGangName: "simple1-0",
+		},
+		{
+			name:            "PCSG PodClique beyond minAvailable - first scaled",
+			pgsReplicaIndex: 0,
+			pcsg: &PodCliqueScalingGroup{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "simple1-0-sga",
+				},
+				Spec: PodCliqueScalingGroupSpec{
+					MinAvailable: ptr.To[int32](3),
+				},
+			},
+			pcsgReplicaIndex:    3,                 // Beyond minAvailable (>= 3)
+			expectedPodGangName: "simple1-0-sga-0", // First scaled PodGang (3-3=0)
+		},
+		{
+			name:            "PCSG PodClique beyond minAvailable - second scaled",
+			pgsReplicaIndex: 0,
+			pcsg: &PodCliqueScalingGroup{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "simple1-0-sga",
+				},
+				Spec: PodCliqueScalingGroupSpec{
+					MinAvailable: ptr.To[int32](3),
+				},
+			},
+			pcsgReplicaIndex:    4,                 // Beyond minAvailable (>= 3)
+			expectedPodGangName: "simple1-0-sga-1", // Second scaled PodGang (4-3=1)
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := GeneratePodGangNameForPodCliqueOwnedByPCSG(pgs, tt.pgsReplicaIndex, tt.pcsg, tt.pcsgReplicaIndex)
+			assert.Equal(t, tt.expectedPodGangName, result)
+		})
+	}
+}
+
+func TestCreatePodGangNameFromPCSGFQN(t *testing.T) {
+	tests := []struct {
+		name             string
+		pcsgFQN          string
+		pcsgReplicaIndex int
+		expected         string
+	}{
+		{
+			name:             "scaled PodGang name from FQN",
+			pcsgFQN:          "simple1-0-sga",
+			pcsgReplicaIndex: 1,
+			expected:         "simple1-0-sga-1",
+		},
+		{
+			name:             "scaled PodGang name from FQN with different replica",
+			pcsgFQN:          "simple1-0-sga",
+			pcsgReplicaIndex: 2,
+			expected:         "simple1-0-sga-2",
+		},
+		{
+			name:             "complex scaling group name",
+			pcsgFQN:          "test-2-complex-sg",
+			pcsgReplicaIndex: 0,
+			expected:         "test-2-complex-sg-0",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := CreatePodGangNameFromPCSGFQN(tt.pcsgFQN, tt.pcsgReplicaIndex)
+			assert.Equal(t, tt.expected, result)
 		})
 	}
 }

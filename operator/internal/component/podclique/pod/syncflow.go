@@ -54,7 +54,8 @@ func (r _resource) prepareSyncFlow(ctx context.Context, logger logr.Logger, pclq
 	}
 	sc.associatedPodGangName = associatedPodGangName
 
-	existingPodGang, err := r.getPodGang(ctx, associatedPodGangName, pclq.Namespace)
+	existingPodGang, err := componentutils.GetPodGang(ctx, r.client, associatedPodGangName, pclq.Namespace)
+	err = lo.Ternary(apierrors.IsNotFound(err), nil, err)
 	if err != nil {
 		return nil, err
 	}
@@ -82,32 +83,6 @@ func (r _resource) getAssociatedPodGangName(pclqObjectMeta metav1.ObjectMeta) (s
 		)
 	}
 	return podGangName, nil
-}
-
-// getPodGang attempts to get a PodGang and returns a nil podGang if it is not found.
-// This is specifically for cases where NotFound is a normal, expected condition
-// rather than an error that should be wrapped and propagated.
-//
-// Returns: (podGang, error)
-// - If error!=nil: actual API error occurred
-// - If error==nil: podGang contains the resource
-// - If error==nil and podGang==nil: podGang not found
-func (r _resource) getPodGang(ctx context.Context, podGangName, namespace string) (*groveschedulerv1alpha1.PodGang, error) {
-	podGang := &groveschedulerv1alpha1.PodGang{}
-	podGangObjectKey := client.ObjectKey{Namespace: namespace, Name: podGangName}
-	if err := r.client.Get(ctx, podGangObjectKey, podGang); err != nil {
-		if apierrors.IsNotFound(err) {
-			// NotFound is expected in some scenarios - not an error
-			return nil, nil
-		}
-		// Wrap actual API errors (network, permissions, etc.)
-		return nil, groveerr.WrapError(err,
-			errCodeGetPodGang,
-			component.OperationSync,
-			fmt.Sprintf("failed to get PodGang: %v", podGangObjectKey),
-		)
-	}
-	return podGang, nil
 }
 
 func (r _resource) getPodNamesUpdatedInAssociatedPodGang(existingPodGang *groveschedulerv1alpha1.PodGang, pclqFQN string) []string {
@@ -205,31 +180,32 @@ func selectExcessPodsToDelete(sc *syncContext, logger logr.Logger) []*corev1.Pod
 func (r _resource) checkAndRemovePodSchedulingGates(sc *syncContext, logger logr.Logger) ([]string, error) {
 	tasks := make([]utils.Task, 0, len(sc.existingPCLQPods))
 	skippedScheduleGatedPods := make([]string, 0, len(sc.existingPCLQPods))
+
+	// Pre-compute base PodGang readiness once for all pods in this PodClique
+	// All pods in the same PodClique have the same base PodGang
+	basePodGangReady, basePodGangName, err := r.checkBasePodGangReadinessForPodClique(sc.ctx, logger, sc.pclq)
+	if err != nil {
+		logger.Error(err, "Error checking base PodGang readiness for PodClique - will requeue")
+		return nil, groveerr.WrapError(err,
+			errCodeRemovePodSchedulingGate,
+			component.OperationSync,
+			"failed to check base PodGang readiness for PodClique",
+		)
+	}
+
 	for i, p := range sc.existingPCLQPods {
 		if hasPodGangSchedulingGate(p) {
-			if !slices.Contains(sc.podNamesUpdatedInPCLQPodGangs, p.Name) {
-				logger.Info("Pod has scheduling gate but it has not yet been updated in PodGang", "podObjectKey", client.ObjectKeyFromObject(p))
-				skippedScheduleGatedPods = append(skippedScheduleGatedPods, p.Name)
-				continue
-			}
-			// Apply PodGang scheduling gate logic (base vs scaled PodGang handling)
-			shouldSkip, skipReason, err := r.shouldSkipPodSchedulingGateRemoval(sc.ctx, logger, p)
-			if err != nil {
-				// API error - return early to trigger requeue
-				logger.Error(err, "Error in scheduling gate logic - will requeue", "podObjectKey", client.ObjectKeyFromObject(p))
-				return nil, groveerr.WrapError(err,
-					errCodeRemovePodSchedulingGate,
-					component.OperationSync,
-					fmt.Sprintf("failed to check PodGang readiness for pod %v", client.ObjectKeyFromObject(p)),
-				)
-			}
-			if shouldSkip {
-				logger.Info("Skipping scheduling gate removal", "podObjectKey", client.ObjectKeyFromObject(p), "reason", skipReason)
-				skippedScheduleGatedPods = append(skippedScheduleGatedPods, p.Name)
-				continue
-			}
-
 			podObjectKey := client.ObjectKeyFromObject(p)
+			if !slices.Contains(sc.podNamesUpdatedInPCLQPodGangs, p.Name) {
+				logger.Info("Pod has scheduling gate but it has not yet been updated in PodGang", "podObjectKey", podObjectKey)
+				skippedScheduleGatedPods = append(skippedScheduleGatedPods, p.Name)
+				continue
+			}
+			shouldSkip := r.shouldSkipPodSchedulingGateRemoval(logger, p, basePodGangReady, basePodGangName)
+			if shouldSkip {
+				skippedScheduleGatedPods = append(skippedScheduleGatedPods, p.Name)
+				continue
+			}
 			task := utils.Task{
 				Name: fmt.Sprintf("RemoveSchedulingGate-%s-%d", p.Name, i),
 				Fn: func(ctx context.Context) error {
@@ -263,48 +239,16 @@ func (r _resource) checkAndRemovePodSchedulingGates(sc *syncContext, logger logr
 }
 
 // isBasePodGangReady checks if the base PodGang (identified by name) is ready, returning errors for API failures.
-// This version properly distinguishes between "not ready" (legitimate state) and "error" (needs requeue).
-//
-// BASE PODGANG READINESS DEFINITION:
 // A base PodGang is considered "ready" when ALL of its constituent PodCliques have achieved
 // their minimum required number of ready pods (PodClique.Status.ReadyReplicas >= PodGroup.MinReplicas).
-//
-// WHY THIS MATTERS:
-// Base PodGang readiness is the gate that controls when scaled PodGang pods
-// can have their scheduling gates removed. This ensures that:
-//
-//  1. CORE FUNCTIONALITY FIRST: The minimum viable cluster (first minAvailable replicas)
-//     is fully operational before any additional scale-out pods are scheduled
-//
-//  2. RESOURCE EFFICIENCY: Prevents wasteful scheduling of extra pods when the core
-//     workload itself is not yet healthy/ready
-//
-//  3. DEPENDENCY ORDERING: Many distributed systems require a stable core before
-//     adding workers/replicas (e.g., databases, queue systems, consensus algorithms)
-//
-// EXAMPLE SCENARIO (minAvailable=3, replicas=5):
-//   - Base PodGang "simple1-0" contains replicas 0,1,2 (core cluster)
-//   - Scaled PodGangs "simple1-0-sga-0", "simple1-0-sga-1" wait for base readiness
-//   - Only when ALL PodCliques in base PodGang are ready do the scale-out pods get scheduled
-//
-// Returns (isReady bool, error)
-// - If error is non-nil, caller should requeue rather than assume "not ready"
-// - If error is nil, isReady indicates actual readiness status
 func (r _resource) isBasePodGangReady(ctx context.Context, logger logr.Logger, namespace, basePodGangName string) (bool, error) {
 	// Get the base PodGang - treat all errors (including NotFound) as requeue-able
-	basePodGang, err := r.getPodGang(ctx, basePodGangName, namespace)
+	basePodGang, err := componentutils.GetPodGang(ctx, r.client, basePodGangName, namespace)
 	if err != nil {
-		// All errors should trigger requeue for reliable retry
-		// This ensures we actively check for base PodGang creation rather than waiting passively
-		return false, err
-	}
-	if basePodGang == nil {
-		// NotFound is not expected in this context - create proper error for requeue
-		notFoundErr := fmt.Errorf("base PodGang not found")
-		return false, groveerr.WrapError(notFoundErr,
+		return false, groveerr.WrapError(err,
 			errCodeGetPodGang,
 			component.OperationSync,
-			fmt.Sprintf("base PodGang %v not found", client.ObjectKey{Namespace: namespace, Name: basePodGangName}),
+			fmt.Sprintf("failed to get base PodGang %v", client.ObjectKey{Namespace: namespace, Name: basePodGangName}),
 		)
 	}
 
@@ -342,74 +286,46 @@ func (r _resource) isBasePodGangReady(ctx context.Context, logger logr.Logger, n
 	return true, nil
 }
 
-// shouldSkipPodSchedulingGateRemoval implements the core PodGang scheduling gate logic.
-//
-// PodGang Scheduling Gate Logic: Base vs Scaled PodGangs
-// ============================================================
-//
-// CONCEPT OVERVIEW:
-// In scaling groups with minAvailable > 1, pods are divided into two categories:
-//
-// 1. BASE PODGANG PODS (replicas 0 to minAvailable-1):
-//   - Grouped into a single "base" PodGang (e.g., "simple1-0")
-//   - Scheduled together as a gang - all-or-nothing scheduling
-//   - Gates removed immediately when pods are assigned to PodGang
-//   - Forms the minimum viable cluster that other replicas depend on
-//
-// 2. SCALED PODGANG PODS (replicas minAvailable and above):
-//   - Each gets its own "scaled" PodGang (e.g., "simple1-0-sga-0", "simple1-0-sga-1")
-//   - Gates are only removed AFTER the base PodGang is ready and running
-//   - Provides scale-out capacity once core functionality is established
-//   - Has grove.io/base-podgang label pointing to their base PodGang
-//
-// EXAMPLE: With minAvailable=3, replicas=5:
-//   - Replicas 0,1,2 → Base PodGang "simple1-0" (scheduled together)
-//   - Replica 3     → Scaled PodGang "simple1-0-sga-0" (waits for base)
-//   - Replica 4     → Scaled PodGang "simple1-0-sga-1" (waits for base)
-//
-// Returns (shouldSkip, skipReason, error)
-// If error is non-nil, the caller should requeue rather than skip the pod
-func (r _resource) shouldSkipPodSchedulingGateRemoval(ctx context.Context, logger logr.Logger, pod *corev1.Pod) (bool, string, error) {
-	podGangName, hasPodGangLabel := pod.GetLabels()[grovecorev1alpha1.LabelPodGang]
-	if !hasPodGangLabel {
-		// Pod not assigned to any PodGang yet - keep the scheduling gate
-		return true, "pod not assigned to PodGang yet", nil
+// checkBasePodGangReadinessForPodClique determines if there's a base PodGang that needs to be checked
+// for readiness, and if so, performs that check once for the entire PodClique.
+func (r _resource) checkBasePodGangReadinessForPodClique(ctx context.Context, logger logr.Logger, pclq *grovecorev1alpha1.PodClique) (bool, string, error) {
+	// Check if this PodClique has a base PodGang dependency
+	basePodGangName, hasBasePodGangLabel := pclq.GetLabels()[grovecorev1alpha1.LabelBasePodGang]
+	if !hasBasePodGangLabel {
+		// This PodClique is a base PodGang itself - no dependency
+		return true, "", nil
 	}
 
-	basePodGangName, hasBasePodGangLabel := pod.GetLabels()[grovecorev1alpha1.LabelBasePodGang]
-	if !hasBasePodGangLabel || basePodGangName == podGangName {
-		// BASE PODGANG POD: No base-podgang label or base-podgang equals scaled PodGang
+	ready, err := r.isBasePodGangReady(ctx, logger, pclq.Namespace, basePodGangName)
+	if err != nil {
+		return false, basePodGangName, err
+	}
+
+	return ready, basePodGangName, nil
+}
+
+// shouldSkipPodSchedulingGateRemoval implements the core PodGang scheduling gate logic.
+// It returns true if the pod scheduling gate removal should be skipped, false otherwise.
+func (r _resource) shouldSkipPodSchedulingGateRemoval(logger logr.Logger, pod *corev1.Pod, basePodGangReady bool, basePodGangName string) bool {
+	if basePodGangName == "" {
+		// BASE PODGANG POD: This PodClique has no base PodGang dependency
 		// These pods form the core gang and get their gates removed immediately once assigned to PodGang
 		// They represent the minimum viable cluster (first minAvailable replicas) that must start together
 		logger.Info("Proceeding with gate removal for base PodGang pod",
-			"podObjectKey", client.ObjectKeyFromObject(pod),
-			"podGangName", podGangName)
-		return false, "", nil
+			"podObjectKey", client.ObjectKeyFromObject(pod))
+		return false
 	}
-
-	// SCALED PODGANG POD: This pod belongs to a scaled replica that must wait for base PodGang
-	ready, err := r.isBasePodGangReady(ctx, logger, pod.Namespace, basePodGangName)
-	if err != nil {
-		// API error - should requeue rather than skip indefinitely
-		logger.Error(err, "Error checking base PodGang readiness - will requeue",
+	// SCALED PODGANG POD: This PodClique depends on a base PodGang
+	if basePodGangReady {
+		logger.Info("Base PodGang is ready, proceeding with gate removal for scaled PodGang pod",
 			"podObjectKey", client.ObjectKeyFromObject(pod),
 			"basePodGangName", basePodGangName)
-		return false, "", err
+		return false
 	}
-
-	if !ready {
-		logger.Info("Scaled PodGang pod has scheduling gate but base PodGang is not ready yet",
-			"podObjectKey", client.ObjectKeyFromObject(pod),
-			"scaledPodGangName", podGangName,
-			"basePodGangName", basePodGangName)
-		return true, "base PodGang not ready", nil
-	}
-
-	logger.Info("Base PodGang is ready, removing scheduling gate from scaled PodGang pod",
+	logger.Info("Scaled PodGang pod has scheduling gate but base PodGang is not ready yet, skipping scheduling gate removal",
 		"podObjectKey", client.ObjectKeyFromObject(pod),
-		"scaledPodGangName", podGangName,
 		"basePodGangName", basePodGangName)
-	return false, "", nil
+	return true
 }
 
 func hasPodGangSchedulingGate(pod *corev1.Pod) bool {

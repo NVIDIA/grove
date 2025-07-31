@@ -415,7 +415,7 @@ func (r _resource) buildResource(logger logr.Logger, pgs *grovecorev1alpha1.PodG
 		return err
 	}
 
-	podGangName := componentutils.GeneratePodGangNameForPodCliqueOwnedByPCSG(pgs, pgsReplicaIndex, pcsg, pcsgReplicaIndex)
+	podGangName := grovecorev1alpha1.GeneratePodGangNameForPodCliqueOwnedByPCSG(pgs, pgsReplicaIndex, pcsg, pcsgReplicaIndex)
 
 	pclq.Labels = getLabels(pgs, pgsReplicaIndex, pcsg, pcsgReplicaIndex, pclqObjectKey, pclqTemplateSpec, podGangName)
 	pclq.Annotations = pclqTemplateSpec.Annotations
@@ -424,7 +424,7 @@ func (r _resource) buildResource(logger logr.Logger, pgs *grovecorev1alpha1.PodG
 	pclq.Spec = pclqTemplateSpec.Spec
 	pcsgTemplateNumPods := r.getPCSGTemplateNumPods(pgs, pcsg)
 	r.addEnvironmentVariablesToPodContainerSpecs(pclq, pcsgTemplateNumPods)
-	dependentPclqNames, err := identifyFullyQualifiedStartupDependencyNames(pgs, pclq, pgsReplicaIndex, foundAtIndex)
+	dependentPclqNames, err := identifyFullyQualifiedStartupDependencyNames(pgs, pgsReplicaIndex, pclq, foundAtIndex)
 	if err != nil {
 		return err
 	}
@@ -490,7 +490,7 @@ func getPGSReplicaFromPCSG(pcsg *grovecorev1alpha1.PodCliqueScalingGroup) (int, 
 	return pgsReplica, nil
 }
 
-func identifyFullyQualifiedStartupDependencyNames(pgs *grovecorev1alpha1.PodGangSet, pclq *grovecorev1alpha1.PodClique, pgsReplicaIndex, foundAtIndex int) ([]string, error) {
+func identifyFullyQualifiedStartupDependencyNames(pgs *grovecorev1alpha1.PodGangSet, pgsReplicaIndex int, pclq *grovecorev1alpha1.PodClique, foundAtIndex int) ([]string, error) {
 	cliqueStartupType := pgs.Spec.Template.StartupType
 	if cliqueStartupType == nil {
 		// Ideally this should never happen as the defaulting webhook should set it v1alpha1.CliqueStartupTypeInOrder as the default value.
