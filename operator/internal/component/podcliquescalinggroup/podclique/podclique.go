@@ -511,31 +511,32 @@ func getInOrderStartupDependencies(pgs *grovecorev1alpha1.PodGangSet, pgsReplica
 	if foundAtIndex == 0 {
 		return nil
 	}
-	previousCliqueName := pgs.Spec.Template.Cliques[foundAtIndex-1].Name
+	parentCliqueName := pgs.Spec.Template.Cliques[foundAtIndex-1].Name
 
 	// Current pcsgReplicaIndex belongs to the base PodGang
 	if pcsgReplicaIndex < int(*pcsg.Spec.MinAvailable) {
-		return componentutils.GenerateDependencyNamesForBasePodGang(pgs, pgsReplicaIndex, previousCliqueName)
+		return componentutils.GenerateDependencyNamesForBasePodGang(pgs, pgsReplicaIndex, parentCliqueName)
 	}
 
 	// Startup ordering is only enforced within a PodGang.
 	// PodCliques that belong to the base PodGang are not considered for startsAfter in scaled PodGangs.
-	if !slices.Contains(pcsg.Spec.CliqueNames, previousCliqueName) {
+	if !slices.Contains(pcsg.Spec.CliqueNames, parentCliqueName) {
 		return nil
 	}
 
-	previousPCLQName := grovecorev1alpha1.GeneratePodCliqueName(grovecorev1alpha1.ResourceNameReplica{Name: pcsg.Name, Replica: pcsgReplicaIndex}, previousCliqueName)
-	return []string{previousPCLQName}
+	return []string{
+		grovecorev1alpha1.GeneratePodCliqueName(grovecorev1alpha1.ResourceNameReplica{Name: pcsg.Name, Replica: pcsgReplicaIndex}, parentCliqueName),
+	}
 }
 
 func getExplicitStartupDependencies(pgs *grovecorev1alpha1.PodGangSet, pgsReplicaIndex int, pcsg *grovecorev1alpha1.PodCliqueScalingGroup, pcsgReplicaIndex int, pclq *grovecorev1alpha1.PodClique) []string {
-	dependencies := make([]string, 0, len(pclq.Spec.StartsAfter))
+	parentCliqueNames := make([]string, 0, len(pclq.Spec.StartsAfter))
 	// Current pcsgReplicaIndex belongs to the base PodGang
 	if pcsgReplicaIndex < int(*pcsg.Spec.MinAvailable) {
 		for _, dependency := range pclq.Spec.StartsAfter {
-			dependencies = append(dependencies, componentutils.GenerateDependencyNamesForBasePodGang(pgs, pgsReplicaIndex, dependency)...)
+			parentCliqueNames = append(parentCliqueNames, componentutils.GenerateDependencyNamesForBasePodGang(pgs, pgsReplicaIndex, dependency)...)
 		}
-		return dependencies
+		return parentCliqueNames
 	}
 
 	for _, dependency := range pclq.Spec.StartsAfter {
@@ -543,9 +544,9 @@ func getExplicitStartupDependencies(pgs *grovecorev1alpha1.PodGangSet, pgsReplic
 		if !slices.Contains(pcsg.Spec.CliqueNames, dependency) {
 			continue
 		}
-		dependencies = append(dependencies, grovecorev1alpha1.GeneratePodCliqueName(grovecorev1alpha1.ResourceNameReplica{Name: pcsg.Name, Replica: pcsgReplicaIndex}, dependency))
+		parentCliqueNames = append(parentCliqueNames, grovecorev1alpha1.GeneratePodCliqueName(grovecorev1alpha1.ResourceNameReplica{Name: pcsg.Name, Replica: pcsgReplicaIndex}, dependency))
 	}
-	return dependencies
+	return parentCliqueNames
 }
 
 func getPodCliqueSelectorLabels(pcsgObjectMeta metav1.ObjectMeta) map[string]string {

@@ -216,6 +216,9 @@ func getLabels(pclqObjectMeta metav1.ObjectMeta, pgsName, podGangName string, pg
 }
 
 func appendGroveInitContainerIfNeeded(pgs *grovecorev1alpha1.PodGangSet, pclq *grovecorev1alpha1.PodClique, pod *corev1.Pod) error {
+	if len(pclq.Spec.StartsAfter) == 0 {
+		return nil
+	}
 	initContainerImage, ok := os.LookupEnv(envVarInitContainerImage)
 	if !ok {
 		return groveerr.New(
@@ -224,57 +227,63 @@ func appendGroveInitContainerIfNeeded(pgs *grovecorev1alpha1.PodGangSet, pclq *g
 			"environment variable specifying the initcontainer image is missing",
 		)
 	}
-	if len(pclq.Spec.StartsAfter) != 0 {
-		args := make([]string, 0)
-		for _, parentClique := range pclq.Spec.StartsAfter {
-			parentCliqueTemplateSpec, ok := lo.Find(pgs.Spec.Template.Cliques, func(templateSpec *grovecorev1alpha1.PodCliqueTemplateSpec) bool {
-				return strings.HasSuffix(parentClique, templateSpec.Name)
-			})
-			if !ok {
-				return groveerr.New(
-					errCodeMissingPodCliqueTemplate,
-					component.OperationSync,
-					fmt.Sprintf("no PodClique %s specified in startsAfter present in the templates", parentClique),
-				)
-			}
-			args = append(args, fmt.Sprintf("--podcliques=%s,%d", parentClique, *parentCliqueTemplateSpec.Spec.MinAvailable))
-		}
-		pod.Spec.InitContainers = append(pod.Spec.InitContainers, corev1.Container{
-			Name:  initContainerName,
-			Image: fmt.Sprintf("%s:%s", initContainerImage, version.Get().GitVersion),
-			Args:  args,
-		})
-		pod.Spec.Volumes = append(pod.Spec.Volumes, corev1.Volume{
-			Name: volumeNamePodInfo,
-			VolumeSource: corev1.VolumeSource{
-				DownwardAPI: &corev1.DownwardAPIVolumeSource{
-					Items: []corev1.DownwardAPIVolumeFile{
-						{
-							Path: common.PodNamespaceFileName,
-							FieldRef: &corev1.ObjectFieldSelector{
-								FieldPath: "metadata.namespace",
-							},
-						},
-						{
-							Path: common.PodGangNameFileName,
-							FieldRef: &corev1.ObjectFieldSelector{
-								FieldPath: fmt.Sprintf("metadata.labels['%s']", grovecorev1alpha1.LabelPodGang),
-							},
-						},
-					},
-				},
-			},
-		})
-		groveInitcIndex := len(pod.Spec.InitContainers) - 1
-		pod.Spec.InitContainers[groveInitcIndex].VolumeMounts = append(pod.Spec.InitContainers[groveInitcIndex].VolumeMounts,
-			corev1.VolumeMount{
+	args, err := generateArgsForInitc(pgs, pclq)
+	if err != nil {
+		return err
+	}
+
+	pod.Spec.InitContainers = append(pod.Spec.InitContainers, corev1.Container{
+		Name:  initContainerName,
+		Image: fmt.Sprintf("%s:%s", initContainerImage, version.Get().GitVersion),
+		Args:  args,
+		VolumeMounts: []corev1.VolumeMount{
+			{
 				Name:      volumeNamePodInfo,
 				ReadOnly:  true,
 				MountPath: common.VolumeMountPathPodInfo,
 			},
-		)
-	}
+		},
+	})
+	pod.Spec.Volumes = append(pod.Spec.Volumes, corev1.Volume{
+		Name: volumeNamePodInfo,
+		VolumeSource: corev1.VolumeSource{
+			DownwardAPI: &corev1.DownwardAPIVolumeSource{
+				Items: []corev1.DownwardAPIVolumeFile{
+					{
+						Path: common.PodNamespaceFileName,
+						FieldRef: &corev1.ObjectFieldSelector{
+							FieldPath: "metadata.namespace",
+						},
+					},
+					{
+						Path: common.PodGangNameFileName,
+						FieldRef: &corev1.ObjectFieldSelector{
+							FieldPath: fmt.Sprintf("metadata.labels['%s']", grovecorev1alpha1.LabelPodGang),
+						},
+					},
+				},
+			},
+		},
+	})
 	return nil
+}
+
+func generateArgsForInitc(pgs *grovecorev1alpha1.PodGangSet, pclq *grovecorev1alpha1.PodClique) ([]string, error) {
+	args := make([]string, 0)
+	for _, parentClique := range pclq.Spec.StartsAfter {
+		parentCliqueTemplateSpec, ok := lo.Find(pgs.Spec.Template.Cliques, func(templateSpec *grovecorev1alpha1.PodCliqueTemplateSpec) bool {
+			return strings.HasSuffix(parentClique, templateSpec.Name)
+		})
+		if !ok {
+			return nil, groveerr.New(
+				errCodeMissingPodCliqueTemplate,
+				component.OperationSync,
+				fmt.Sprintf("PodClique %s specified in startsAfter is not present in the templates", parentClique),
+			)
+		}
+		args = append(args, fmt.Sprintf("--podcliques=%s:%d", parentClique, *parentCliqueTemplateSpec.Spec.MinAvailable))
+	}
+	return args, nil
 }
 
 // addEnvironmentVariables adds Grove-specific environment variables to all containers and init-containers.

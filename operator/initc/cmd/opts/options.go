@@ -17,6 +17,7 @@
 package opts
 
 import (
+	"fmt"
 	"strconv"
 	"strings"
 
@@ -29,8 +30,7 @@ import (
 
 // Constants for error codes.
 const (
-	errCodeInvalidInput                 grovecorev1alpha1.ErrorCode = "ERR_INVALID_INPUT"
-	errCodeLabelSelectorCreationForPods grovecorev1alpha1.ErrorCode = "ERR_LABEL_SELECTOR_CREATION_FOR_PODS"
+	errCodeInvalidInput grovecorev1alpha1.ErrorCode = "ERR_INVALID_INPUT"
 )
 
 const (
@@ -45,35 +45,36 @@ type CLIOptions struct {
 
 // RegisterFlags registers all the flags that are defined for the init container.
 func (c *CLIOptions) RegisterFlags(fs *pflag.FlagSet) {
-	// --podcliques=podclique-a,3 --podcliques=podclique-b,4 and so on for each PodClique.
-	pflag.StringArrayVar(&c.podCliques, "podcliques", nil, "podclique name and minAvailable replicas seperated by comma, repeated for each podclique")
+	// --podcliques=<podclique-fqn>:<minAvailable-replicas>
+	// --podcliques=podclique-a:3 --podcliques=podclique-b:4 and so on for each PodClique.
+	pflag.StringArrayVarP(&c.podCliques, "podcliques", "p", nil, "podclique name and minAvailable replicas seperated by comma, repeated for each podclique")
 	version.AddFlags(fs)
 }
 
-// PodCliqueInfo returns the PodClique information as a map with the minAvailable associated with each PodClique name.
-func (c *CLIOptions) PodCliqueInfo() (map[string]int, error) {
-	podCliqueInfo := make(map[string]int)
+// GetPodCliqueDependencies returns the PodClique information as a map with the minAvailable associated with each PodClique name.
+func (c *CLIOptions) GetPodCliqueDependencies() (map[string]int, error) {
+	podCliqueDependencies := make(map[string]int)
 
 	for _, pair := range c.podCliques {
-		pair := strings.TrimSpace(pair)
+		pair = strings.TrimSpace(pair)
 		if pair == "" {
 			continue
 		}
 
-		nameAndReplica := strings.Split(pair, ",")
-		if len(nameAndReplica) != 2 {
-			return nil, groveerr.New(errCodeInvalidInput, operationParseFlag, "too many values per podclique")
+		nameAndMinAvailable := strings.Split(pair, ":")
+		if len(nameAndMinAvailable) != 2 {
+			return nil, groveerr.New(errCodeInvalidInput, operationParseFlag, fmt.Sprintf("expected two values per podclique, found %d", len(nameAndMinAvailable)))
 		}
 
-		replicas, err := strconv.Atoi(nameAndReplica[1])
+		replicas, err := strconv.Atoi(nameAndMinAvailable[1])
 		if err != nil {
 			return nil, groveerr.WrapError(err, errCodeInvalidInput, operationParseFlag, "failed to convert replicas to int")
 		}
 
-		podCliqueInfo[strings.TrimSpace(nameAndReplica[0])] = replicas
+		podCliqueDependencies[strings.TrimSpace(nameAndMinAvailable[0])] = replicas
 	}
 
-	return podCliqueInfo, nil
+	return podCliqueDependencies, nil
 }
 
 // InitializeCLIOptions parses the command line flags into CLIOptions.

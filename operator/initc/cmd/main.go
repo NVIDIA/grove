@@ -45,18 +45,18 @@ func main() {
 
 	log.Info("Starting grove init container", "version", version.Get())
 
-	podCliqueInfo, err := config.PodCliqueInfo()
+	podCliqueDependencies, err := config.GetPodCliqueDependencies()
 	if err != nil {
 		log.Error(err, "Failed to parse CLI input")
 		os.Exit(1)
 	}
 
-	podCliqueState, err := internal.NewPodCliqueState(podCliqueInfo, log)
+	podCliqueState, err := internal.NewPodCliqueState(podCliqueDependencies, log)
 	if err != nil {
 		os.Exit(1)
 	}
 
-	if err := podCliqueState.WaitForReady(ctx); err != nil {
+	if err := podCliqueState.WaitForReady(ctx, log); err != nil {
 		log.Error(err, "Failed to wait for all parent PodCliques")
 		os.Exit(1)
 	}
