@@ -35,10 +35,14 @@ import (
 // the one that contains the specified clique name in its CliqueNames list.
 //
 // Returns the matching PodCliqueScalingGroupConfig and true if found, or an empty config and false if not found.
-func FindScalingGroupConfigForClique(scalingGroupConfigs []grovecorev1alpha1.PodCliqueScalingGroupConfig, cliqueName string) (grovecorev1alpha1.PodCliqueScalingGroupConfig, bool) {
-	return lo.Find(scalingGroupConfigs, func(pcsgConfig grovecorev1alpha1.PodCliqueScalingGroupConfig) bool {
+func FindScalingGroupConfigForClique(scalingGroupConfigs []grovecorev1alpha1.PodCliqueScalingGroupConfig, cliqueName string) *grovecorev1alpha1.PodCliqueScalingGroupConfig {
+	pcsgConfig, ok := lo.Find(scalingGroupConfigs, func(pcsgConfig grovecorev1alpha1.PodCliqueScalingGroupConfig) bool {
 		return slices.Contains(pcsgConfig.CliqueNames, cliqueName)
 	})
+	if !ok {
+		return nil
+	}
+	return &pcsgConfig
 }
 
 // GetPCSGsForPGSReplicaIndex fetches all PodCliqueScalingGroups for a PodGangSet replica index.
@@ -80,4 +84,20 @@ func GetMinAvailableBreachedPCSGInfo(pcsgs []grovecorev1alpha1.PodCliqueScalingG
 	}
 	slices.Sort(waitForDurations)
 	return pcsgCandidateNames, waitForDurations[0]
+}
+
+// GenerateDependencyNamesForBasePodGang generates the FQNs of all PodCliques that would qualify as a dependency.
+func GenerateDependencyNamesForBasePodGang(pgs *grovecorev1alpha1.PodGangSet, pgsReplicaIndex int, parentCliqueName string) []string {
+	parentPCLQNames := make([]string, 0)
+	pcsgConfig := FindScalingGroupConfigForClique(pgs.Spec.Template.PodCliqueScalingGroupConfigs, parentCliqueName)
+	if pcsgConfig != nil {
+		// Generate FQNs of minAvailable number of PodCliques that belong to a PodCliueScalingGroup.
+		pcsgFQN := grovecorev1alpha1.GeneratePodCliqueScalingGroupName(grovecorev1alpha1.ResourceNameReplica{Name: pgs.Name, Replica: pgsReplicaIndex}, pcsgConfig.Name)
+		for pcsgReplicaIndex := range int(*pcsgConfig.MinAvailable) {
+			parentPCLQNames = append(parentPCLQNames, grovecorev1alpha1.GeneratePodCliqueName(grovecorev1alpha1.ResourceNameReplica{Name: pcsgFQN, Replica: pcsgReplicaIndex}, parentCliqueName))
+		}
+	} else {
+		parentPCLQNames = append(parentPCLQNames, grovecorev1alpha1.GeneratePodCliqueName(grovecorev1alpha1.ResourceNameReplica{Name: pgs.Name, Replica: pgsReplicaIndex}, parentCliqueName))
+	}
+	return parentPCLQNames
 }

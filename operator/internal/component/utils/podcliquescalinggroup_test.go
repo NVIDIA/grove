@@ -94,15 +94,15 @@ func TestFindScalingGroupConfigForClique(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			config, found := FindScalingGroupConfigForClique(tt.configs, tt.cliqueName)
+			config := FindScalingGroupConfigForClique(tt.configs, tt.cliqueName)
 
-			assert.Equal(t, tt.expectedFound, found)
+			assert.Equal(t, tt.expectedFound, config != nil)
 
 			if tt.expectedFound {
 				assert.Equal(t, tt.expectedConfigName, config.Name)
 			} else {
-				// When not found, config should be zero value
-				assert.Empty(t, config.Name)
+				// When not found, config should be nil
+				assert.Nil(t, config)
 			}
 		})
 	}

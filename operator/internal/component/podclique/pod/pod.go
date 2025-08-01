@@ -168,7 +168,7 @@ func (r _resource) buildResource(pgs *grovecorev1alpha1.PodGangSet, pclq *grovec
 	}
 	pod.Spec = *pclq.Spec.PodSpec.DeepCopy()
 	pod.Spec.SchedulingGates = []corev1.PodSchedulingGate{{Name: podGangSchedulingGate}}
-	pod.Spec.ServiceAccountName = grovecorev1alpha1.GeneratePodServiceAccountName(pgsName)
+	pod.Spec.ServiceAccountName = grovecorev1alpha1.GeneratePodServiceAccountName(pgs.Name)
 
 	addEnvironmentVariables(pod, pclq, pgsName, pgsReplicaIndex, podIndex)
 	// Configure hostname and subdomain for service discovery

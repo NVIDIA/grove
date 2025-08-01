@@ -410,7 +410,7 @@ func identifyFullyQualifiedStartupDependencyNames(pgs *grovecorev1alpha1.PodGang
 	case grovecorev1alpha1.CliqueStartupTypeInOrder:
 		return getInOrderStartupDependencies(pgs, pgsReplicaIndex, foundAtIndex), nil
 	case grovecorev1alpha1.CliqueStartupTypeExplicit:
-		return getExplicitStartupDependencies(pgs.Name, pgsReplicaIndex, pclq), nil
+		return getExplicitStartupDependencies(pgs, pgsReplicaIndex, pclq), nil
 	default:
 		return nil, nil
 	}
@@ -418,18 +418,16 @@ func identifyFullyQualifiedStartupDependencyNames(pgs *grovecorev1alpha1.PodGang
 
 func getInOrderStartupDependencies(pgs *grovecorev1alpha1.PodGangSet, pgsReplicaIndex, foundAtIndex int) []string {
 	if foundAtIndex == 0 {
-		return []string{}
+		return nil
 	}
-	previousClique := pgs.Spec.Template.Cliques[foundAtIndex-1]
-	// get the name of the previous PodCliqueTemplateSpec
-	previousPCLQName := grovecorev1alpha1.GeneratePodCliqueName(grovecorev1alpha1.ResourceNameReplica{Name: pgs.Name, Replica: pgsReplicaIndex}, previousClique.Name)
-	return []string{previousPCLQName}
+	previousCliqueName := pgs.Spec.Template.Cliques[foundAtIndex-1].Name
+	return componentutils.GenerateDependencyNamesForBasePodGang(pgs, pgsReplicaIndex, previousCliqueName)
 }
 
-func getExplicitStartupDependencies(pgsName string, pgsReplicaIndex int, pclq *grovecorev1alpha1.PodClique) []string {
+func getExplicitStartupDependencies(pgs *grovecorev1alpha1.PodGangSet, pgsReplicaIndex int, pclq *grovecorev1alpha1.PodClique) []string {
 	dependencies := make([]string, 0, len(pclq.Spec.StartsAfter))
 	for _, dependency := range pclq.Spec.StartsAfter {
-		dependencies = append(dependencies, grovecorev1alpha1.GeneratePodCliqueName(grovecorev1alpha1.ResourceNameReplica{Name: pgsName, Replica: pgsReplicaIndex}, dependency))
+		dependencies = append(dependencies, componentutils.GenerateDependencyNamesForBasePodGang(pgs, pgsReplicaIndex, dependency)...)
 	}
 	return dependencies
 }

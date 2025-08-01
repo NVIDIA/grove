@@ -189,9 +189,8 @@ func identifyConstituentPCLQsForPGSBasePodGang(sc *syncContext, pgsReplica int32
 	constituentPCLQs := make([]pclqInfo, 0, len(sc.pgs.Spec.Template.Cliques))
 	for _, pclqTemplateSpec := range sc.pgs.Spec.Template.Cliques {
 		// Check if this PodClique belongs to a scaling group
-		pcsgConfig, belongsToScalingGroup := componentutils.FindScalingGroupConfigForClique(sc.pgs.Spec.Template.PodCliqueScalingGroupConfigs, pclqTemplateSpec.Name)
-
-		if belongsToScalingGroup {
+		pcsgConfig := componentutils.FindScalingGroupConfigForClique(sc.pgs.Spec.Template.PodCliqueScalingGroupConfigs, pclqTemplateSpec.Name)
+		if pcsgConfig != nil {
 			// Add scaling group PodClique instances for replicas 0 through (minAvailable-1)
 			scalingGroupPclqs := buildPCSGPodCliqueInfosForBasePodGang(sc, pclqTemplateSpec, pcsgConfig, pgsReplica)
 			constituentPCLQs = append(constituentPCLQs, scalingGroupPclqs...)
@@ -216,12 +215,12 @@ func identifyConstituentPCLQsForPGSBasePodGang(sc *syncContext, pgsReplica int32
 // EXAMPLE with minAvailable=3:
 //   - This function creates PodCliques for replicas 0, 1, 2 → go into base PodGang "simple1-0"
 //   - PCSG controller creates PodCliques for replicas 3, 4 → get scaled PodGangs "simple1-0-sga-0", etc.
-func buildPCSGPodCliqueInfosForBasePodGang(sc *syncContext, pclqTemplateSpec *grovecorev1alpha1.PodCliqueTemplateSpec, pcsgConfig grovecorev1alpha1.PodCliqueScalingGroupConfig, pgsReplica int32) []pclqInfo {
+func buildPCSGPodCliqueInfosForBasePodGang(sc *syncContext, pclqTemplateSpec *grovecorev1alpha1.PodCliqueTemplateSpec, pcsgConfig *grovecorev1alpha1.PodCliqueScalingGroupConfig, pgsReplica int32) []pclqInfo {
 	// MinAvailable should always be non-nil due to kubebuilder default and defaulting webhook
 	minAvailable := int(*pcsgConfig.MinAvailable)
 
 	pclqs := make([]pclqInfo, 0, minAvailable)
-	for replicaIndex := 0; replicaIndex < minAvailable; replicaIndex++ {
+	for replicaIndex := range minAvailable {
 		pcsgFQN := grovecorev1alpha1.GeneratePodCliqueScalingGroupName(
 			grovecorev1alpha1.ResourceNameReplica{Name: sc.pgs.Name, Replica: int(pgsReplica)},
 			pcsgConfig.Name,
