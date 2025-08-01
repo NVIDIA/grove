@@ -38,6 +38,7 @@ func GetPodGangSelectorLabels(pgsObjMeta metav1.ObjectMeta) map[string]string {
 		})
 }
 
+// GetPodGang fetches a PodGang by name and namespace.
 func GetPodGang(ctx context.Context, cl client.Client, podGangName, namespace string) (*groveschedulerv1alpha1.PodGang, error) {
 	podGang := &groveschedulerv1alpha1.PodGang{}
 	podGangObjectKey := client.ObjectKey{Namespace: namespace, Name: podGangName}

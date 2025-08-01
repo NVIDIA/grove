@@ -116,7 +116,7 @@ func (r _resource) computeExpectedPodGangs(sc *syncContext) error {
 
 	if len(sc.pgs.Spec.Template.PodCliqueScalingGroupConfigs) > 0 {
 		for pgsReplica := range sc.pgs.Spec.Replicas {
-			expectedPodGangsForPCSG, err := r.getExpectedPodGangsForPCSG(sc.ctx, sc.logger, sc.pgs, int(pgsReplica))
+			expectedPodGangsForPCSG, err := r.getExpectedPodGangsForPCSG(sc.ctx, sc.pgs, int(pgsReplica))
 			if err != nil {
 				return err
 			}
@@ -147,7 +147,7 @@ func getExpectedPodGangForPGSReplicas(sc *syncContext) []podGangInfo {
 	return expectedPodGangs
 }
 
-func (r _resource) getExpectedPodGangsForPCSG(ctx context.Context, logger logr.Logger, pgs *grovecorev1alpha1.PodGangSet, pgsReplica int) ([]podGangInfo, error) {
+func (r _resource) getExpectedPodGangsForPCSG(ctx context.Context, pgs *grovecorev1alpha1.PodGangSet, pgsReplica int) ([]podGangInfo, error) {
 	existingPCSGs, err := r.getExistingPodCliqueScalingGroups(ctx, pgs, pgsReplica)
 	if err != nil {
 		return nil, err

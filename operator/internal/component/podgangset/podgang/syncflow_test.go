@@ -23,7 +23,6 @@ import (
 	grovecorev1alpha1 "github.com/NVIDIA/grove/operator/api/core/v1alpha1"
 	testutils "github.com/NVIDIA/grove/operator/test/utils"
 
-	"github.com/go-logr/logr"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -160,10 +159,9 @@ func TestMinAvailableWithHPAScaling(t *testing.T) {
 			// Test the PodGang creation logic
 			r := &_resource{client: fakeClient}
 			ctx := context.Background()
-			logger := logr.Discard()
 
 			// Test scaled PodGang creation - this should read the scaled PCSG
-			expectedPodGangs, err := r.getExpectedPodGangsForPCSG(ctx, logger, pgs, 0)
+			expectedPodGangs, err := r.getExpectedPodGangsForPCSG(ctx, pgs, 0)
 			require.NoError(t, err)
 
 			// Verify scaled PodGangs
