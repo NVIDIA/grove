@@ -195,6 +195,13 @@ spec:
                 description: Replicas is the observed number of replicas for the PodCliqueScalingGroup.
                 format: int32
                 type: integer
+              scheduledReplicas:
+                description: |-
+                  ScheduledReplicas is the number of replicas that are scheduled for the PodCliqueScalingGroup.
+                  A replica of PodCliqueScalingGroup is considered "scheduled" when at least MinAvailable number
+                  of pods in each constituent PodClique has been scheduled.
+                format: int32
+                type: integer
               selector:
                 description: Selector is the selector used to identify the pods that
                   belong to this scaling group.

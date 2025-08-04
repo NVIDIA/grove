@@ -8687,6 +8687,11 @@ spec:
                   Sum of ReadyReplicas and ScheduleGatedReplicas will always be <= Replicas.
                 format: int32
                 type: integer
+              scheduledReplicas:
+                description: ScheduledReplicas is the number of Pods that have been
+                  scheduled by the scheduler.
+                format: int32
+                type: integer
               updatedReplicas:
                 description: UpdatedReplicas is the number of Pods that have been
                   updated and are at the desired revision of the PodClique.

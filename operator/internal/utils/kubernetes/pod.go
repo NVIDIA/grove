@@ -44,6 +44,9 @@ const (
 func CategorizePodsByConditionType(logger logr.Logger, pods []*corev1.Pod) map[corev1.PodConditionType][]*corev1.Pod {
 	podCategories := make(map[corev1.PodConditionType][]*corev1.Pod)
 	for _, pod := range pods {
+		if IsPodScheduled(pod) {
+			podCategories[corev1.PodScheduled] = append(podCategories[corev1.PodScheduled], pod)
+		}
 		if IsPodReady(pod) {
 			podCategories[corev1.PodReady] = append(podCategories[corev1.PodReady], pod)
 		} else if HasAnyContainerExitedErroneously(logger, pod) {
@@ -80,6 +83,17 @@ func IsPodScheduleGated(pod *corev1.Pod) bool {
 		return false
 	}
 	return scheduledCond.Status == corev1.ConditionFalse && scheduledCond.Reason == corev1.PodReasonSchedulingGated
+}
+
+// IsPodScheduled checks if the Pod has been scheduled by the scheduler.
+func IsPodScheduled(pod *corev1.Pod) bool {
+	scheduledCond, ok := lo.Find(pod.Status.Conditions, func(cond corev1.PodCondition) bool {
+		return cond.Type == corev1.PodScheduled
+	})
+	if !ok {
+		return false
+	}
+	return scheduledCond.Status == corev1.ConditionTrue
 }
 
 // HasAnyContainerExitedErroneously check if any container has been terminated with a non-zero exit code in a Pod.

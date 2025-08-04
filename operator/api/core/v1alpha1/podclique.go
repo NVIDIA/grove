@@ -117,6 +117,8 @@ type PodCliqueStatus struct {
 	// ScheduleGatedReplicas is the number of Pods that have been created with one or more scheduling gate(s) set.
 	// Sum of ReadyReplicas and ScheduleGatedReplicas will always be <= Replicas.
 	ScheduleGatedReplicas int32 `json:"scheduleGatedReplicas,omitempty"`
+	// ScheduledReplicas is the number of Pods that have been scheduled by the kube-scheduler.
+	ScheduledReplicas int32 `json:"scheduledReplicas,omitempty"`
 	// Selector is the label selector that determines which pods are part of the PodClique.
 	// PodClique is a unit of scale and this selector is used by HPA to scale the PodClique based on metrics captured for the pods that match this selector.
 	Selector *string `json:"hpaPodSelector,omitempty"`
