@@ -23,6 +23,9 @@ SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
 MODULE_ROOT="$(dirname $SCRIPT_DIR)"
 REPO_ROOT="$(dirname $MODULE_ROOT)"
 
+# Default container registry
+DEFAULT_CONTAINER_REGISTRY="localhost:5001"
+
 # Specify the variables necessary for the generation of the ldflags before sourcing the function
 PACKAGE_PATH=${PACKAGE_PATH}
 PROGRAM_NAME=${PROGRAM_NAME}
@@ -45,7 +48,13 @@ function check_prereq() {
 function skaffold_deploy() {
   local ld_flags=$(build_ld_flags)
   export LD_FLAGS="${ld_flags}"
-  skaffold "$@"
+  
+  # Set default registry if not provided
+  if [[ -z "${CONTAINER_REGISTRY:-}" ]]; then
+    export CONTAINER_REGISTRY="${DEFAULT_CONTAINER_REGISTRY}"
+  fi
+
+  skaffold --default-repo=${CONTAINER_REGISTRY} "$@"
 }
 
 function main() {
