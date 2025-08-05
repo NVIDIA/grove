@@ -246,8 +246,8 @@ func TestCheckAndRemovePodSchedulingGates_ConcurrentExecution(t *testing.T) {
 	// Test that multiple pods can have their gates removed concurrently without race conditions
 
 	// Create multiple pods with gates for base PodGang (should all be processed)
-	pods := []*corev1.Pod{}
-	objects := []client.Object{}
+	var pods []*corev1.Pod
+	var objects []client.Object
 
 	for i := 0; i < 5; i++ {
 		pod := createTestPod("simple1-0", true, true) // Base PodGang, has gate, in PodGang

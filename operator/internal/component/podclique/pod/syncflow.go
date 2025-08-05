@@ -157,7 +157,8 @@ func (r _resource) runSyncFlow(logger logr.Logger, sc *syncContext) syncFlowResu
 // It takes in the existing pods and adjusts the captured create/delete expectations in the ExpectationStore. Post synchronization
 // it computes the difference of pods using => as-is-pods + pods-expecting-creation - desired-pods - pods-expecting-deletion
 func (r _resource) syncExpectationsAndComputeDifference(logger logr.Logger, sc *syncContext) int {
-	r.expectationsStore.SyncExpectations(sc.pclqExpectationsStoreKey, lo.Map(sc.existingPCLQPods, func(pod *corev1.Pod, _ int) types.UID { return pod.GetUID() })...)
+	terminatingPodUIDs, nonTerminatingPodUIDs := getTerminatingAndNonTerminatingPodUIDs(sc.existingPCLQPods)
+	r.expectationsStore.SyncExpectations(sc.pclqExpectationsStoreKey, nonTerminatingPodUIDs, terminatingPodUIDs)
 	createExpectations := r.expectationsStore.GetCreateExpectations(sc.pclqExpectationsStoreKey)
 	deleteExpectations := r.expectationsStore.GetDeleteExpectations(sc.pclqExpectationsStoreKey)
 	diff := len(sc.existingPCLQPods) + len(createExpectations) - int(sc.pclq.Spec.Replicas) - len(deleteExpectations)
@@ -170,6 +171,19 @@ func (r _resource) syncExpectationsAndComputeDifference(logger logr.Logger, sc *
 		"diff", diff,
 	)
 	return diff
+}
+
+func getTerminatingAndNonTerminatingPodUIDs(existingPCLQPods []*corev1.Pod) (terminatingUIDs, nonTerminatingUIDs []types.UID) {
+	nonTerminatingUIDs = make([]types.UID, 0, len(existingPCLQPods))
+	terminatingUIDs = make([]types.UID, 0, len(existingPCLQPods))
+	for _, pod := range existingPCLQPods {
+		if k8sutils.IsResourceTerminating(pod.ObjectMeta) {
+			terminatingUIDs = append(terminatingUIDs, pod.GetUID())
+		} else {
+			nonTerminatingUIDs = append(nonTerminatingUIDs, pod.GetUID())
+		}
+	}
+	return
 }
 
 // deleteExcessPods deletes `diff` number of excess Pods from this PodClique concurrently.

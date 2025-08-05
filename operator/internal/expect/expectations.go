@@ -109,23 +109,29 @@ func (s *ExpectationsStore) GetExpectations(controlleeKey string) (*ControlleeEx
 	return exp.(*ControlleeExpectations), true, nil
 }
 
-// SyncExpectations allows the expectations store to sync up expectations against the existingUIDs.
+// SyncExpectations allows the expectations store to sync up expectations against the existingNonTerminatingUIDs.
 // Informer caches are either updated via watch events or via an explicit sync to the kube-apiserver. Thus, an informer
 // cache is a single source of truth. Consumers while computing pending work anyway need to make a LIST call which will
-// most probably hit the informer cache. This function removes the need to have `ObserveDeletion` and `ObserveCreation`
+// most probably hit the informer cache. This function removes the need to have `ObserveCreation`
 // and there is no longer a need to reduce the expectations from within the event handlers. This function takes in
 // an existing resource type.UIDs as seen by the informer cache and removes the expectations that are no longer
 // valid in the store.
-func (s *ExpectationsStore) SyncExpectations(controlleeKey string, existingUIDs ...types.UID) {
+func (s *ExpectationsStore) SyncExpectations(controlleeKey string, existingNonTerminatingUIDs []types.UID, existingTerminatingUIDs []types.UID) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if exp, exists, _ := s.GetExpectations(controlleeKey); exists {
 		// Remove the UIDs from `uidsToAdd` if the informer cache is already up-to-date and certain events have
 		// been missed/dropped by the watch resulting in missed calls to `CreationObserved`.
-		exp.uidsToAdd.Delete(existingUIDs...)
+		exp.uidsToAdd.Delete(existingNonTerminatingUIDs...)
 		// Remove stale entries in `uidsToDelete` if the `existingUIDS` no longer has those UIDs.
-		staleUIDs := exp.uidsToDelete.Difference(sets.New(existingUIDs...))
+		staleUIDs := exp.uidsToDelete.Difference(sets.New(existingNonTerminatingUIDs...))
 		exp.uidsToDelete.Delete(staleUIDs.UnsortedList()...)
+		// Re-add existing termination UIDs if they are not already present in uidsToDelete.
+		// This can happen if a resource was terminated (deletionTimestamp is set) but the resource continues to exist
+		// due to TerminationGracePeriodSeconds not being reached yet. In the meantime, the operator dies and comes back up.
+		// In this case, the expectations store will not have the termination UIDs in uidsToDelete. During the sync
+		// we re-add the termination UIDs to uidsToDelete.
+		exp.uidsToDelete.Insert(existingTerminatingUIDs...)
 	}
 }
 
