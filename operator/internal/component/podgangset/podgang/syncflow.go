@@ -396,6 +396,18 @@ func (r _resource) createOrUpdatePodGangs(sc *syncContext) syncFlowResult {
 }
 
 func (r _resource) getPodsPendingCreationOrAssociation(sc *syncContext, podGang podGangInfo) int {
+	// Find the number of expected pods from PodCliques that are pending creation
+	existingPCLQNames := lo.Map(sc.pclqs, func(pclq grovecorev1alpha1.PodClique, _ int) string {
+		return pclq.Name
+	})
+	pendingPCLQs := lo.FilterMap(podGang.pclqs, func(pclq pclqInfo, _ int) (pclqInfo, bool) {
+		return pclq, !slices.Contains(existingPCLQNames, pclq.fqn)
+	})
+	numPendingPCLQPods := lo.SumBy(pendingPCLQs, func(pclq pclqInfo) int32 {
+		return pclq.replicas
+	})
+
+	// Find the number of pods pending creation of existing PodCliques
 	var numPodsPendingCreateOrAssociate int
 	pclqs := sc.getPodCliques(podGang)
 	for _, pclq := range pclqs {
@@ -419,7 +431,7 @@ func (r _resource) getPodsPendingCreationOrAssociation(sc *syncContext, podGang 
 			}
 		}
 	}
-	return numPodsPendingCreateOrAssociate
+	return numPodsPendingCreateOrAssociate + int(numPendingPCLQPods)
 }
 
 func (r _resource) createOrUpdatePodGang(sc *syncContext, pgInfo podGangInfo) error {
@@ -478,7 +490,7 @@ type syncContext struct {
 
 func (sc *syncContext) getPodGangNamesPendingCreation() []string {
 	diff := len(sc.existingPodGangNames) - len(sc.expectedPodGangs)
-	if diff > 0 {
+	if diff >= 0 {
 		return nil
 	}
 	return lo.FilterMap(sc.expectedPodGangs, func(podGang podGangInfo, _ int) (string, bool) {
