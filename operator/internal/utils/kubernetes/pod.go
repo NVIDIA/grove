@@ -44,17 +44,21 @@ const (
 func CategorizePodsByConditionType(logger logr.Logger, pods []*corev1.Pod) map[corev1.PodConditionType][]*corev1.Pod {
 	podCategories := make(map[corev1.PodConditionType][]*corev1.Pod)
 	for _, pod := range pods {
+		// Check if the pod has been scheduled or is schedule gated.
 		if IsPodScheduled(pod) {
 			podCategories[corev1.PodScheduled] = append(podCategories[corev1.PodScheduled], pod)
+		} else if IsPodScheduleGated(pod) {
+			podCategories[ScheduleGatedPod] = append(podCategories[ScheduleGatedPod], pod)
 		}
+		// Check if the pod has a deletion timestamp set, which indicates that the pod is terminating.
+		if IsResourceTerminating(pod.ObjectMeta) {
+			podCategories[TerminatingPod] = append(podCategories[TerminatingPod], pod)
+		}
+		// check if the pod is ready, has at least one container with a non-zero exit code or has started but not ready containers.
 		if IsPodReady(pod) {
 			podCategories[corev1.PodReady] = append(podCategories[corev1.PodReady], pod)
 		} else if HasAnyContainerExitedErroneously(logger, pod) {
 			podCategories[PodHasAtleastOneContainerWithNonZeroExitCode] = append(podCategories[PodHasAtleastOneContainerWithNonZeroExitCode], pod)
-		} else if IsPodScheduleGated(pod) {
-			podCategories[ScheduleGatedPod] = append(podCategories[ScheduleGatedPod], pod)
-		} else if IsResourceTerminating(pod.ObjectMeta) {
-			podCategories[TerminatingPod] = append(podCategories[TerminatingPod], pod)
 		} else if HasAnyStartedButNotReadyContainer(pod) {
 			podCategories[PodStartedButNotReady] = append(podCategories[PodStartedButNotReady], pod)
 		}
