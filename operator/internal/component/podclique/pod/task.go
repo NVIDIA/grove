@@ -50,10 +50,6 @@ func (r _resource) podCreationTask(logger logr.Logger, pgs *grovecorev1alpha1.Po
 			}
 			// create the Pod
 			if err := r.client.Create(ctx, pod); err != nil {
-				if apierrors.IsAlreadyExists(err) {
-					logger.Info("pod creation failed as it already exists, ignoring the error", "pod", pod.Name)
-					return nil
-				}
 				r.eventRecorder.Eventf(pclq, corev1.EventTypeWarning, groveevents.ReasonPodCreationFailed, "Error creating pod %v: %v", pod.Name, err)
 				return groveerr.WrapError(err,
 					errCodeCreatePod,

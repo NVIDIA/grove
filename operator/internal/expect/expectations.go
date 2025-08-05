@@ -187,7 +187,7 @@ func (s *ExpectationsStore) lowerExpectations(logger logr.Logger, controlleeKey 
 // getControlleeExpectationsKeyFunc creates a cache.KeyFunc required for the cache.Store
 // This function is internally used to fetch the ControlleeExpectations object by its key.
 func getControlleeExpectationsKeyFunc() cache.KeyFunc {
-	return func(obj interface{}) (string, error) {
+	return func(obj any) (string, error) {
 		if exp, ok := obj.(*ControlleeExpectations); ok {
 			return exp.key, nil
 		}
