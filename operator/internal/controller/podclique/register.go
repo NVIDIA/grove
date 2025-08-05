@@ -18,6 +18,7 @@ package podclique
 
 import (
 	"context"
+	"github.com/NVIDIA/grove/operator/internal/utils"
 	"strings"
 
 	grovecorev1alpha1 "github.com/NVIDIA/grove/operator/api/core/v1alpha1"
@@ -132,11 +133,7 @@ func hasReadyConditionChanged(oldPodConditions, newPodConditions []corev1.PodCon
 func hasLastTerminationStateChanged(oldContainerStatuses []corev1.ContainerStatus, newContainerStatuses []corev1.ContainerStatus) bool {
 	oldErroneousContainerStatus := k8sutils.GetContainerStatusIfTerminatedErroneously(oldContainerStatuses)
 	newErroneousContainerStatus := k8sutils.GetContainerStatusIfTerminatedErroneously(newContainerStatuses)
-	if (oldErroneousContainerStatus == nil && newErroneousContainerStatus != nil) ||
-		(oldErroneousContainerStatus != nil && newErroneousContainerStatus == nil) {
-		return true
-	}
-	return false
+	return utils.OnlyOneIsNil(oldErroneousContainerStatus, newErroneousContainerStatus)
 }
 
 func hasStartedAndReadyChangedForAnyContainer(oldContainerStatuses []corev1.ContainerStatus, newContainerStatuses []corev1.ContainerStatus) bool {

@@ -58,10 +58,10 @@ const (
 
 // constants for PodGang lifecycle events
 const (
-	// ReasonPodGangCreateOrUpdateSuccessful is an event reason which represents a successful creation or updating of a PodGang.
-	ReasonPodGangCreateOrUpdateSuccessful = "PodGangCreationOrUpdateSuccessful"
-	// ReasonPodGangCreateOrUpdateFailed is an event reason which represents that the creation or updating of PodGang failed.
-	ReasonPodGangCreateOrUpdateFailed = "PodGangCreationOrUpdateFailed"
+	// ReasonPodGangCreationOrUpdationSuccessful is an event reason which represents a successful creation or updating of a PodGang.
+	ReasonPodGangCreationOrUpdationSuccessful = "PodGangCreationOrUpdateSuccessful"
+	// ReasonPodGangCreationOrUpdationFailed is an event reason which represents that the creation or updating of PodGang failed.
+	ReasonPodGangCreationOrUpdationFailed = "PodGangCreationOrUpdateFailed"
 	// ReasonPodGangDeletionSuccessful is an event reason which represents a successful deletion of a PodGang.
 	ReasonPodGangDeletionSuccessful = "PodGangDeletionSuccessful"
 	// ReasonPodGangDeletionFailed is an event reason which represents that the deletion of a PodGang failed.
@@ -70,7 +70,8 @@ const (
 
 // constants for PodGangSet lifecycle events
 const (
+	// ReasonPodGangSetReplicaDeletionSuccessful is an event reason which represents a successful deletion of a PodGangSet replica.
 	ReasonPodGangSetReplicaDeletionSuccessful = "PodGangSetReplicaDeletionSuccessful"
-
+	// ReasonPodGangSetReplicaDeletionFailed is an event reason which represents that the deletion of a PodGangSet replica failed.
 	ReasonPodGangSetReplicaDeletionFailed = "PodGangSetReplicaDeletionFailed"
 )

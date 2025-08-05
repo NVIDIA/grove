@@ -437,14 +437,14 @@ func (r _resource) createOrUpdatePodGang(sc *syncContext, pgInfo podGangInfo) er
 		return r.buildResource(sc.pgs, pgInfo, pg)
 	})
 	if err != nil {
-		r.eventRecorder.Eventf(sc.pgs, corev1.EventTypeWarning, groveevents.ReasonPodGangCreateOrUpdateFailed, "Error Creating/Updating PodGang %v: %v", pgObjectKey, err)
+		r.eventRecorder.Eventf(sc.pgs, corev1.EventTypeWarning, groveevents.ReasonPodGangCreationOrUpdationFailed, "Error Creating/Updating PodGang %v: %v", pgObjectKey, err)
 		return groveerr.WrapError(err,
 			errCodeCreateOrPatchPodGang,
 			component.OperationSync,
 			fmt.Sprintf("Failed to CreateOrPatch PodGang %v", pgObjectKey),
 		)
 	}
-	r.eventRecorder.Eventf(sc.pgs, corev1.EventTypeNormal, groveevents.ReasonPodGangCreateOrUpdateSuccessful, "Created/Updated PodGang %v", pgObjectKey)
+	r.eventRecorder.Eventf(sc.pgs, corev1.EventTypeNormal, groveevents.ReasonPodGangCreationOrUpdationSuccessful, "Created/Updated PodGang %v", pgObjectKey)
 	sc.logger.Info("Triggered CreateOrPatch of PodGang", "objectKey", pgObjectKey)
 	return nil
 }

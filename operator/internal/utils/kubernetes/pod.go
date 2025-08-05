@@ -35,7 +35,7 @@ const (
 	TerminatingPod corev1.PodConditionType = "TerminatingPod"
 	// PodStartedButNotReady is a custom corev1.PodConditionType that represents a Pod that has at least container whose
 	// status has started=true and ready=false.
-	// NOTE: We are currently NOT supporting any thresholds/initialDelays as defined in container probes. Supporf for that might come later.
+	// NOTE: We are currently NOT supporting any thresholds/initialDelays as defined in container probes. Support for that might come later.
 	PodStartedButNotReady corev1.PodConditionType = "PodStartedButNotReady"
 )
 
@@ -62,7 +62,7 @@ func CategorizePodsByConditionType(logger logr.Logger, pods []*corev1.Pod) map[c
 	return podCategories
 }
 
-// IsPodReady check the PodReady condition. If the condition is not set
+// IsPodReady checks the PodReady condition. If the condition is not set
 // it returns false else it returns the condition status value.
 func IsPodReady(pod *corev1.Pod) bool {
 	podReadyCond, ok := lo.Find(pod.Status.Conditions, func(cond corev1.PodCondition) bool {
@@ -96,7 +96,7 @@ func IsPodScheduled(pod *corev1.Pod) bool {
 	return scheduledCond.Status == corev1.ConditionTrue
 }
 
-// HasAnyContainerExitedErroneously check if any container has been terminated with a non-zero exit code in a Pod.
+// HasAnyContainerExitedErroneously checks if any container has been terminated with a non-zero exit code in a Pod.
 func HasAnyContainerExitedErroneously(logger logr.Logger, pod *corev1.Pod) bool {
 	podObjKey := client.ObjectKeyFromObject(pod)
 	// check init container statuses
@@ -126,8 +126,9 @@ func HasAnyStartedButNotReadyContainer(pod *corev1.Pod) bool {
 
 // GetContainerStatusIfTerminatedErroneously gets the first occurrence of corev1.ContainerStatus (across init, sidecar and main containers)
 // that has a non-zero LastTerminationState.Terminated.ExitCode. The reason to choose `containerStatus.LastTerminationState` instead of `containerStatus.State` is that
-// the `containerStatus.State` oscillates between waiting and terminating while the `containerStatus.LastTerminationState` captures the last termination state and
-// only changes when the container starts properly after multiple attempts, thus it is a more stable target state to observe.
+// the `containerStatus.State` oscillates between waiting and terminating in case of containers exiting with non-zero exit code, while the `containerStatus.LastTerminationState`
+// captures the last termination state and only changes when the container starts properly after multiple attempts, thus
+// it is a more stable target state to observe.
 func GetContainerStatusIfTerminatedErroneously(containerStatuses []corev1.ContainerStatus) *corev1.ContainerStatus {
 	containerStatus, ok := lo.Find(containerStatuses, func(containerStatus corev1.ContainerStatus) bool {
 		return containerStatus.LastTerminationState.Terminated != nil && containerStatus.LastTerminationState.Terminated.ExitCode != 0

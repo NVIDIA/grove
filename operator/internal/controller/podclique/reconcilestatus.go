@@ -45,7 +45,7 @@ func (r *Reconciler) reconcileStatus(ctx context.Context, logger logr.Logger, pc
 	podCategories := k8sutils.CategorizePodsByConditionType(logger, existingPods)
 
 	// mutate PodClique Status Replicas, ReadyReplicas, ScheduleGatedReplicas and UpdatedReplicas.
-	mutateStatusReplicaCounts(pclq, podCategories)
+	mutateStatusReplicaCounts(pclq, podCategories, len(existingPods))
 
 	// mutate the conditions only if the PodClique has been successfully reconciled at least once.
 	// This prevents prematurely setting incorrect conditions.
@@ -71,9 +71,9 @@ func (r *Reconciler) reconcileStatus(ctx context.Context, logger logr.Logger, pc
 	return ctrlcommon.ContinueReconcile()
 }
 
-func mutateStatusReplicaCounts(pclq *grovecorev1alpha1.PodClique, podCategories map[corev1.PodConditionType][]*corev1.Pod) {
+func mutateStatusReplicaCounts(pclq *grovecorev1alpha1.PodClique, podCategories map[corev1.PodConditionType][]*corev1.Pod, numExistingPods int) {
 	// mutate the PCLQ status with current number of schedule gated, ready pods and updated pods.
-	numNonTerminatingPods := pclq.Spec.Replicas - int32(len(podCategories[k8sutils.TerminatingPod]))
+	numNonTerminatingPods := int32(numExistingPods - len(podCategories[k8sutils.TerminatingPod]))
 	pclq.Status.Replicas = numNonTerminatingPods
 	pclq.Status.ReadyReplicas = int32(len(podCategories[corev1.PodReady]))
 	pclq.Status.ScheduleGatedReplicas = int32(len(podCategories[k8sutils.ScheduleGatedPod]))

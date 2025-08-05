@@ -8689,7 +8689,7 @@ spec:
                 type: integer
               scheduledReplicas:
                 description: ScheduledReplicas is the number of Pods that have been
-                  scheduled by the scheduler.
+                  scheduled by the kube-scheduler.
                 format: int32
                 type: integer
               updatedReplicas:
