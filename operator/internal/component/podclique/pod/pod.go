@@ -158,6 +158,7 @@ func (r _resource) buildResource(pgs *grovecorev1alpha1.PodGangSet, pclq *grovec
 		GenerateName: fmt.Sprintf("%s-", pclq.Name),
 		Namespace:    pclq.Namespace,
 		Labels:       labels,
+		Annotations:  pclq.Annotations,
 	}
 	if err = controllerutil.SetControllerReference(pclq, pod, r.scheme); err != nil {
 		return groveerr.WrapError(err,
