@@ -15,6 +15,7 @@
 !operator/go.sum
 !operator/Makefile
 !operator/VERSION
+!scheduler/api
 
 # Ignore kind's setup files
 operator/hack/kind/
