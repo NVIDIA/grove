@@ -395,17 +395,22 @@ func (r _resource) createOrUpdatePodGangs(sc *syncContext) syncFlowResult {
 	return result
 }
 
-func (r _resource) getPodsPendingCreationOrAssociation(sc *syncContext, podGang podGangInfo) int {
-	// Find the number of expected pods from PodCliques that are pending creation
+func (r _resource) getPodsForPodCliquesPendingCreation(sc *syncContext, podGang podGangInfo) int {
 	existingPCLQNames := lo.Map(sc.pclqs, func(pclq grovecorev1alpha1.PodClique, _ int) string {
 		return pclq.Name
 	})
-	numPodsPendingPCLQCreate := lo.Reduce(podGang.pclqs, func(agg int, pclq pclqInfo, _ int) int {
+
+	return lo.Reduce(podGang.pclqs, func(agg int, pclq pclqInfo, _ int) int {
 		if !slices.Contains(existingPCLQNames, pclq.fqn) {
 			return agg + int(pclq.replicas)
 		}
 		return agg
 	}, 0)
+}
+
+func (r _resource) getPodsPendingCreationOrAssociation(sc *syncContext, podGang podGangInfo) int {
+	// Find the number of expected pods from PodCliques that are pending creation
+	numPodsPendingPCLQCreate := r.getPodsForPodCliquesPendingCreation(sc, podGang)
 
 	// Find the number of pods pending creation of existing PodCliques
 	var numPodsPendingCreateOrAssociate int
