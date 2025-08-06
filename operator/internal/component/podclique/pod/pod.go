@@ -19,19 +19,19 @@ package pod
 import (
 	"context"
 	"fmt"
-	"github.com/NVIDIA/grove/operator/internal/common"
-	"github.com/NVIDIA/grove/operator/internal/expect"
-	"github.com/NVIDIA/grove/operator/internal/version"
 	"os"
 	"strconv"
 	"strings"
 
 	grovecorev1alpha1 "github.com/NVIDIA/grove/operator/api/core/v1alpha1"
+	"github.com/NVIDIA/grove/operator/internal/common"
 	"github.com/NVIDIA/grove/operator/internal/component"
 	componentutils "github.com/NVIDIA/grove/operator/internal/component/utils"
 	groveerr "github.com/NVIDIA/grove/operator/internal/errors"
+	"github.com/NVIDIA/grove/operator/internal/expect"
 	"github.com/NVIDIA/grove/operator/internal/utils"
 	k8sutils "github.com/NVIDIA/grove/operator/internal/utils/kubernetes"
+	"github.com/NVIDIA/grove/operator/internal/version"
 
 	"github.com/go-logr/logr"
 	"github.com/samber/lo"
@@ -277,6 +277,7 @@ func appendGroveInitContainerIfNeeded(pgs *grovecorev1alpha1.PodGangSet, pclq *g
 	})
 	return nil
 }
+
 func generateArgsForInitContainer(pgs *grovecorev1alpha1.PodGangSet, pclq *grovecorev1alpha1.PodClique) ([]string, error) {
 	args := make([]string, 0)
 	for _, parentCliqueFQN := range pclq.Spec.StartsAfter {

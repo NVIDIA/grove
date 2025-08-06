@@ -20,7 +20,7 @@ include $(REPO_HACK_DIR)/tools.mk
 
 # Checks the entire codebase by linting and formatting the code base, and checking for uncommitted changes
 .PHONY: check
-validate: generate add-license-headers format generate-api-docs lint
+check: generate add-license-headers format generate-api-docs lint
 	@echo "> Checking for uncommitted changes"
 	@if [ -n "$$(git status --porcelain)" ]; then \
 		echo "ERROR: Git tree is dirty after running validation steps."; \

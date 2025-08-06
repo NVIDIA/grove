@@ -18,11 +18,11 @@ package podclique
 
 import (
 	"context"
-	"github.com/NVIDIA/grove/operator/internal/utils"
 	"strings"
 
 	grovecorev1alpha1 "github.com/NVIDIA/grove/operator/api/core/v1alpha1"
 	grovectrlutils "github.com/NVIDIA/grove/operator/internal/controller/utils"
+	"github.com/NVIDIA/grove/operator/internal/utils"
 	k8sutils "github.com/NVIDIA/grove/operator/internal/utils/kubernetes"
 
 	groveschedulerv1alpha1 "github.com/NVIDIA/grove/scheduler/api/core/v1alpha1"
