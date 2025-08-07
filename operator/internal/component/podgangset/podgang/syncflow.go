@@ -152,6 +152,11 @@ func (r _resource) getExpectedPodGangsForPCSG(ctx context.Context, pgs *grovecor
 	if err != nil {
 		return nil, err
 	}
+
+	if len(existingPCSGs) != len(pgs.Spec.Template.PodCliqueScalingGroupConfigs) {
+		return nil, fmt.Errorf("Expected PCSGs are pending creation")
+	}
+
 	expectedPodGangs := make([]podGangInfo, 0, 50) // preallocate to avoid multiple allocations
 
 	for _, pcsg := range existingPCSGs {
