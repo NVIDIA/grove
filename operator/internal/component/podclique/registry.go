@@ -20,14 +20,15 @@ import (
 	"github.com/NVIDIA/grove/operator/api/core/v1alpha1"
 	"github.com/NVIDIA/grove/operator/internal/component"
 	"github.com/NVIDIA/grove/operator/internal/component/podclique/pod"
+	"github.com/NVIDIA/grove/operator/internal/expect"
 
 	"k8s.io/client-go/tools/record"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 )
 
 // CreateOperatorRegistry initializes the operator registry for the PodClique reconciler.
-func CreateOperatorRegistry(mgr manager.Manager, eventRecorder record.EventRecorder) component.OperatorRegistry[v1alpha1.PodClique] {
+func CreateOperatorRegistry(mgr manager.Manager, eventRecorder record.EventRecorder, expectationsStore *expect.ExpectationsStore) component.OperatorRegistry[v1alpha1.PodClique] {
 	reg := component.NewOperatorRegistry[v1alpha1.PodClique]()
-	reg.Register(component.KindPod, pod.New(mgr.GetClient(), mgr.GetScheme(), eventRecorder))
+	reg.Register(component.KindPod, pod.New(mgr.GetClient(), mgr.GetScheme(), eventRecorder, expectationsStore))
 	return reg
 }

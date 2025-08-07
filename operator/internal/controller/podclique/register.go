@@ -22,6 +22,8 @@ import (
 
 	grovecorev1alpha1 "github.com/NVIDIA/grove/operator/api/core/v1alpha1"
 	grovectrlutils "github.com/NVIDIA/grove/operator/internal/controller/utils"
+	"github.com/NVIDIA/grove/operator/internal/utils"
+	k8sutils "github.com/NVIDIA/grove/operator/internal/utils/kubernetes"
 
 	groveschedulerv1alpha1 "github.com/NVIDIA/grove/scheduler/api/core/v1alpha1"
 	"github.com/samber/lo"
@@ -109,7 +111,10 @@ func hasPodStatusChanged(updateEvent event.UpdateEvent) bool {
 	if !oldOk || !newOk {
 		return false
 	}
-	return hasReadyConditionChanged(oldPod.Status.Conditions, newPod.Status.Conditions)
+	return hasReadyConditionChanged(oldPod.Status.Conditions, newPod.Status.Conditions) ||
+		hasLastTerminationStateChanged(oldPod.Status.InitContainerStatuses, newPod.Status.InitContainerStatuses) ||
+		hasLastTerminationStateChanged(oldPod.Status.ContainerStatuses, newPod.Status.ContainerStatuses) ||
+		hasStartedAndReadyChangedForAnyContainer(oldPod.Status.ContainerStatuses, newPod.Status.ContainerStatuses)
 }
 
 func hasReadyConditionChanged(oldPodConditions, newPodConditions []corev1.PodCondition) bool {
@@ -123,6 +128,28 @@ func hasReadyConditionChanged(oldPodConditions, newPodConditions []corev1.PodCon
 	oldPodReady := oldOk && oldPodReadyCondition.Status == corev1.ConditionTrue
 	newPodReady := newOk && newPodReadyCondition.Status == corev1.ConditionTrue
 	return oldPodReady != newPodReady
+}
+
+func hasLastTerminationStateChanged(oldContainerStatuses []corev1.ContainerStatus, newContainerStatuses []corev1.ContainerStatus) bool {
+	oldErroneousContainerStatus := k8sutils.GetContainerStatusIfTerminatedErroneously(oldContainerStatuses)
+	newErroneousContainerStatus := k8sutils.GetContainerStatusIfTerminatedErroneously(newContainerStatuses)
+	return utils.OnlyOneIsNil(oldErroneousContainerStatus, newErroneousContainerStatus)
+}
+
+func hasStartedAndReadyChangedForAnyContainer(oldContainerStatuses []corev1.ContainerStatus, newContainerStatuses []corev1.ContainerStatus) bool {
+	for _, oldContainerStatus := range oldContainerStatuses {
+		matchingNewContainerStatus, ok := lo.Find(newContainerStatuses, func(containerStatus corev1.ContainerStatus) bool {
+			return oldContainerStatus.Name == containerStatus.Name
+		})
+		if !ok {
+			return true
+		}
+		if matchingNewContainerStatus.Ready != oldContainerStatus.Ready ||
+			matchingNewContainerStatus.Started != oldContainerStatus.Started {
+			return true
+		}
+	}
+	return false
 }
 
 // mapPodGangToPCLQs maps a PodGang to one or more reconcile.Request(s) for its constituent PodClique's.
@@ -155,7 +182,7 @@ func extractPCLQNameFromPodName(podName string) string {
 func podGangPredicate() predicate.Predicate {
 	return predicate.Funcs{
 		CreateFunc:  func(_ event.CreateEvent) bool { return true },
-		DeleteFunc:  func(_ event.DeleteEvent) bool { return true },
+		DeleteFunc:  func(_ event.DeleteEvent) bool { return false },
 		UpdateFunc:  func(_ event.UpdateEvent) bool { return true },
 		GenericFunc: func(_ event.GenericEvent) bool { return false },
 	}

@@ -120,7 +120,7 @@ _Appears in:_
 | `type` _[LastOperationType](#lastoperationtype)_ | Type is the type of the last operation. |  |  |
 | `state` _[LastOperationState](#lastoperationstate)_ | State is the state of the last operation. |  |  |
 | `description` _string_ | Description is a human-readable description of the last operation. |  |  |
-| `lastTransitionTime` _[Time](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.33/#time-v1-meta)_ | LastUpdateTime is the time at which the last operation was updated. |  |  |
+| `lastUpdateTime` _[Time](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.33/#time-v1-meta)_ | LastUpdateTime is the time at which the last operation was updated. |  |  |
 
 
 #### LastOperationState
@@ -268,6 +268,7 @@ _Appears in:_
 | Field | Description | Default | Validation |
 | --- | --- | --- | --- |
 | `replicas` _integer_ | Replicas is the observed number of replicas for the PodCliqueScalingGroup. |  |  |
+| `scheduledReplicas` _integer_ | ScheduledReplicas is the number of replicas that are scheduled for the PodCliqueScalingGroup.<br />A replica of PodCliqueScalingGroup is considered "scheduled" when at least MinAvailable number<br />of pods in each constituent PodClique has been scheduled. |  |  |
 | `selector` _string_ | Selector is the selector used to identify the pods that belong to this scaling group. |  |  |
 | `observedGeneration` _integer_ | ObservedGeneration is the most recent generation observed by the controller. |  |  |
 | `lastOperation` _[LastOperation](#lastoperation)_ | LastOperation captures the last operation done by the respective reconciler on the PodClique. |  |  |
@@ -317,6 +318,7 @@ _Appears in:_
 | `readyReplicas` _integer_ | ReadyReplicas is the number of ready Pods targeted by this PodClique. |  |  |
 | `updatedReplicas` _integer_ | UpdatedReplicas is the number of Pods that have been updated and are at the desired revision of the PodClique. |  |  |
 | `scheduleGatedReplicas` _integer_ | ScheduleGatedReplicas is the number of Pods that have been created with one or more scheduling gate(s) set.<br />Sum of ReadyReplicas and ScheduleGatedReplicas will always be <= Replicas. |  |  |
+| `scheduledReplicas` _integer_ | ScheduledReplicas is the number of Pods that have been scheduled by the kube-scheduler. |  |  |
 | `hpaPodSelector` _string_ | Selector is the label selector that determines which pods are part of the PodClique.<br />PodClique is a unit of scale and this selector is used by HPA to scale the PodClique based on metrics captured for the pods that match this selector. |  |  |
 | `conditions` _[Condition](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.33/#condition-v1-meta) array_ | Conditions represents the latest available observations of the clique by its controller. |  |  |
 

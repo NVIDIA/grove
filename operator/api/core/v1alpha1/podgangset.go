@@ -270,7 +270,7 @@ type LastOperation struct {
 	// Description is a human-readable description of the last operation.
 	Description string `json:"description"`
 	// LastUpdateTime is the time at which the last operation was updated.
-	LastUpdateTime metav1.Time `json:"lastTransitionTime"`
+	LastUpdateTime metav1.Time `json:"lastUpdateTime"`
 }
 
 // ErrorCode is a custom error code that uniquely identifies an error.

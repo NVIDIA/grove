@@ -24,26 +24,36 @@ MODULE_ROOT="$(dirname "$SCRIPT_DIR")"
 REPO_ROOT="$(dirname "$MODULE_ROOT")"
 GOARCH=${GOARCH:-$(go env GOARCH)}
 PLATFORM=${PLATFORM:-linux/${GOARCH}}
+VERSION=${VERSION:-$(cat "${MODULE_ROOT}/VERSION")}
+DOCKER_BUILD_ADDITIONAL_ARGS=${DOCKER_BUILD_ADDITIONAL_ARGS:-""}
+
+if [[ -n "${REGISTRY:-}" ]]; then
+  INITC_IMAGE_NAME_WITHOUT_ARCH="${REGISTRY}/grove-initc"
+  OPERATOR_IMAGE_NAME_WITHOUT_ARCH="${REGISTRY}/grove-operator"
+else
+  INITC_IMAGE_NAME_WITHOUT_ARCH="grove-initc"
+  OPERATOR_IMAGE_NAME_WITHOUT_ARCH="grove-operator"
+fi
 
 function build_docker_images() {
-  local version="$(cat "${MODULE_ROOT}/VERSION")"
-
-  printf '%s\n' "Building grove-initc:${version} with:
+  printf '%s\n' "Building grove-initc:${VERSION} with:
    PLATFORM: ${PLATFORM}... "
   docker buildx build \
+    ${DOCKER_BUILD_ADDITIONAL_ARGS} \
     --platform ${PLATFORM} \
-    --build-arg VERSION=${version} \
-    --tag grove-initc-${GOARCH}:${version} \
+    --build-arg VERSION=${VERSION} \
+    --tag ${INITC_IMAGE_NAME_WITHOUT_ARCH}-${GOARCH}:${VERSION} \
     --target grove-initc \
     --file ${MODULE_ROOT}/Dockerfile \
     $REPO_ROOT # docker context is as the repository root to access `.git/`
 
-  printf '%s\n' "Building grove-operator:${version} with:
+  printf '%s\n' "Building grove-operator:${VERSION} with:
    PLATFORM: ${PLATFORM}... "
   docker buildx build \
+    ${DOCKER_BUILD_ADDITIONAL_ARGS} \
     --platform ${PLATFORM} \
-    --build-arg VERSION=${version} \
-    --tag grove-operator-${GOARCH}:${version} \
+    --build-arg VERSION=${VERSION} \
+    --tag ${OPERATOR_IMAGE_NAME_WITHOUT_ARCH}-${GOARCH}:${VERSION} \
     --target grove-operator \
     --file ${MODULE_ROOT}/Dockerfile \
     $REPO_ROOT # docker context is as the repository root to access `.git/`

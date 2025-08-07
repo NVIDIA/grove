@@ -169,7 +169,7 @@ spec:
                     description: Description is a human-readable description of the
                       last operation.
                     type: string
-                  lastTransitionTime:
+                  lastUpdateTime:
                     description: LastUpdateTime is the time at which the last operation
                       was updated.
                     format: date-time
@@ -182,7 +182,7 @@ spec:
                     type: string
                 required:
                 - description
-                - lastTransitionTime
+                - lastUpdateTime
                 - state
                 - type
                 type: object
@@ -193,6 +193,13 @@ spec:
                 type: integer
               replicas:
                 description: Replicas is the observed number of replicas for the PodCliqueScalingGroup.
+                format: int32
+                type: integer
+              scheduledReplicas:
+                description: |-
+                  ScheduledReplicas is the number of replicas that are scheduled for the PodCliqueScalingGroup.
+                  A replica of PodCliqueScalingGroup is considered "scheduled" when at least MinAvailable number
+                  of pods in each constituent PodClique has been scheduled.
                 format: int32
                 type: integer
               selector:

@@ -74,6 +74,10 @@ type PodCliqueScalingGroupSpec struct {
 type PodCliqueScalingGroupStatus struct {
 	// Replicas is the observed number of replicas for the PodCliqueScalingGroup.
 	Replicas int32 `json:"replicas,omitempty"`
+	// ScheduledReplicas is the number of replicas that are scheduled for the PodCliqueScalingGroup.
+	// A replica of PodCliqueScalingGroup is considered "scheduled" when at least MinAvailable number
+	// of pods in each constituent PodClique has been scheduled.
+	ScheduledReplicas int32 `json:"scheduledReplicas,omitempty"`
 	// Selector is the selector used to identify the pods that belong to this scaling group.
 	Selector *string `json:"selector,omitempty"`
 	// ObservedGeneration is the most recent generation observed by the controller.

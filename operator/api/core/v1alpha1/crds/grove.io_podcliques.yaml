@@ -8649,7 +8649,7 @@ spec:
                     description: Description is a human-readable description of the
                       last operation.
                     type: string
-                  lastTransitionTime:
+                  lastUpdateTime:
                     description: LastUpdateTime is the time at which the last operation
                       was updated.
                     format: date-time
@@ -8662,7 +8662,7 @@ spec:
                     type: string
                 required:
                 - description
-                - lastTransitionTime
+                - lastUpdateTime
                 - state
                 - type
                 type: object
@@ -8685,6 +8685,11 @@ spec:
                 description: |-
                   ScheduleGatedReplicas is the number of Pods that have been created with one or more scheduling gate(s) set.
                   Sum of ReadyReplicas and ScheduleGatedReplicas will always be <= Replicas.
+                format: int32
+                type: integer
+              scheduledReplicas:
+                description: ScheduledReplicas is the number of Pods that have been
+                  scheduled by the kube-scheduler.
                 format: int32
                 type: integer
               updatedReplicas:

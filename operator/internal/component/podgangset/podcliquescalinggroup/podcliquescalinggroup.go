@@ -24,14 +24,17 @@ import (
 
 	grovecorev1alpha1 "github.com/NVIDIA/grove/operator/api/core/v1alpha1"
 	"github.com/NVIDIA/grove/operator/internal/component"
+	groveevents "github.com/NVIDIA/grove/operator/internal/component/events"
 	groveerr "github.com/NVIDIA/grove/operator/internal/errors"
 	"github.com/NVIDIA/grove/operator/internal/utils"
 	k8sutils "github.com/NVIDIA/grove/operator/internal/utils/kubernetes"
 
 	"github.com/go-logr/logr"
 	"github.com/samber/lo"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/client-go/tools/record"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )
@@ -45,15 +48,17 @@ const (
 )
 
 type _resource struct {
-	client client.Client
-	scheme *runtime.Scheme
+	client        client.Client
+	scheme        *runtime.Scheme
+	eventRecorder record.EventRecorder
 }
 
 // New creates an instance of PodCliqueScalingGroup component operator.
-func New(client client.Client, scheme *runtime.Scheme) component.Operator[grovecorev1alpha1.PodGangSet] {
+func New(client client.Client, scheme *runtime.Scheme, eventRecorder record.EventRecorder) component.Operator[grovecorev1alpha1.PodGangSet] {
 	return &_resource{
-		client: client,
-		scheme: scheme,
+		client:        client,
+		scheme:        scheme,
+		eventRecorder: eventRecorder,
 	}
 }
 
@@ -120,7 +125,7 @@ func (r _resource) Sync(ctx context.Context, logger logr.Logger, pgs *grovecorev
 		deleteTask := utils.Task{
 			Name: fmt.Sprintf("DeletePodCliqueScalingGroup-%s", pcsgObjectKey),
 			Fn: func(ctx context.Context) error {
-				return r.doDelete(ctx, logger, pcsgObjectKey)
+				return r.doDelete(ctx, logger, pgs, pcsgObjectKey)
 			},
 		}
 		tasks = append(tasks, deleteTask)
@@ -167,6 +172,7 @@ func (r _resource) doCreate(ctx context.Context, logger logr.Logger, pgs *grovec
 	}
 
 	if err := client.IgnoreAlreadyExists(r.client.Create(ctx, pclqScalingGrp)); err != nil {
+		r.eventRecorder.Eventf(pgs, corev1.EventTypeWarning, groveevents.ReasonPodCliqueScalingGroupCreationFailed, "Error creating PodCliqueScalingGroup %v: %v", pcsgObjectKey, err)
 		return groveerr.WrapError(err,
 			errCodeCreatePodCliqueScalingGroup,
 			component.OperationSync,
@@ -174,20 +180,23 @@ func (r _resource) doCreate(ctx context.Context, logger logr.Logger, pgs *grovec
 		)
 	}
 
+	r.eventRecorder.Eventf(pgs, corev1.EventTypeNormal, groveevents.ReasonPodCliqueScalingGroupCreationSuccessful, "Created PodCliqueScalingGroup %v", pcsgObjectKey)
 	logger.Info("Created PodCliqueScalingGroup", "objectKey", pcsgObjectKey)
 	return nil
 }
 
-func (r _resource) doDelete(ctx context.Context, logger logr.Logger, pcsgObjectKey client.ObjectKey) error {
+func (r _resource) doDelete(ctx context.Context, logger logr.Logger, pgs *grovecorev1alpha1.PodGangSet, pcsgObjectKey client.ObjectKey) error {
 	logger.Info("Delete PodCliqueScalingGroup", "objectKey", pcsgObjectKey)
 	pcsg := emptyPodCliqueScalingGroup(pcsgObjectKey)
 	if err := r.client.Delete(ctx, pcsg); err != nil {
+		r.eventRecorder.Eventf(pgs, corev1.EventTypeWarning, groveevents.ReasonPodCliqueScalingGroupDeletionFailed, "Error deleting PodCliqueScalingGroup %v: %v", pcsgObjectKey, err)
 		return groveerr.WrapError(err,
 			errDeletePodCliqueScalingGroup,
 			component.OperationSync,
 			fmt.Sprintf("Error in delete of PodCliqueScalingGroup: %v", pcsg),
 		)
 	}
+	r.eventRecorder.Eventf(pgs, corev1.EventTypeNormal, groveevents.ReasonPodCliqueScalingGroupDeletionSuccessful, "Deleted PodCliqueScalingGroup %v", pcsgObjectKey)
 	logger.Info("Triggered delete of PodCliqueScalingGroup", "objectKey", pcsgObjectKey)
 	return nil
 }

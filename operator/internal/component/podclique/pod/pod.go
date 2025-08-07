@@ -28,6 +28,7 @@ import (
 	"github.com/NVIDIA/grove/operator/internal/component"
 	componentutils "github.com/NVIDIA/grove/operator/internal/component/utils"
 	groveerr "github.com/NVIDIA/grove/operator/internal/errors"
+	"github.com/NVIDIA/grove/operator/internal/expect"
 	"github.com/NVIDIA/grove/operator/internal/utils"
 	k8sutils "github.com/NVIDIA/grove/operator/internal/utils/kubernetes"
 	"github.com/NVIDIA/grove/operator/internal/version"
@@ -43,8 +44,8 @@ import (
 )
 
 const (
-	// envVarInitContainerImage stores the environment variable which is read to find the image for the initcontainer.
-	// The environment variable should only store the registry and repository of the initcontainer. It should not contain any tag.
+	// envVarInitContainerImage stores the environment variable which is read to find the image for the init-container.
+	// The environment variable should only store the registry and repository of the init-container. It should not contain any tag.
 	envVarInitContainerImage string = "GROVE_INIT_CONTAINER_IMAGE"
 	// grove-initc name
 	initContainerName = "grove-initc"
@@ -54,27 +55,23 @@ const (
 
 // constants for error codes
 const (
-	errCodeGetPod    grovecorev1alpha1.ErrorCode = "ERR_GET_POD"
-	errCodeSyncPod   grovecorev1alpha1.ErrorCode = "ERR_SYNC_POD"
-	errCodeDeletePod grovecorev1alpha1.ErrorCode = "ERR_DELETE_POD"
-
-	errCodeGetPodGang                      grovecorev1alpha1.ErrorCode = "ERR_GET_PODGANG"
-	errCodeGetPodGangSet                   grovecorev1alpha1.ErrorCode = "ERR_GET_PODGANGSET"
-	errCodeGetPodClique                    grovecorev1alpha1.ErrorCode = "ERR_GET_PODCLIQUE"
-	errCodeListPod                         grovecorev1alpha1.ErrorCode = "ERR_LIST_POD"
-	errCodeRemovePodSchedulingGate         grovecorev1alpha1.ErrorCode = "ERR_REMOVE_POD_SCHEDULING_GATE"
-	errCodeCreatePods                      grovecorev1alpha1.ErrorCode = "ERR_CREATE_PODS"
-	errCodeMissingPodGangLabelOnPCLQ       grovecorev1alpha1.ErrorCode = "ERR_MISSING_PODGANG_LABEL_ON_PODCLIQUE"
-	errCodeInitContainerImageEnvVarMissing grovecorev1alpha1.ErrorCode = "ERR_INITCONTAINER_ENVIRONMENT_VARIABLE_MISSING"
-	errCodeMissingPodCliqueTemplate        grovecorev1alpha1.ErrorCode = "ERR_MISSING_PODCLIQUE_TEMPLATE"
-)
-
-// constants used for pod events
-const (
-	reasonPodCreationSuccessful = "PodCreationSuccessful"
-	reasonPodCreationFailed     = "PodCreationFailed"
-	reasonPodDeletionSuccessful = "PodDeletionSuccessful"
-	reasonPodDeletionFailed     = "PodDeletionFailed"
+	errCodeGetPod                              grovecorev1alpha1.ErrorCode = "ERR_GET_POD"
+	errCodeDeletePod                           grovecorev1alpha1.ErrorCode = "ERR_DELETE_POD"
+	errCodeGetAvailablePodHostNameIndices      grovecorev1alpha1.ErrorCode = "ERR_GET_AVAILABLE_POD_HOSTNAME_INDICES"
+	errCodeGetPodGang                          grovecorev1alpha1.ErrorCode = "ERR_GET_PODGANG"
+	errCodeGetPodGangSet                       grovecorev1alpha1.ErrorCode = "ERR_GET_PODGANGSET"
+	errCodeGetPodClique                        grovecorev1alpha1.ErrorCode = "ERR_GET_PODCLIQUE"
+	errCodeListPod                             grovecorev1alpha1.ErrorCode = "ERR_LIST_POD"
+	errCodeRemovePodSchedulingGate             grovecorev1alpha1.ErrorCode = "ERR_REMOVE_POD_SCHEDULING_GATE"
+	errCodeCreatePod                           grovecorev1alpha1.ErrorCode = "ERR_CREATE_POD"
+	errCodeMissingPodGangLabelOnPCLQ           grovecorev1alpha1.ErrorCode = "ERR_MISSING_PODGANG_LABEL_ON_PODCLIQUE"
+	errCodeInitContainerImageEnvVarMissing     grovecorev1alpha1.ErrorCode = "ERR_INITCONTAINER_ENVIRONMENT_VARIABLE_MISSING"
+	errCodeCreatePodCliqueExpectationsStoreKey grovecorev1alpha1.ErrorCode = "ERR_CREATE_PODCLIQUE_EXPECTATIONS_STORE_KEY"
+	errCodeDeletePodCliqueExpectations         grovecorev1alpha1.ErrorCode = "ERR_DELETE_PODCLIQUE_EXPECTATIONS_STORE_KEY"
+	errCodeGetPodGangSetReplicaIndex           grovecorev1alpha1.ErrorCode = "ERR_GET_PODGANGSET_REPLICA_INDEX"
+	errCodeSetControllerReference              grovecorev1alpha1.ErrorCode = "ERR_SET_CONTROLLER_REFERENCE"
+	errCodeBuildPodResource                    grovecorev1alpha1.ErrorCode = "ERR_BUILD_POD_RESOURCE"
+	errCodeMissingPodCliqueTemplate            grovecorev1alpha1.ErrorCode = "ERR_MISSING_PODCLIQUE_TEMPLATE"
 )
 
 const (
@@ -82,17 +79,19 @@ const (
 )
 
 type _resource struct {
-	client        client.Client
-	scheme        *runtime.Scheme
-	eventRecorder record.EventRecorder
+	client            client.Client
+	scheme            *runtime.Scheme
+	eventRecorder     record.EventRecorder
+	expectationsStore *expect.ExpectationsStore
 }
 
 // New creates an instance of Pod component operator.
-func New(client client.Client, scheme *runtime.Scheme, eventRecorder record.EventRecorder) component.Operator[grovecorev1alpha1.PodClique] {
+func New(client client.Client, scheme *runtime.Scheme, eventRecorder record.EventRecorder, expectationsStore *expect.ExpectationsStore) component.Operator[grovecorev1alpha1.PodClique] {
 	return &_resource{
-		client:        client,
-		scheme:        scheme,
-		eventRecorder: eventRecorder,
+		client:            client,
+		scheme:            scheme,
+		eventRecorder:     eventRecorder,
+		expectationsStore: expectationsStore,
 	}
 }
 
@@ -128,7 +127,7 @@ func (r _resource) Sync(ctx context.Context, logger logr.Logger, pclq *grovecore
 	if err != nil {
 		return err
 	}
-	result := r.runSyncFlow(sc, logger)
+	result := r.runSyncFlow(logger, sc)
 	if result.hasErrors() {
 		return result.getAggregatedError()
 	}
@@ -147,7 +146,7 @@ func (r _resource) buildResource(pgs *grovecorev1alpha1.PodGangSet, pclq *grovec
 	pgsReplicaIndex, err := utils.GetPodGangSetReplicaIndexFromPodCliqueFQN(pgsName, pclq.Name)
 	if err != nil {
 		return groveerr.WrapError(err,
-			errCodeSyncPod,
+			errCodeGetPodGangSetReplicaIndex,
 			component.OperationSync,
 			fmt.Sprintf("error extracting PGS replica index for PodClique %v", client.ObjectKeyFromObject(pclq)),
 		)
@@ -158,10 +157,11 @@ func (r _resource) buildResource(pgs *grovecorev1alpha1.PodGangSet, pclq *grovec
 		GenerateName: fmt.Sprintf("%s-", pclq.Name),
 		Namespace:    pclq.Namespace,
 		Labels:       labels,
+		Annotations:  pclq.Annotations,
 	}
 	if err = controllerutil.SetControllerReference(pclq, pod, r.scheme); err != nil {
 		return groveerr.WrapError(err,
-			errCodeSyncPod,
+			errCodeSetControllerReference,
 			component.OperationSync,
 			fmt.Sprintf("error setting controller reference of PodClique: %v on Pod", client.ObjectKeyFromObject(pclq)),
 		)
@@ -169,11 +169,11 @@ func (r _resource) buildResource(pgs *grovecorev1alpha1.PodGangSet, pclq *grovec
 	pod.Spec = *pclq.Spec.PodSpec.DeepCopy()
 	pod.Spec.SchedulingGates = []corev1.PodSchedulingGate{{Name: podGangSchedulingGate}}
 	pod.Spec.ServiceAccountName = grovecorev1alpha1.GeneratePodServiceAccountName(pgs.Name)
-
+	// Add GROVE specific Pod environment variables
 	addEnvironmentVariables(pod, pclq, pgsName, pgsReplicaIndex, podIndex)
 	// Configure hostname and subdomain for service discovery
-	configurePodHostname(pod, pclq.Name, podIndex, pgsName, pgsReplicaIndex)
-
+	configurePodHostname(pgsName, pgsReplicaIndex, pclq.Name, pod, podIndex)
+	// Conditionally add init container to the Pod to ensure start-up ordering.
 	return appendGroveInitContainerIfNeeded(pgs, pclq, pod)
 }
 
@@ -188,6 +188,16 @@ func (r _resource) Delete(ctx context.Context, logger logr.Logger, pclqObjectMet
 			component.OperationDelete,
 			fmt.Sprintf("failed to delete all pods for PodClique %v", k8sutils.GetObjectKeyFromObjectMeta(pclqObjectMeta)),
 		)
+	}
+	pclqExpStoreKey, err := getPodCliqueExpectationsStoreKey(logger, component.OperationDelete, pclqObjectMeta)
+	if err != nil {
+		return err
+	}
+	if err = r.expectationsStore.DeleteExpectations(logger, pclqExpStoreKey); err != nil {
+		return groveerr.WrapError(err,
+			errCodeDeletePodCliqueExpectations,
+			component.OperationDelete,
+			fmt.Sprintf("failed to delete expectations store for PodClique %v", pclqObjectMeta.Name))
 	}
 	logger.Info("Successfully deleted all pods for the PodClique")
 	return nil
@@ -224,10 +234,10 @@ func appendGroveInitContainerIfNeeded(pgs *grovecorev1alpha1.PodGangSet, pclq *g
 		return groveerr.New(
 			errCodeInitContainerImageEnvVarMissing,
 			component.OperationSync,
-			"environment variable specifying the initcontainer image is missing",
+			fmt.Sprintf("environment variable %s specifying the init-container image is missing", envVarInitContainerImage),
 		)
 	}
-	args, err := generateArgsForInitc(pgs, pclq)
+	args, err := generateArgsForInitContainer(pgs, pclq)
 	if err != nil {
 		return err
 	}
@@ -268,20 +278,20 @@ func appendGroveInitContainerIfNeeded(pgs *grovecorev1alpha1.PodGangSet, pclq *g
 	return nil
 }
 
-func generateArgsForInitc(pgs *grovecorev1alpha1.PodGangSet, pclq *grovecorev1alpha1.PodClique) ([]string, error) {
+func generateArgsForInitContainer(pgs *grovecorev1alpha1.PodGangSet, pclq *grovecorev1alpha1.PodClique) ([]string, error) {
 	args := make([]string, 0)
-	for _, parentClique := range pclq.Spec.StartsAfter {
+	for _, parentCliqueFQN := range pclq.Spec.StartsAfter {
 		parentCliqueTemplateSpec, ok := lo.Find(pgs.Spec.Template.Cliques, func(templateSpec *grovecorev1alpha1.PodCliqueTemplateSpec) bool {
-			return strings.HasSuffix(parentClique, templateSpec.Name)
+			return strings.HasSuffix(parentCliqueFQN, templateSpec.Name)
 		})
 		if !ok {
 			return nil, groveerr.New(
 				errCodeMissingPodCliqueTemplate,
 				component.OperationSync,
-				fmt.Sprintf("PodClique %s specified in startsAfter is not present in the templates", parentClique),
+				fmt.Sprintf("PodClique %s specified in startsAfter is not present in the templates", parentCliqueFQN),
 			)
 		}
-		args = append(args, fmt.Sprintf("--podcliques=%s:%d", parentClique, *parentCliqueTemplateSpec.Spec.MinAvailable))
+		args = append(args, fmt.Sprintf("--podcliques=%s:%d", parentCliqueFQN, *parentCliqueTemplateSpec.Spec.MinAvailable))
 	}
 	return args, nil
 }
@@ -317,7 +327,7 @@ func addEnvironmentVariables(pod *corev1.Pod, pclq *grovecorev1alpha1.PodClique,
 }
 
 // configurePodHostname sets the pod hostname and subdomain for service discovery
-func configurePodHostname(pod *corev1.Pod, pclqName string, podIndex int, pgsName string, pgsReplicaIndex int) {
+func configurePodHostname(pgsName string, pgsReplicaIndex int, pclqName string, pod *corev1.Pod, podIndex int) {
 	// Set hostname for service discovery (e.g., "my-pclq-0")
 	pod.Spec.Hostname = fmt.Sprintf("%s-%d", pclqName, podIndex)
 
