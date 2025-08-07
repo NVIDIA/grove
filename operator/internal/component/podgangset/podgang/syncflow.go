@@ -395,6 +395,7 @@ func (r _resource) createOrUpdatePodGangs(sc *syncContext) syncFlowResult {
 	return result
 }
 
+// getPodsForPodCliquesPendingCreation returns the number of expected pods from PodCliques that are pending creation
 func (r _resource) getPodsForPodCliquesPendingCreation(sc *syncContext, podGang podGangInfo) int {
 	existingPCLQNames := lo.Map(sc.pclqs, func(pclq grovecorev1alpha1.PodClique, _ int) string {
 		return pclq.Name
@@ -436,7 +437,7 @@ func (r _resource) getPodsPendingCreationOrAssociation(sc *syncContext, podGang 
 			}
 		}
 	}
-	return numPodsPendingCreateOrAssociate + numPodsPendingPCLQCreate
+	return numPodsPendingPCLQCreate + numPodsPendingCreateOrAssociate
 }
 
 func (r _resource) createOrUpdatePodGang(sc *syncContext, pgInfo podGangInfo) error {

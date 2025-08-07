@@ -18,6 +18,7 @@ package podgang
 
 import (
 	"context"
+	"slices"
 	"testing"
 
 	grovecorev1alpha1 "github.com/NVIDIA/grove/operator/api/core/v1alpha1"
@@ -27,6 +28,7 @@ import (
 	"github.com/stretchr/testify/require"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/utils/ptr"
+	ctrllogger "sigs.k8s.io/controller-runtime/pkg/log"
 )
 
 // This is a critical test for HPA scaling logic:
@@ -188,6 +190,144 @@ func TestMinAvailableWithHPAScaling(t *testing.T) {
 			actualBasePodCliques := len(basePodGangs[0].pclqs)
 			assert.Equal(t, expectedBasePodCliques, actualBasePodCliques,
 				"Base PodGang should only contain PodCliques for replicas 0 to (minAvailable-1)")
+		})
+	}
+}
+
+// This test checks the accounting of the number of pending pods before creating a PodGang
+func TestGetPodsPendingCreation(t *testing.T) {
+	tests := []struct {
+		name                          string
+		pcsgMinAvailable              *int32
+		pcsgTemplateReplicas          int32
+		expectedPendingPodsPerPodGang []int
+		totalNumPendingPods           int
+	}{
+		{
+			name:                   "PCSG startup replicas=2, minAvailable=1",
+			pcsgMinAvailable:       ptr.To(int32(1)),
+			pcsgTemplateReplicas:   2,
+			totalNumPendingPods:    13,
+			expectedPendingPodsPerPodGang: []int{8, 5},
+		},
+		{
+			name:                   "PCSG startup replicas=3, minAvailable=1",
+			pcsgMinAvailable:       ptr.To(int32(1)),
+			pcsgTemplateReplicas:   3,
+			totalNumPendingPods:    18,
+			expectedPendingPodsPerPodGang: []int{8, 5, 5},
+		},
+		{
+			name:                   "PCSG startup replicas=3, minAvailable=2",
+			pcsgMinAvailable:       ptr.To(int32(2)),
+			pcsgTemplateReplicas:   3,
+			totalNumPendingPods:    18,
+			expectedPendingPodsPerPodGang: []int{13, 5},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Create test PodGangSet
+			pgs := &grovecorev1alpha1.PodGangSet{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-pgs",
+					Namespace: "default",
+					UID:       "test-uid-123",
+				},
+				Spec: grovecorev1alpha1.PodGangSetSpec{
+					Replicas: 1,
+					Template: grovecorev1alpha1.PodGangSetTemplateSpec{
+						Cliques: []*grovecorev1alpha1.PodCliqueTemplateSpec{
+							{
+								Name: "frontend",
+								Spec: grovecorev1alpha1.PodCliqueSpec{
+									Replicas:     3,
+									MinAvailable: ptr.To(int32(1)),
+								},
+							},
+							{
+								Name: "prefill-leader",
+								Spec: grovecorev1alpha1.PodCliqueSpec{
+									Replicas:     1,
+									MinAvailable: ptr.To(int32(1)),
+								},
+							},
+							{
+								Name: "prefill-worker",
+								Spec: grovecorev1alpha1.PodCliqueSpec{
+									Replicas:     4,
+									MinAvailable: ptr.To(int32(3)),
+								},
+							},
+						},
+						PodCliqueScalingGroupConfigs: []grovecorev1alpha1.PodCliqueScalingGroupConfig{
+							{
+								Name:         "prefill",
+								Replicas:     &tt.pcsgTemplateReplicas,
+								MinAvailable: tt.pcsgMinAvailable,
+								CliqueNames:  []string{"prefill-leader", "prefill-worker"},
+							},
+						},
+					},
+				},
+			}
+
+			// Create test PodCliqueScalingGroup (simulates what HPA would create)
+			pcsg := &grovecorev1alpha1.PodCliqueScalingGroup{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-pgs-0-prefill",
+					Namespace: "default",
+					Labels: map[string]string{
+						"app.kubernetes.io/managed-by":      "grove-operator",
+						"app.kubernetes.io/part-of":         "test-pgs",
+						"grove.io/podgangset-replica-index": "0",
+					},
+					OwnerReferences: []metav1.OwnerReference{
+						{
+							APIVersion: "grove.io/v1alpha1",
+							Kind:       "PodGangSet",
+							Name:       "test-pgs",
+							UID:        "test-uid-123",
+							Controller: ptr.To(true),
+						},
+					},
+				},
+				Spec: grovecorev1alpha1.PodCliqueScalingGroupSpec{
+					Replicas:     tt.pcsgTemplateReplicas,
+					MinAvailable: tt.pcsgMinAvailable,
+					CliqueNames:  []string{"prefill-leader", "prefill-worker"},
+				},
+			}
+
+			// Create fake client with both PGS and PCSG using testutils
+			fakeClient := testutils.NewTestClientBuilder().
+				WithObjects(pgs, pcsg).
+				Build()
+
+			// Setup test
+			r := &_resource{client: fakeClient}
+			ctx := context.Background()
+			logger := ctrllogger.FromContext(ctx).WithName("grove-test")
+
+			// Prepare sync context
+			sc, err := r.prepareSyncFlow(ctx, logger, pgs)
+			require.NoError(t, err)
+
+			// Validate the number of expected PodGangs
+			assert.Equal(t, len(tt.expectedPendingPodsPerPodGang), len(sc.expectedPodGangs))
+
+			// Verify pending pods per PodGang and total number of pending pods
+			var totalNumPendingPods int
+			pendingPodGangNames := sc.getPodGangNamesPendingCreation()
+			for i, podGang := range sc.expectedPodGangs {
+				isPodGangPendingCreation := slices.Contains(pendingPodGangNames, podGang.fqn)
+				assert.True(t, isPodGangPendingCreation)
+				numPendingPods := r.getPodsPendingCreationOrAssociation(sc, podGang)
+				assert.Equal(t, tt.expectedPendingPodsPerPodGang[i], numPendingPods)
+				totalNumPendingPods += numPendingPods
+			}
+			assert.Equal(t, tt.totalNumPendingPods, totalNumPendingPods)
 		})
 	}
 }
