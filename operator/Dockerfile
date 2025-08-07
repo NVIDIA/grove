@@ -7,12 +7,13 @@ COPY ../. .
 # Docker automatically defines global scope build arguments.
 ARG TARGETOS
 ARG TARGETARCH
+ARG VERSION
 
 # Build the init container
-RUN make --directory=operator build-initc-${TARGETOS}-${TARGETARCH}
+RUN VERSION=${VERSION} make --directory=operator build-initc-${TARGETOS}-${TARGETARCH}
 
 # Build the operator
-RUN make --directory=operator build-operator-${TARGETOS}-${TARGETARCH}
+RUN VERSION=${VERSION} make --directory=operator build-operator-${TARGETOS}-${TARGETARCH}
 
 # All image label keys are as per the OCI recommendations.
 # Reference: https://github.com/opencontainers/image-spec/blob/main/annotations.md#pre-defined-annotation-keys
