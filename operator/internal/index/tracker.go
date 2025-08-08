@@ -24,10 +24,32 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/util/sets"
+
+	k8sutils "github.com/NVIDIA/grove/operator/internal/utils/kubernetes"
 )
 
+// isPodActiveForIndexAssignment determines if a pod should occupy its index.
+// Returns true if the pod is active (running, pending, or will be restarted)
+// Returns false if the pod is terminating or has failed permanently
+func isPodActiveForIndexAssignment(pod *corev1.Pod) bool {
+	if k8sutils.IsResourceTerminating(pod.ObjectMeta) {
+		return false
+	}
+
+	if pod.Status.Phase == corev1.PodFailed && pod.Spec.RestartPolicy == corev1.RestartPolicyNever {
+		return false
+	}
+
+	if pod.Status.Phase == corev1.PodSucceeded {
+		return false
+	}
+
+	// Pod is active and should keep its index
+	return true
+}
+
 // GetAvailableIndices returns the `requiredIndicesCount` available indices for pods.
-// Extracts indices from existing pod hostnames and returns the available indices,
+// Extracts indices from active pod hostnames and returns the available indices,
 // filling holes from lowest to highest (starting from 0).
 func GetAvailableIndices(existingPods []*corev1.Pod, requiredIndicesCount int) ([]int, error) {
 	usedIndices, err := extractUsedIndices(existingPods)
@@ -42,6 +64,11 @@ func extractUsedIndices(existingPods []*corev1.Pod) (sets.Set[int], error) {
 	usedIndices := sets.New[int]()
 
 	for _, pod := range existingPods {
+		// Only consider active pods as occupying their indices
+		if !isPodActiveForIndexAssignment(pod) {
+			continue
+		}
+
 		index, err := extractIndexFromHostname(pod.Spec.Hostname)
 		if err != nil {
 			return usedIndices, fmt.Errorf("failed to extract index from hostname for pod %s with hostname %s: %w", pod.Name, pod.Spec.Hostname, err)
