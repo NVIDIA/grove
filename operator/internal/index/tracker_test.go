@@ -18,6 +18,7 @@ package index
 
 import (
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -129,6 +130,88 @@ func TestExtractUsedIndices_InvalidIndices(t *testing.T) {
 	assert.Contains(t, err.Error(), "failed to extract index from hostname")
 	assert.Equal(t, 1, usedIndices.Len()) // Contains first valid index before error
 	assert.True(t, usedIndices.Has(1))
+}
+
+func TestExtractUsedIndices_OnlyActivePods(t *testing.T) {
+	// Create pods with different states
+	activePod := createTestPod("active-pod", "test-clique-0")
+
+	terminatingPod := createTestPod("terminating-pod", "test-clique-1")
+	terminatingPod.DeletionTimestamp = &metav1.Time{Time: time.Now()}
+
+	failedPod := createTestPod("failed-pod", "test-clique-2")
+	failedPod.Status.Phase = corev1.PodFailed
+	failedPod.Spec.RestartPolicy = corev1.RestartPolicyNever
+
+	pods := []*corev1.Pod{activePod, terminatingPod, failedPod}
+
+	usedIndices, err := extractUsedIndices(pods)
+
+	// Should only include the active pod's index
+	assert.NoError(t, err)
+	assert.Equal(t, 1, usedIndices.Len())
+	assert.True(t, usedIndices.Has(0))  // Only active pod index
+	assert.False(t, usedIndices.Has(1)) // Terminating pod index should not be included
+	assert.False(t, usedIndices.Has(2)) // Failed pod index should not be included
+}
+
+func TestIsPodActiveForIndexAssignment(t *testing.T) {
+	tests := []struct {
+		name           string
+		pod            *corev1.Pod
+		expectedActive bool
+	}{
+		{
+			name:           "active running pod",
+			pod:            createTestPod("running-pod", "test-clique-0"),
+			expectedActive: true,
+		},
+		{
+			name: "terminating pod",
+			pod: func() *corev1.Pod {
+				pod := createTestPod("terminating-pod", "test-clique-1")
+				pod.DeletionTimestamp = &metav1.Time{Time: time.Now()}
+				return pod
+			}(),
+			expectedActive: false,
+		},
+		{
+			name: "failed pod with no restart",
+			pod: func() *corev1.Pod {
+				pod := createTestPod("failed-pod", "test-clique-2")
+				pod.Status.Phase = corev1.PodFailed
+				pod.Spec.RestartPolicy = corev1.RestartPolicyNever
+				return pod
+			}(),
+			expectedActive: false,
+		},
+		{
+			name: "failed pod that will restart",
+			pod: func() *corev1.Pod {
+				pod := createTestPod("failed-restart-pod", "test-clique-3")
+				pod.Status.Phase = corev1.PodFailed
+				pod.Spec.RestartPolicy = corev1.RestartPolicyAlways
+				return pod
+			}(),
+			expectedActive: true,
+		},
+		{
+			name: "succeeded pod",
+			pod: func() *corev1.Pod {
+				pod := createTestPod("succeeded-pod", "test-clique-4")
+				pod.Status.Phase = corev1.PodSucceeded
+				return pod
+			}(),
+			expectedActive: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			isActive := isPodActiveForIndexAssignment(tt.pod)
+			assert.Equal(t, tt.expectedActive, isActive)
+		})
+	}
 }
 
 // ==================== findAvailableIndices Tests ====================
