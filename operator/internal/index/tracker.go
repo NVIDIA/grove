@@ -24,13 +24,18 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/util/sets"
+
+	k8sutils "github.com/NVIDIA/grove/operator/internal/utils/kubernetes"
+	"github.com/go-logr/logr"
 )
 
 // GetAvailableIndices returns the `requiredIndicesCount` available indices for pods.
-// Extracts indices from existing pod hostnames and returns the available indices,
+// Extracts indices from active pod hostnames and returns the available indices,
+// Extracts indices from hostnames of active pods and returns the available indices,
 // filling holes from lowest to highest (starting from 0).
-func GetAvailableIndices(existingPods []*corev1.Pod, requiredIndicesCount int) ([]int, error) {
-	usedIndices, err := extractUsedIndices(existingPods)
+// Active pods are those that are not terminating, not permanently failed (RestartPolicy=Never), and not succeeded.
+func GetAvailableIndices(logger logr.Logger, existingPods []*corev1.Pod, requiredIndicesCount int) ([]int, error) {
+	usedIndices, err := extractUsedIndices(logger, existingPods)
 	if err != nil {
 		return nil, err
 	}
@@ -38,10 +43,16 @@ func GetAvailableIndices(existingPods []*corev1.Pod, requiredIndicesCount int) (
 }
 
 // extractUsedIndices extracts and validates indices from existing pods.
-func extractUsedIndices(existingPods []*corev1.Pod) (sets.Set[int], error) {
+func extractUsedIndices(logger logr.Logger, existingPods []*corev1.Pod) (sets.Set[int], error) {
 	usedIndices := sets.New[int]()
 
 	for _, pod := range existingPods {
+		// Only consider active pods as occupying their indices
+		if !k8sutils.IsPodActive(pod) {
+			logger.Info("hostname available due to inactive pod", "pod", pod.Name, "hostname", pod.Spec.Hostname)
+			continue
+		}
+
 		index, err := extractIndexFromHostname(pod.Spec.Hostname)
 		if err != nil {
 			return usedIndices, fmt.Errorf("failed to extract index from hostname for pod %s with hostname %s: %w", pod.Name, pod.Spec.Hostname, err)

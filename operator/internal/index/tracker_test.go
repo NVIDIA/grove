@@ -18,7 +18,9 @@ package index
 
 import (
 	"testing"
+	"time"
 
+	"github.com/go-logr/logr"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
@@ -29,7 +31,7 @@ import (
 // ==================== GetAvailableIndices Tests ====================
 
 func TestGetNextAvailableIndices_EmptyPods(t *testing.T) {
-	indices, err := GetAvailableIndices([]*corev1.Pod{}, 3)
+	indices, err := GetAvailableIndices(logr.Logger{}, []*corev1.Pod{}, 3)
 
 	assert.NoError(t, err)
 	assert.Equal(t, []int{0, 1, 2}, indices)
@@ -43,7 +45,7 @@ func TestGetNextAvailableIndices_WithExistingPods(t *testing.T) {
 		createTestPod("pod-c", "test-clique-4"),
 	}
 
-	indices, err := GetAvailableIndices(pods, 3)
+	indices, err := GetAvailableIndices(logr.Logger{}, pods, 3)
 
 	assert.NoError(t, err)
 	// Should fill holes: 1, 3, 5
@@ -57,7 +59,7 @@ func TestGetNextAvailableIndices_Sequential(t *testing.T) {
 		createTestPod("pod-c", "test-clique-2"),
 	}
 
-	indices, err := GetAvailableIndices(pods, 2)
+	indices, err := GetAvailableIndices(logr.Logger{}, pods, 2)
 
 	assert.NoError(t, err)
 	// Should continue sequence: 3, 4
@@ -72,7 +74,7 @@ func TestGetNextAvailableIndices_InvalidHostnames(t *testing.T) {
 		createTestPod("pod-valid2", "test-clique-2"),
 	}
 
-	indices, err := GetAvailableIndices(pods, 3)
+	indices, err := GetAvailableIndices(logr.Logger{}, pods, 3)
 
 	// Should return error for invalid hostname
 	assert.Error(t, err)
@@ -87,7 +89,7 @@ func TestExtractUsedIndices_ValidPods(t *testing.T) {
 		createTestPod("pod-c", "test-clique-4"),
 	}
 
-	usedIndices, err := extractUsedIndices(pods)
+	usedIndices, err := extractUsedIndices(logr.Logger{}, pods)
 	assert.NoError(t, err)
 
 	assert.Equal(t, 3, usedIndices.Len())
@@ -105,7 +107,7 @@ func TestExtractUsedIndices_DuplicateIndices(t *testing.T) {
 		createTestPod("pod-third", "test-clique-2"),
 	}
 
-	usedIndices, err := extractUsedIndices(pods)
+	usedIndices, err := extractUsedIndices(logr.Logger{}, pods)
 
 	// Should return error for duplicate index
 	assert.Error(t, err)
@@ -122,13 +124,36 @@ func TestExtractUsedIndices_InvalidIndices(t *testing.T) {
 		createTestPod("pod-non-numeric", "test-clique-abc"),
 	}
 
-	usedIndices, err := extractUsedIndices(pods)
+	usedIndices, err := extractUsedIndices(logr.Logger{}, pods)
 
 	// Should return error for invalid hostname
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "failed to extract index from hostname")
 	assert.Equal(t, 1, usedIndices.Len()) // Contains first valid index before error
 	assert.True(t, usedIndices.Has(1))
+}
+
+func TestExtractUsedIndices_OnlyActivePods(t *testing.T) {
+	// Create pods with different states
+	activePod := createTestPod("active-pod", "test-clique-0")
+
+	terminatingPod := createTestPod("terminating-pod", "test-clique-1")
+	terminatingPod.DeletionTimestamp = &metav1.Time{Time: time.Now()}
+
+	failedPod := createTestPod("failed-pod", "test-clique-2")
+	failedPod.Status.Phase = corev1.PodFailed
+	failedPod.Spec.RestartPolicy = corev1.RestartPolicyNever
+
+	pods := []*corev1.Pod{activePod, terminatingPod, failedPod}
+
+	usedIndices, err := extractUsedIndices(logr.Logger{}, pods)
+
+	// Should only include the active pod's index
+	assert.NoError(t, err)
+	assert.Equal(t, 1, usedIndices.Len())
+	assert.True(t, usedIndices.Has(0))  // Only active pod index
+	assert.False(t, usedIndices.Has(1)) // Terminating pod index should not be included
+	assert.False(t, usedIndices.Has(2)) // Failed pod index should not be included
 }
 
 // ==================== findAvailableIndices Tests ====================

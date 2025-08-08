@@ -383,7 +383,7 @@ func hasPodGangSchedulingGate(pod *corev1.Pod) bool {
 
 func (r _resource) createPods(ctx context.Context, logger logr.Logger, sc *syncContext, numPods int) (int, error) {
 	// Pre-calculate all needed indices to avoid race conditions
-	availableIndices, err := index.GetAvailableIndices(sc.existingPCLQPods, numPods)
+	availableIndices, err := index.GetAvailableIndices(logger, sc.existingPCLQPods, numPods)
 	if err != nil {
 		return 0, groveerr.WrapError(err,
 			errCodeGetAvailablePodHostNameIndices,

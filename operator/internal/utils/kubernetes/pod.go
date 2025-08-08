@@ -152,3 +152,22 @@ func logTerminatedErroneouslyPodContainerStatus(logger logr.Logger, podObjKey cl
 			"exitReason", containerStatus.State.Terminated.Reason)
 	}
 }
+
+// IsPodActive determines if a pod is active (running, pending, or will be restarted)
+// Returns true if the pod is active
+// Returns false if the pod is terminating or has failed permanently
+func IsPodActive(pod *corev1.Pod) bool {
+	if IsResourceTerminating(pod.ObjectMeta) {
+		return false
+	}
+
+	if pod.Status.Phase == corev1.PodFailed && pod.Spec.RestartPolicy == corev1.RestartPolicyNever {
+		return false
+	}
+
+	if pod.Status.Phase == corev1.PodSucceeded {
+		return false
+	}
+
+	return true
+}
