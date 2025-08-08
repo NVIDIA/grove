@@ -161,7 +161,7 @@ func (r _resource) getExpectedPodGangsForPCSG(ctx context.Context, pgs *grovecor
 	// For each template PCSG config, compute the expected podGangInfo's
 	for _, pcsgConfig := range pgs.Spec.Template.PodCliqueScalingGroupConfigs {
 		// Generate PCSG resource name from template name
-		pcsgFQN := grovecorev1alpha1.GeneratePodCliqueScalingGroupName(grovecorev1alpha1.ResourceNameReplica{Name: pgs.Name, Replica: int(pgsReplica)}, pcsgConfig.Name)
+		pcsgFQN := grovecorev1alpha1.GeneratePodCliqueScalingGroupName(grovecorev1alpha1.ResourceNameReplica{Name: pgs.Name, Replica: pgsReplica}, pcsgConfig.Name)
 
 		// MinAvailable should always be non-nil due to kubebuilder default and defaulting webhook
 		minAvailable := int(*pcsgConfig.MinAvailable)
