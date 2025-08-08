@@ -46,7 +46,7 @@ deploy:
           image.tag: "{{.VERSION}}@{{.IMAGE_DIGEST}}"
           deployment.env:
             - name: GROVE_INIT_CONTAINER_IMAGE
-              value: localhost:5001/grove-initc
+              value: "{{.CONTAINER_REGISTRY}}/grove-initc"
         skipBuildDependencies: true
         createNamespace: true
         wait: true

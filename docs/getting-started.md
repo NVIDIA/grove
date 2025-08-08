@@ -26,6 +26,24 @@ All grove operator Make targets are located in [Operator Makefile][./operator/Ma
   export KUBECONFIG=./hack/kind/kubeconfig
   ```
 
+### Kubernetes cluster set-up
+
+If you want to use your own Kubernetes cluster instead of the KIND cluster, follow these steps:
+
+- **Set the KUBECONFIG environment variable** to point to your Kubernetes cluster configuration:
+
+   ```bash
+   # Set KUBECONFIG to use your Kubernetes cluster kubeconfig
+   export KUBECONFIG=/path/to/your/kubernetes/kubeconfig
+   ```
+
+- **Set the CONTAINER_REGISTRY environment variable** to specify your container registry:
+
+   ```bash
+   # Set a container registry to push your images to
+   export CONTAINER_REGISTRY=your-container-registry
+   ```
+
 ### Deploy Grove operator
 
 ```bash

@@ -18,7 +18,7 @@ MODULE_ROOT     := $(shell dirname "$(realpath $(lastword $(MAKEFILE_LIST)))")
 MODULE_HACK_DIR := $(MODULE_ROOT)/hack
 REPO_ROOT       := $(shell dirname "$(MODULE_ROOT)")
 REPO_HACK_DIR   := $(REPO_ROOT)/hack
-KUBECONFIG_PATH := $(MODULE_HACK_DIR)/kind/kubeconfig
+KUBECONFIG_PATH := $(if $(KUBECONFIG),$(KUBECONFIG),$(MODULE_HACK_DIR)/kind/kubeconfig)
 # Path of the package that ld-flags writes to
 LD_PACKAGE_PATH := "github.com/NVIDIA/grove/operator/internal"
 OPERATOR_NAME   := "grove-operator"
@@ -104,9 +104,9 @@ kind-down: $(KIND)
 docker-build-%:
 	@GOARCH=$$(echo $* | cut -d- -f 1) $(MODULE_HACK_DIR)/docker-build.sh
 
-# Make targets for deploying grove-operator to a local k8s cluster via skaffold
+# Make targets for deploying grove-operator to a k8s cluster via skaffold
 # -------------------------------------------------------------
-# Deploys grove-operator to a local k8s cluster using skaffold.
+# Deploys grove-operator to a k8s cluster using skaffold.
 ifndef CERT_EXPIRY
 override CERT_EXPIRY = 12h
 endif
@@ -115,29 +115,30 @@ ifndef NAMESPACE
 override NAMESPACE = default
 endif
 
-.PHONY: deploy-local
-deploy-local: $(SKAFFOLD)
-	@$(MODULE_HACK_DIR)/prepare-local-deploy.sh $(NAMESPACE) $(CERT_EXPIRY)
-	@PACKAGE_PATH=${LD_PACKAGE_PATH} PROGRAM_NAME=${OPERATOR_NAME} $(MODULE_HACK_DIR)/deploy-local.sh run -m grove-operator -n $(NAMESPACE)
+# Deploys grove-operator to a k8s cluster using skaffold.
+.PHONY: deploy
+deploy: $(SKAFFOLD)
+	@$(MODULE_HACK_DIR)/prepare-deploy.sh $(NAMESPACE) $(CERT_EXPIRY)
+	@PACKAGE_PATH=${LD_PACKAGE_PATH} PROGRAM_NAME=${OPERATOR_NAME} $(MODULE_HACK_DIR)/deploy.sh run -m grove-operator -n $(NAMESPACE)
 
-# Deploys grove-operator to a local k8s cluster using skaffold in dev mode.
-.PHONY: deploy-local-dev
-deploy-local-dev: $(SKAFFOLD)
-	@$(MODULE_HACK_DIR)/prepare-local-deploy.sh $(NAMESPACE) $(CERT_EXPIRY)
-	@PACKAGE_PATH=${LD_PACKAGE_PATH} PROGRAM_NAME=${OPERATOR_NAME} $(MODULE_HACK_DIR)/deploy-local.sh dev --cleanup=false --keep-running-on-failure -m grove-operator --trigger='manual' -n $(NAMESPACE)
+# Deploys grove-operator to a k8s cluster using skaffold in dev mode.
+.PHONY: deploy-dev
+deploy-dev: $(SKAFFOLD)
+	@$(MODULE_HACK_DIR)/prepare-deploy.sh $(NAMESPACE) $(CERT_EXPIRY)
+	@PACKAGE_PATH=${LD_PACKAGE_PATH} PROGRAM_NAME=${OPERATOR_NAME} $(MODULE_HACK_DIR)/deploy.sh dev --cleanup=false --keep-running-on-failure -m grove-operator --trigger='manual' -n $(NAMESPACE)
 
-# Deploys grove-operator to a local k8s cluster using skaffold in debug mode.
-.PHONY: deploy-local-debug
-deploy-local-debug: $(SKAFFOLD)
-	@$(MODULE_HACK_DIR)/prepare-local-deploy.sh $(NAMESPACE) $(CERT_EXPIRY)
-	@PACKAGE_PATH=${LD_PACKAGE_PATH} PROGRAM_NAME=${OPERATOR_NAME} $(MODULE_HACK_DIR)/deploy-local.sh debug --cleanup=false -m grove-operator -p debug -n $(NAMESPACE)
+# Deploys grove-operator to a k8s cluster using skaffold in debug mode.
+.PHONY: deploy-debug
+deploy-debug: $(SKAFFOLD)
+	@$(MODULE_HACK_DIR)/prepare-deploy.sh $(NAMESPACE) $(CERT_EXPIRY)
+	@PACKAGE_PATH=${LD_PACKAGE_PATH} PROGRAM_NAME=${OPERATOR_NAME} $(MODULE_HACK_DIR)/deploy.sh debug --cleanup=false -m grove-operator -p debug -n $(NAMESPACE)
 
-# Undeploys grove-operator from a local k8s cluster using skaffold.
-.PHONY: undeploy-local
-undeploy-local: $(SKAFFOLD)
+# Undeploys grove-operator from a k8s cluster using skaffold.
+.PHONY: undeploy
+undeploy: $(SKAFFOLD)
 	@$(SKAFFOLD) delete -m grove-operator -n $(NAMESPACE)
 
-# Deploys all the add-ons to a local k8s cluster.
+# Deploys all the add-ons to a k8s cluster.
 .PHONY: deploy-addons
 deploy-addons:
 	@$(MODULE_HACK_DIR)/deploy-addons.sh --all
