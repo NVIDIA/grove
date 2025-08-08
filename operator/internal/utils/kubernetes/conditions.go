@@ -42,6 +42,15 @@ func IsConditionTrue(existingConditions []metav1.Condition, conditionType string
 	return *condStatus == metav1.ConditionTrue
 }
 
+// IsConditionFalse checks for a specific Condition amongst a list of Conditions and returns if the Condition.Status is False otherwise false is returned.
+func IsConditionFalse(existingConditions []metav1.Condition, conditionType string) bool {
+	condStatus := GetConditionStatus(existingConditions, conditionType)
+	if condStatus == nil {
+		return false
+	}
+	return *condStatus == metav1.ConditionFalse
+}
+
 // IsConditionUnknown checks for a specific Condition amongst a list of Conditions and returns if the Condition.Status is Unknown otherwise false is returned.
 func IsConditionUnknown(existingConditions []metav1.Condition, conditionType string) bool {
 	condStatus := GetConditionStatus(existingConditions, conditionType)

@@ -41,10 +41,6 @@ const (
 // These component names will be set against grovecorev1alpha1.LabelComponentKey label key on
 // respective components.
 const (
-	// NamePGSPodClique is the component name for a PodClique resource handled by a PodGangSet.
-	NamePGSPodClique = "pgs-podclique"
-	// NamePCSGPodClique is the component name for a PodClique resource handled by a PodCliqueScalingGroup.
-	NamePCSGPodClique = "pcsg-podclique"
 	// NamePodGangHeadlessService is the component name for a Headless service for a Pod Gang.
 	NamePodGangHeadlessService = "pgs-headless-service"
 	// NamePodRole is the component name for a role that is associated to all Pods that are created for a PodGangSet.

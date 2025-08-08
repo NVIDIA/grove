@@ -78,6 +78,12 @@ spec:
           status:
             description: Status is the status of the PodCliqueScalingGroup.
             properties:
+              availableReplicas:
+                description: |-
+                  AvailableReplicas is the number of PodCliqueScalingGroup replicas that are available.
+                  A PCSG replica is considered available when all constituent PodCliques have MinAvailableBreached condition = False.
+                format: int32
+                type: integer
               conditions:
                 description: Conditions represents the latest available observations
                   of the PodCliqueScalingGroup by its controller.

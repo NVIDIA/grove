@@ -22,6 +22,8 @@ import (
 	"time"
 
 	grovecorev1alpha1 "github.com/NVIDIA/grove/operator/api/core/v1alpha1"
+	"github.com/NVIDIA/grove/operator/internal/common"
+	k8sutils "github.com/NVIDIA/grove/operator/internal/utils/kubernetes"
 
 	"github.com/samber/lo"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -83,6 +85,11 @@ func GroupPCLQsByPCSGReplicaIndex(pclqs []grovecorev1alpha1.PodClique) map[strin
 	return groupPCLQsByLabel(pclqs, grovecorev1alpha1.LabelPodCliqueScalingGroupReplicaIndex)
 }
 
+// GroupPCLQsByPGSReplicaIndex filters PCLQs that have a PodGangSetReplicaIndex label and groups them by the PGS replica.
+func GroupPCLQsByPGSReplicaIndex(pclqs []grovecorev1alpha1.PodClique) map[string][]grovecorev1alpha1.PodClique {
+	return groupPCLQsByLabel(pclqs, grovecorev1alpha1.LabelPodGangSetReplicaIndex)
+}
+
 func groupPCLQsByLabel(pclqs []grovecorev1alpha1.PodClique, labelKey string) map[string][]grovecorev1alpha1.PodClique {
 	podGangPCLQs := make(map[string][]grovecorev1alpha1.PodClique, len(pclqs))
 	for _, pclq := range pclqs {
@@ -116,4 +123,23 @@ func GetMinAvailableBreachedPCLQInfo(pclqs []grovecorev1alpha1.PodClique, termin
 	}
 	slices.Sort(waitForDurations)
 	return pclqCandidateNames, waitForDurations[0]
+}
+
+// GetPodCliqueForPGSNotInPCSG retrieves PodClique objects that are not part of any PodCliqueScalingGroup for the given PodGangSet.
+func GetPodCliqueForPGSNotInPCSG(ctx context.Context, cl client.Client, pgsObjKey client.ObjectKey) ([]grovecorev1alpha1.PodClique, error) {
+	pclqList := &grovecorev1alpha1.PodCliqueList{}
+	err := cl.List(ctx,
+		pclqList,
+		client.InNamespace(pgsObjKey.Namespace),
+		client.MatchingLabels(lo.Assign(
+			k8sutils.GetDefaultLabelsForPodGangSetManagedResources(pgsObjKey.Name),
+			map[string]string{
+				grovecorev1alpha1.LabelComponentKey: common.NamePGSPodClique,
+			},
+		)),
+	)
+	if err != nil {
+		return nil, err
+	}
+	return pclqList.Items, nil
 }
