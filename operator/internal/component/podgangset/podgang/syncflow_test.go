@@ -273,36 +273,9 @@ func TestGetPodsPendingCreation(t *testing.T) {
 				},
 			}
 
-			// Create test PodCliqueScalingGroup (simulates what HPA would create)
-			pcsg := &grovecorev1alpha1.PodCliqueScalingGroup{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "test-pgs-0-prefill",
-					Namespace: "default",
-					Labels: map[string]string{
-						"app.kubernetes.io/managed-by":      "grove-operator",
-						"app.kubernetes.io/part-of":         "test-pgs",
-						"grove.io/podgangset-replica-index": "0",
-					},
-					OwnerReferences: []metav1.OwnerReference{
-						{
-							APIVersion: "grove.io/v1alpha1",
-							Kind:       "PodGangSet",
-							Name:       "test-pgs",
-							UID:        "test-uid-123",
-							Controller: ptr.To(true),
-						},
-					},
-				},
-				Spec: grovecorev1alpha1.PodCliqueScalingGroupSpec{
-					Replicas:     tt.pcsgTemplateReplicas,
-					MinAvailable: tt.pcsgMinAvailable,
-					CliqueNames:  []string{"prefill-leader", "prefill-worker"},
-				},
-			}
-
 			// Create fake client with both PGS and PCSG using testutils
 			fakeClient := testutils.NewTestClientBuilder().
-				WithObjects(pgs, pcsg).
+				WithObjects(pgs).
 				Build()
 
 			// Setup test
