@@ -204,24 +204,24 @@ func TestGetPodsPendingCreation(t *testing.T) {
 		totalNumPendingPods           int
 	}{
 		{
-			name:                   "PCSG startup replicas=2, minAvailable=1",
-			pcsgMinAvailable:       ptr.To(int32(1)),
-			pcsgTemplateReplicas:   2,
-			totalNumPendingPods:    13,
+			name:                          "PCSG startup replicas=2, minAvailable=1",
+			pcsgMinAvailable:              ptr.To(int32(1)),
+			pcsgTemplateReplicas:          2,
+			totalNumPendingPods:           13,
 			expectedPendingPodsPerPodGang: []int{8, 5},
 		},
 		{
-			name:                   "PCSG startup replicas=3, minAvailable=1",
-			pcsgMinAvailable:       ptr.To(int32(1)),
-			pcsgTemplateReplicas:   3,
-			totalNumPendingPods:    18,
+			name:                          "PCSG startup replicas=3, minAvailable=1",
+			pcsgMinAvailable:              ptr.To(int32(1)),
+			pcsgTemplateReplicas:          3,
+			totalNumPendingPods:           18,
 			expectedPendingPodsPerPodGang: []int{8, 5, 5},
 		},
 		{
-			name:                   "PCSG startup replicas=3, minAvailable=2",
-			pcsgMinAvailable:       ptr.To(int32(2)),
-			pcsgTemplateReplicas:   3,
-			totalNumPendingPods:    18,
+			name:                          "PCSG startup replicas=3, minAvailable=2",
+			pcsgMinAvailable:              ptr.To(int32(2)),
+			pcsgTemplateReplicas:          3,
+			totalNumPendingPods:           18,
 			expectedPendingPodsPerPodGang: []int{13, 5},
 		},
 	}
