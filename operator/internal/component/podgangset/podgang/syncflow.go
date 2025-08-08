@@ -181,7 +181,7 @@ func (r _resource) getExpectedPodGangsForPCSG(ctx context.Context, pgs *grovecor
 		scaledReplicas := replicas - minAvailable
 		for podGangIndex, pcsgReplica := 0, minAvailable; podGangIndex < scaledReplicas; podGangIndex, pcsgReplica = podGangIndex+1, pcsgReplica+1 {
 			podGangName := grovecorev1alpha1.CreatePodGangNameFromPCSGFQN(pcsgFQN, podGangIndex)
-			pclqs, err := identifyConstituentPCLQsForPCSGPodGang(pcsgConfig.CliqueNames, pcsgFQN, pcsgReplica, pgs)
+			pclqs, err := identifyConstituentPCLQsForPCSGPodGang(pgs, pcsgFQN, pcsgReplica, pcsgConfig.CliqueNames)
 			if err != nil {
 				return nil, err
 			}
@@ -283,7 +283,7 @@ func determinePodCliqueReplicas(sc *syncContext, pclqTemplateSpec *grovecorev1al
 	return matchingPCLQ.Spec.Replicas
 }
 
-func identifyConstituentPCLQsForPCSGPodGang(cliqueNames []string, pcsgFQN string, pcsgReplica int, pgs *grovecorev1alpha1.PodGangSet) ([]pclqInfo, error) {
+func identifyConstituentPCLQsForPCSGPodGang(pgs *grovecorev1alpha1.PodGangSet, pcsgFQN string, pcsgReplica int, cliqueNames []string) ([]pclqInfo, error) {
 	constituentPCLQs := make([]pclqInfo, 0, len(cliqueNames))
 	for _, pclqName := range cliqueNames {
 		pclqTemplate, ok := lo.Find(pgs.Spec.Template.Cliques, func(pclqTemplateSpec *grovecorev1alpha1.PodCliqueTemplateSpec) bool {
