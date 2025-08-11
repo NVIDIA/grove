@@ -14,4 +14,4 @@ jobs:
       - name: build-operator
         run: make --directory=operator build-operator
       - name: Start KIND cluster
-        run: make --directory=operator kind-up
+        run: sudo make --directory=operator kind-up
