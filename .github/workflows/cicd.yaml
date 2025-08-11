@@ -1,0 +1,10 @@
+name: Operator Makefile
+
+on: [push, pull_request]
+
+jobs:
+  run-makefile:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: make grove/operator/Makefile
