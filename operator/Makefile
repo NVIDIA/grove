@@ -27,7 +27,7 @@ INITC_NAME      := "grove-initc"
 # Include tools targets
 include $(REPO_HACK_DIR)/tools.mk
 
-kind-up kind-down deploy-local deploy-local-dev deploy-local-debug undeploy-local deploy-addons: export KUBECONFIG = $(KUBECONFIG_PATH)
+kind-up kind-down deploy deploy-dev deploy-debug undeploy deploy-addons: export KUBECONFIG = $(KUBECONFIG_PATH)
 
 # Builds grove-operator for the current platform.
 .PHONY: build-operator
