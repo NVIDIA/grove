@@ -22,11 +22,11 @@ import (
 	"strconv"
 	"strings"
 
+	k8sutils "github.com/NVIDIA/grove/operator/internal/utils/kubernetes"
+
+	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/util/sets"
-
-	k8sutils "github.com/NVIDIA/grove/operator/internal/utils/kubernetes"
-	"github.com/go-logr/logr"
 )
 
 // GetAvailableIndices returns the `requiredIndicesCount` available indices for pods.
