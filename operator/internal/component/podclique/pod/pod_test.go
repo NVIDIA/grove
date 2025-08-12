@@ -20,7 +20,6 @@ import (
 	"testing"
 
 	grovecorev1alpha1 "github.com/NVIDIA/grove/operator/api/core/v1alpha1"
-
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -426,5 +425,58 @@ func assertNoDuplicateEnvVars(t *testing.T, container corev1.Container) {
 	}
 	for envName, count := range envVarCounts {
 		assert.Equal(t, 1, count, "environment variable %s appears %d times (should be 1)", envName, count)
+	}
+}
+
+func Test_setServiceAccountName(t *testing.T) {
+	type args struct {
+		pod *corev1.Pod
+		pgs *grovecorev1alpha1.PodGangSet
+	}
+	tests := []struct {
+		name string
+		args args
+		want *corev1.Pod
+	}{
+		{
+			name: "service account name is not set",
+			args: args{
+				pod: &corev1.Pod{
+					Spec: corev1.PodSpec{},
+				},
+				pgs: &grovecorev1alpha1.PodGangSet{
+					ObjectMeta: metav1.ObjectMeta{Name: "test-pgs"},
+				},
+			},
+			want: &corev1.Pod{
+				Spec: corev1.PodSpec{
+					ServiceAccountName: "test-pgs",
+				},
+			},
+		},
+		{
+			name: "service account name is set",
+			args: args{
+				pod: &corev1.Pod{
+					Spec: corev1.PodSpec{
+						ServiceAccountName: "explicit-service-account",
+					},
+				},
+				pgs: &grovecorev1alpha1.PodGangSet{
+					ObjectMeta: metav1.ObjectMeta{Name: "test-pgs"},
+				},
+			},
+			want: &corev1.Pod{
+				Spec: corev1.PodSpec{
+					ServiceAccountName: "explicit-service-account",
+				},
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			setServiceAccountName(tt.args.pod, tt.args.pgs)
+			assert.Equal(t, tt.want, tt.args.pod)
+		})
 	}
 }

@@ -168,13 +168,20 @@ func (r _resource) buildResource(pgs *grovecorev1alpha1.PodGangSet, pclq *grovec
 	}
 	pod.Spec = *pclq.Spec.PodSpec.DeepCopy()
 	pod.Spec.SchedulingGates = []corev1.PodSchedulingGate{{Name: podGangSchedulingGate}}
-	pod.Spec.ServiceAccountName = grovecorev1alpha1.GeneratePodServiceAccountName(pgs.Name)
+	setServiceAccountName(pod, pgs)
 	// Add GROVE specific Pod environment variables
 	addEnvironmentVariables(pod, pclq, pgsName, pgsReplicaIndex, podIndex)
 	// Configure hostname and subdomain for service discovery
 	configurePodHostname(pgsName, pgsReplicaIndex, pclq.Name, pod, podIndex)
 	// Conditionally add init container to the Pod to ensure start-up ordering.
 	return appendGroveInitContainerIfNeeded(pgs, pclq, pod)
+}
+
+func setServiceAccountName(pod *corev1.Pod, pgs *grovecorev1alpha1.PodGangSet) {
+	if pod.Spec.ServiceAccountName == "" {
+		// only set the service account name if it is not already set
+		pod.Spec.ServiceAccountName = grovecorev1alpha1.GeneratePodServiceAccountName(pgs.Name)
+	}
 }
 
 func (r _resource) Delete(ctx context.Context, logger logr.Logger, pclqObjectMeta metav1.ObjectMeta) error {
