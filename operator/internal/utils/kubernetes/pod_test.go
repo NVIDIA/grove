@@ -17,11 +17,12 @@
 package kubernetes
 
 import (
+	"testing"
+	"time"
+
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"testing"
-	"time"
 )
 
 const (
