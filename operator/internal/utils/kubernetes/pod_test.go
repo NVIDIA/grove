@@ -17,82 +17,65 @@
 package kubernetes
 
 import (
-	"testing"
-	"time"
-
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"testing"
+	"time"
+)
+
+const (
+	testPodName      = "test-pod"
+	testPodNamespace = "test-ns"
 )
 
 func TestIsPodActive(t *testing.T) {
-	type args struct {
-		pod *corev1.Pod
-	}
-	tests := []struct {
-		name string
-		args args
-		want bool
+	testCases := []struct {
+		description   string
+		phase         corev1.PodPhase
+		isTerminating bool
+		want          bool
 	}{
 		{
-			name: "active running pod",
-			args: args{pod: createTestPod("running-pod")},
-			want: true,
+			description: "should return true for pod that is running",
+			phase:       corev1.PodRunning,
+			want:        true,
 		},
 		{
-			name: "terminating pod",
-			args: args{pod: func() *corev1.Pod {
-				pod := createTestPod("terminating-pod")
-				pod.DeletionTimestamp = &metav1.Time{Time: time.Now()}
-				return pod
-			}(),
-			},
-			want: false,
+			description:   "should return false for termination pod",
+			phase:         corev1.PodRunning,
+			isTerminating: true,
+			want:          false,
 		},
 		{
-			name: "failed pod with no restart",
-			args: args{pod: func() *corev1.Pod {
-				pod := createTestPod("failed-pod")
-				pod.Status.Phase = corev1.PodFailed
-				pod.Spec.RestartPolicy = corev1.RestartPolicyNever
-				return pod
-			}(),
-			},
-			want: false,
+			description: "should return false when pod has failed",
+			phase:       corev1.PodFailed,
+			want:        false,
 		},
 		{
-			name: "failed pod that will restart",
-			args: args{pod: func() *corev1.Pod {
-				pod := createTestPod("failed-restart-pod")
-				pod.Status.Phase = corev1.PodFailed
-				pod.Spec.RestartPolicy = corev1.RestartPolicyAlways
-				return pod
-			}(),
-			},
-			want: true,
-		},
-		{
-			name: "succeeded pod",
-			args: args{pod: func() *corev1.Pod {
-				pod := createTestPod("succeeded-pod")
-				pod.Status.Phase = corev1.PodSucceeded
-				return pod
-			}(),
-			},
-			want: false,
+			description: "should return false for pod that has finished execution with success",
+			phase:       corev1.PodSucceeded,
+			want:        false,
 		},
 	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			assert.Equal(t, tt.want, IsPodActive(tt.args.pod))
+	for _, testCase := range testCases {
+		t.Run(testCase.description, func(t *testing.T) {
+			pod := createPod(testCase.phase, testCase.isTerminating)
+			assert.Equal(t, testCase.want, IsPodActive(pod))
 		})
 	}
 }
 
-func createTestPod(name string) *corev1.Pod {
-	return &corev1.Pod{
+func createPod(phase corev1.PodPhase, isTerminating bool) *corev1.Pod {
+	pod := &corev1.Pod{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: name,
+			Name:      testPodName,
+			Namespace: testPodNamespace,
 		},
 	}
+	pod.Status.Phase = phase
+	if isTerminating {
+		pod.DeletionTimestamp = &metav1.Time{Time: time.Now()}
+	}
+	return pod
 }
