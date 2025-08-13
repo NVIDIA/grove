@@ -48,5 +48,4 @@ operator/bin/*
 scheduler/bin/*
 
 # generated/copied chart resources
-operator/charts/pki-resources/*
 operator/charts/crds/*

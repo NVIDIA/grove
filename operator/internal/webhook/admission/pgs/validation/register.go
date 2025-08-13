@@ -25,7 +25,7 @@ import (
 
 const (
 	// HandlerName is the name of the validating webhook handler for PodGangSet.
-	HandlerName = "podgangset-validation-webhook"
+	HandlerName = "podgangset-validating-webhook"
 	webhookPath = "/webhooks/validate-podgangset"
 )
 

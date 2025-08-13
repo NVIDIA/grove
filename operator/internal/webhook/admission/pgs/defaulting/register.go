@@ -25,7 +25,7 @@ import (
 
 const (
 	// HandlerName is the name of the default webhook handler for PodGangSet.
-	HandlerName = "podgangset-default-webhook"
+	HandlerName = "podgangset-defaulting-webhook"
 	webhookPath = "/webhooks/default-podgangset"
 )
 

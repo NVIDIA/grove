@@ -11,7 +11,6 @@ webhooks:
   - admissionReviewVersions:
       - v1
     clientConfig:
-      caBundle: {{ .Files.Get "pki-resources/ca.crt" | b64enc }}
       service:
         name: {{ required ".Values.service.name is required" .Values.service.name }}
         namespace: {{ .Release.Namespace }}

@@ -92,6 +92,13 @@ func SetDefaults_ServerConfiguration(serverConfig *ServerConfiguration) {
 	if serverConfig.Metrics.Port == 0 {
 		serverConfig.Metrics.Port = 2752
 	}
+
+	if serverConfig.InternalCertificateManagement == nil {
+		serverConfig.InternalCertificateManagement = &InternalCertificateManagement{}
+	}
+	if serverConfig.InternalCertificateManagement.Enabled == nil {
+		serverConfig.InternalCertificateManagement.Enabled = ptr.To(true)
+	}
 }
 
 // SetDefaults_PodGangSetControllerConfiguration sets defaults for the PodGangSetControllerConfiguration.

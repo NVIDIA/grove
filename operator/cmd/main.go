@@ -55,11 +55,25 @@ func main() {
 		os.Exit(1)
 	}
 
-	mgr, err := grovectrl.CreateAndInitializeManager(operatorCfg)
+	mgr, err := grovectrl.CreateManager(operatorCfg)
 	if err != nil {
 		logger.Error(err, "failed to create grove controller manager")
 		os.Exit(1)
 	}
+	// Certificates need to be generated before the webhooks are started, which can only happen once the manager is started.
+	// Block while generating the certificates, and then start the webhooks.
+	go func() {
+		if err := grovectrl.InitializeManager(mgr, operatorCfg); err != nil {
+			logger.Error(err, "failed to initialize grove controller manager")
+			os.Exit(1)
+		}
+	}()
+
+	if err := grovectrl.SetupHealthAndReadinessEndpoints(mgr); err != nil {
+		logger.Error(err, "failed to set up health and readiness for grove controller manager")
+		os.Exit(1)
+	}
+
 	logger.Info("Starting manager")
 	if err = mgr.Start(ctx); err != nil {
 		logger.Error(err, "Error running manager")

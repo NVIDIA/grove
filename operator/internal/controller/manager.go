@@ -17,8 +17,11 @@
 package controller
 
 import (
+	"fmt"
 	"net"
+	"os"
 	"strconv"
+	"strings"
 	"time"
 
 	configv1alpha1 "github.com/NVIDIA/grove/operator/api/config/v1alpha1"
@@ -29,27 +32,55 @@ import (
 	"k8s.io/utils/ptr"
 	ctrl "sigs.k8s.io/controller-runtime"
 	ctrlconfig "sigs.k8s.io/controller-runtime/pkg/config"
+	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	ctrlmetricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 	ctrlwebhook "sigs.k8s.io/controller-runtime/pkg/webhook"
 )
 
-const pprofBindAddress = "127.0.0.1:2753"
+const (
+	pprofBindAddress      = "127.0.0.1:2753"
+	operatorNamespaceFile = "/var/run/secrets/kubernetes.io/serviceaccount/namespace"
+)
 
-// CreateAndInitializeManager creates a controller manager and adds all the controllers and webhooks to the controller-manager using the passed in Config.
-func CreateAndInitializeManager(operatorCfg *configv1alpha1.OperatorConfiguration) (ctrl.Manager, error) {
-	mgr, err := ctrl.NewManager(getRestConfig(operatorCfg), createManagerOptions(operatorCfg))
-	if err != nil {
-		return nil, err
+// CreateManager creates the manager.
+func CreateManager(operatorCfg *configv1alpha1.OperatorConfiguration) (ctrl.Manager, error) {
+	return ctrl.NewManager(getRestConfig(operatorCfg), createManagerOptions(operatorCfg))
+}
+
+// InitializeManager adds all the controllers and webhooks to the controller-manager using the passed in Config.
+func InitializeManager(mgr ctrl.Manager, operatorCfg *configv1alpha1.OperatorConfiguration) error {
+	if operatorCfg.Server.InternalCertificateManagement != nil && *operatorCfg.Server.InternalCertificateManagement.Enabled {
+		doneCh := make(chan struct{})
+		namespace, err := getOperatorNamespace()
+		if err != nil {
+			return err
+		}
+		if err = RegisterCertificateManager(mgr, namespace, operatorCfg.Server.Webhooks.ServerCertDir, doneCh); err != nil {
+			return err
+		}
+		// block here since the webhooks can not start without certificates
+		<-doneCh
 	}
-	if err = RegisterControllers(mgr, operatorCfg.Controllers); err != nil {
-		return nil, err
+
+	if err := RegisterControllers(mgr, operatorCfg.Controllers); err != nil {
+		return err
 	}
-	if err = webhook.RegisterWebhooks(mgr); err != nil {
-		return nil, err
+	if err := webhook.RegisterWebhooks(mgr); err != nil {
+		return err
 	}
 	// TODO register readyz, healthz endpoints
+	return nil
+}
 
-	return mgr, nil
+// SetupHealthAndReadinessEndpoints sets up the health and readiness endpoints for the operator.
+func SetupHealthAndReadinessEndpoints(mgr ctrl.Manager) error {
+	if err := mgr.AddHealthzCheck("healthz", healthz.Ping); err != nil {
+		return err
+	}
+	if err := mgr.AddReadyzCheck("readyz", healthz.Ping); err != nil {
+		return err
+	}
+	return nil
 }
 
 func createManagerOptions(operatorCfg *configv1alpha1.OperatorConfiguration) ctrl.Options {
@@ -94,4 +125,16 @@ func getRestConfig(operatorCfg *configv1alpha1.OperatorConfiguration) *rest.Conf
 		restCfg.ContentType = operatorCfg.ClientConnection.ContentType
 	}
 	return restCfg
+}
+
+func getOperatorNamespace() (string, error) {
+	data, err := os.ReadFile(operatorNamespaceFile)
+	if err != nil {
+		return "", err
+	}
+	namespace := strings.TrimSpace(string(data))
+	if len(namespace) == 0 {
+		return "", fmt.Errorf("operator namespace is empty")
+	}
+	return namespace, nil
 }

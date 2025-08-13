@@ -3,7 +3,7 @@
 apiVersion: admissionregistration.k8s.io/v1
 kind: ValidatingWebhookConfiguration
 metadata:
-  name: pgs-validating-webhook
+  name: podgangset-validating-webhook
   namespace: {{ .Release.Namespace }}
   labels:
 {{- include "operator.pgs.validating.webhook.labels" . | nindent 4 }}
@@ -11,7 +11,6 @@ webhooks:
   - admissionReviewVersions:
       - v1
     clientConfig:
-      caBundle: {{ .Files.Get "pki-resources/ca.crt" | b64enc }}
       service:
         name: {{ required ".Values.service.name is required" .Values.service.name }}
         namespace: {{ .Release.Namespace }}
