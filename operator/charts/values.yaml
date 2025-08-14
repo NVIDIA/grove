@@ -17,6 +17,9 @@ resources:
     cpu: 50m
     memory: 128Mi
 
+# Set of tolerations to apply to the operator deployment.
+tolerations: []
+
 # This section builds out the service account more information can be found here: https://kubernetes.io/docs/concepts/security/service-accounts/
 serviceAccount:
   # Automatically mount a ServiceAccount's API credentials?
