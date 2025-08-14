@@ -15,3 +15,5 @@ jobs:
         run: make --directory=operator build-operator
       - name: Start KIND cluster
         run: sudo make --directory=operator kind-up
+      - name: Apply sample manifest to KIND cluster
+        run: kubectl apply -f operator/samples/simple/simple1.yaml
