@@ -17,14 +17,14 @@ jobs:
         run: sudo make --directory=operator kind-up
       - name: Fix kubeconfig permissions
         run: sudo chown $(id -u):$(id -g) operator/hack/kind/kubeconfig && sudo chmod 644 operator/hack/kind/kubeconfig # or can chmod 777
-      - name: Install CRDs required by sample
+      - name: Install CRDs required by sample (server-side apply to avoid large annotations)
         run: |
           set -euo pipefail
           KCFG=operator/hack/kind/kubeconfig
-          kubectl --kubeconfig "$KCFG" apply -f operator/api/core/v1alpha1/crds/grove.io_podcliques.yaml
-          kubectl --kubeconfig "$KCFG" apply -f operator/api/core/v1alpha1/crds/grove.io_podcliquescalinggroups.yaml
-          kubectl --kubeconfig "$KCFG" apply -f operator/api/core/v1alpha1/crds/grove.io_podgangsets.yaml
-          kubectl --kubeconfig "$KCFG" apply -f scheduler/api/core/v1alpha1/crds/scheduler.grove.io_podgangs.yaml
+          kubectl --kubeconfig "$KCFG" apply --server-side -f operator/api/core/v1alpha1/crds/grove.io_podcliques.yaml
+          kubectl --kubeconfig "$KCFG" apply --server-side -f operator/api/core/v1alpha1/crds/grove.io_podcliquescalinggroups.yaml
+          kubectl --kubeconfig "$KCFG" apply --server-side -f operator/api/core/v1alpha1/crds/grove.io_podgangsets.yaml
+          kubectl --kubeconfig "$KCFG" apply --server-side -f scheduler/api/core/v1alpha1/crds/scheduler.grove.io_podgangs.yaml
           kubectl --kubeconfig "$KCFG" wait --for=condition=Established \
             crd/podcliques.grove.io \
             crd/podcliquescalinggroups.grove.io \
