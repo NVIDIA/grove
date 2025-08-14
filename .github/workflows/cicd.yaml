@@ -15,5 +15,7 @@ jobs:
         run: make --directory=operator build-operator
       - name: Start KIND cluster
         run: sudo make --directory=operator kind-up
+      - name: Fix kubeconfig permissions
+        run: sudo chown $(id -u):$(id -g) operator/hack/kind/kubeconfig && sudo chmod 644 operator/hack/kind/kubeconfig
       - name: Apply sample manifest to KIND cluster
         run: kubectl --kubeconfig operator/hack/kind/kubeconfig apply -f operator/samples/simple/simple1.yaml
