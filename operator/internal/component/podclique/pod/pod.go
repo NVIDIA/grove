@@ -19,19 +19,15 @@ package pod
 import (
 	"context"
 	"fmt"
-	"os"
 	"strconv"
-	"strings"
 
 	grovecorev1alpha1 "github.com/NVIDIA/grove/operator/api/core/v1alpha1"
-	"github.com/NVIDIA/grove/operator/internal/common"
 	"github.com/NVIDIA/grove/operator/internal/component"
 	componentutils "github.com/NVIDIA/grove/operator/internal/component/utils"
 	groveerr "github.com/NVIDIA/grove/operator/internal/errors"
 	"github.com/NVIDIA/grove/operator/internal/expect"
 	"github.com/NVIDIA/grove/operator/internal/utils"
 	k8sutils "github.com/NVIDIA/grove/operator/internal/utils/kubernetes"
-	"github.com/NVIDIA/grove/operator/internal/version"
 
 	"github.com/go-logr/logr"
 	"github.com/samber/lo"
@@ -41,16 +37,6 @@ import (
 	"k8s.io/client-go/tools/record"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
-)
-
-const (
-	// envVarInitContainerImage stores the environment variable which is read to find the image for the init-container.
-	// The environment variable should only store the registry and repository of the init-container. It should not contain any tag.
-	envVarInitContainerImage string = "GROVE_INIT_CONTAINER_IMAGE"
-	// grove-initc name
-	initContainerName = "grove-initc"
-	// volumeNamePodInfo is the name of the downwardAPI volume that passes the pod information to the init container
-	volumeNamePodInfo = "pod-info"
 )
 
 // constants for error codes
@@ -168,13 +154,15 @@ func (r _resource) buildResource(pgs *grovecorev1alpha1.PodGangSet, pclq *grovec
 	}
 	pod.Spec = *pclq.Spec.PodSpec.DeepCopy()
 	pod.Spec.SchedulingGates = []corev1.PodSchedulingGate{{Name: podGangSchedulingGate}}
-	pod.Spec.ServiceAccountName = grovecorev1alpha1.GeneratePodServiceAccountName(pgs.Name)
 	// Add GROVE specific Pod environment variables
 	addEnvironmentVariables(pod, pclq, pgsName, pgsReplicaIndex, podIndex)
 	// Configure hostname and subdomain for service discovery
 	configurePodHostname(pgsName, pgsReplicaIndex, pclq.Name, pod, podIndex)
-	// Conditionally add init container to the Pod to ensure start-up ordering.
-	return appendGroveInitContainerIfNeeded(pgs, pclq, pod)
+	// If there is a need to enforce a Startup-Order then configure the init container and add it to the Pod Spec.
+	if len(pclq.Spec.StartsAfter) != 0 {
+		return configurePodInitContainer(pgs, pclq, pod)
+	}
+	return nil
 }
 
 func (r _resource) Delete(ctx context.Context, logger logr.Logger, pclqObjectMeta metav1.ObjectMeta) error {
@@ -223,77 +211,6 @@ func getLabels(pclqObjectMeta metav1.ObjectMeta, pgsName, podGangName string, pg
 		k8sutils.GetDefaultLabelsForPodGangSetManagedResources(pgsName),
 		pclqObjectMeta.Labels,
 		labels)
-}
-
-func appendGroveInitContainerIfNeeded(pgs *grovecorev1alpha1.PodGangSet, pclq *grovecorev1alpha1.PodClique, pod *corev1.Pod) error {
-	if len(pclq.Spec.StartsAfter) == 0 {
-		return nil
-	}
-	initContainerImage, ok := os.LookupEnv(envVarInitContainerImage)
-	if !ok {
-		return groveerr.New(
-			errCodeInitContainerImageEnvVarMissing,
-			component.OperationSync,
-			fmt.Sprintf("environment variable %s specifying the init-container image is missing", envVarInitContainerImage),
-		)
-	}
-	args, err := generateArgsForInitContainer(pgs, pclq)
-	if err != nil {
-		return err
-	}
-
-	pod.Spec.InitContainers = append(pod.Spec.InitContainers, corev1.Container{
-		Name:  initContainerName,
-		Image: fmt.Sprintf("%s:%s", initContainerImage, version.Get().GitVersion),
-		Args:  args,
-		VolumeMounts: []corev1.VolumeMount{
-			{
-				Name:      volumeNamePodInfo,
-				ReadOnly:  true,
-				MountPath: common.VolumeMountPathPodInfo,
-			},
-		},
-	})
-	pod.Spec.Volumes = append(pod.Spec.Volumes, corev1.Volume{
-		Name: volumeNamePodInfo,
-		VolumeSource: corev1.VolumeSource{
-			DownwardAPI: &corev1.DownwardAPIVolumeSource{
-				Items: []corev1.DownwardAPIVolumeFile{
-					{
-						Path: common.PodNamespaceFileName,
-						FieldRef: &corev1.ObjectFieldSelector{
-							FieldPath: "metadata.namespace",
-						},
-					},
-					{
-						Path: common.PodGangNameFileName,
-						FieldRef: &corev1.ObjectFieldSelector{
-							FieldPath: fmt.Sprintf("metadata.labels['%s']", grovecorev1alpha1.LabelPodGang),
-						},
-					},
-				},
-			},
-		},
-	})
-	return nil
-}
-
-func generateArgsForInitContainer(pgs *grovecorev1alpha1.PodGangSet, pclq *grovecorev1alpha1.PodClique) ([]string, error) {
-	args := make([]string, 0)
-	for _, parentCliqueFQN := range pclq.Spec.StartsAfter {
-		parentCliqueTemplateSpec, ok := lo.Find(pgs.Spec.Template.Cliques, func(templateSpec *grovecorev1alpha1.PodCliqueTemplateSpec) bool {
-			return strings.HasSuffix(parentCliqueFQN, templateSpec.Name)
-		})
-		if !ok {
-			return nil, groveerr.New(
-				errCodeMissingPodCliqueTemplate,
-				component.OperationSync,
-				fmt.Sprintf("PodClique %s specified in startsAfter is not present in the templates", parentCliqueFQN),
-			)
-		}
-		args = append(args, fmt.Sprintf("--podcliques=%s:%d", parentCliqueFQN, *parentCliqueTemplateSpec.Spec.MinAvailable))
-	}
-	return args, nil
 }
 
 // addEnvironmentVariables adds Grove-specific environment variables to all containers and init-containers.

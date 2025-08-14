@@ -83,6 +83,17 @@ rules:
   - watch
   - patch
 - apiGroups:
+    - ""
+  resources:
+    - secrets
+  verbs:
+    - create
+    - get
+    - list
+    - patch
+    - delete
+    - watch
+- apiGroups:
   - rbac.authorization.k8s.io
   resources:
   - roles

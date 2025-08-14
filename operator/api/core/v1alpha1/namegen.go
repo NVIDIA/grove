@@ -39,20 +39,29 @@ func GenerateHeadlessServiceAddress(pgsNameReplica ResourceNameReplica, namespac
 	return fmt.Sprintf("%s.%s.svc.cluster.local", GenerateHeadlessServiceName(pgsNameReplica), namespace)
 }
 
-// GeneratePodRoleName generates a Pod role name based on the PodGangSet name.
-// This role will be associated to all Pods within a PodGangSet.
+// GeneratePodRoleName generates a Pod role name.
+// This role will be associated to an init container within each Pod for a PodGangSet.
+// The init container is created by the operator and is responsible for ensuring start-up order amongst PodCliques.
 func GeneratePodRoleName(pgsName string) string {
 	return fmt.Sprintf("%s:pgs:%s", SchemeGroupVersion.Group, pgsName)
 }
 
-// GeneratePodRoleBindingName generates a Pod role binding name based on the PodGangSet name.
+// GeneratePodRoleBindingName generates a role binding name. The role binding will bind the
+// role to the service account that are created for the init container responsible for ensuring start-up order amongst PodCliques.
 func GeneratePodRoleBindingName(pgsName string) string {
 	return fmt.Sprintf("%s:pgs:%s", SchemeGroupVersion.Group, pgsName)
 }
 
-// GeneratePodServiceAccountName generates a Pod service account used by all the Pods within a PodGangSet.
+// GeneratePodServiceAccountName generates a Pod service account used by all the init containers
+// within the PodGangSet (one per pod) that are responsible for ensuring start-up order amongst PodCliques.
 func GeneratePodServiceAccountName(pgsName string) string {
 	return pgsName
+}
+
+// GeneratePodInitContainerSecretName generates a Secret name that will be mounted onto the init container
+// responsible for ensuring start-up order amongst PodCliques.
+func GeneratePodInitContainerSecretName(pgsName string) string {
+	return fmt.Sprintf("%s-initc", pgsName)
 }
 
 // GeneratePodCliqueName generates a PodClique name based on the PodGangSet name, replica index, and PodCliqueTemplate name.

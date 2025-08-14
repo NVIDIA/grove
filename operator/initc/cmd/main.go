@@ -56,7 +56,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	if err := podCliqueState.WaitForReady(ctx, log); err != nil {
+	if err = podCliqueState.WaitForReady(ctx, log); err != nil {
 		log.Error(err, "Failed to wait for all parent PodCliques")
 		os.Exit(1)
 	}

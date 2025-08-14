@@ -53,6 +53,8 @@ const (
 	NamePodRoleBinding = "pod-role-binding"
 	// NamePodServiceAccount is the component name for a ServiceAccount that is used by all Pods that are created for a PodGangSet.
 	NamePodServiceAccount = "pod-service-account"
+	// NameServiceAccountTokenSecret is the component name for a Secret for generating service account token that is used by start-up order enforcing init container in each Pod for a PodGangSet.
+	NameServiceAccountTokenSecret = "pod-sa-token-secret"
 	// NamePodCliqueScalingGroup is the component name for a PodCliqueScalingGroup resource.
 	NamePodCliqueScalingGroup = "pgs-pod-clique-scaling-group"
 	// NameHorizontalPodAutoscaler is the component name for a HorizontalPodAutoscaler that is created for a PodGangSet.
@@ -82,8 +84,6 @@ type Operator[T GroveCustomResourceType] interface {
 type Kind string
 
 const (
-	// KindPodGangSet indicates that kind of the component is a PodGangSet.
-	KindPodGangSet Kind = "PodGangSet"
 	// KindPodClique indicates that the resource is a PodClique.
 	KindPodClique Kind = "PodClique"
 	// KindServiceAccount indicates that the resource is a ServiceAccount.
@@ -92,16 +92,14 @@ const (
 	KindRole Kind = "Role"
 	// KindRoleBinding indicates that the resource is a RoleBinding.
 	KindRoleBinding Kind = "RoleBinding"
+	// KindServiceAccountTokenSecret indicates that the resource is a Secret to generate ServiceAccount token.
+	KindServiceAccountTokenSecret Kind = "ServiceAccountTokenSecret"
 	// KindHeadlessService indicates that the resource is a headless Service.
 	KindHeadlessService Kind = "HeadlessService"
-	// KindNetworkPolicy indicates that the resource is a NetworkPolicy.
-	KindNetworkPolicy Kind = "NetworkPolicy"
 	// KindHorizontalPodAutoscaler indicates that the resource is a HorizontalPodAutoscaler.
 	KindHorizontalPodAutoscaler Kind = "HorizontalPodAutoscaler"
 	// KindPod indicates that the resource is a Pod.
 	KindPod Kind = "Pod"
-	// KindPersistentVolumeClaim indicates that the resource is a PersistentVolumeClaim.
-	KindPersistentVolumeClaim Kind = "PersistentVolumeClaim"
 	// KindPodCliqueScalingGroup indicates that the resource is a PodCliqueScalingGroup.
 	KindPodCliqueScalingGroup Kind = "PodCliqueScalingGroup"
 	// KindPodGang indicates that the resource is a PodGang.

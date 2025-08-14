@@ -37,9 +37,9 @@ import (
 )
 
 const (
-	errGetRole    grovecorev1alpha1.ErrorCode = "ERR_GET_ROLE"
-	errSyncRole   grovecorev1alpha1.ErrorCode = "ERR_SYNC_ROLE"
-	errDeleteRole grovecorev1alpha1.ErrorCode = "ERR_DELETE_ROLE"
+	errCodeGetRole grovecorev1alpha1.ErrorCode = "ERR_GET_ROLE"
+	errSyncRole    grovecorev1alpha1.ErrorCode = "ERR_SYNC_ROLE"
+	errDeleteRole  grovecorev1alpha1.ErrorCode = "ERR_DELETE_ROLE"
 )
 
 type _resource struct {
@@ -59,20 +59,19 @@ func New(client client.Client, scheme *runtime.Scheme) component.Operator[grovec
 func (r _resource) GetExistingResourceNames(ctx context.Context, _ logr.Logger, pgsObjMeta metav1.ObjectMeta) ([]string, error) {
 	roleNames := make([]string, 0, 1)
 	objectKey := getObjectKey(pgsObjMeta)
-	objMeta := &metav1.PartialObjectMetadata{}
-	objMeta.SetGroupVersionKind(rbacv1.SchemeGroupVersion.WithKind("Role"))
-	if err := r.client.Get(ctx, objectKey, objMeta); err != nil {
+	partialObjMeta, err := k8sutils.GetExistingPartialObjectMetadata(ctx, r.client, rbacv1.SchemeGroupVersion.WithKind("Role"), objectKey)
+	if err != nil {
 		if errors.IsNotFound(err) {
 			return roleNames, nil
 		}
-		return roleNames, groveerr.WrapError(err,
-			errGetRole,
+		return nil, groveerr.WrapError(err,
+			errCodeGetRole,
 			component.OperationGetExistingResourceNames,
 			fmt.Sprintf("Error getting Role: %v for PodGangSet: %v", objectKey, k8sutils.GetObjectKeyFromObjectMeta(pgsObjMeta)),
 		)
 	}
-	if metav1.IsControlledBy(objMeta, &pgsObjMeta) {
-		roleNames = append(roleNames, objMeta.Name)
+	if metav1.IsControlledBy(partialObjMeta, &pgsObjMeta) {
+		roleNames = append(roleNames, partialObjMeta.Name)
 	}
 	return roleNames, nil
 }
@@ -82,7 +81,7 @@ func (r _resource) Sync(ctx context.Context, logger logr.Logger, pgs *grovecorev
 	existingRoleNames, err := r.GetExistingResourceNames(ctx, logger, pgs.ObjectMeta)
 	if err != nil {
 		return groveerr.WrapError(err,
-			errGetRole,
+			errCodeGetRole,
 			component.OperationSync,
 			fmt.Sprintf("Error getting existing Role names for PodGangSet: %v", client.ObjectKeyFromObject(pgs)),
 		)

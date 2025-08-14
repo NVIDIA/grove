@@ -24,16 +24,26 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-// ListExistingPartialObjectMetadata gets the PartialObjectMetadata for a GVK in a given namespace and matching labels.
+// ListExistingPartialObjectMetadata gets the slice of PartialObjectMetadata for a GVK in a given namespace and matching labels.
 func ListExistingPartialObjectMetadata(ctx context.Context, cl client.Client, gvk schema.GroupVersionKind, ownerObjMeta metav1.ObjectMeta, selectorLabels map[string]string) ([]metav1.PartialObjectMetadata, error) {
-	objMetaList := &metav1.PartialObjectMetadataList{}
-	objMetaList.SetGroupVersionKind(gvk)
+	partialObjMetaList := &metav1.PartialObjectMetadataList{}
+	partialObjMetaList.SetGroupVersionKind(gvk)
 	if err := cl.List(ctx,
-		objMetaList,
+		partialObjMetaList,
 		client.InNamespace(ownerObjMeta.Namespace),
 		client.MatchingLabels(selectorLabels),
 	); err != nil {
 		return nil, err
 	}
-	return objMetaList.Items, nil
+	return partialObjMetaList.Items, nil
+}
+
+// GetExistingPartialObjectMetadata gets the PartialObjectMetadata for the given GVK
+func GetExistingPartialObjectMetadata(ctx context.Context, cl client.Client, gvk schema.GroupVersionKind, objKey client.ObjectKey) (*metav1.PartialObjectMetadata, error) {
+	partialObjMeta := &metav1.PartialObjectMetadata{}
+	partialObjMeta.SetGroupVersionKind(gvk)
+	if err := cl.Get(ctx, objKey, partialObjMeta); err != nil {
+		return nil, err
+	}
+	return partialObjMeta, nil
 }
