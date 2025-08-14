@@ -16,4 +16,4 @@ jobs:
       - name: Start KIND cluster
         run: sudo make --directory=operator kind-up
       - name: Apply sample manifest to KIND cluster
-        run: kubectl apply -f operator/samples/simple/simple1.yaml
+        run: kubectl --kubeconfig operator/hack/kind/kubeconfig apply -f operator/samples/simple/simple1.yaml
