@@ -19,11 +19,13 @@ package podcliquescalinggroup
 import (
 	"context"
 	"fmt"
+	"strconv"
 
 	grovecorev1alpha1 "github.com/NVIDIA/grove/operator/api/core/v1alpha1"
-	"github.com/NVIDIA/grove/operator/internal/component"
+	"github.com/NVIDIA/grove/operator/internal/common"
 	componentutils "github.com/NVIDIA/grove/operator/internal/component/utils"
 	ctrlcommon "github.com/NVIDIA/grove/operator/internal/controller/common"
+	"github.com/NVIDIA/grove/operator/internal/status"
 	k8sutils "github.com/NVIDIA/grove/operator/internal/utils/kubernetes"
 
 	"github.com/go-logr/logr"
@@ -40,14 +42,13 @@ func (r *Reconciler) reconcileStatus(ctx context.Context, logger logr.Logger, pc
 		return ctrlcommon.ReconcileWithErrors("failed to get owner PodGangSet", err)
 	}
 
-	pclqsPerPCSGReplica, err := r.getPodCliquesPerPCSGReplica(ctx, pgs.Name, client.ObjectKeyFromObject(pcsg))
-	if err != nil {
-		return ctrlcommon.ReconcileWithErrors(fmt.Sprintf("failed to list PodCliques for PodCliqueScalingGroup: %q", client.ObjectKeyFromObject(pcsg)), err)
-	}
-
 	if pcsg.Status.ObservedGeneration != nil {
+		pclqsPerPCSGReplica, err := r.getPodCliquesPerPCSGReplica(ctx, pgs.Name, client.ObjectKeyFromObject(pcsg))
+		if err != nil {
+			return ctrlcommon.ReconcileWithErrors(fmt.Sprintf("failed to list PodCliques for PodCliqueScalingGroup: %q", client.ObjectKeyFromObject(pcsg)), err)
+		}
 		mutateReplicas(logger, pcsg, pclqsPerPCSGReplica)
-		mutateMinAvailableBreachedCondition(logger, pcsg, pclqsPerPCSGReplica)
+		mutateMinAvailableBreachedCondition(pcsg)
 	}
 
 	if err = mutateSelector(pgs, pcsg); err != nil {
@@ -62,30 +63,55 @@ func (r *Reconciler) reconcileStatus(ctx context.Context, logger logr.Logger, pc
 	return ctrlcommon.ContinueReconcile()
 }
 
+// computeReplicaStatus processes a single PodCliqueScalingGroup replica and returns whether it is scheduled and available.
+func computeReplicaStatus(logger logr.Logger, expectedPCSGReplicaPCLQSize int, pcsgReplicaIndex string, pclqs []grovecorev1alpha1.PodClique) (bool, bool) {
+	replicaIndex, _ := strconv.Atoi(pcsgReplicaIndex)
+
+	isScheduled := status.ValidateReplicaScheduled(
+		logger, pclqs, expectedPCSGReplicaPCLQSize,
+		status.GetPCLQCondition,
+		grovecorev1alpha1.PodCliqueKind, replicaIndex,
+	)
+
+	isAvailable := status.ValidateReplicaAvailable(
+		logger, pclqs, expectedPCSGReplicaPCLQSize,
+		status.GetPCLQCondition,
+		grovecorev1alpha1.PodCliqueKind, replicaIndex,
+	)
+
+	return isScheduled, isAvailable
+}
+
 func mutateReplicas(logger logr.Logger, pcsg *grovecorev1alpha1.PodCliqueScalingGroup, pclqsPerPCSGReplica map[string][]grovecorev1alpha1.PodClique) {
 	pcsg.Status.Replicas = pcsg.Spec.Replicas
-	var scheduledReplicas int32
+	var scheduledReplicas, availableReplicas int32
 	for pcsgReplicaIndex, pclqs := range pclqsPerPCSGReplica {
-		isScheduled := lo.Reduce(pclqs, func(agg bool, pclq grovecorev1alpha1.PodClique, _ int) bool {
-			return agg && k8sutils.IsConditionTrue(pclq.Status.Conditions, grovecorev1alpha1.ConditionTypePodCliqueScheduled)
-		}, true)
+		isScheduled, isAvailable := computeReplicaStatus(logger, len(pcsg.Spec.CliqueNames), pcsgReplicaIndex, pclqs)
 		if isScheduled {
 			scheduledReplicas++
 		}
-		logger.Info("PodCliqueScalingGroup replica scheduled status", "pcsgReplicaIndex", pcsgReplicaIndex, "isScheduled", isScheduled)
+		if isAvailable {
+			availableReplicas++
+		}
 	}
+	logger.Info("Mutating PodCliqueScalingGroup replicas",
+		"pcsg", client.ObjectKeyFromObject(pcsg),
+		"scheduledReplicas", scheduledReplicas, "availableReplicas", availableReplicas)
 	pcsg.Status.ScheduledReplicas = scheduledReplicas
+	pcsg.Status.AvailableReplicas = availableReplicas
 }
 
-func mutateMinAvailableBreachedCondition(logger logr.Logger, pcsg *grovecorev1alpha1.PodCliqueScalingGroup, pclqsPerPCSGReplica map[string][]grovecorev1alpha1.PodClique) {
-	newCondition := computeMinAvailableBreachedCondition(logger, pcsg, pclqsPerPCSGReplica)
+func mutateMinAvailableBreachedCondition(pcsg *grovecorev1alpha1.PodCliqueScalingGroup) {
+	newCondition := computeMinAvailableBreachedCondition(pcsg)
 	if k8sutils.HasConditionChanged(pcsg.Status.Conditions, newCondition) {
 		meta.SetStatusCondition(&pcsg.Status.Conditions, newCondition)
 	}
 }
 
-func computeMinAvailableBreachedCondition(logger logr.Logger, pcsg *grovecorev1alpha1.PodCliqueScalingGroup, pclqsPerPCSGReplica map[string][]grovecorev1alpha1.PodClique) metav1.Condition {
-	minAvailable := int(*pcsg.Spec.MinAvailable)
+func computeMinAvailableBreachedCondition(pcsg *grovecorev1alpha1.PodCliqueScalingGroup) metav1.Condition {
+	// its should not be possible to have a PCSG without MinAvailable defined, but if it happens then we assume that the min available is 1
+	// to prevent case of passing nil to int conversion
+	minAvailable := int(ptr.Deref(pcsg.Spec.MinAvailable, pcsg.Spec.Replicas))
 	scheduledReplicas := int(pcsg.Status.ScheduledReplicas)
 	if scheduledReplicas < minAvailable {
 		return metav1.Condition{
@@ -95,36 +121,21 @@ func computeMinAvailableBreachedCondition(logger logr.Logger, pcsg *grovecorev1a
 			Message: fmt.Sprintf("Insufficient scheduled replicas. expected at least: %d, found: %d", minAvailable, scheduledReplicas),
 		}
 	}
-	minAvailableBreachedReplicas := computeMinAvailableBreachedReplicas(logger, pclqsPerPCSGReplica)
-	readyReplicas := scheduledReplicas - minAvailableBreachedReplicas
-	if readyReplicas < minAvailable {
+	availableReplicas := int(pcsg.Status.AvailableReplicas)
+	if availableReplicas < minAvailable {
 		return metav1.Condition{
 			Type:    grovecorev1alpha1.ConditionTypeMinAvailableBreached,
 			Status:  metav1.ConditionTrue,
-			Reason:  grovecorev1alpha1.ConditionReasonInsufficientReadyPCSGReplicas,
-			Message: fmt.Sprintf("Insufficient PodCliqueScalingGroup ready replicas, expected at least: %d, found: %d", minAvailable, readyReplicas),
+			Reason:  grovecorev1alpha1.ConditionReasonInsufficientAvailablePCSGReplicas,
+			Message: fmt.Sprintf("Insufficient PodCliqueScalingGroup ready replicas, expected at least: %d, found: %d", minAvailable, availableReplicas),
 		}
 	}
 	return metav1.Condition{
 		Type:    grovecorev1alpha1.ConditionTypeMinAvailableBreached,
 		Status:  metav1.ConditionFalse,
-		Reason:  grovecorev1alpha1.ConditionReasonSufficientReadyPCSGReplicas,
-		Message: fmt.Sprintf("Sufficient PodCliqueScalingGroup ready replicas, expected at least: %d, found: %d", minAvailable, readyReplicas),
+		Reason:  grovecorev1alpha1.ConditionReasonSufficientAvailablePCSGReplicas,
+		Message: fmt.Sprintf("Sufficient PodCliqueScalingGroup ready replicas, expected at least: %d, found: %d", minAvailable, availableReplicas),
 	}
-}
-
-func computeMinAvailableBreachedReplicas(logger logr.Logger, pclqsPerPCSGReplica map[string][]grovecorev1alpha1.PodClique) int {
-	var breachedReplicas int
-	for pcsgReplicaIndex, pclqs := range pclqsPerPCSGReplica {
-		isMinAvailableBreached := lo.Reduce(pclqs, func(agg bool, pclq grovecorev1alpha1.PodClique, _ int) bool {
-			return agg || k8sutils.IsConditionTrue(pclq.Status.Conditions, grovecorev1alpha1.ConditionTypeMinAvailableBreached)
-		}, false)
-		if isMinAvailableBreached {
-			breachedReplicas++
-		}
-		logger.Info("PodCliqueScalingGroup replica has MinAvailableBreached condition set to true", "pcsgReplicaIndex", pcsgReplicaIndex, "isMinAvailableBreached", isMinAvailableBreached)
-	}
-	return breachedReplicas
 }
 
 func (r *Reconciler) getPodCliquesPerPCSGReplica(ctx context.Context, pgsName string, pcsgObjKey client.ObjectKey) (map[string][]grovecorev1alpha1.PodClique, error) {
@@ -132,7 +143,7 @@ func (r *Reconciler) getPodCliquesPerPCSGReplica(ctx context.Context, pgsName st
 		k8sutils.GetDefaultLabelsForPodGangSetManagedResources(pgsName),
 		map[string]string{
 			grovecorev1alpha1.LabelPodCliqueScalingGroup: pcsgObjKey.Name,
-			grovecorev1alpha1.LabelComponentKey:          component.NamePCSGPodClique,
+			grovecorev1alpha1.LabelComponentKey:          common.NamePCSGPodClique,
 		},
 	)
 	pclqs, err := componentutils.GetPCLQsByOwner(ctx,

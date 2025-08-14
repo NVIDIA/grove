@@ -23,4 +23,9 @@ const (
 	PodNamespaceFileName = "namespace"
 	// VolumeMountPathPodInfo contains the file path at which the downward API volume is attached.
 	VolumeMountPathPodInfo = "/var/grove/pod-info"
+	// NamePGSPodClique is the component name for a PodClique resource handled by a PodGangSet.
+	NamePGSPodClique = "pgs-podclique"
+
+	// NamePCSGPodClique is the component name for a PodClique resource handled by a PodCliqueScalingGroup.
+	NamePCSGPodClique = "pcsg-podclique"
 )

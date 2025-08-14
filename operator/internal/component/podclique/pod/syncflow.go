@@ -177,7 +177,7 @@ func getTerminatingAndNonTerminatingPodUIDs(existingPCLQPods []*corev1.Pod) (ter
 	nonTerminatingUIDs = make([]types.UID, 0, len(existingPCLQPods))
 	terminatingUIDs = make([]types.UID, 0, len(existingPCLQPods))
 	for _, pod := range existingPCLQPods {
-		if k8sutils.IsResourceTerminating(pod.ObjectMeta) {
+		if k8sutils.IsResourceTerminating(&pod.ObjectMeta) {
 			terminatingUIDs = append(terminatingUIDs, pod.GetUID())
 		} else {
 			nonTerminatingUIDs = append(nonTerminatingUIDs, pod.GetUID())

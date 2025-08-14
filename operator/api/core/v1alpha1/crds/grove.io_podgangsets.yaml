@@ -9656,6 +9656,14 @@ spec:
           status:
             description: Status defines the status of the PodGangSet.
             properties:
+              availableReplicas:
+                description: |-
+                  AvailableReplicas is the number of PodGangSet replicas that are available.
+                  A PodGangSet replica is considered available when all standalone PodCliques within that replica
+                  have MinAvailableBreached condition = False AND all PodCliqueScalingGroups (PCSG) within that replica
+                  have MinAvailableBreached condition = False.
+                format: int32
+                type: integer
               hpaPodSelector:
                 description: |-
                   Selector is the label selector that determines which pods are part of the PodGang.

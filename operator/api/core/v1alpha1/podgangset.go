@@ -73,6 +73,11 @@ type PodGangSetStatus struct {
 	Replicas int32 `json:"replicas,omitempty"`
 	// UpdatedReplicas is the number of replicas that have been updated to the desired revision of the PodGangSet.
 	UpdatedReplicas int32 `json:"updatedReplicas,omitempty"`
+	// AvailableReplicas is the number of PodGangSet replicas that are available.
+	// A PodGangSet replica is considered available when all standalone PodCliques within that replica
+	// have MinAvailableBreached condition = False AND all PodCliqueScalingGroups (PCSG) within that replica
+	// have MinAvailableBreached condition = False.
+	AvailableReplicas int32 `json:"availableReplicas,omitempty"`
 	// Selector is the label selector that determines which pods are part of the PodGang.
 	// PodGang is a unit of scale and this selector is used by HPA to scale the PodGang based on metrics captured for the pods that match this selector.
 	Selector *string `json:"hpaPodSelector,omitempty"`

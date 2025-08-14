@@ -65,7 +65,11 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		return result.Result()
 	}
 
-	return r.reconcileSpec(ctx, logger, pgs).Result()
+	if result := r.reconcileSpec(ctx, logger, pgs); ctrlcommon.ShortCircuitReconcileFlow(result) {
+		return result.Result()
+	}
+
+	return r.reconcileStatus(ctx, logger, pgs).Result()
 }
 
 func (r *Reconciler) reconcileDelete(ctx context.Context, logger logr.Logger, pgs *grovecorev1alpha1.PodGangSet) ctrlcommon.ReconcileStepResult {

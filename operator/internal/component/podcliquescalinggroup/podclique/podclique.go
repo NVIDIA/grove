@@ -25,6 +25,7 @@ import (
 	"time"
 
 	grovecorev1alpha1 "github.com/NVIDIA/grove/operator/api/core/v1alpha1"
+	"github.com/NVIDIA/grove/operator/internal/common"
 	"github.com/NVIDIA/grove/operator/internal/component"
 	groveevents "github.com/NVIDIA/grove/operator/internal/component/events"
 	componentutils "github.com/NVIDIA/grove/operator/internal/component/utils"
@@ -292,7 +293,7 @@ func getLabelsToDeletePCSGReplicaIndexPCLQs(pgsName, pcsgName, pcsgReplicaIndex 
 	return lo.Assign(
 		k8sutils.GetDefaultLabelsForPodGangSetManagedResources(pgsName),
 		map[string]string{
-			grovecorev1alpha1.LabelComponentKey:                      component.NamePCSGPodClique,
+			grovecorev1alpha1.LabelComponentKey:                      common.NamePCSGPodClique,
 			grovecorev1alpha1.LabelPodCliqueScalingGroup:             pcsgName,
 			grovecorev1alpha1.LabelPodCliqueScalingGroupReplicaIndex: pcsgReplicaIndex,
 		},
@@ -562,7 +563,7 @@ func getPodCliqueSelectorLabels(pcsgObjectMeta metav1.ObjectMeta) map[string]str
 	return lo.Assign(
 		k8sutils.GetDefaultLabelsForPodGangSetManagedResources(pgsName),
 		map[string]string{
-			grovecorev1alpha1.LabelComponentKey:          component.NamePCSGPodClique,
+			grovecorev1alpha1.LabelComponentKey:          common.NamePCSGPodClique,
 			grovecorev1alpha1.LabelPodCliqueScalingGroup: pcsgObjectMeta.Name,
 		},
 	)
@@ -571,7 +572,7 @@ func getPodCliqueSelectorLabels(pcsgObjectMeta metav1.ObjectMeta) map[string]str
 func getLabels(pgs *grovecorev1alpha1.PodGangSet, pgsReplicaIndex int, pcsg *grovecorev1alpha1.PodCliqueScalingGroup, pcsgReplicaIndex int, pclqObjectKey client.ObjectKey, pclqTemplateSpec *grovecorev1alpha1.PodCliqueTemplateSpec, podGangName string) map[string]string {
 	pclqComponentLabels := map[string]string{
 		grovecorev1alpha1.LabelAppNameKey:                        pclqObjectKey.Name,
-		grovecorev1alpha1.LabelComponentKey:                      component.NamePCSGPodClique,
+		grovecorev1alpha1.LabelComponentKey:                      common.NamePCSGPodClique,
 		grovecorev1alpha1.LabelPodCliqueScalingGroup:             pcsg.Name,
 		grovecorev1alpha1.LabelPodGang:                           podGangName,
 		grovecorev1alpha1.LabelPodGangSetReplicaIndex:            strconv.Itoa(pgsReplicaIndex),

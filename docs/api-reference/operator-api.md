@@ -269,6 +269,7 @@ _Appears in:_
 | --- | --- | --- | --- |
 | `replicas` _integer_ | Replicas is the observed number of replicas for the PodCliqueScalingGroup. |  |  |
 | `scheduledReplicas` _integer_ | ScheduledReplicas is the number of replicas that are scheduled for the PodCliqueScalingGroup.<br />A replica of PodCliqueScalingGroup is considered "scheduled" when at least MinAvailable number<br />of pods in each constituent PodClique has been scheduled. |  |  |
+| `availableReplicas` _integer_ | AvailableReplicas is the number of PodCliqueScalingGroup replicas that are available.<br />A PCSG replica is considered available when all constituent PodCliques have MinAvailableBreached condition = False. |  |  |
 | `selector` _string_ | Selector is the selector used to identify the pods that belong to this scaling group. |  |  |
 | `observedGeneration` _integer_ | ObservedGeneration is the most recent generation observed by the controller. |  |  |
 | `lastOperation` _[LastOperation](#lastoperation)_ | LastOperation captures the last operation done by the respective reconciler on the PodClique. |  |  |
@@ -418,6 +419,7 @@ _Appears in:_
 | `lastErrors` _[LastError](#lasterror) array_ | LastErrors captures the last errors observed by the controller when reconciling the PodGangSet. |  |  |
 | `replicas` _integer_ | Replicas is the total number of PodGangSet replicas created. |  |  |
 | `updatedReplicas` _integer_ | UpdatedReplicas is the number of replicas that have been updated to the desired revision of the PodGangSet. |  |  |
+| `availableReplicas` _integer_ | AvailableReplicas is the number of PodGangSet replicas that are available.<br />A PodGangSet replica is considered available when all standalone PodCliques within that replica<br />have MinAvailableBreached condition = False AND all PodCliqueScalingGroups (PCSG) within that replica<br />have MinAvailableBreached condition = False. |  |  |
 | `hpaPodSelector` _string_ | Selector is the label selector that determines which pods are part of the PodGang.<br />PodGang is a unit of scale and this selector is used by HPA to scale the PodGang based on metrics captured for the pods that match this selector. |  |  |
 | `podGangStatuses` _[PodGangStatus](#podgangstatus) array_ | PodGangStatuses captures the status for all the PodGang's that are part of the PodGangSet. |  |  |
 

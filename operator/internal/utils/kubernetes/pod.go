@@ -51,7 +51,7 @@ func CategorizePodsByConditionType(logger logr.Logger, pods []*corev1.Pod) map[c
 			podCategories[ScheduleGatedPod] = append(podCategories[ScheduleGatedPod], pod)
 		}
 		// Check if the pod has a deletion timestamp set, which indicates that the pod is terminating.
-		if IsResourceTerminating(pod.ObjectMeta) {
+		if IsResourceTerminating(&pod.ObjectMeta) {
 			podCategories[TerminatingPod] = append(podCategories[TerminatingPod], pod)
 		}
 		// check if the pod is ready, has at least one container with a non-zero exit code or has started but not ready containers.
