@@ -57,12 +57,22 @@ jobs:
           kubectl --kubeconfig "$KCFG" -n "$NS" get deployment grove-operator -o wide
       - name: Apply sample manifest to KIND cluster
         run: kubectl --kubeconfig operator/hack/kind/kubeconfig apply -f operator/samples/simple/simple1.yaml
+      - name: Verify custom resources created
+        run: |
+          set -euo pipefail
+          KCFG=operator/hack/kind/kubeconfig
+          NS=default
+          echo "[cr-check] Listing PodGangSet/PodClique/PCSG in $NS"
+          kubectl --kubeconfig "$KCFG" -n "$NS" get podgangsets.grove.io -o wide || true
+          kubectl --kubeconfig "$KCFG" -n "$NS" get podcliques.grove.io -o wide || true
+          kubectl --kubeconfig "$KCFG" -n "$NS" get podcliquescalinggroups.grove.io -o wide || true
       - name: Wait for simple1 Pods to be Ready
         run: |
           set -euo pipefail
           KCFG=operator/hack/kind/kubeconfig
           NS=default
-          SEL='app=simple1'
+          # Pods inherit labels from PodClique plus operator defaults; select by PGS name label and component
+          SEL='app.kubernetes.io/part-of=simple1,app.kubernetes.io/managed-by=grove-operator'
           # Wait up to 120s for pods to be created
           for i in {1..24}; do
             echo "[create-wait] Iteration $i/24 - listing pods matching $SEL in namespace $NS"
@@ -77,3 +87,19 @@ jobs:
           echo "[ready-wait] Waiting for pods with $SEL in $NS to become Ready..."
           kubectl --kubeconfig "$KCFG" -n "$NS" wait --for=condition=Ready pods -l "$SEL" --timeout=300s
           kubectl --kubeconfig "$KCFG" -n "$NS" get pods -l "$SEL" -o wide
+      - name: Diagnostics on failure
+        if: ${{ failure() }}
+        run: |
+          set +euo pipefail
+          KCFG=operator/hack/kind/kubeconfig
+          NS=default
+          echo "[diag] Operator deployment and pods in $NS"
+          kubectl --kubeconfig "$KCFG" -n "$NS" get deploy,pods -o wide || true
+          echo "[diag] Custom resources in $NS"
+          kubectl --kubeconfig "$KCFG" -n "$NS" get podgangsets.grove.io,podcliques.grove.io,podcliquescalinggroups.grove.io -o wide || true
+          echo "[diag] Describe PodGangSet simple1"
+          kubectl --kubeconfig "$KCFG" -n "$NS" describe podgangset.grove.io/simple1 || true
+          echo "[diag] Operator logs"
+          kubectl --kubeconfig "$KCFG" -n "$NS" logs deploy/grove-operator --tail=200 || true
+          echo "[diag] Recent events"
+          kubectl --kubeconfig "$KCFG" -n "$NS" get events --sort-by=.lastTimestamp | tail -n 200 || true
