@@ -16,15 +16,16 @@ jobs:
       - name: Start KIND cluster
         run: sudo make --directory=operator kind-up
       - name: Fix kubeconfig permissions
-        run: sudo chown $(id -u):$(id -g) operator/hack/kind/kubeconfig && sudo chmod 644 operator/hack/kind/kubeconfig # or can chmod 777
+        run: |
+          sudo chmod 777 -R operator/hack/kind || true
       - name: Verify kubeconfig and cluster connectivity
         run: |
           set -euo pipefail
           KCFG=operator/hack/kind/kubeconfig
           echo "Using kubeconfig at: $(realpath $KCFG)"
           kubectl --kubeconfig "$KCFG" config get-contexts || true
-          kubectl --kubeconfig "$KCFG" config use-context kind-grove-test-cluster
-          kubectl --kubeconfig "$KCFG" cluster-info
+          kubectl --kubeconfig "$KCFG" cluster-info --context kind-grove-test-cluster
+          kubectl --kubeconfig "$KCFG" get nodes -o wide
       - name: Install CRDs required by sample (server-side apply to avoid large annotations)
         run: |
           set -euo pipefail
