@@ -31,6 +31,20 @@ jobs:
             crd/podgangsets.grove.io \
             crd/podgangs.scheduler.grove.io \
             --timeout=120s
+      - name: Deploy grove-operator to KIND via skaffold
+        env:
+          KUBECONFIG: operator/hack/kind/kubeconfig
+        run: |
+          set -euo pipefail
+          make --directory=operator deploy
+      - name: Wait for grove-operator deployment to be Ready
+        run: |
+          set -euo pipefail
+          KCFG=operator/hack/kind/kubeconfig
+          NS=default
+          echo "[operator-wait] Waiting for deployment/grove-operator in namespace $NS to become Available..."
+          kubectl --kubeconfig "$KCFG" -n "$NS" rollout status deployment/grove-operator --timeout=300s
+          kubectl --kubeconfig "$KCFG" -n "$NS" get deployment grove-operator -o wide
       - name: Apply sample manifest to KIND cluster
         run: kubectl --kubeconfig operator/hack/kind/kubeconfig apply -f operator/samples/simple/simple1.yaml
       - name: Wait for simple1 Pods to be Ready
