@@ -17,6 +17,14 @@ jobs:
         run: sudo make --directory=operator kind-up
       - name: Fix kubeconfig permissions
         run: sudo chown $(id -u):$(id -g) operator/hack/kind/kubeconfig && sudo chmod 644 operator/hack/kind/kubeconfig # or can chmod 777
+      - name: Verify kubeconfig and cluster connectivity
+        run: |
+          set -euo pipefail
+          KCFG=operator/hack/kind/kubeconfig
+          echo "Using kubeconfig at: $(realpath $KCFG)"
+          kubectl --kubeconfig "$KCFG" config get-contexts || true
+          kubectl --kubeconfig "$KCFG" config use-context kind-grove-test-cluster
+          kubectl --kubeconfig "$KCFG" cluster-info
       - name: Install CRDs required by sample (server-side apply to avoid large annotations)
         run: |
           set -euo pipefail
@@ -33,7 +41,8 @@ jobs:
             --timeout=120s
       - name: Deploy grove-operator to KIND via skaffold
         env:
-          KUBECONFIG: operator/hack/kind/kubeconfig
+          KUBECONFIG: ${{ github.workspace }}/operator/hack/kind/kubeconfig
+          SKAFFOLD_KUBE_CONTEXT: kind-grove-test-cluster
         run: |
           set -euo pipefail
           make --directory=operator deploy
