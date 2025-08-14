@@ -152,7 +152,7 @@ func getLabels(pgsName, secretName string) map[string]string {
 
 func getObjectKey(pgsObjMeta metav1.ObjectMeta) client.ObjectKey {
 	return client.ObjectKey{
-		Name:      grovecorev1alpha1.GeneratePodInitContainerSecretName(pgsObjMeta.Name),
+		Name:      grovecorev1alpha1.GenerateInitContainerSATokenSecretName(pgsObjMeta.Name),
 		Namespace: pgsObjMeta.Namespace,
 	}
 }

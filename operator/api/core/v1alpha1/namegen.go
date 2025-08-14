@@ -58,10 +58,10 @@ func GeneratePodServiceAccountName(pgsName string) string {
 	return pgsName
 }
 
-// GeneratePodInitContainerSecretName generates a Secret name that will be mounted onto the init container
+// GenerateInitContainerSATokenSecretName generates a Secret name containing a service account token that will be mounted onto the init container
 // responsible for ensuring start-up order amongst PodCliques.
-func GeneratePodInitContainerSecretName(pgsName string) string {
-	return fmt.Sprintf("%s-initc", pgsName)
+func GenerateInitContainerSATokenSecretName(pgsName string) string {
+	return fmt.Sprintf("%s-initc-sa-token-secret", pgsName)
 }
 
 // GeneratePodCliqueName generates a PodClique name based on the PodGangSet name, replica index, and PodCliqueTemplate name.

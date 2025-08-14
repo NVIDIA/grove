@@ -57,7 +57,7 @@ func addServiceAccountTokenSecretVolume(pgsName string, pod *corev1.Pod) {
 		Name: serviceAccountTokenSecretVolumeName,
 		VolumeSource: corev1.VolumeSource{
 			Secret: &corev1.SecretVolumeSource{
-				SecretName:  grovecorev1alpha1.GeneratePodInitContainerSecretName(pgsName),
+				SecretName:  grovecorev1alpha1.GenerateInitContainerSATokenSecretName(pgsName),
 				DefaultMode: ptr.To[int32](420),
 			},
 		},
