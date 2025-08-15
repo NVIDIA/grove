@@ -1,0 +1,110 @@
+{{- if .Values.enableCertManager }}
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: grove-webhook-server-cert
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app.kubernetes.io/component: operator-certificate
+    app.kubernetes.io/name: grove-operator-certificate
+    app.kubernetes.io/part-of: grove
+spec:
+  # Secret name where the certificate will be stored
+  secretName: {{ required ".Values.webhookServerSecret.name is required" .Values.webhookServerSecret.name }}
+  
+  {{- if eq .Values.certManager.mode "internal" }}
+  # Certificate issuer reference (internal mode)
+  issuerRef:
+    name: {{ .Values.certManager.internal.issuer.name }}
+    kind: {{ .Values.certManager.internal.issuer.type }}
+  
+  # Certificate duration
+  duration: {{ .Values.certManager.internal.issuer.duration }}
+  
+  # Renewal window
+  renewBefore: {{ .Values.certManager.internal.issuer.renewBefore }}
+  
+  # Certificate subject
+  subject:
+    organizations:
+      - {{ .Values.certManager.internal.certificate.organization }}
+    organizationalUnits:
+      - Grove Operator
+  
+  # Common name
+  commonName: {{ .Values.certManager.internal.certificate.commonName }}
+  
+  # DNS names for the certificate
+  dnsNames:
+  {{- $namespace := .Release.Namespace }}
+  {{- range .Values.certManager.internal.certificate.dnsNames }}
+    - {{ . | replace "$(RELEASE_NAMESPACE)" $namespace }}
+  {{- end }}
+  
+  # Key algorithm and size
+  privateKey:
+    algorithm: {{ .Values.certManager.internal.certificate.keyAlgorithm }}
+    size: {{ .Values.certManager.internal.certificate.keySize }}
+  {{- else if eq .Values.certManager.mode "external" }}
+  # Certificate issuer reference (external mode - use existing issuer)
+  issuerRef:
+    name: {{ .Values.certManager.external.issuerRef.name }}
+    kind: {{ .Values.certManager.external.issuerRef.type }}
+  
+  {{- if .Values.certManager.external.certificate.duration }}
+  # Certificate duration (optional in external mode)
+  duration: {{ .Values.certManager.external.certificate.duration }}
+  {{- end }}
+  
+  {{- if .Values.certManager.external.certificate.renewBefore }}
+  # Renewal window (optional in external mode)
+  renewBefore: {{ .Values.certManager.external.certificate.renewBefore }}
+  {{- end }}
+  
+  # Certificate subject
+  subject:
+    organizations:
+      - {{ .Values.certManager.external.certificate.organization }}
+    organizationalUnits:
+      - Grove Operator
+  
+  # Common name
+  commonName: {{ .Values.certManager.external.certificate.commonName }}
+  
+  # DNS names for the certificate
+  dnsNames:
+  {{- $namespace := .Release.Namespace }}
+  {{- range .Values.certManager.external.certificate.dnsNames }}
+    - {{ . | replace "$(RELEASE_NAMESPACE)" $namespace }}
+  {{- end }}
+  
+  # Key algorithm and size
+  privateKey:
+    algorithm: {{ .Values.certManager.external.certificate.keyAlgorithm }}
+    size: {{ .Values.certManager.external.certificate.keySize }}
+  {{- end }}
+  
+  # Usages for the certificate
+  usages:
+    - digital signature
+    - key encipherment
+    - server auth
+
+{{- if eq .Values.certManager.mode "internal" }}
+---
+# Self-signed issuer for development/testing (only created in internal mode)
+apiVersion: cert-manager.io/v1
+kind: {{ .Values.certManager.internal.issuer.type }}
+metadata:
+  name: {{ .Values.certManager.internal.issuer.name }}
+  {{- if eq .Values.certManager.internal.issuer.type "Issuer" }}
+  namespace: {{ .Release.Namespace }}
+  {{- end }}
+  labels:
+    app.kubernetes.io/component: operator-issuer
+    app.kubernetes.io/name: grove-operator-issuer
+    app.kubernetes.io/part-of: grove
+spec:
+  selfSigned: {}
+{{- end }}
+{{- end }}

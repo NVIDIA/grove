@@ -32,6 +32,51 @@ serviceAccount:
     app.kubernetes.io/name: grove-operator-service-account
     app.kubernetes.io/part-of: grove
 
+# Certificate management configuration
+# Choose between cert-manager integration or self-signed certificates
+enableCertManager: false
+
+# cert-manager configuration (only used when enableCertManager is true)
+certManager:
+  # Mode: "internal" (Grove creates its own issuer) or "external" (use existing cert-manager)
+  mode: internal
+  
+  # Internal mode configuration (when mode: internal)
+  internal:
+    issuer:
+      type: ClusterIssuer
+      name: grove-selfsigned-issuer
+      duration: 2160h
+      renewBefore: 720h
+    certificate:
+      commonName: grove-operator
+      dnsNames:
+        - grove-operator
+        - grove-operator.$(RELEASE_NAMESPACE)
+        - grove-operator.$(RELEASE_NAMESPACE).svc
+        - grove-operator.$(RELEASE_NAMESPACE).svc.cluster.local
+      organization: Grove
+      keyAlgorithm: RSA
+      keySize: 2048
+  
+  # External mode configuration (when mode: external)
+  external:
+    issuerRef:
+      type: ClusterIssuer
+      name: letsencrypt-prod
+    certificate:
+      commonName: grove-operator
+      dnsNames:
+        - grove-operator
+        - grove-operator.$(RELEASE_NAMESPACE)
+        - grove-operator.$(RELEASE_NAMESPACE).svc
+        - grove-operator.$(RELEASE_NAMESPACE).svc.cluster.local
+      organization: Grove
+      keyAlgorithm: RSA
+      keySize: 2048
+      duration: 2160h
+      renewBefore: 720h
+
 config:
   runtimeClientConnection:
     qps: 100
