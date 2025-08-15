@@ -19,16 +19,45 @@ package kubernetes
 import (
 	"testing"
 
+	grovecorev1alpha1 "github.com/NVIDIA/grove/operator/api/core/v1alpha1"
+
 	"github.com/stretchr/testify/assert"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/uuid"
 	"k8s.io/utils/ptr"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 const (
-	testPgsName   = "test-pgs"
-	testNamespace = "test-ns"
+	testPgsName      = "test-pgs"
+	testNamespace    = "test-ns"
+	testResourceName = "test-resource"
+	version          = "v1alpha1"
 )
+
+// Test helper functions
+func newTestObjectMetaWithOwnerRefs(name, namespace string, ownerRefs ...metav1.OwnerReference) metav1.ObjectMeta {
+	return metav1.ObjectMeta{
+		Name:            name,
+		Namespace:       namespace,
+		OwnerReferences: ownerRefs,
+	}
+}
+
+func newTestOwnerReference(name string, uid types.UID, isController bool) metav1.OwnerReference {
+	return metav1.OwnerReference{
+		APIVersion: version,
+		Kind:       grovecorev1alpha1.PodGangSetKind,
+		Name:       name,
+		UID:        uid,
+		Controller: ptr.To(isController),
+	}
+}
+
+func newTestOwnerReferenceSimple(name string, isController bool) metav1.OwnerReference {
+	return newTestOwnerReference(name, uuid.NewUUID(), isController)
+}
 
 func TestGetDefaultLabelsForPodGangSetManagedResources(t *testing.T) {
 	labels := GetDefaultLabelsForPodGangSetManagedResources(testPgsName)
@@ -51,7 +80,7 @@ func TestFilterMapOwnedResourceNames(t *testing.T) {
 		expectedResourceNames []string
 	}{
 		{
-			description:  "None of the resources are owned by the owner object",
+			description:  "no resources owned by the owner object",
 			ownerObjMeta: testOwnerObjMeta,
 			candidateResources: []metav1.PartialObjectMetadata{
 				{
@@ -74,12 +103,12 @@ func TestFilterMapOwnedResourceNames(t *testing.T) {
 			expectedResourceNames: []string{},
 		},
 		{
-			description:  "Some resources are owned by the owner object",
+			description:  "mixed ownership - some resources owned, some not",
 			ownerObjMeta: testOwnerObjMeta,
 			candidateResources: []metav1.PartialObjectMetadata{
 				{
 					ObjectMeta: metav1.ObjectMeta{
-						Name:      "resource1",
+						Name:      "owned-resource",
 						Namespace: testNamespace,
 						UID:       uuid.NewUUID(),
 						OwnerReferences: []metav1.OwnerReference{
@@ -95,7 +124,7 @@ func TestFilterMapOwnedResourceNames(t *testing.T) {
 				},
 				{
 					ObjectMeta: metav1.ObjectMeta{
-						Name:      "resource2",
+						Name:      "unowned-resource",
 						Namespace: testNamespace,
 						UID:       uuid.NewUUID(),
 						OwnerReferences: []metav1.OwnerReference{
@@ -110,46 +139,7 @@ func TestFilterMapOwnedResourceNames(t *testing.T) {
 					},
 				},
 			},
-			expectedResourceNames: []string{"resource1"},
-		},
-		{
-			description:  "All resources are owned by the owner object",
-			ownerObjMeta: testOwnerObjMeta,
-			candidateResources: []metav1.PartialObjectMetadata{
-				{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:      "resource1",
-						Namespace: testNamespace,
-						UID:       uuid.NewUUID(),
-						OwnerReferences: []metav1.OwnerReference{
-							{
-								APIVersion: "v1",
-								Kind:       "PodGangSet",
-								Name:       testPgsName,
-								UID:        testOwnerObjMeta.UID,
-								Controller: ptr.To(true),
-							},
-						},
-					},
-				},
-				{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:      "resource2",
-						Namespace: testNamespace,
-						UID:       uuid.NewUUID(),
-						OwnerReferences: []metav1.OwnerReference{
-							{
-								APIVersion: "v1",
-								Kind:       "PodGangSet",
-								Name:       testPgsName,
-								UID:        testOwnerObjMeta.UID,
-								Controller: ptr.To(true),
-							},
-						},
-					},
-				},
-			},
-			expectedResourceNames: []string{"resource1", "resource2"},
+			expectedResourceNames: []string{"owned-resource"},
 		},
 	}
 
@@ -157,6 +147,192 @@ func TestFilterMapOwnedResourceNames(t *testing.T) {
 		t.Run(tc.description, func(t *testing.T) {
 			resourceNames := FilterMapOwnedResourceNames(tc.ownerObjMeta, tc.candidateResources)
 			assert.Equal(t, tc.expectedResourceNames, resourceNames)
+		})
+	}
+}
+
+func TestGetFirstOwnerName(t *testing.T) {
+	testCases := []struct {
+		description  string
+		resourceMeta metav1.ObjectMeta
+		expectedName string
+	}{
+		{
+			description: "should return first owner name when owner references exist",
+			resourceMeta: newTestObjectMetaWithOwnerRefs(testResourceName, testNamespace,
+				newTestOwnerReferenceSimple("first-owner", true),
+				newTestOwnerReferenceSimple("second-owner", false)),
+			expectedName: "first-owner",
+		},
+		{
+			description: "should return single owner name when only one owner exists",
+			resourceMeta: newTestObjectMetaWithOwnerRefs(testResourceName, testNamespace,
+				newTestOwnerReferenceSimple("only-owner", true)),
+			expectedName: "only-owner",
+		},
+		{
+			description:  "should return empty string when no owner references exist",
+			resourceMeta: newTestObjectMetaWithOwnerRefs(testResourceName, testNamespace),
+			expectedName: "",
+		},
+		{
+			description: "should return empty string when owner references is nil",
+			resourceMeta: metav1.ObjectMeta{
+				Name:      testResourceName,
+				Namespace: testNamespace,
+			},
+			expectedName: "",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.description, func(t *testing.T) {
+			result := GetFirstOwnerName(tc.resourceMeta)
+			assert.Equal(t, tc.expectedName, result)
+		})
+	}
+}
+
+func TestGetObjectKeyFromObjectMeta(t *testing.T) {
+	testCases := []struct {
+		description string
+		objMeta     metav1.ObjectMeta
+		expectedKey client.ObjectKey
+	}{
+		{
+			description: "should create object key with namespace and name",
+			objMeta: metav1.ObjectMeta{
+				Name:      testResourceName,
+				Namespace: testNamespace,
+			},
+			expectedKey: client.ObjectKey{
+				Name:      testResourceName,
+				Namespace: testNamespace,
+			},
+		},
+		{
+			description: "should create object key with empty namespace for cluster-scoped resources",
+			objMeta: metav1.ObjectMeta{
+				Name:      "test-cluster-resource",
+				Namespace: "",
+			},
+			expectedKey: client.ObjectKey{
+				Name:      "test-cluster-resource",
+				Namespace: "",
+			},
+		},
+		{
+			description: "should create object key with empty name",
+			objMeta: metav1.ObjectMeta{
+				Name:      "",
+				Namespace: testNamespace,
+			},
+			expectedKey: client.ObjectKey{
+				Name:      "",
+				Namespace: testNamespace,
+			},
+		},
+		{
+			description: "should create object key with both empty namespace and name",
+			objMeta: metav1.ObjectMeta{
+				Name:      "",
+				Namespace: "",
+			},
+			expectedKey: client.ObjectKey{
+				Name:      "",
+				Namespace: "",
+			},
+		},
+		{
+			description: "should create object key ignoring other metadata fields",
+			objMeta: metav1.ObjectMeta{
+				Name:      "test-resource",
+				Namespace: testNamespace,
+				Labels: map[string]string{
+					"app": "test",
+				},
+				Annotations: map[string]string{
+					"note": "test annotation",
+				},
+				UID:               uuid.NewUUID(),
+				ResourceVersion:   "123",
+				Generation:        1,
+				CreationTimestamp: metav1.Now(),
+			},
+			expectedKey: client.ObjectKey{
+				Name:      "test-resource",
+				Namespace: testNamespace,
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.description, func(t *testing.T) {
+			result := GetObjectKeyFromObjectMeta(tc.objMeta)
+			assert.Equal(t, tc.expectedKey, result)
+		})
+	}
+}
+
+func TestIsResourceTerminating(t *testing.T) {
+	now := metav1.Now()
+
+	testCases := []struct {
+		description    string
+		objMeta        metav1.ObjectMeta
+		expectedResult bool
+	}{
+		{
+			description: "deletion timestamp set - resource terminating",
+			objMeta: metav1.ObjectMeta{
+				Name:              testResourceName,
+				Namespace:         testNamespace,
+				DeletionTimestamp: &now,
+			},
+			expectedResult: true,
+		},
+		{
+			description: "deletion timestamp nil - resource not terminating",
+			objMeta: metav1.ObjectMeta{
+				Name:              testResourceName,
+				Namespace:         testNamespace,
+				DeletionTimestamp: nil,
+			},
+			expectedResult: false,
+		},
+		{
+			description: "no deletion timestamp - resource not terminating",
+			objMeta: metav1.ObjectMeta{
+				Name:      testResourceName,
+				Namespace: testNamespace,
+			},
+			expectedResult: false,
+		},
+		{
+			description: "complex metadata with deletion timestamp and finalizers",
+			objMeta: metav1.ObjectMeta{
+				Name:      "test-resource",
+				Namespace: testNamespace,
+				Labels: map[string]string{
+					"app": "test",
+				},
+				Annotations: map[string]string{
+					"note": "test annotation",
+				},
+				Finalizers: []string{
+					"test.finalizer/cleanup",
+				},
+				DeletionTimestamp:          &now,
+				DeletionGracePeriodSeconds: ptr.To(int64(30)),
+			},
+			expectedResult: true,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.description, func(t *testing.T) {
+			result := IsResourceTerminating(tc.objMeta)
+			assert.Equal(t, tc.expectedResult, result)
 		})
 	}
 }

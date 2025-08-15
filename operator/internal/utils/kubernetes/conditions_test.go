@@ -21,7 +21,42 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/utils/ptr"
 )
+
+// Test helper functions
+
+func newSimpleCondition(condType string, status metav1.ConditionStatus) metav1.Condition {
+	return metav1.Condition{
+		Type:   condType,
+		Status: status,
+	}
+}
+
+// Common condition builders
+func readyTrueCondition() metav1.Condition {
+	return newSimpleCondition("Ready", metav1.ConditionTrue)
+}
+
+func readyFalseCondition() metav1.Condition {
+	return newSimpleCondition("Ready", metav1.ConditionFalse)
+}
+
+func readyUnknownCondition() metav1.Condition {
+	return newSimpleCondition("Ready", metav1.ConditionUnknown)
+}
+
+func availableTrueCondition() metav1.Condition {
+	return newSimpleCondition("Available", metav1.ConditionTrue)
+}
+
+func availableFalseCondition() metav1.Condition {
+	return newSimpleCondition("Available", metav1.ConditionFalse)
+}
+
+func availableUnknownCondition() metav1.Condition {
+	return newSimpleCondition("Available", metav1.ConditionUnknown)
+}
 
 func TestHasConditionsChanged(t *testing.T) {
 	testCases := []struct {
@@ -79,6 +114,181 @@ func TestHasConditionsChanged(t *testing.T) {
 		t.Run(testCase.description, func(t *testing.T) {
 			t.Parallel()
 			assert.Equal(t, testCase.expectedResult, HasConditionChanged(testCase.existingConditions, testCase.newCondition))
+		})
+	}
+}
+
+func TestIsConditionTrue(t *testing.T) {
+	testCases := []struct {
+		description        string
+		existingConditions []metav1.Condition
+		conditionType      string
+		expectedResult     bool
+	}{
+		{
+			description:        "should return true when condition exists and is True",
+			existingConditions: []metav1.Condition{readyTrueCondition(), availableFalseCondition()},
+			conditionType:      "Ready",
+			expectedResult:     true,
+		},
+		{
+			description:        "should return false when condition exists and is False",
+			existingConditions: []metav1.Condition{readyFalseCondition(), availableTrueCondition()},
+			conditionType:      "Ready",
+			expectedResult:     false,
+		},
+		{
+			description:        "should return false when condition exists and is Unknown",
+			existingConditions: []metav1.Condition{readyUnknownCondition(), availableTrueCondition()},
+			conditionType:      "Ready",
+			expectedResult:     false,
+		},
+		{
+			description:        "should return false when condition does not exist",
+			existingConditions: []metav1.Condition{availableTrueCondition()},
+			conditionType:      "Ready",
+			expectedResult:     false,
+		},
+		{
+			description:        "should return false when conditions list is empty",
+			existingConditions: []metav1.Condition{},
+			conditionType:      "Ready",
+			expectedResult:     false,
+		},
+		{
+			description:        "should return false when conditions list is nil",
+			existingConditions: nil,
+			conditionType:      "Ready",
+			expectedResult:     false,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.description, func(t *testing.T) {
+			result := IsConditionTrue(tc.existingConditions, tc.conditionType)
+			assert.Equal(t, tc.expectedResult, result)
+		})
+	}
+}
+
+func TestIsConditionUnknown(t *testing.T) {
+	testCases := []struct {
+		description        string
+		existingConditions []metav1.Condition
+		conditionType      string
+		expectedResult     bool
+	}{
+		{
+			description:        "should return true when condition exists and is Unknown",
+			existingConditions: []metav1.Condition{readyUnknownCondition(), availableTrueCondition()},
+			conditionType:      "Ready",
+			expectedResult:     true,
+		},
+		{
+			description:        "should return false when condition exists and is True",
+			existingConditions: []metav1.Condition{readyTrueCondition(), availableUnknownCondition()},
+			conditionType:      "Ready",
+			expectedResult:     false,
+		},
+		{
+			description:        "should return false when condition exists and is False",
+			existingConditions: []metav1.Condition{readyFalseCondition(), availableUnknownCondition()},
+			conditionType:      "Ready",
+			expectedResult:     false,
+		},
+		{
+			description:        "should return false when condition does not exist",
+			existingConditions: []metav1.Condition{availableUnknownCondition()},
+			conditionType:      "Ready",
+			expectedResult:     false,
+		},
+		{
+			description:        "should return false when conditions list is empty",
+			existingConditions: []metav1.Condition{},
+			conditionType:      "Ready",
+			expectedResult:     false,
+		},
+		{
+			description:        "should return false when conditions list is nil",
+			existingConditions: nil,
+			conditionType:      "Ready",
+			expectedResult:     false,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.description, func(t *testing.T) {
+			result := IsConditionUnknown(tc.existingConditions, tc.conditionType)
+			assert.Equal(t, tc.expectedResult, result)
+		})
+	}
+}
+
+func TestGetConditionStatus(t *testing.T) {
+	testCases := []struct {
+		description        string
+		existingConditions []metav1.Condition
+		conditionType      string
+		expectedStatus     *metav1.ConditionStatus
+	}{
+		{
+			description:        "should return True status when condition exists and is True",
+			existingConditions: []metav1.Condition{readyTrueCondition(), availableFalseCondition()},
+			conditionType:      "Ready",
+			expectedStatus:     ptr.To(metav1.ConditionTrue),
+		},
+		{
+			description:        "should return False status when condition exists and is False",
+			existingConditions: []metav1.Condition{readyFalseCondition(), availableTrueCondition()},
+			conditionType:      "Ready",
+			expectedStatus:     ptr.To(metav1.ConditionFalse),
+		},
+		{
+			description:        "should return Unknown status when condition exists and is Unknown",
+			existingConditions: []metav1.Condition{readyUnknownCondition(), availableTrueCondition()},
+			conditionType:      "Ready",
+			expectedStatus:     ptr.To(metav1.ConditionUnknown),
+		},
+		{
+			description:        "should return nil when condition does not exist",
+			existingConditions: []metav1.Condition{availableTrueCondition()},
+			conditionType:      "Ready",
+			expectedStatus:     nil,
+		},
+		{
+			description:        "should return nil when conditions list is empty",
+			existingConditions: []metav1.Condition{},
+			conditionType:      "Ready",
+			expectedStatus:     nil,
+		},
+		{
+			description:        "should return nil when conditions list is nil",
+			existingConditions: nil,
+			conditionType:      "Ready",
+			expectedStatus:     nil,
+		},
+		{
+			description: "should return correct status when multiple conditions with same type exist (first match)",
+			existingConditions: []metav1.Condition{
+				readyTrueCondition(),
+				readyFalseCondition(), // This one should be ignored
+				availableUnknownCondition(),
+			},
+			conditionType:  "Ready",
+			expectedStatus: ptr.To(metav1.ConditionTrue),
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.description, func(t *testing.T) {
+			result := GetConditionStatus(tc.existingConditions, tc.conditionType)
+
+			if tc.expectedStatus == nil {
+				assert.Nil(t, result)
+			} else {
+				assert.NotNil(t, result)
+				assert.Equal(t, *tc.expectedStatus, *result)
+			}
 		})
 	}
 }

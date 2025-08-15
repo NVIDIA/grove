@@ -75,6 +75,18 @@ func TestCreateObjectKeyForCreateWebhooks(t *testing.T) {
 			admissionReq:    admission.Request{},
 			expectObjectKey: client.ObjectKey{Namespace: "", Name: testObjGenerateName},
 		},
+		{
+			description:     "object with empty name and generateName falls back to empty",
+			obj:             &corev1.Pod{ObjectMeta: metav1.ObjectMeta{Name: "", GenerateName: ""}},
+			admissionReq:    admission.Request{AdmissionRequest: admissionv1.AdmissionRequest{Namespace: testObjNamespace}},
+			expectObjectKey: client.ObjectKey{Name: "", Namespace: testObjNamespace},
+		},
+		{
+			description:     "object with nil metadata uses admission request namespace",
+			obj:             &corev1.Pod{ObjectMeta: metav1.ObjectMeta{}},
+			admissionReq:    admission.Request{AdmissionRequest: admissionv1.AdmissionRequest{Namespace: testObjNamespace}},
+			expectObjectKey: client.ObjectKey{Name: "", Namespace: testObjNamespace},
+		},
 	}
 
 	for _, tc := range testCases {
