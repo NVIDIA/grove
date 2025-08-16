@@ -721,3 +721,106 @@ func TestPodCliqueScalingGroupConfigValidation(t *testing.T) {
 		})
 	}
 }
+
+func TestValidatePodCliqueUpdate(t *testing.T) {
+	testCases := []struct {
+		name           string
+		oldCliques     []*grovecorev1alpha1.PodCliqueTemplateSpec
+		newCliques     []*grovecorev1alpha1.PodCliqueTemplateSpec
+		expectError    bool
+		expectedErrMsg string
+	}{
+		{
+			name: "Valid: same cliques in different order",
+			oldCliques: []*grovecorev1alpha1.PodCliqueTemplateSpec{
+				createDummyPodCliqueTemplate("prefill"),
+				createDummyPodCliqueTemplate("decode"),
+			},
+			newCliques: []*grovecorev1alpha1.PodCliqueTemplateSpec{
+				createDummyPodCliqueTemplate("decode"),
+				createDummyPodCliqueTemplate("prefill"),
+			},
+			expectError: false,
+		},
+		{
+			name: "Valid: same cliques in same order",
+			oldCliques: []*grovecorev1alpha1.PodCliqueTemplateSpec{
+				createDummyPodCliqueTemplate("prefill"),
+				createDummyPodCliqueTemplate("decode"),
+			},
+			newCliques: []*grovecorev1alpha1.PodCliqueTemplateSpec{
+				createDummyPodCliqueTemplate("prefill"),
+				createDummyPodCliqueTemplate("decode"),
+			},
+			expectError: false,
+		},
+		{
+			name: "Invalid: adding new clique",
+			oldCliques: []*grovecorev1alpha1.PodCliqueTemplateSpec{
+				createDummyPodCliqueTemplate("prefill"),
+			},
+			newCliques: []*grovecorev1alpha1.PodCliqueTemplateSpec{
+				createDummyPodCliqueTemplate("prefill"),
+				createDummyPodCliqueTemplate("decode"),
+			},
+			expectError:    true,
+			expectedErrMsg: "not allowed to change clique composition",
+		},
+		{
+			name: "Invalid: removing clique",
+			oldCliques: []*grovecorev1alpha1.PodCliqueTemplateSpec{
+				createDummyPodCliqueTemplate("prefill"),
+				createDummyPodCliqueTemplate("decode"),
+			},
+			newCliques: []*grovecorev1alpha1.PodCliqueTemplateSpec{
+				createDummyPodCliqueTemplate("prefill"),
+			},
+			expectError:    true,
+			expectedErrMsg: "not allowed to change clique composition",
+		},
+		{
+			name: "Invalid: new clique name not in old cliques",
+			oldCliques: []*grovecorev1alpha1.PodCliqueTemplateSpec{
+				createDummyPodCliqueTemplate("prefill"),
+				createDummyPodCliqueTemplate("decode"),
+			},
+			newCliques: []*grovecorev1alpha1.PodCliqueTemplateSpec{
+				createDummyPodCliqueTemplate("prefill"),
+				createDummyPodCliqueTemplate("embedding"),
+			},
+			expectError:    true,
+			expectedErrMsg: "not allowed to change clique composition, new clique name 'embedding' is not allowed",
+		},
+		{
+			name: "Valid: single clique unchanged",
+			oldCliques: []*grovecorev1alpha1.PodCliqueTemplateSpec{
+				createDummyPodCliqueTemplate("worker"),
+			},
+			newCliques: []*grovecorev1alpha1.PodCliqueTemplateSpec{
+				createDummyPodCliqueTemplate("worker"),
+			},
+			expectError: false,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			fldPath := field.NewPath("spec").Child("template").Child("cliques")
+
+			validationErrors := validatePodCliqueUpdate(tc.newCliques, tc.oldCliques, fldPath)
+
+			if tc.expectError {
+				assert.NotEmpty(t, validationErrors, "Expected validation errors for test case: %s", tc.name)
+				// Convert field errors to string to check error message
+				var errorMessages []string
+				for _, err := range validationErrors {
+					errorMessages = append(errorMessages, err.Error())
+				}
+				errorString := fmt.Sprintf("%v", errorMessages)
+				assert.Contains(t, errorString, tc.expectedErrMsg, "Error message should contain expected text")
+			} else {
+				assert.Empty(t, validationErrors, "Expected no validation errors for test case: %s", tc.name)
+			}
+		})
+	}
+}

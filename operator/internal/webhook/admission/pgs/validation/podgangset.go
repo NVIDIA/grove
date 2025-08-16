@@ -510,9 +510,20 @@ func validatePodCliqueUpdate(newCliques, oldCliques []*grovecorev1alpha1.PodCliq
 	if len(newCliques) != len(oldCliques) {
 		allErrs = append(allErrs, field.Forbidden(fldPath, "not allowed to change clique composition"))
 	}
-	for i := range newCliques {
-		// TODO: check name
-		allErrs = append(allErrs, validatePodSpecUpdate(&newCliques[i].Spec.PodSpec, &oldCliques[i].Spec.PodSpec, fldPath.Child("spec", "podSpec"))...)
+
+	// Create a map of old cliques by name for efficient lookup
+	oldCliqueMap := lo.SliceToMap(oldCliques, func(clique *grovecorev1alpha1.PodCliqueTemplateSpec) (string, *grovecorev1alpha1.PodCliqueTemplateSpec) {
+		return clique.Name, clique
+	})
+
+	// Validate each new clique against its corresponding old clique by name
+	for _, newClique := range newCliques {
+		oldClique, exists := oldCliqueMap[newClique.Name]
+		if !exists {
+			allErrs = append(allErrs, field.Forbidden(fldPath.Child("name"), fmt.Sprintf("not allowed to change clique composition, new clique name '%s' is not allowed", newClique.Name)))
+			continue
+		}
+		allErrs = append(allErrs, validatePodSpecUpdate(&newClique.Spec.PodSpec, &oldClique.Spec.PodSpec, fldPath.Child("spec", "podSpec"))...)
 	}
 
 	return allErrs
@@ -530,9 +541,9 @@ func validatePodSpecUpdate(newSpec, oldSpec *corev1.PodSpec, fldPath *field.Path
 	if len(newSpec.Tolerations) < len(oldSpec.Tolerations) || !reflect.DeepEqual(oldSpec.Tolerations, newSpec.Tolerations[:len(oldSpec.Tolerations)]) {
 		allErrs = append(allErrs, field.Forbidden(fldPath.Child("tolerations"), "not allowed to change immutable pod fields"))
 	}
-	if *oldSpec.TerminationGracePeriodSeconds < 0 {
+	if oldSpec.TerminationGracePeriodSeconds != nil && *oldSpec.TerminationGracePeriodSeconds < 0 {
 		// The only change that is allowed is to set this value to 1. All other modifications should be rejected.
-		if *newSpec.TerminationGracePeriodSeconds != 1 {
+		if newSpec.TerminationGracePeriodSeconds != nil && *newSpec.TerminationGracePeriodSeconds != 1 {
 			allErrs = append(allErrs, field.Forbidden(fldPath.Child("terminationGracePeriodSeconds"), "value can only be set to 1 if previously negative"))
 		}
 	}
