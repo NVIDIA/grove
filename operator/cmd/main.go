@@ -23,6 +23,7 @@ import (
 	configv1alpha1 "github.com/NVIDIA/grove/operator/api/config/v1alpha1"
 	groveopts "github.com/NVIDIA/grove/operator/cmd/opts"
 	grovectrl "github.com/NVIDIA/grove/operator/internal/controller"
+	"github.com/NVIDIA/grove/operator/internal/controller/cert"
 	grovelogger "github.com/NVIDIA/grove/operator/internal/logger"
 	groveversion "github.com/NVIDIA/grove/operator/internal/version"
 
@@ -31,11 +32,10 @@ import (
 )
 
 var (
-	logger = ctrl.Log.WithName("grove")
+	logger = ctrl.Log.WithName("grove-setup")
 )
 
 func main() {
-	ctx := ctrl.SetupSignalHandler()
 	ctrl.SetLogger(grovelogger.MustNewLogger(false, configv1alpha1.InfoLevel, configv1alpha1.LogFormatJSON))
 
 	fs := pflag.CommandLine
@@ -60,21 +60,29 @@ func main() {
 		logger.Error(err, "failed to create grove controller manager")
 		os.Exit(1)
 	}
+
+	webhookCertsReadyCh := make(chan struct{})
+	if err = cert.ManageWebhookCerts(mgr, operatorCfg.Server.Webhooks.ServerCertDir, webhookCertsReadyCh); err != nil {
+		logger.Error(err, "failed to setup cert rotation")
+		os.Exit(1)
+	}
+
+	if err = grovectrl.SetupHealthAndReadinessEndpoints(mgr, webhookCertsReadyCh); err != nil {
+		logger.Error(err, "failed to set up health and readiness for grove controller manager")
+		os.Exit(1)
+	}
+
 	// Certificates need to be generated before the webhooks are started, which can only happen once the manager is started.
 	// Block while generating the certificates, and then start the webhooks.
 	go func() {
-		if err := grovectrl.InitializeManager(mgr, operatorCfg); err != nil {
+		if err = grovectrl.RegisterControllersAndWebhooks(mgr, logger, operatorCfg, webhookCertsReadyCh); err != nil {
 			logger.Error(err, "failed to initialize grove controller manager")
 			os.Exit(1)
 		}
 	}()
 
-	if err := grovectrl.SetupHealthAndReadinessEndpoints(mgr); err != nil {
-		logger.Error(err, "failed to set up health and readiness for grove controller manager")
-		os.Exit(1)
-	}
-
 	logger.Info("Starting manager")
+	ctx := ctrl.SetupSignalHandler()
 	if err = mgr.Start(ctx); err != nil {
 		logger.Error(err, "Error running manager")
 		os.Exit(1)

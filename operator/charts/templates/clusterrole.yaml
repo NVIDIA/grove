@@ -62,17 +62,26 @@ rules:
   - patch
   - update
 - apiGroups:
+    - ""
+  resources:
+    - secrets
+  verbs:
+    - create
+    - get
+    - list
+    - patch
+    - delete
+    - watch
+    - update
+- apiGroups:
   - admissionregistration.k8s.io
   resources:
   - validatingwebhookconfigurations
   - mutatingwebhookconfigurations
   verbs:
-  - create
   - get
   - list
   - watch
-  - delete
-  - patch
   - update
 - apiGroups:
   - ""

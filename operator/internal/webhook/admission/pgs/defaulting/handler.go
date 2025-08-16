@@ -37,7 +37,7 @@ type Handler struct {
 // NewHandler returns a new instance of defaulting webhook handler.
 func NewHandler(mgr manager.Manager) *Handler {
 	return &Handler{
-		logger: mgr.GetLogger().WithName("webhook").WithName(HandlerName),
+		logger: mgr.GetLogger().WithName("webhook").WithName(Name),
 	}
 }
 

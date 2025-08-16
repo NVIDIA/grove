@@ -17,17 +17,19 @@
 package controller
 
 import (
+	"errors"
 	"fmt"
 	"net"
-	"os"
+	"net/http"
 	"strconv"
-	"strings"
 	"time"
 
 	configv1alpha1 "github.com/NVIDIA/grove/operator/api/config/v1alpha1"
 	groveclientscheme "github.com/NVIDIA/grove/operator/internal/client"
+	"github.com/NVIDIA/grove/operator/internal/controller/cert"
 	"github.com/NVIDIA/grove/operator/internal/webhook"
 
+	"github.com/go-logr/logr"
 	"k8s.io/client-go/rest"
 	"k8s.io/utils/ptr"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -38,8 +40,7 @@ import (
 )
 
 const (
-	pprofBindAddress      = "127.0.0.1:2753"
-	operatorNamespaceFile = "/var/run/secrets/kubernetes.io/serviceaccount/namespace"
+	pprofBindAddress = "127.0.0.1:2753"
 )
 
 // CreateManager creates the manager.
@@ -47,38 +48,34 @@ func CreateManager(operatorCfg *configv1alpha1.OperatorConfiguration) (ctrl.Mana
 	return ctrl.NewManager(getRestConfig(operatorCfg), createManagerOptions(operatorCfg))
 }
 
-// InitializeManager adds all the controllers and webhooks to the controller-manager using the passed in Config.
-func InitializeManager(mgr ctrl.Manager, operatorCfg *configv1alpha1.OperatorConfiguration) error {
-	if operatorCfg.Server.InternalCertificateManagement != nil && *operatorCfg.Server.InternalCertificateManagement.Enabled {
-		doneCh := make(chan struct{})
-		namespace, err := getOperatorNamespace()
-		if err != nil {
-			return err
-		}
-		if err = RegisterCertificateManager(mgr, namespace, operatorCfg.Server.Webhooks.ServerCertDir, doneCh); err != nil {
-			return err
-		}
-		// block here since the webhooks can not start without certificates
-		<-doneCh
-	}
-
+// RegisterControllersAndWebhooks adds all the controllers and webhooks to the controller-manager using the passed in Config.
+func RegisterControllersAndWebhooks(mgr ctrl.Manager, logger logr.Logger, operatorCfg *configv1alpha1.OperatorConfiguration, certsReady chan struct{}) error {
+	// Controllers will not work unless the webhoooks are fully configured and operational.
+	// For webhooks to work cert-controller should finish its work of generating and injecting certificates.
+	cert.WaitTillWebhookCertsReady(logger, certsReady)
 	if err := RegisterControllers(mgr, operatorCfg.Controllers); err != nil {
 		return err
 	}
 	if err := webhook.RegisterWebhooks(mgr); err != nil {
 		return err
 	}
-	// TODO register readyz, healthz endpoints
 	return nil
 }
 
 // SetupHealthAndReadinessEndpoints sets up the health and readiness endpoints for the operator.
-func SetupHealthAndReadinessEndpoints(mgr ctrl.Manager) error {
+func SetupHealthAndReadinessEndpoints(mgr ctrl.Manager, webhookCertsReadyCh chan struct{}) error {
 	if err := mgr.AddHealthzCheck("healthz", healthz.Ping); err != nil {
-		return err
+		return fmt.Errorf("could not setup health check :%w", err)
 	}
-	if err := mgr.AddReadyzCheck("readyz", healthz.Ping); err != nil {
-		return err
+	if err := mgr.AddReadyzCheck("readyz", func(req *http.Request) error {
+		select {
+		case <-webhookCertsReadyCh:
+			return mgr.GetWebhookServer().StartedChecker()(req)
+		default:
+			return errors.New("certificates are not ready yet")
+		}
+	}); err != nil {
+		return fmt.Errorf("could not setup ready check :%w", err)
 	}
 	return nil
 }
@@ -125,16 +122,4 @@ func getRestConfig(operatorCfg *configv1alpha1.OperatorConfiguration) *rest.Conf
 		restCfg.ContentType = operatorCfg.ClientConnection.ContentType
 	}
 	return restCfg
-}
-
-func getOperatorNamespace() (string, error) {
-	data, err := os.ReadFile(operatorNamespaceFile)
-	if err != nil {
-		return "", err
-	}
-	namespace := strings.TrimSpace(string(data))
-	if len(namespace) == 0 {
-		return "", fmt.Errorf("operator namespace is empty")
-	}
-	return namespace, nil
 }
