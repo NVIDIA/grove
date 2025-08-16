@@ -29,7 +29,7 @@ BINARY_DIR="${MODULE_ROOT}/bin"
 # Specify the variables necessary for the generation of the ldflags before sourcing the function
 PACKAGE_PATH=${PACKAGE_PATH}
 PROGRAM_NAME=${PROGRAM_NAME}
-VERSION="$(cat "${MODULE_ROOT}/VERSION")"
+VERSION=${VERSION:-$(cat "${MODULE_ROOT}/VERSION")}
 
 source $REPO_ROOT/hack/ld-flags.sh
 

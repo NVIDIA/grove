@@ -50,6 +50,8 @@ rules:
   - pods
   - pods/status
   - serviceaccounts
+  - services
+  - secrets
   verbs:
   - create
   - get
@@ -60,18 +62,27 @@ rules:
   - patch
   - update
 - apiGroups:
-  - ""
+    - ""
   resources:
-  - services
+    - secrets
   verbs:
-  - create
+    - create
+    - get
+    - list
+    - patch
+    - delete
+    - watch
+    - update
+- apiGroups:
+  - admissionregistration.k8s.io
+  resources:
+  - validatingwebhookconfigurations
+  - mutatingwebhookconfigurations
+  verbs:
   - get
   - list
-  - delete
-  - deletecollection
-  - patch
-  - update
   - watch
+  - update
 - apiGroups:
   - ""
   resources:

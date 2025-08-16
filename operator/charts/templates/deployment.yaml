@@ -78,12 +78,18 @@ spec:
                   items:
                   - key: ca.crt
                     path: ca.crt
+              - downwardAPI:
+                  items:
+                    - path: namespace
+                      fieldRef:
+                        fieldPath: metadata.namespace
+                        apiVersion: v1
         - name: operator-config
           configMap:
             name: {{ include "operator.config.name" . }}
         {{- if .Values.webhooks.podgangsetValidationWebhook.isEnabled }}
         - name: grove-webhook-server-cert
           secret:
-            secretName: {{ required ".Values.webhookServerSecret.name is required" .Values.webhookServerSecret.name }}
+            secretName: grove-webhook-server-cert
             defaultMode: 420
         {{- end }}

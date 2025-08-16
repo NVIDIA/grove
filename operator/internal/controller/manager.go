@@ -17,39 +17,67 @@
 package controller
 
 import (
+	"errors"
+	"fmt"
 	"net"
+	"net/http"
 	"strconv"
 	"time"
 
 	configv1alpha1 "github.com/NVIDIA/grove/operator/api/config/v1alpha1"
 	groveclientscheme "github.com/NVIDIA/grove/operator/internal/client"
+	"github.com/NVIDIA/grove/operator/internal/controller/cert"
 	"github.com/NVIDIA/grove/operator/internal/webhook"
 
+	"github.com/go-logr/logr"
 	"k8s.io/client-go/rest"
 	"k8s.io/utils/ptr"
 	ctrl "sigs.k8s.io/controller-runtime"
 	ctrlconfig "sigs.k8s.io/controller-runtime/pkg/config"
+	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	ctrlmetricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 	ctrlwebhook "sigs.k8s.io/controller-runtime/pkg/webhook"
 )
 
-const pprofBindAddress = "127.0.0.1:2753"
+const (
+	pprofBindAddress = "127.0.0.1:2753"
+)
 
-// CreateAndInitializeManager creates a controller manager and adds all the controllers and webhooks to the controller-manager using the passed in Config.
-func CreateAndInitializeManager(operatorCfg *configv1alpha1.OperatorConfiguration) (ctrl.Manager, error) {
-	mgr, err := ctrl.NewManager(getRestConfig(operatorCfg), createManagerOptions(operatorCfg))
-	if err != nil {
-		return nil, err
-	}
-	if err = RegisterControllers(mgr, operatorCfg.Controllers); err != nil {
-		return nil, err
-	}
-	if err = webhook.RegisterWebhooks(mgr); err != nil {
-		return nil, err
-	}
-	// TODO register readyz, healthz endpoints
+// CreateManager creates the manager.
+func CreateManager(operatorCfg *configv1alpha1.OperatorConfiguration) (ctrl.Manager, error) {
+	return ctrl.NewManager(getRestConfig(operatorCfg), createManagerOptions(operatorCfg))
+}
 
-	return mgr, nil
+// RegisterControllersAndWebhooks adds all the controllers and webhooks to the controller-manager using the passed in Config.
+func RegisterControllersAndWebhooks(mgr ctrl.Manager, logger logr.Logger, operatorCfg *configv1alpha1.OperatorConfiguration, certsReady chan struct{}) error {
+	// Controllers will not work unless the webhoooks are fully configured and operational.
+	// For webhooks to work cert-controller should finish its work of generating and injecting certificates.
+	cert.WaitTillWebhookCertsReady(logger, certsReady)
+	if err := RegisterControllers(mgr, operatorCfg.Controllers); err != nil {
+		return err
+	}
+	if err := webhook.RegisterWebhooks(mgr); err != nil {
+		return err
+	}
+	return nil
+}
+
+// SetupHealthAndReadinessEndpoints sets up the health and readiness endpoints for the operator.
+func SetupHealthAndReadinessEndpoints(mgr ctrl.Manager, webhookCertsReadyCh chan struct{}) error {
+	if err := mgr.AddHealthzCheck("healthz", healthz.Ping); err != nil {
+		return fmt.Errorf("could not setup health check :%w", err)
+	}
+	if err := mgr.AddReadyzCheck("readyz", func(req *http.Request) error {
+		select {
+		case <-webhookCertsReadyCh:
+			return mgr.GetWebhookServer().StartedChecker()(req)
+		default:
+			return errors.New("certificates are not ready yet")
+		}
+	}); err != nil {
+		return fmt.Errorf("could not setup ready check :%w", err)
+	}
+	return nil
 }
 
 func createManagerOptions(operatorCfg *configv1alpha1.OperatorConfiguration) ctrl.Options {

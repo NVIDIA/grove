@@ -561,6 +561,22 @@ _Appears in:_
 | `enableProfiling` _boolean_ | EnableProfiling enables profiling via host:port/debug/pprof/ endpoints. |  |  |
 
 
+#### InternalCertificateManagement
+
+
+
+InternalCertificateManagement defines the configuration for certificates managed by Grove
+
+
+
+_Appears in:_
+- [ServerConfiguration](#serverconfiguration)
+
+| Field | Description | Default | Validation |
+| --- | --- | --- | --- |
+| `enabled` _boolean_ | Enabled when true makes Grove manage its own certificates for the webhooks.<br />When set to false, it expects the user to manage the certificates. |  |  |
+
+
 #### LeaderElectionConfiguration
 
 
@@ -702,6 +718,7 @@ _Appears in:_
 | `webhooks` _[WebhookServer](#webhookserver)_ | Webhooks is the configuration for the HTTP(S) webhook server. |  |  |
 | `healthProbes` _[Server](#server)_ | HealthProbes is the configuration for serving the healthz and readyz endpoints. |  |  |
 | `metrics` _[Server](#server)_ | Metrics is the configuration for serving the metrics endpoint. |  |  |
+| `internalCertificateManagement` _[InternalCertificateManagement](#internalcertificatemanagement)_ | InternalCertificateManagement is the configuration for certificates that are managed by the grove operator. |  |  |
 
 
 #### WebhookServer

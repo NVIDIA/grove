@@ -29,14 +29,14 @@ import (
 // RegisterWebhooks registers the webhooks with the controller manager.
 func RegisterWebhooks(mgr manager.Manager) error {
 	defaultingWebhook := defaulting.NewHandler(mgr)
-	slog.Info("Registering webhook with manager", "handler", defaulting.HandlerName)
+	slog.Info("Registering webhook with manager", "handler", defaulting.Name)
 	if err := defaultingWebhook.RegisterWithManager(mgr); err != nil {
-		return fmt.Errorf("failed adding %s webhook handler: %v", defaulting.HandlerName, err)
+		return fmt.Errorf("failed adding %s webhook handler: %v", defaulting.Name, err)
 	}
 	validatingWebhook := validation.NewHandler(mgr)
-	slog.Info("Registering webhook with manager", "handler", validation.HandlerName)
+	slog.Info("Registering webhook with manager", "handler", validation.Name)
 	if err := validatingWebhook.RegisterWithManager(mgr); err != nil {
-		return fmt.Errorf("failed adding %s webhook handler: %v", validation.HandlerName, err)
+		return fmt.Errorf("failed adding %s webhook handler: %v", validation.Name, err)
 	}
 	return nil
 }

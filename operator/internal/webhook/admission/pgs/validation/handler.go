@@ -45,7 +45,7 @@ type Handler struct {
 // NewHandler creates a new handler for PodGangSet Webhook.
 func NewHandler(mgr manager.Manager) *Handler {
 	return &Handler{
-		logger: mgr.GetLogger().WithName("webhook").WithName(HandlerName),
+		logger: mgr.GetLogger().WithName("webhook").WithName(Name),
 	}
 }
 
