@@ -28,11 +28,11 @@ VERSION=${VERSION:-$(cat "${MODULE_ROOT}/VERSION")}
 DOCKER_BUILD_ADDITIONAL_ARGS=${DOCKER_BUILD_ADDITIONAL_ARGS:-""}
 
 if [[ -n "${REGISTRY:-}" ]]; then
-  INITC_IMAGE_NAME_WITHOUT_ARCH="${REGISTRY}/grove-initc"
-  OPERATOR_IMAGE_NAME_WITHOUT_ARCH="${REGISTRY}/grove-operator"
+  INITC_IMAGE="${REGISTRY}/grove-initc"
+  OPERATOR_IMAGE="${REGISTRY}/grove-operator"
 else
-  INITC_IMAGE_NAME_WITHOUT_ARCH="grove-initc"
-  OPERATOR_IMAGE_NAME_WITHOUT_ARCH="grove-operator"
+  INITC_IMAGE="grove-initc"
+  OPERATOR_IMAGE="grove-operator"
 fi
 
 function build_docker_images() {
@@ -42,7 +42,7 @@ function build_docker_images() {
     ${DOCKER_BUILD_ADDITIONAL_ARGS} \
     --platform ${PLATFORM} \
     --build-arg VERSION=${VERSION} \
-    --tag ${INITC_IMAGE_NAME_WITHOUT_ARCH}-${GOARCH}:${VERSION} \
+    --tag ${INITC_IMAGE}:${VERSION} \
     --target grove-initc \
     --file ${MODULE_ROOT}/Dockerfile \
     $REPO_ROOT # docker context is as the repository root to access `.git/`
@@ -53,7 +53,7 @@ function build_docker_images() {
     ${DOCKER_BUILD_ADDITIONAL_ARGS} \
     --platform ${PLATFORM} \
     --build-arg VERSION=${VERSION} \
-    --tag ${OPERATOR_IMAGE_NAME_WITHOUT_ARCH}-${GOARCH}:${VERSION} \
+    --tag ${OPERATOR_IMAGE}:${VERSION} \
     --target grove-operator \
     --file ${MODULE_ROOT}/Dockerfile \
     $REPO_ROOT # docker context is as the repository root to access `.git/`

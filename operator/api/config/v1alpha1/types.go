@@ -128,8 +128,6 @@ type ServerConfiguration struct {
 	// Metrics is the configuration for serving the metrics endpoint.
 	// +optional
 	Metrics *Server `json:"metrics,omitempty"`
-	// InternalCertificateManagement is the configuration for certificates that are managed by the grove operator.
-	InternalCertificateManagement *InternalCertificateManagement `json:"internalCertificateManagement,omitempty"`
 }
 
 // WebhookServer defines the configuration for the HTTP(S) webhook server.
@@ -145,13 +143,6 @@ type Server struct {
 	BindAddress string `json:"bindAddress"`
 	// Port is the port on which to serve requests.
 	Port int `json:"port"`
-}
-
-// InternalCertificateManagement defines the configuration for certificates managed by Grove
-type InternalCertificateManagement struct {
-	// Enabled when true makes Grove manage its own certificates for the webhooks.
-	// When set to false, it expects the user to manage the certificates.
-	Enabled *bool `json:"enabled,omitempty"`
 }
 
 // ControllerConfiguration defines the configuration for the controllers.

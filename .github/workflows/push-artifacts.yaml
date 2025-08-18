@@ -48,7 +48,7 @@ jobs:
       - name: Extract package version from branch commit
         if: startsWith(github.ref, 'refs/heads/')
         run: |
-          PACKAGE_VERSION=0.0.0-$(git rev-parse --short HEAD)
+          PACKAGE_VERSION=v0.0.0-$(git rev-parse --short HEAD)
           echo "PACKAGE_VERSION=$PACKAGE_VERSION" >> $GITHUB_ENV
           echo $PACKAGE_VERSION
 
@@ -69,35 +69,19 @@ jobs:
 
       - name: Docker build & push
         run: |
-          make --directory=operator docker-build-amd64 VERSION=$PACKAGE_VERSION REGISTRY=$DOCKER_REGISTRY DOCKER_BUILD_ADDITIONAL_ARGS=--push
-          make --directory=operator docker-build-arm64 VERSION=$PACKAGE_VERSION REGISTRY=$DOCKER_REGISTRY DOCKER_BUILD_ADDITIONAL_ARGS=--push
+          make --directory=operator docker-build PLATFORM=linux/amd64,linux/arm64 VERSION=$PACKAGE_VERSION REGISTRY=$DOCKER_REGISTRY DOCKER_BUILD_ADDITIONAL_ARGS=--push
 
       - name: Copy CRDs to charts
         run: |
           ./operator/hack/prepare-charts.sh
 
-      - name: Build amd64 Helm chart
+      - name: Build Helm chart
         run: |
-          sed -i "s#name: grove#name: grove-amd64#" operator/charts/Chart.yaml
-          sed -i "s#repository: grove-operator#repository: ghcr.io/nvidia/grove/grove-operator-amd64#" operator/charts/values.yaml
+          sed -i "s#repository: grove-operator#repository: ghcr.io/nvidia/grove/grove-operator#" operator/charts/values.yaml
           sed -i "s#tag: latest#tag: $PACKAGE_VERSION#" operator/charts/values.yaml
-          sed -i "s#value: grove-initc#value: ghcr.io/nvidia/grove/grove-initc-amd64#" operator/charts/values.yaml
+          sed -i "s#value: grove-initc#value: ghcr.io/nvidia/grove/grove-initc#" operator/charts/values.yaml
           helm package ./operator/charts --app-version $PACKAGE_VERSION --version $PACKAGE_VERSION
-          git restore . # Clean up for the subsequent steps
 
-      - name: Push amd64 Helm Chart
+      - name: Push Helm Chart
         run: |
-          helm push ./grove-amd64-$PACKAGE_VERSION.tgz oci://${{ env.DOCKER_REGISTRY }}
-
-      - name: Build arm64 Helm chart
-        run: |
-          sed -i "s#name: grove#name: grove-arm64#" operator/charts/Chart.yaml
-          sed -i "s#repository: grove-operator#repository: ghcr.io/nvidia/grove/grove-operator-arm64#" operator/charts/values.yaml
-          sed -i "s#tag: latest#tag: $PACKAGE_VERSION#" operator/charts/values.yaml
-          sed -i "s#value: grove-initc#value: ghcr.io/nvidia/grove/grove-initc-arm64#" operator/charts/values.yaml
-          helm package ./operator/charts --app-version $PACKAGE_VERSION --version $PACKAGE_VERSION
-          git restore . # Clean up for the subsequent steps
-
-      - name: Push arm64 Helm Chart
-        run: |
-          helm push ./grove-arm64-$PACKAGE_VERSION.tgz oci://${{ env.DOCKER_REGISTRY }}
+          helm push ./grove-$PACKAGE_VERSION.tgz oci://${{ env.DOCKER_REGISTRY }}

@@ -25,13 +25,6 @@ PROJECT_ROOT="$(dirname "$OPERATOR_GO_MODULE_ROOT")"
 SCHEDULER_GO_MODULE_ROOT="${PROJECT_ROOT}/scheduler"
 CHARTS_DIR="${OPERATOR_GO_MODULE_ROOT}/charts"
 
-function check_prereq() {
-  if ! command -v kubectl &>/dev/null; then
-    echo >&2 "kubectl is not installed, please install kubectl from https://kubernetes.io/docs/tasks/tools/install-kubectl/"
-    exit 1
-  fi
-}
-
 function copy_crds() {
   target_path="${OPERATOR_GO_MODULE_ROOT}/charts/crds"
   echo "Creating ${target_path} to copy the CRDs if not present..."
@@ -62,10 +55,5 @@ function copy_crds() {
   done
 }
 
-function prepare_local_deploy() {
-  echo "Copying CRDs to helm charts..."
-  copy_crds
-}
-
-check_prereq
-prepare_local_deploy "$@"
+echo "Copying CRDs to helm charts..."
+copy_crds

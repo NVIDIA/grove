@@ -98,11 +98,11 @@ kind-down: $(KIND)
 # -------------------------------------------------------------
 
 # Builds the grove-initc and grove-operator docker images for the specified platform.
-# Usage: make docker-build-<arch>
-# Example: make docker-build-amd64, make docker-build-arm64
-.PHONY: docker-build-%
-docker-build-%:
-	@GOARCH=$$(echo $* | cut -d- -f 1) $(MODULE_HACK_DIR)/docker-build.sh
+# Usage: PLATFORM=linux/amd64 make docker-build
+# Multiplatform builds: PLATFORM=linux/amd64,linux/arm64 make docker-build
+.PHONY: docker-build
+docker-build:
+	@$(MODULE_HACK_DIR)/docker-build.sh
 
 # Make targets for deploying grove-operator to a k8s cluster via skaffold
 # -------------------------------------------------------------
