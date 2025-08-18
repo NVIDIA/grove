@@ -1,15 +1,27 @@
 # Getting Started
 
-To get started with Grove, you would need a running Kubernetes cluster. As there is no released version of Grove operator just yet, we recommend you try out Grove locally using a [kind](https://kind.sigs.k8s.io/) cluster, using the make targets we provide as a part of the repository.
+To get started with Grove, you can use the published Helm charts of Grove under the [GitHub packages section](https://github.com/orgs/NVIDIA/packages?repo_name=grove), and install Grove in your cluster.
+You can also try out Grove locally on your machine using a [kind](https://kind.sigs.k8s.io/) cluster, using the make targets we provide as a part of the repository.
 
-> [!NOTE]
-> In case you would like to run Grove operator in your own Kubernetes cluster, you can export the KUBECONFIG of your cluster in your shell session, and use the provided make targets in [operator/Makefile](../operator/Makefile). See [cluster set-up](#kubernetes-cluster-set-up) for more details.
+## Deploying Grove
 
-## Local kind cluster set-up
+You can use the published [Helm `grove` package](https://github.com/NVIDIA/grove/pkgs/container/grove%2Fgrove), and install it in your cluster. Set the `KUBECONFIG` in your shell session, and run the following:
+
+```bash
+helm upgrade -i grove oci://ghcr.io/nvidia/grove/grove:<tag>
+```
+
+You could also deploy Grove to your cluster through the provided make targets, by following [installation using make targets](#installation-using-make-targets).
+
+## Developing Grove
 
 All grove operator Make targets are located in [Operator Makefile](../operator/Makefile).
 
-### Kind cluster set-up
+### Cluster set-up
+
+#### Local Kind cluster set-up
+
+In case you wish to develop Grove using a local kind cluster, please do the following:
 
 - To set up a KIND cluster with local docker registry run the following command:
 
@@ -25,25 +37,25 @@ All grove operator Make targets are located in [Operator Makefile](../operator/M
   export KUBECONFIG=./hack/kind/kubeconfig
   ```
 
-### Kubernetes cluster set-up
+#### Remote cluster set-up
 
-If you want to use your own Kubernetes cluster instead of the KIND cluster, follow these steps:
+If you wish to use your own Kubernetes cluster instead of the KIND cluster, follow these steps:
 
 - **Set the KUBECONFIG environment variable** to point to your Kubernetes cluster configuration:
 
-   ```bash
-   # Set KUBECONFIG to use your Kubernetes cluster kubeconfig
-   export KUBECONFIG=/path/to/your/kubernetes/kubeconfig
-   ```
+  ```bash
+  # Set KUBECONFIG to use your Kubernetes cluster kubeconfig
+  export KUBECONFIG=/path/to/your/kubernetes/kubeconfig
+  ```
 
 - **Set the CONTAINER_REGISTRY environment variable** to specify your container registry:
 
-   ```bash
-   # Set a container registry to push your images to
-   export CONTAINER_REGISTRY=your-container-registry
-   ```
+  ```bash
+  # Set a container registry to push your images to
+  export CONTAINER_REGISTRY=your-container-registry
+  ```
 
-### Deploy Grove operator
+### Installation using make targets
 
 ```bash
 # If you wish to deploy all Grove Operator resources in a custom namespace then set the `NAMESPACE` environment variable
@@ -62,7 +74,7 @@ This make target leverages Grove [Helm](https://helm.sh/) charts and [Skaffold](
   - Grove Scheduler CRDs - `podgangs.scheduler.grove.io`.
 - All Grove operator resources defined as a part of [Grove Helm chart templates](../operator/charts/templates).
 
-### Deploy a `PodGangSet`
+## Deploy a `PodGangSet`
 
 - Deploy one of the samples present in the [samples](./operator/samples/simple) directory.
 
@@ -108,7 +120,7 @@ This make target leverages Grove [Helm](https://helm.sh/) charts and [Skaffold](
   pod/simple1-0-sga-0-pcc-hx4zn         1/1     Running   0          33s
   ```
 
-### Scaling
+## Scaling
 
 As specified in the [README.md](../README.md) and the [docs](../docs), there are multiple hierarchies at which you can scale resources in a `PodGangSet`.
 
