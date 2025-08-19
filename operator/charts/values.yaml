@@ -168,6 +168,7 @@ webhooks:
       app.kubernetes.io/part-of: grove
 
 webhookServerSecret:
+  name: grove-webhook-server-cert 
   labels:
     app.kubernetes.io/component: operator-webhook-server-secret
     app.kubernetes.io/name: grove-webhook-server-secret

@@ -45,6 +45,9 @@ spec:
   privateKey:
     algorithm: {{ .Values.certManager.internal.certificate.keyAlgorithm }}
     size: {{ .Values.certManager.internal.certificate.keySize }}
+    rotationPolicy: {{ .Values.certManager.internal.certificate.rotationPolicy }}
+
+
   {{- else if eq .Values.certManager.mode "external" }}
   # Certificate issuer reference (external mode - use existing issuer)
   issuerRef:
@@ -82,6 +85,7 @@ spec:
   privateKey:
     algorithm: {{ .Values.certManager.external.certificate.keyAlgorithm }}
     size: {{ .Values.certManager.external.certificate.keySize }}
+    rotationPolicy: {{ .Values.certManager.external.certificate.rotationPolicy }}
   {{- end }}
   
   # Usages for the certificate
