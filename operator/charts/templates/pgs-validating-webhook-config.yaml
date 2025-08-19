@@ -5,12 +5,23 @@ kind: ValidatingWebhookConfiguration
 metadata:
   name: podgangset-validating-webhook
   namespace: {{ .Release.Namespace }}
+  {{- if .Values.enableCertManager }}
+  annotations:
+    cert-manager.io/inject-ca-from: {{ .Release.Namespace }}/{{ .Values.webhookServerSecret.name }}
+  {{- end }}
   labels:
 {{- include "operator.pgs.validating.webhook.labels" . | nindent 4 }}
 webhooks:
   - admissionReviewVersions:
       - v1
     clientConfig:
+      {{- if .Values.enableCertManager }}
+      # Let cert-manager automatically inject the CA bundle
+      caBundle: ""
+      {{- else }}
+      # Use self-signed certificate CA bundle
+      caBundle: {{ .Files.Get "pki-resources/ca.crt" | b64enc }}
+      {{- end }}
       service:
         name: {{ required ".Values.service.name is required" .Values.service.name }}
         namespace: {{ .Release.Namespace }}
