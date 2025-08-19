@@ -84,4 +84,4 @@ jobs:
 
       - name: Push Helm Chart
         run: |
-          helm push ./grove-$PACKAGE_VERSION.tgz oci://${{ env.DOCKER_REGISTRY }}
+          helm push ./grove-charts-$PACKAGE_VERSION.tgz oci://${{ env.DOCKER_REGISTRY }}
