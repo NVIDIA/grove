@@ -5,10 +5,10 @@ You can also try out Grove locally on your machine using a [kind](https://kind.s
 
 ## Deploying Grove
 
-You can use the published [Helm `grove` package](https://github.com/NVIDIA/grove/pkgs/container/grove%2Fgrove), and install it in your cluster. Set the `KUBECONFIG` in your shell session, and run the following:
+You can use the published [Helm `grove-charts` package](https://github.com/NVIDIA/grove/pkgs/container/grove%2Fgrove-charts), and install it in your cluster. Set the `KUBECONFIG` in your shell session, and run the following:
 
 ```bash
-helm upgrade -i grove oci://ghcr.io/nvidia/grove/grove:<tag>
+helm upgrade -i grove oci://ghcr.io/nvidia/grove/grove-charts:<tag>
 ```
 
 You could also deploy Grove to your cluster through the provided make targets, by following [installation using make targets](#installation-using-make-targets).

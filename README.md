@@ -49,7 +49,7 @@ The Grove API consists of a user API and a scheduling API. While the user API (`
 
 ## Getting Started
 
-You can get started with Grove operator by following along to our [getting started guide](docs/getting-started.md).
+You can get started with Grove operator by following along to our [installation guide](docs/installation.md).
 
 ## Roadmap
 
