@@ -49,7 +49,7 @@ The Grove API consists of a user API and a scheduling API. While the user API (`
 
 ## Getting Started
 
-You can get started with Grove operator by following along to our [getting started guide](docs/getting-started.md).
+You can get started with the Grove operator by following our [installation guide](docs/installation.md).
 
 ## Roadmap
 
@@ -57,7 +57,7 @@ You can get started with Grove operator by following along to our [getting start
 
 Update: We are aligning our release schedule with [Nvidia Dynamo](https://github.com/ai-dynamo/dynamo) to ensure seamless integration. Once our release cadence (e.g., weekly, monthly) is finalized, it will be reflected here.
 
-**Release v0.1.0** *(ETA: 8/18/2025)*
+**Release v0.1.0** *(ETA: 8/27/2025)*
 - Grove v1alpha1 API
 - Hierarchical Gang Scheduling and Gang Termination
 - Multi-Level Horizontal Auto-Scaling
