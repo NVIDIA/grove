@@ -3,7 +3,7 @@
 apiVersion: admissionregistration.k8s.io/v1
 kind: MutatingWebhookConfiguration
 metadata:
-  name: pgs-defaulting-webhook
+  name: podgangset-defaulting-webhook
   namespace: {{ .Release.Namespace }}
   {{- if .Values.enableCertManager }}
   annotations:
