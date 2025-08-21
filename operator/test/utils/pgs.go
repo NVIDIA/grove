@@ -17,6 +17,8 @@
 package utils
 
 import (
+	"time"
+
 	grovecorev1alpha1 "github.com/NVIDIA/grove/operator/api/core/v1alpha1"
 
 	"github.com/google/uuid"
@@ -67,6 +69,18 @@ func (b *PodGangSetBuilder) WithPodCliqueTemplateSpec(pclq *grovecorev1alpha1.Po
 // WithPodCliqueScalingGroupConfig adds a PodCliqueScalingGroupConfig to the PodGangSet.
 func (b *PodGangSetBuilder) WithPodCliqueScalingGroupConfig(config grovecorev1alpha1.PodCliqueScalingGroupConfig) *PodGangSetBuilder {
 	b.pgs.Spec.Template.PodCliqueScalingGroupConfigs = append(b.pgs.Spec.Template.PodCliqueScalingGroupConfigs, config)
+	return b
+}
+
+// WithPriorityClassName sets the PriorityClassName for the PodGangSet.
+func (b *PodGangSetBuilder) WithPriorityClassName(priorityClassName string) *PodGangSetBuilder {
+	b.pgs.Spec.Template.PriorityClassName = priorityClassName
+	return b
+}
+
+// WithTerminationDelay sets the TerminationDelay for the PodGangSet.
+func (b *PodGangSetBuilder) WithTerminationDelay(duration time.Duration) *PodGangSetBuilder {
+	b.pgs.Spec.Template.TerminationDelay = &metav1.Duration{Duration: duration}
 	return b
 }
 
