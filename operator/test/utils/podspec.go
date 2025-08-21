@@ -32,6 +32,12 @@ func NewPodBuilder() *PodSpecBuilder {
 	}
 }
 
+// WithRestartPolicy sets the restart policy for the PodSpec.
+func (b *PodSpecBuilder) WithRestartPolicy(policy corev1.RestartPolicy) *PodSpecBuilder {
+	b.podSpec.RestartPolicy = policy
+	return b
+}
+
 // Build returns the constructed PodSpec.
 func (b *PodSpecBuilder) Build() *corev1.PodSpec {
 	return b.podSpec
@@ -46,6 +52,5 @@ func createDefaultPodSpec() *corev1.PodSpec {
 				Command: []string{"/bin/sh", "-c", "sleep 2m"},
 			},
 		},
-		RestartPolicy: corev1.RestartPolicyAlways,
 	}
 }
