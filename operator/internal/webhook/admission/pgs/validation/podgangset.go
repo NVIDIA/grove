@@ -556,6 +556,7 @@ func validatePodCliqueUpdate(newCliques, oldCliques []*grovecorev1alpha1.PodCliq
 	lo.ForEach(oldCliques, func(clique *grovecorev1alpha1.PodCliqueTemplateSpec, i int) {
 		oldCliqueIndexMap[clique.Name] = lo.Tuple2[int, *grovecorev1alpha1.PodCliqueTemplateSpec]{A: i, B: clique}
 	})
+	orderIsEnforced := requiresOrderValidation(startupType)
 	// Validate each new clique against its corresponding old clique
 	for newCliqueIndex, newClique := range newCliques {
 		oldIndexCliqueTuple, exists := oldCliqueIndexMap[newClique.Name]
@@ -567,7 +568,7 @@ func validatePodCliqueUpdate(newCliques, oldCliques []*grovecorev1alpha1.PodCliq
 		// Validate clique order for StartupType InOrder and Explicit
 		// If the StartupType is InOrder or Explicit, the order of cliques cannot change
 		// the index new clique is compared with the index of the old clique
-		if requiresOrderValidation(startupType) && newCliqueIndex != oldIndexCliqueTuple.A {
+		if orderIsEnforced && newCliqueIndex != oldIndexCliqueTuple.A {
 			allErrs = append(allErrs, field.Invalid(fldPath, newClique.Name,
 				fmt.Sprintf("clique order cannot be changed when StartupType is InOrder or Explicit. Expected '%s' at position %d, got '%s'",
 					oldIndexCliqueTuple.B.Name, newCliqueIndex, newClique.Name)))
