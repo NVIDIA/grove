@@ -18,6 +18,8 @@ package utils
 
 import (
 	grovecorev1alpha1 "github.com/NVIDIA/grove/operator/api/core/v1alpha1"
+
+	corev1 "k8s.io/api/core/v1"
 )
 
 // PodCliqueTemplateSpecBuilder is a builder for creating PodCliqueTemplateSpec objects.
@@ -80,6 +82,18 @@ func (b *PodCliqueTemplateSpecBuilder) WithAutoScaleMaxReplicas(maximum int32) *
 		b.pclqTemplateSpec.Spec.ScaleConfig = &grovecorev1alpha1.AutoScalingConfig{}
 	}
 	b.pclqTemplateSpec.Spec.ScaleConfig.MaxReplicas = maximum
+	return b
+}
+
+// WithRoleName sets the RoleName for the PodCliqueTemplateSpec.
+func (b *PodCliqueTemplateSpecBuilder) WithRoleName(roleName string) *PodCliqueTemplateSpecBuilder {
+	b.pclqTemplateSpec.Spec.RoleName = roleName
+	return b
+}
+
+// WithPodSpec sets a custom PodSpec for the PodCliqueTemplateSpec.
+func (b *PodCliqueTemplateSpecBuilder) WithPodSpec(podSpec corev1.PodSpec) *PodCliqueTemplateSpecBuilder {
+	b.pclqTemplateSpec.Spec.PodSpec = podSpec
 	return b
 }
 
