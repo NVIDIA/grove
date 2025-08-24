@@ -100,7 +100,7 @@ func TestGetExistingResourceNames(t *testing.T) {
 				WithReplicas(tc.pgsReplicas).
 				WithCliqueStartupType(ptr.To(grovecorev1alpha1.CliqueStartupTypeAnyOrder))
 			for _, pclqTemplateName := range tc.podCliqueTemplateNames {
-				pgsBuilder.WithPodCliqueParameters(pclqTemplateName, 1, nil)
+				pgsBuilder.WithPodCliqueParameters(pclqTemplateName, 1, 1, nil)
 			}
 			pgs := pgsBuilder.Build()
 			// Create existing objects

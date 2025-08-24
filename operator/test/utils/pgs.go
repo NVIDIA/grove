@@ -17,11 +17,14 @@
 package utils
 
 import (
+	"time"
+
 	grovecorev1alpha1 "github.com/NVIDIA/grove/operator/api/core/v1alpha1"
 
 	"github.com/google/uuid"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/utils/ptr"
 )
 
 // PodGangSetBuilder is a builder for PodGangSet objects.
@@ -49,9 +52,10 @@ func (b *PodGangSetBuilder) WithReplicas(replicas int32) *PodGangSetBuilder {
 }
 
 // WithPodCliqueParameters is a convenience function that creates a PodCliqueTemplateSpec given the parameters and adds it to the PodGangSet.
-func (b *PodGangSetBuilder) WithPodCliqueParameters(name string, replicas int32, startsAfter []string) *PodGangSetBuilder {
+func (b *PodGangSetBuilder) WithPodCliqueParameters(name string, replicas, minAvailable int32, startsAfter []string) *PodGangSetBuilder {
 	pclqTemplateSpec := NewPodCliqueTemplateSpecBuilder(name).
 		WithReplicas(replicas).
+		WithMinAvailable(minAvailable).
 		WithStartsAfter(startsAfter).
 		Build()
 	return b.WithPodCliqueTemplateSpec(pclqTemplateSpec)
@@ -70,6 +74,28 @@ func (b *PodGangSetBuilder) WithPodCliqueScalingGroupConfig(config grovecorev1al
 	return b
 }
 
+// WithMinimal creates a minimal valid PodGangSet that passes webhook validation.
+// Sets terminationDelay and adds a single clique with minAvailable.
+func (b *PodGangSetBuilder) WithMinimal() *PodGangSetBuilder {
+	b.WithTerminationDelay(30 * time.Second)
+	if len(b.pgs.Spec.Template.Cliques) == 0 {
+		b.WithPodCliqueParameters("default-clique", 1, 1, nil)
+	}
+	// Ensure all cliques have minAvailable set
+	for _, clique := range b.pgs.Spec.Template.Cliques {
+		if clique.Spec.MinAvailable == nil {
+			clique.Spec.MinAvailable = ptr.To(clique.Spec.Replicas)
+		}
+	}
+	return b
+}
+
+// WithTerminationDelay sets the terminationDelay for the PodGangSet.
+func (b *PodGangSetBuilder) WithTerminationDelay(delay time.Duration) *PodGangSetBuilder {
+	b.pgs.Spec.Template.TerminationDelay = &metav1.Duration{Duration: delay}
+	return b
+}
+
 // Build creates a PodGangSet object.
 func (b *PodGangSetBuilder) Build() *grovecorev1alpha1.PodGangSet {
 	return b.pgs
@@ -84,6 +110,9 @@ func createEmptyPodGangSet(name, namespace string) *grovecorev1alpha1.PodGangSet
 		},
 		Spec: grovecorev1alpha1.PodGangSetSpec{
 			Replicas: 1,
+			Template: grovecorev1alpha1.PodGangSetTemplateSpec{
+				Cliques: []*grovecorev1alpha1.PodCliqueTemplateSpec{},
+			},
 		},
 	}
 }

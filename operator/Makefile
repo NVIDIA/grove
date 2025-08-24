@@ -69,7 +69,7 @@ format: $(GOIMPORTS_REVISER)
 # Run all unit tests
 .PHONY: test-unit
 test-unit:
-	@go test ./...
+	@go test $(shell go list ./... | grep -v './test/integration')
 
 # Run all unit tests with code coverage
 .PHONY: test-cover
@@ -81,6 +81,21 @@ test-cover:
 cover-html: test-cover
 	@go tool cover -html=coverage.out -o coverage.html
 	@echo "Coverage report generated at coverage.html"
+
+
+# Run all tests (unit + integration)
+.PHONY: test-all
+test-all: test-unit test-integration-controllers test-integration-webhooks
+# Run controller-specific integration tests
+.PHONY: test-integration-controllers
+test-integration-controllers: $(SETUP_ENVTEST)
+	@KUBEBUILDER_ASSETS="$(shell $(SETUP_ENVTEST) use --print path)" go test ./test/integration/controllers/... -v
+
+# Run webhook integration tests
+.PHONY: test-integration-webhooks
+test-integration-webhooks: $(SETUP_ENVTEST)
+	@KUBEBUILDER_ASSETS="$(shell $(SETUP_ENVTEST) use --print path)" go test ./test/integration/webhooks/... -v
+
 
 # Make targets for local development and testing
 # -------------------------------------------------------------

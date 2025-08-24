@@ -23,6 +23,8 @@ var (
 	podCliqueCRD string
 	//go:embed grove.io_podgangsets.yaml
 	podGangSetCRD string
+	//go:embed grove.io_podcliquescalinggroups.yaml
+	podCliqueScalingGroupCRD string
 )
 
 // PodCliqueCRD returns the PodClique CRD
@@ -33,4 +35,9 @@ func PodCliqueCRD() string {
 // PodGangSetCRD returns the PodGangSet CRD
 func PodGangSetCRD() string {
 	return podGangSetCRD
+}
+
+// PodCliqueScalingGroupCRD returns the PodCliqueScalingGroup CRD
+func PodCliqueScalingGroupCRD() string {
+	return podCliqueScalingGroupCRD
 }
