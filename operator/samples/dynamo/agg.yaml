@@ -1,0 +1,84 @@
+# Dynamo Aggregated VLLM (as of Dynamo 0.3.1)
+# Dynamo related link : https://github.com/ai-dynamo/dynamo/tree/main/examples/vllm/deploy
+---
+apiVersion: grove.io/v1alpha1
+kind: PodGangSet
+metadata:
+  name: agg
+  labels:
+    app: agg
+spec:
+  replicas: 1
+  template:
+    cliqueStartupType: CliqueStartupTypeExplicit # To ensure that the startup order as defined in this spec is honored, the statupType must be set to Explicit.
+    cliques:
+      - name: frontend
+        spec:
+          roleName: frontend
+          startsAfter:
+            - vllmworker
+          replicas: 1
+          podSpec:
+            containers:
+              - name: main
+                image: nvcr.io/nvidia/ai-dynamo/vllm-runtime:0.3.1
+                resources:
+                  requests:
+                    cpu: "1"
+                    memory: "2Gi"
+                workingDir: /workspace/examples/vllm_v0
+                args:
+                - dynamo
+                - serve
+                - graphs.agg:Frontend
+                - --system-app-port
+                - "5000"
+                - --enable-system-app
+                - --use-default-health-checks
+                - --service-name
+                - Frontend
+                - -f
+                - ./configs/agg.yaml
+                env:
+                - name: NATS_SERVER
+                  value: nats://dynamo-platform-nats:4222
+                - name: ETCD_ENDPOINTS
+                  value: dynamo-platform-etcd:2379
+      - name: vllmworker
+        spec:
+          roleName: vllmworker
+          replicas: 1
+          podSpec:
+            containers:
+              - name: main
+                image: nvcr.io/nvidia/ai-dynamo/vllm-runtime:0.3.1
+                resources:
+                  requests:
+                    cpu: "1"
+                    memory: "2Gi"
+                    nvidia.com/gpu: "1"
+                  limits:
+                    nvidia.com/gpu: "1"
+                workingDir: /workspace/examples/vllm_v0
+                args:
+                - dynamo
+                - serve
+                - graphs.agg:VllmWorker
+                - --system-app-port
+                - "5000"
+                - --enable-system-app
+                - --use-default-health-checks
+                - --service-name
+                - VllmWorker
+                - -f
+                - ./configs/agg.yaml
+                env:
+                - name: HF_TOKEN
+                  valueFrom:
+                    secretKeyRef:
+                      name: hf-token-secret
+                      key: HF_TOKEN
+                - name: NATS_SERVER
+                  value: nats://dynamo-platform-nats:4222
+                - name: ETCD_ENDPOINTS
+                  value: dynamo-platform-etcd:2379
