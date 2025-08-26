@@ -50,7 +50,7 @@ lint: $(GOLANGCI_LINT)
 # Formats the codebase
 .PHONY: format
 format: $(GOIMPORTS_REVISER)
-	@$(REPO_HACK_DIR)/format.sh  ./api/ ./client/ ./cmd/ ./internal/ ./plugins/
+	@$(REPO_HACK_DIR)/format.sh  ./api/ ./client/
 
 
 # Make targets for tests
