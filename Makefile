@@ -37,8 +37,6 @@ build:
 	@make --directory=operator build-operator
 	@echo "> Building Grove Init Container"
 	@make --directory=operator build-initc
-	@echo "> Building Grove Scheduler"
-	@make --directory=scheduler build
 
 # Lints the entire codebase (all modules) using GOLANGCI_LINT.
 .PHONY: lint
@@ -49,8 +47,6 @@ lint:
 	@make --directory=operator lint
 	@echo "> Linting scheduler/api"
 	@make --directory=scheduler/api lint
-	@echo "> Linting scheduler"
-	@make --directory=scheduler lint
 
 # Formats the entire codebase (all modules)
 .PHONY: format
@@ -83,20 +79,14 @@ generate-api-docs: $(CRD_REF_DOCS)
 test-unit:
 	@echo "> Running tests for operator"
 	@make --directory=operator test-unit
-	@echo "> Running tests for scheduler"
-	@make --directory=scheduler test-unit
 
 .PHONY: test-cover
 test-cover:
 	@echo "> Running tests with coverage for operator"
 	@make --directory=operator test-cover
-	@echo "> Running tests with coverage for scheduler"
-	@make --directory=scheduler test-cover
 
 # Generates HTML coverage reports for the entire codebase (all modules)
 .PHONY: cover-html
 cover-html:
 	@echo "> Generating HTML coverage report for operator"
 	@make --directory=operator cover-html
-	@echo "> Generating HTML coverage report for scheduler"
-	@make --directory=scheduler cover-html
