@@ -38,5 +38,6 @@ jobs:
       # This command executes the tests within the specified directory.
       # The '-v' flag enables verbose output to see detailed test results.
       - name: Run Go Tests
-        run: go test -v ./operator/ci
+        working-directory: ./operator
+        run: go test -v ./ci
 
