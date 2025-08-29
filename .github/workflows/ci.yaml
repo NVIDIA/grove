@@ -1,0 +1,42 @@
+# This GitHub Actions workflow defines the Continuous Integration (CI) pipeline for the Grove project.
+# It is triggered on pull requests to any branch or pushes to the main branch.
+# The pipeline sets up a Go environment and runs the automated tests located in the operator/ci directory.
+
+name: Grove CI/CD Pipeline
+
+on:
+  # Triggers the workflow on push events for the specified branches
+  push:
+    branches: [ "main", "gflarity/ci_skeleton" ]
+    
+  # Triggers the workflow on pull request events for any branch
+  pull_request:
+
+jobs:
+  test:
+    # The name of the job, which will be displayed on GitHub
+    name: Run Go Tests
+    
+    # Specifies the runner environment. ubuntu-latest is a standard choice that includes Docker.
+    runs-on: ubuntu-latest
+
+    steps:
+      # Step 1: Check out the repository's code
+      # This action allows the workflow to access the code in your repository.
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # Step 2: Set up the Go programming environment
+      # This action installs a specific version of Go.
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          # Specify the version of Go to use. It's good practice to use a specific version.
+          go-version: '1.24'
+
+      # Step 3: Run the Go tests
+      # This command executes the tests within the specified directory.
+      # The '-v' flag enables verbose output to see detailed test results.
+      - name: Run Go Tests
+        run: go test -v ./operator/ci
+
