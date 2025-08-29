@@ -39,5 +39,5 @@ jobs:
       # The '-v' flag enables verbose output to see detailed test results.
       - name: Run Go Tests
         working-directory: ./operator
-        run: go test -v ./ci
+        run: go test -v -tags=ci ./ci
 
