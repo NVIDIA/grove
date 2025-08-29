@@ -7,7 +7,7 @@ name: Grove CI/CD Pipeline
 on:
   # Triggers the workflow on push events for the specified branches
   push:
-    branches: [ "main", "gflarity/ci_skeleton" ]
+    branches: [ "main" ]
     
   # Triggers the workflow on pull request events for any branch
   pull_request:
