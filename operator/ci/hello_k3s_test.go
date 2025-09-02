@@ -154,7 +154,7 @@ func DefaultKindClusterConfig() KindClusterConfig {
 }
 
 // setupKindCluster creates a kind cluster and returns a kubernetes clientset
-func setupKindCluster(ctx context.Context, t *testing.T, cfg KindClusterConfig) (*kubernetes.Clientset, func()) {
+func setupKindCluster(_ context.Context, t *testing.T, cfg KindClusterConfig) (*kubernetes.Clientset, func()) {
 	t.Logf("📝 Preparing kind cluster configuration for '%s'...", cfg.Name)
 
 	provider := cluster.NewProvider()
