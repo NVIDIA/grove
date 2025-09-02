@@ -14,17 +14,19 @@
 // limitations under the License.
 // */
 
-//go:build ci
-// +build ci
-
 package ci
 
 import (
 	"context"
-	"fmt"
+	"log"
 	"testing"
 
-	"github.com/testcontainers/testcontainers-go/modules/k3s"
+	"github.com/k3d-io/k3d/v5/pkg/client"
+	"github.com/k3d-io/k3d/v5/pkg/config"
+	"github.com/k3d-io/k3d/v5/pkg/config/types"
+	"github.com/k3d-io/k3d/v5/pkg/config/v1alpha5"
+	"github.com/k3d-io/k3d/v5/pkg/runtimes"
+	k3d "github.com/k3d-io/k3d/v5/pkg/types"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
@@ -33,34 +35,65 @@ import (
 func TestWithK3sCluster(t *testing.T) {
 	ctx := context.Background()
 
-	// 1. Request a K3s container
-	k3sContainer, err := k3s.Run(ctx, "rancher/k3s:v1.28.2-k3s1")
-	if err != nil {
-		t.Fatalf("could not start k3s container: %s", err)
+	// Define a multi-node cluster configuration.
+	clusterConfig := v1alpha5.SimpleConfig{
+		ObjectMeta: types.ObjectMeta{
+			Name: "my-k3d-multinode",
+		},
+		Servers: 1,
+		Agents:  2,
+		Image:   "rancher/k3s:v1.28.8-k3s1",
+		// This maps the cluster's internal API server port (6443) to port 6550 on your host machine.
+		ExposeAPI: v1alpha5.SimpleExposureOpts{
+			Host:     "0.0.0.0", // Listen on all host network interfaces
+			HostPort: "6550",    // An unused port on your host
+		},
+		Ports: []v1alpha5.PortWithNodeFilters{
+			{
+				Port:        "8080:80",
+				NodeFilters: []string{"loadbalancer"},
+			},
+		},
 	}
 
-	// 2. Clean up the container after the test is done
-	defer func() {
-		if err := k3sContainer.Terminate(ctx); err != nil {
-			t.Fatalf("failed to terminate container: %s", err)
-		}
-	}()
-
-	// 3. Get the kubeconfig from the running container
-	kubeConfigYaml, err := k3sContainer.GetKubeConfig(ctx)
+	t.Log("📝 Preparing k3d cluster configuration...")
+	cfg, err := config.TransformSimpleToClusterConfig(ctx, runtimes.Docker, clusterConfig, "")
 	if err != nil {
-		t.Fatalf("could not get kubeconfig: %s", err)
+		t.Fatalf("Failed to transform config: %v", err)
 	}
 
-	// 4. Use the kubeconfig to create a Kubernetes client
-	config, err := clientcmd.RESTConfigFromKubeConfig(kubeConfigYaml)
+	log.Printf("🚀 Creating cluster '%s' with 1 server and 2 agents...", cfg.Cluster.Name)
+	if err := client.ClusterRun(ctx, runtimes.Docker, cfg); err != nil {
+		t.Fatalf("Failed to create cluster: %v", err)
+	}
+	t.Log("✅ Cluster created successfully!")
+
+	log.Println("📄 Fetching kubeconfig...")
+	cluster, err := client.ClusterGet(ctx, runtimes.Docker, &cfg.Cluster)
 	if err != nil {
-		t.Fatalf("could not create rest config: %s", err)
+		t.Fatalf("Could not get cluster: %v", err)
+	}
+
+	kubeconfig, err := client.KubeconfigGet(ctx, runtimes.Docker, cluster)
+	if err != nil {
+		t.Fatalf("Failed to get kubeconfig: %v", err)
+	}
+
+	kubeconfigBytes, err := clientcmd.Write(*kubeconfig)
+	if err != nil {
+		t.Fatalf("Failed to serialize kubeconfig: %v", err)
+	}
+	kubeConfigYaml := string(kubeconfigBytes)
+
+	// Now this will work because the server address in the kubeconfig is accessible
+	config, err := clientcmd.RESTConfigFromKubeConfig([]byte(kubeConfigYaml))
+	if err != nil {
+		t.Fatalf("Could not create rest config: %v", err)
 	}
 
 	clientset, err := kubernetes.NewForConfig(config)
 	if err != nil {
-		t.Fatalf("could not create clientset: %s", err)
+		t.Fatalf("Could not create clientset: %v", err)
 	}
 
 	// 5. Run your tests against the cluster!
@@ -70,7 +103,18 @@ func TestWithK3sCluster(t *testing.T) {
 		t.Fatalf("could not list nodes: %s", err)
 	}
 
-	fmt.Printf("✅ Found %d nodes in the cluster\n", len(nodes.Items))
+	t.Logf("✅ Found %d nodes in the cluster\n", len(nodes.Items))
+
+	// Verify we have exactly 3 nodes
+	if len(nodes.Items) != 3 {
+		t.Errorf("expected 3 nodes, but found %d", len(nodes.Items))
+	}
+
+	t.Log("🗑️ Deleting cluster...")
+	if err := client.ClusterDelete(ctx, runtimes.Docker, &cfg.Cluster, k3d.ClusterDeleteOpts{}); err != nil {
+		t.Fatalf("Failed to delete cluster: %v", err)
+	}
+	t.Log("Cluster deleted.")
 
 	// Your integration test logic would go here.
 	// You can apply manifests, create pods, services, etc.
