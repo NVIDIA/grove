@@ -87,7 +87,7 @@ func setupCluster(ctx context.Context, t *testing.T, cfg ClusterConfig) (*kubern
 
 	// Create cluster
 	t.Logf("🚀 Creating cluster '%s' with %d server(s) and %d agent(s)...",
-		k3dConfig.Cluster.Name, cfg.Servers, cfg.Agents)
+		k3dConfig.Name, cfg.Servers, cfg.Agents)
 
 	if err := client.ClusterRun(ctx, runtimes.Docker, k3dConfig); err != nil {
 		t.Fatalf("Failed to create cluster: %v", err)
