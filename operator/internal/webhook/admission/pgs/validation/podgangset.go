@@ -550,7 +550,7 @@ func validatePodCliqueUpdate(newCliques, oldCliques []*grovecorev1alpha1.PodCliq
 
 	// Create a map of old cliques by name for efficient lookup
 	// this allows checking the type and order without dealing with non-existent indexes in a slice of the old cliques
-	// if the length the old cliques and new cliques is different is an error but we dont return it immediately so farther validation can be done
+	// if the length the old cliques and new cliques is different, this is an error but we don't return it immediately so that further validation can be done
 	// therefore we should not assume the length of the oldCliques slice is the same as the newCliques slice
 	oldCliqueIndexMap := make(map[string]lo.Tuple2[int, *grovecorev1alpha1.PodCliqueTemplateSpec], len(oldCliques))
 	lo.ForEach(oldCliques, func(clique *grovecorev1alpha1.PodCliqueTemplateSpec, i int) {
