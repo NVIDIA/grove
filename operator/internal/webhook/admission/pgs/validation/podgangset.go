@@ -477,7 +477,6 @@ func (v *pgsValidator) validateUpdate(oldPgs *grovecorev1alpha1.PodGangSet) erro
 	allErrs := field.ErrorList{}
 	fldPath := field.NewPath("spec")
 	allErrs = append(allErrs, apivalidation.ValidateImmutableField(v.pgs.Spec.ReplicaSpreadConstraints, oldPgs.Spec.ReplicaSpreadConstraints, fldPath.Child("replicaSpreadConstraints"))...)
-	allErrs = append(allErrs, apivalidation.ValidateImmutableField(v.pgs.Spec.Template.PriorityClassName, oldPgs.Spec.Template.PriorityClassName, fldPath.Child("priorityClassName"))...)
 	allErrs = append(allErrs, validatePodGangSetSpecUpdate(&v.pgs.Spec, &oldPgs.Spec, fldPath)...)
 	return allErrs.ToAggregate()
 }
@@ -491,9 +490,10 @@ func validatePodGangSetSpecUpdate(newSpec, oldSpec *grovecorev1alpha1.PodGangSet
 func validatePodGangTemplateSpecUpdate(newSpec, oldSpec *grovecorev1alpha1.PodGangSetTemplateSpec, fldPath *field.Path) field.ErrorList {
 	allErrs := field.ErrorList{}
 
-	allErrs = append(allErrs, validatePodCliqueUpdate(newSpec.Cliques, oldSpec.Cliques, fldPath.Child("cliques"))...)
+	allErrs = append(allErrs, validatePodCliqueUpdate(newSpec.Cliques, oldSpec.Cliques, newSpec.StartupType, fldPath.Child("cliques"))...)
 	allErrs = append(allErrs, apivalidation.ValidateImmutableField(newSpec.StartupType, oldSpec.StartupType, fldPath.Child("cliqueStartupType"))...)
 	allErrs = append(allErrs, validatePodGangSchedulingPolicyConfigUpdate(newSpec.SchedulingPolicyConfig, newSpec.SchedulingPolicyConfig, fldPath.Child("schedulingPolicyConfig"))...)
+	allErrs = append(allErrs, validatePodCliqueScalingGroupConfigsUpdate(newSpec.PodCliqueScalingGroupConfigs, oldSpec.PodCliqueScalingGroupConfigs, fldPath.Child("podCliqueScalingGroups"))...)
 
 	return allErrs
 }
@@ -504,7 +504,44 @@ func validatePodGangSchedulingPolicyConfigUpdate(newConfig, oldConfig *grovecore
 	return allErrs
 }
 
-func validatePodCliqueUpdate(newCliques, oldCliques []*grovecorev1alpha1.PodCliqueTemplateSpec, fldPath *field.Path) field.ErrorList {
+// validatePodCliqueScalingGroupConfigsUpdate validates immutable fields in PodCliqueScalingGroupConfigs
+func validatePodCliqueScalingGroupConfigsUpdate(newConfigs, oldConfigs []grovecorev1alpha1.PodCliqueScalingGroupConfig, fldPath *field.Path) field.ErrorList {
+	allErrs := field.ErrorList{}
+
+	// Validate that scaling group composition hasn't changed
+	if len(newConfigs) != len(oldConfigs) {
+		allErrs = append(allErrs, field.Forbidden(fldPath, "not allowed to add or remove PodCliqueScalingGroupConfigs"))
+		return allErrs
+	}
+
+	// Create a map of old configs by name for efficient lookup
+	oldConfigMap := lo.SliceToMap(oldConfigs, func(config grovecorev1alpha1.PodCliqueScalingGroupConfig) (string, grovecorev1alpha1.PodCliqueScalingGroupConfig) {
+		return config.Name, config
+	})
+
+	// Validate each new config against its corresponding old config by name
+	for _, newConfig := range newConfigs {
+		oldConfig, exists := oldConfigMap[newConfig.Name]
+		if !exists {
+			allErrs = append(allErrs, field.Forbidden(fldPath.Child("name"), fmt.Sprintf("not allowed to change scaling group composition, new scaling group name '%s' is not allowed", newConfig.Name)))
+			continue
+		}
+
+		// Validate immutable fields
+		configFldPath := fldPath
+		allErrs = append(allErrs, apivalidation.ValidateImmutableField(newConfig.CliqueNames, oldConfig.CliqueNames, configFldPath.Child("cliqueNames"))...)
+		allErrs = append(allErrs, apivalidation.ValidateImmutableField(newConfig.MinAvailable, oldConfig.MinAvailable, configFldPath.Child("minAvailable"))...)
+	}
+
+	return allErrs
+}
+
+// requiresOrderValidation checks if the StartupType requires clique order validation
+func requiresOrderValidation(startupType *grovecorev1alpha1.CliqueStartupType) bool {
+	return startupType != nil && (*startupType == grovecorev1alpha1.CliqueStartupTypeInOrder || *startupType == grovecorev1alpha1.CliqueStartupTypeExplicit)
+}
+
+func validatePodCliqueUpdate(newCliques, oldCliques []*grovecorev1alpha1.PodCliqueTemplateSpec, startupType *grovecorev1alpha1.CliqueStartupType, fldPath *field.Path) field.ErrorList {
 	allErrs := field.ErrorList{}
 
 	if len(newCliques) != len(oldCliques) {
@@ -512,18 +549,38 @@ func validatePodCliqueUpdate(newCliques, oldCliques []*grovecorev1alpha1.PodCliq
 	}
 
 	// Create a map of old cliques by name for efficient lookup
-	oldCliqueMap := lo.SliceToMap(oldCliques, func(clique *grovecorev1alpha1.PodCliqueTemplateSpec) (string, *grovecorev1alpha1.PodCliqueTemplateSpec) {
-		return clique.Name, clique
+	// this allows checking the type and order without dealing with non-existent indexes in a slice of the old cliques
+	// if the length the old cliques and new cliques is different, this is an error but we don't return it immediately so that further validation can be done
+	// therefore we should not assume the length of the oldCliques slice is the same as the newCliques slice
+	oldCliqueIndexMap := make(map[string]lo.Tuple2[int, *grovecorev1alpha1.PodCliqueTemplateSpec], len(oldCliques))
+	lo.ForEach(oldCliques, func(clique *grovecorev1alpha1.PodCliqueTemplateSpec, i int) {
+		oldCliqueIndexMap[clique.Name] = lo.Tuple2[int, *grovecorev1alpha1.PodCliqueTemplateSpec]{A: i, B: clique}
 	})
-
-	// Validate each new clique against its corresponding old clique by name
-	for _, newClique := range newCliques {
-		oldClique, exists := oldCliqueMap[newClique.Name]
+	orderIsEnforced := requiresOrderValidation(startupType)
+	// Validate each new clique against its corresponding old clique
+	for newCliqueIndex, newClique := range newCliques {
+		oldIndexCliqueTuple, exists := oldCliqueIndexMap[newClique.Name]
 		if !exists {
 			allErrs = append(allErrs, field.Forbidden(fldPath.Child("name"), fmt.Sprintf("not allowed to change clique composition, new clique name '%s' is not allowed", newClique.Name)))
 			continue
 		}
-		allErrs = append(allErrs, validatePodSpecUpdate(&newClique.Spec.PodSpec, &oldClique.Spec.PodSpec, fldPath.Child("spec", "podSpec"))...)
+
+		// Validate clique order for StartupType InOrder and Explicit
+		// If the StartupType is InOrder or Explicit, the order of cliques cannot change
+		// the index new clique is compared with the index of the old clique
+		if orderIsEnforced && newCliqueIndex != oldIndexCliqueTuple.A {
+			allErrs = append(allErrs, field.Invalid(fldPath, newClique.Name,
+				fmt.Sprintf("clique order cannot be changed when StartupType is InOrder or Explicit. Expected '%s' at position %d, got '%s'",
+					oldIndexCliqueTuple.B.Name, newCliqueIndex, newClique.Name)))
+		}
+
+		// Validate immutable PodClique fields
+		cliqueFldPath := fldPath.Child("spec")
+		allErrs = append(allErrs, apivalidation.ValidateImmutableField(newClique.Spec.RoleName, oldIndexCliqueTuple.B.Spec.RoleName, cliqueFldPath.Child("roleName"))...)
+		allErrs = append(allErrs, apivalidation.ValidateImmutableField(newClique.Spec.MinAvailable, oldIndexCliqueTuple.B.Spec.MinAvailable, cliqueFldPath.Child("minAvailable"))...)
+		allErrs = append(allErrs, apivalidation.ValidateImmutableField(newClique.Spec.StartsAfter, oldIndexCliqueTuple.B.Spec.StartsAfter, cliqueFldPath.Child("startsAfter"))...)
+
+		allErrs = append(allErrs, validatePodSpecUpdate(&newClique.Spec.PodSpec, &oldIndexCliqueTuple.B.Spec.PodSpec, fldPath.Child("spec", "podSpec"))...)
 	}
 
 	return allErrs
