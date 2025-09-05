@@ -17,8 +17,11 @@ config:
     mountPath: /etc/kubernetes/grove-kube-scheduler
   # Resource requests and limits for the grove-kube-scheduler
   resources:
+    limits:
+      memory: 512Mi
     requests:
       cpu: 100m
+      memory: 128Mi
   livenessProbe:
     port: 10259
   readinessProbe:

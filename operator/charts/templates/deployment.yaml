@@ -19,6 +19,7 @@ spec:
       priorityClassName: {{ required ".Values.priorityClass.name is required" .Values.priorityClass.name }}
       {{- end }}
       serviceAccountName: {{ required ".Values.serviceAccount.name is required" .Values.serviceAccount.name }}
+      automountServiceAccountToken: false
       securityContext:
         seccompProfile:
           type: RuntimeDefault

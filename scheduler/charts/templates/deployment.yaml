@@ -16,6 +16,7 @@ spec:
 {{- include "kube-scheduler.deployment.labels" . | nindent 8 }}
     spec:
       serviceAccountName: {{ required ".Values.serviceAccount.name is required" .Values.serviceAccount.name }}
+      automountServiceAccountToken: false
       containers:
       - args:
         - --config={{ required ".Values.config.configFile.mountPath" .Values.config.configFile.mountPath}}/{{ required ".Values.config.configFile.name" .Values.config.configFile.name }}
