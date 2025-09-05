@@ -1,5 +1,7 @@
-# Copyright 2025 NVIDIA CORPORATION
+<!--
+# Copyright 2025 The Grove Authors.
 # SPDX-License-Identifier: Apache-2.0
+-->
 
 #### What type of PR is this?
 
