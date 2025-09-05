@@ -69,14 +69,14 @@ You can configure the Grove operator by modifying the [values.yaml](../operator/
 
 This make target leverages Grove [Helm](https://helm.sh/) charts and [Skaffold](https://skaffold.dev/) to install the following resources to the cluster:
 
-- [CRDs](../grove/operator/charts):
+- [CRDs](../operator/charts):
   - Grove operator CRD - `podgangsets.grove.io`, `podcliques.grove.io` and `podcliquescalinggroups.grove.io`.
   - Grove Scheduler CRDs - `podgangs.scheduler.grove.io`.
 - All Grove operator resources defined as a part of [Grove Helm chart templates](../operator/charts/templates).
 
 ## Deploy a `PodGangSet`
 
-- Deploy one of the samples present in the [samples](./operator/samples/simple) directory.
+- Deploy one of the samples present in the [samples](../operator/samples/simple) directory.
 
   ```bash
   kubectl apply -f ./samples/simple/simple1.yaml

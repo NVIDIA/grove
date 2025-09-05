@@ -57,14 +57,14 @@ You can get started with the Grove operator by following our [installation guide
 
 Update: We are aligning our release schedule with [Nvidia Dynamo](https://github.com/ai-dynamo/dynamo) to ensure seamless integration. Once our release cadence (e.g., weekly, monthly) is finalized, it will be reflected here.
 
-**Release v0.1.0** *(ETA: 8/27/2025)*
+**Release v0.1.0** *(ETA: Mid September 2025)*
 - Grove v1alpha1 API
 - Hierarchical Gang Scheduling and Gang Termination
 - Multi-Level Horizontal Auto-Scaling
 - Startup Ordering
 - Rolling Updates
 
-**Release v0.2.0** *(ETA: Mid September 2025)*
+**Release v0.2.0** *(ETA: October 2025)*
 - Topology-Aware Scheduling
 - Resource-Optimized Rolling Updates
 
