@@ -15,6 +15,7 @@ resources:
   requests:
     cpu: 50m
     memory: 128Mi
+    ephemeral-storage: 1Gi
 
 # Set of tolerations to apply to the operator deployment.
 tolerations: []
