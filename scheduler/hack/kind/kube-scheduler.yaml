@@ -8,6 +8,7 @@ metadata:
   name: kube-scheduler
   namespace: kube-system
 spec:
+  automountServiceAccountToken: false
   containers:
     - args:
         - --authentication-kubeconfig=/etc/kubernetes/scheduler.conf
@@ -42,6 +43,7 @@ spec:
         requests:
           cpu: 100m
           memory: 128Mi
+          ephemeral-storage: 512Mi
       startupProbe:
         failureThreshold: 24
         httpGet:

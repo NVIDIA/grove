@@ -19,7 +19,7 @@ spec:
       automountServiceAccountToken: false
       containers:
       - args:
-        - --config={{ required ".Values.config.configFile.mountPath" .Values.config.configFile.mountPath}}/{{ required ".Values.config.configFile.name" .Values.config.configFile.name }}
+        - --config={{ required ".Values.config.configFile.mountPath" .Values.config.configFile.mountPath }}/{{ required ".Values.config.configFile.name" .Values.config.configFile.name }}
         image: {{ include "image" .Values.image }}
         livenessProbe:
           httpGet:
@@ -39,7 +39,7 @@ spec:
           privileged: false
         volumeMounts:
           - name: scheduler-configuration-volume
-            mountPath: {{ required ".Values.config.configFile.mountPath" .Values.config.configFile.mountPath}}
+            mountPath: {{ required ".Values.config.configFile.mountPath" .Values.config.configFile.mountPath }}
       hostNetwork: false
       hostPID: false
       volumes:
