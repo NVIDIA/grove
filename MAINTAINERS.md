@@ -1,4 +1,4 @@
-The current Maintainers Group for KAI Scheduler project consists of:
+The current Maintainers Group for the Grove project consists of:
 
 | Maintainer        | GitHub ID                                                 | Affiliation |
 |-------------------|-----------------------------------------------------------|-------------|
