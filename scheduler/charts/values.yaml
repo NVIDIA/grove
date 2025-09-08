@@ -22,7 +22,7 @@ config:
     requests:
       cpu: 100m
       memory: 128Mi
-      ephemeral-storage: 1Gi
+      ephemeral-storage: 128Mi
   livenessProbe:
     port: 10259
   readinessProbe:
