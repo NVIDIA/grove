@@ -5,7 +5,7 @@ replicaCount: 1
 image:
   repository: grove-operator
   # Overrides the image tag whose default is the chart appVersion.
-  tag: latest
+  tag: v0.1.0-dev
   # This sets the pull policy for images.
   pullPolicy: IfNotPresent
 
