@@ -42,6 +42,7 @@ function build_docker_images() {
     ${DOCKER_BUILD_ADDITIONAL_ARGS} \
     --platform ${PLATFORM} \
     --build-arg VERSION=${VERSION} \
+    --tag ${INITC_IMAGE}:latest \
     --tag ${INITC_IMAGE}:${VERSION} \
     --target grove-initc \
     --file ${MODULE_ROOT}/Dockerfile \
@@ -53,6 +54,7 @@ function build_docker_images() {
     ${DOCKER_BUILD_ADDITIONAL_ARGS} \
     --platform ${PLATFORM} \
     --build-arg VERSION=${VERSION} \
+    --tag ${OPERATOR_IMAGE}:latest \
     --tag ${OPERATOR_IMAGE}:${VERSION} \
     --target grove-operator \
     --file ${MODULE_ROOT}/Dockerfile \
