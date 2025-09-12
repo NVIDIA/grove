@@ -206,11 +206,11 @@ func orderPGSReplicaInfoForPGS(pgs *grovecorev1alpha1.PodGangSet, minAvailableBr
 			return 1
 		}
 
-		// 3. If all replicas are healthy, then pick the replicas in reverse ordinal value.
+		// 3. If all replicas are healthy, then pick the replicas in ascending ordinal value.
 		if a.replicaIndex < b.replicaIndex {
-			return 1
-		} else {
 			return -1
+		} else {
+			return 1
 		}
 	}
 }
