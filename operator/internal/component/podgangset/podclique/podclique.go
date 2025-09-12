@@ -93,23 +93,23 @@ func (r _resource) Sync(ctx context.Context, logger logr.Logger, pgs *grovecorev
 			fmt.Sprintf("Unable to fetch existing PodClique names for PodGangSet: %v", client.ObjectKeyFromObject(pgs)),
 		)
 	}
-	expectedPCLQNames, _ := componentutils.GetExpectedPCLQNamesGroupByOwner(pgs)
 
-	if err := r.triggerDeletionOfExcessPCLQs(ctx, logger, pgs, expectedPCLQNames, existingPCLQFQNs); err != nil {
+	if err := r.triggerDeletionOfExcessPCLQs(ctx, logger, pgs, existingPCLQFQNs); err != nil {
 		return err
 	}
-	if err := r.createOrUpdatePCLQs(ctx, logger, pgs, expectedPCLQNames, existingPCLQFQNs); err != nil {
+	if err := r.createOrUpdatePCLQs(ctx, logger, pgs, existingPCLQFQNs); err != nil {
 		return err
 	}
 
 	return nil
 }
 
-func (r _resource) triggerDeletionOfExcessPCLQs(ctx context.Context, logger logr.Logger, pgs *grovecorev1alpha1.PodGangSet, expectedPCLQNames []string, existingPCLQFQNs []string) error {
+func (r _resource) triggerDeletionOfExcessPCLQs(ctx context.Context, logger logr.Logger, pgs *grovecorev1alpha1.PodGangSet, existingPCLQFQNs []string) error {
+	expectedPCLQFQNs := componentutils.GetPodCliqueFQNsForPGSNotInPCSG(pgs)
 	// Check if the number of existing PodCliques is greater than expected, if so, we need to delete the extra ones.
-	diff := len(existingPCLQFQNs) - len(expectedPCLQNames)
+	diff := len(existingPCLQFQNs) - len(expectedPCLQFQNs)
 	if diff > 0 {
-		logger.Info("Found more PodCliques than expected", "expected", expectedPCLQNames, "existing", existingPCLQFQNs)
+		logger.Info("Found more PodCliques than expected", "expected", expectedPCLQFQNs, "existing", existingPCLQFQNs)
 		logger.Info("Triggering deletion of extra PodCliques", "count", diff)
 		// collect the names of the extra PodCliques to delete
 		deletionCandidateNames, err := getPodCliqueNamesToDelete(pgs.Name, int(pgs.Spec.Replicas), existingPCLQFQNs)
@@ -122,7 +122,8 @@ func (r _resource) triggerDeletionOfExcessPCLQs(ctx context.Context, logger logr
 	return nil
 }
 
-func (r _resource) createOrUpdatePCLQs(ctx context.Context, logger logr.Logger, pgs *grovecorev1alpha1.PodGangSet, expectedPCLQNames []string, existingPCLQFQNs []string) error {
+func (r _resource) createOrUpdatePCLQs(ctx context.Context, logger logr.Logger, pgs *grovecorev1alpha1.PodGangSet, existingPCLQFQNs []string) error {
+	expectedPCLQNames, _ := componentutils.GetExpectedPCLQNamesGroupByOwner(pgs)
 	tasks := make([]utils.Task, 0, len(expectedPCLQNames))
 
 	for pgsReplica := range pgs.Spec.Replicas {
