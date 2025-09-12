@@ -80,7 +80,8 @@ type PodCliqueScalingGroupStatus struct {
 	// +kubebuilder:default=0
 	ScheduledReplicas int32 `json:"scheduledReplicas"`
 	// AvailableReplicas is the number of PodCliqueScalingGroup replicas that are available.
-	// A PCSG replica is considered available when all constituent PodCliques have MinAvailableBreached condition = False.
+	// A PodCliqueScalingGroup replica is considered available when all constituent PodClique's have
+	// PodClique.Status.ReadyReplicas greater than or equal to PodClique.Spec.MinAvailable
 	// +kubebuilder:default=0
 	AvailableReplicas int32 `json:"availableReplicas"`
 	// UpdatedReplicas is the number of PodCliqueScalingGroup replicas that correspond with the latest PodGangSetGenerationHash.
