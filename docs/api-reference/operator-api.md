@@ -326,7 +326,7 @@ _Appears in:_
 | --- | --- | --- | --- |
 | `replicas` _integer_ | Replicas is the observed number of replicas for the PodCliqueScalingGroup. |  |  |
 | `scheduledReplicas` _integer_ | ScheduledReplicas is the number of replicas that are scheduled for the PodCliqueScalingGroup.<br />A replica of PodCliqueScalingGroup is considered "scheduled" when at least MinAvailable number<br />of pods in each constituent PodClique has been scheduled. | 0 |  |
-| `availableReplicas` _integer_ | AvailableReplicas is the number of PodCliqueScalingGroup replicas that are available.<br />A PCSG replica is considered available when all constituent PodCliques have MinAvailableBreached condition = False. | 0 |  |
+| `availableReplicas` _integer_ | AvailableReplicas is the number of PodCliqueScalingGroup replicas that are available.<br />A PodCliqueScalingGroup replica is considered available when all constituent PodClique's have<br />PodClique.Status.ReadyReplicas greater than or equal to PodClique.Spec.MinAvailable | 0 |  |
 | `updatedReplicas` _integer_ | UpdatedReplicas is the number of PodCliqueScalingGroup replicas that correspond with the latest PodGangSetGenerationHash. | 0 |  |
 | `selector` _string_ | Selector is the selector used to identify the pods that belong to this scaling group. |  |  |
 | `observedGeneration` _integer_ | ObservedGeneration is the most recent generation observed by the controller. |  |  |
