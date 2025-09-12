@@ -82,7 +82,8 @@ spec:
                 default: 0
                 description: |-
                   AvailableReplicas is the number of PodCliqueScalingGroup replicas that are available.
-                  A PCSG replica is considered available when all constituent PodCliques have MinAvailableBreached condition = False.
+                  A PodCliqueScalingGroup replica is considered available when all constituent PodClique's have
+                  PodClique.Status.ReadyReplicas greater than or equal to PodClique.Spec.MinAvailable
                 format: int32
                 type: integer
               conditions:
