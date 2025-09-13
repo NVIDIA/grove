@@ -1,6 +1,5 @@
 {{- define "operator.config.data" -}}
 config.yaml: |
-  ---
   apiVersion: operator.config.grove.io/v1alpha1
   kind: OperatorConfiguration
   runtimeClientConnection:
@@ -22,8 +21,8 @@ config.yaml: |
     metrics:
       port: {{ .Values.config.server.metrics.port }}
   controllers:
-    podGangSet:
-      concurrentSyncs: {{ .Values.config.controllers.podGangSet.concurrentSyncs }}
+    podCliqueSet:
+      concurrentSyncs: {{ .Values.config.controllers.podCliqueSet.concurrentSyncs }}
     podClique:
       concurrentSyncs: {{ .Values.config.controllers.podClique.concurrentSyncs }}
   {{- if .Values.config.debugging }}
@@ -103,16 +102,16 @@ release: "{{ .Release.Name }}"
 {{- end -}}
 {{- end -}}
 
-{{- define "operator.pgs.validating.webhook.labels" -}}
+{{- define "operator.pcs.validating.webhook.labels" -}}
 {{- include "common.chart.labels" . }}
-{{- range $key, $val := .Values.webhooks.podgangsetValidationWebhook.labels }}
+{{- range $key, $val := .Values.webhooks.podCliqueSetValidationWebhook.labels }}
 {{ $key }}: {{ $val }}
 {{- end }}
 {{- end -}}
 
-{{- define "operator.pgs.defaulting.webhook.labels" -}}
+{{- define "operator.pcs.defaulting.webhook.labels" -}}
 {{- include "common.chart.labels" . }}
-{{- range $key, $val := .Values.webhooks.podgangsetDefaultingWebhook.labels }}
+{{- range $key, $val := .Values.webhooks.podCliqueSetDefaultingWebhook.labels }}
 {{ $key }}: {{ $val }}
 {{- end }}
 {{- end -}}

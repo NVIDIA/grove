@@ -11,7 +11,7 @@
 ### Resource Types
 - [PodClique](#podclique)
 - [PodCliqueScalingGroup](#podcliquescalinggroup)
-- [PodGangSet](#podgangset)
+- [PodCliqueSet](#podcliqueset)
 
 
 
@@ -44,7 +44,7 @@ _Validation:_
 - Enum: [CliqueStartupTypeAnyOrder CliqueStartupTypeInOrder CliqueStartupTypeExplicit]
 
 _Appears in:_
-- [PodGangSetTemplateSpec](#podgangsettemplatespec)
+- [PodCliqueSetTemplateSpec](#podcliquesettemplatespec)
 
 | Field | Description |
 | --- | --- |
@@ -75,7 +75,7 @@ HeadlessServiceConfig defines the config options for the headless service.
 
 
 _Appears in:_
-- [PodGangSetTemplateSpec](#podgangsettemplatespec)
+- [PodCliqueSetTemplateSpec](#podcliquesettemplatespec)
 
 | Field | Description | Default | Validation |
 | --- | --- | --- | --- |
@@ -92,8 +92,8 @@ LastError captures the last error observed by the controller when reconciling an
 
 _Appears in:_
 - [PodCliqueScalingGroupStatus](#podcliquescalinggroupstatus)
+- [PodCliqueSetStatus](#podcliquesetstatus)
 - [PodCliqueStatus](#podcliquestatus)
-- [PodGangSetStatus](#podgangsetstatus)
 
 | Field | Description | Default | Validation |
 | --- | --- | --- | --- |
@@ -106,14 +106,14 @@ _Appears in:_
 
 
 
-LastOperation captures the last operation done by the respective reconciler on the PodGangSet.
+LastOperation captures the last operation done by the respective reconciler on the PodCliqueSet.
 
 
 
 _Appears in:_
 - [PodCliqueScalingGroupStatus](#podcliquescalinggroupstatus)
+- [PodCliqueSetStatus](#podcliquesetstatus)
 - [PodCliqueStatus](#podcliquestatus)
-- [PodGangSetStatus](#podgangsetstatus)
 
 | Field | Description | Default | Validation |
 | --- | --- | --- | --- |
@@ -209,7 +209,7 @@ _Appears in:_
 | --- | --- | --- | --- |
 | `updateStartedAt` _[Time](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.33/#time-v1-meta)_ | UpdateStartedAt is the time at which the rolling update started. |  |  |
 | `updateEndedAt` _[Time](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.33/#time-v1-meta)_ | UpdateEndedAt is the time at which the rolling update ended.<br />It will be set to nil if the rolling update is still in progress. |  |  |
-| `podGangSetGenerationHash` _string_ | PodGangSetGenerationHash is the PodGangSet generation hash corresponding to the PodGangSet spec that is being rolled out.<br />While the update is in progress PodCliqueStatus.CurrentPodGangSetGenerationHash will not match this hash. Once the update is complete the<br />value of this field will be copied to PodCliqueStatus.CurrentPodGangSetGenerationHash. |  |  |
+| `podCliqueSetGenerationHash` _string_ | PodCliqueSetGenerationHash is the PodCliqueSet generation hash corresponding to the PodCliqueSet spec that is being rolled out.<br />While the update is in progress PodCliqueStatus.CurrentPodCliqueSetGenerationHash will not match this hash. Once the update is complete the<br />value of this field will be copied to PodCliqueStatus.CurrentPodCliqueSetGenerationHash. |  |  |
 | `podTemplateHash` _string_ | PodTemplateHash is the PodClique template hash corresponding to the PodClique spec that is being rolled out.<br />While the update is in progress PodCliqueStatus.CurrentPodTemplateHash will not match this hash. Once the update is complete the<br />value of this field will be copied to PodCliqueStatus.CurrentPodTemplateHash. |  |  |
 | `readyPodsSelectedToUpdate` _[PodsSelectedToUpdate](#podsselectedtoupdate)_ | ReadyPodsSelectedToUpdate captures the pod names of ready Pods that are either currently being updated or have been previously updated. |  |  |
 
@@ -219,7 +219,7 @@ _Appears in:_
 
 
 PodCliqueScalingGroup is the schema to define scaling groups that is used to scale a group of PodClique's.
-An instance of this custom resource will be created for every pod clique scaling group defined as part of PodGangSet.
+An instance of this custom resource will be created for every pod clique scaling group defined as part of PodCliqueSet.
 
 
 
@@ -245,11 +245,11 @@ NOTE: If a PodCliqueScalingGroupConfig is defined, then for the member PodClique
 
 
 _Appears in:_
-- [PodGangSetTemplateSpec](#podgangsettemplatespec)
+- [PodCliqueSetTemplateSpec](#podcliquesettemplatespec)
 
 | Field | Description | Default | Validation |
 | --- | --- | --- | --- |
-| `name` _string_ | Name is the name of the PodCliqueScalingGroupConfig. This should be unique within the PodGangSet.<br />It allows consumers to give a semantic name to a group of PodCliques that needs to be scaled together. |  |  |
+| `name` _string_ | Name is the name of the PodCliqueScalingGroupConfig. This should be unique within the PodCliqueSet.<br />It allows consumers to give a semantic name to a group of PodCliques that needs to be scaled together. |  |  |
 | `cliqueNames` _string array_ | CliqueNames is the list of names of the PodClique's that are part of the scaling group. |  |  |
 | `replicas` _integer_ | Replicas is the desired number of replicas for the scaling group at template level.<br />This allows one to control the replicas of the scaling group at startup.<br />If not specified, it defaults to 1. | 1 |  |
 | `minAvailable` _integer_ | MinAvailable specifies the minimum number of ready replicas required for a PodCliqueScalingGroup to be considered operational.<br />A PodCliqueScalingGroup replica is considered "ready" when its associated PodCliques have sufficient ready or starting pods.<br />If MinAvailable is breached, it will be used to signal that the PodCliqueScalingGroup is no longer operating with the desired availability.<br />MinAvailable cannot be greater than Replicas. If ScaleConfig is defined then its MinAvailable should not be less than ScaleConfig.MinReplicas.<br />If not specified, it defaults to 1. | 1 |  |
@@ -270,7 +270,7 @@ _Appears in:_
 | Field | Description | Default | Validation |
 | --- | --- | --- | --- |
 | `current` _integer_ | Current is the index of the PodCliqueScalingGroup replica that is currently being updated. |  |  |
-| `completed` _integer array_ | Completed is the list of indices of PodCliqueScalingGroup replicas that have been updated to the latest PodGangSet spec. |  |  |
+| `completed` _integer array_ | Completed is the list of indices of PodCliqueScalingGroup replicas that have been updated to the latest PodCliqueSet spec. |  |  |
 
 
 #### PodCliqueScalingGroupRollingUpdateProgress
@@ -288,8 +288,8 @@ _Appears in:_
 | --- | --- | --- | --- |
 | `updateStartedAt` _[Time](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.33/#time-v1-meta)_ | UpdateStartedAt is the time at which the rolling update started. |  |  |
 | `updateEndedAt` _[Time](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.33/#time-v1-meta)_ | UpdateEndedAt is the time at which the rolling update ended. |  |  |
-| `podGangSetGenerationHash` _string_ | PodGangSetGenerationHash is the PodGangSet generation hash corresponding to the PodGangSet spec that is being rolled out.<br />While the update is in progress PodCliqueScalingGroupStatus.CurrentPodGangSetGenerationHash will not match this hash. Once the update is complete the<br />value of this field will be copied to PodCliqueScalingGroupStatus.CurrentPodGangSetGenerationHash. |  |  |
-| `updatedPodCliques` _string array_ | UpdatedPodCliques is the list of PodClique names that have been updated to the latest PodGangSet spec. |  |  |
+| `podCliqueSetGenerationHash` _string_ | PodCliqueSetGenerationHash is the PodCliqueSet generation hash corresponding to the PodCliqueSet spec that is being rolled out.<br />While the update is in progress PodCliqueScalingGroupStatus.CurrentPodCliqueSetGenerationHash will not match this hash. Once the update is complete the<br />value of this field will be copied to PodCliqueScalingGroupStatus.CurrentPodCliqueSetGenerationHash. |  |  |
+| `updatedPodCliques` _string array_ | UpdatedPodCliques is the list of PodClique names that have been updated to the latest PodCliqueSet spec. |  |  |
 | `readyReplicaIndicesSelectedToUpdate` _[PodCliqueScalingGroupReplicaRollingUpdateProgress](#podcliquescalinggroupreplicarollingupdateprogress)_ | ReadyReplicaIndicesSelectedToUpdate provides the rolling update progress of ready replicas of PodCliqueScalingGroup that have been selected for update.<br />PodCliqueScalingGroup replicas that are either pending or unhealthy will be force updated and the update will not wait for these replicas to become ready.<br />For all ready replicas, one replica is chosen at a time to update, once it is updated and becomes ready, the next ready replica is chosen for update. |  |  |
 
 
@@ -308,7 +308,7 @@ _Appears in:_
 | --- | --- | --- | --- |
 | `replicas` _integer_ | Replicas is the desired number of replicas for the PodCliqueScalingGroup.<br />If not specified, it defaults to 1. | 1 |  |
 | `minAvailable` _integer_ | MinAvailable specifies the minimum number of ready replicas required for a PodCliqueScalingGroup to be considered operational.<br />A PodCliqueScalingGroup replica is considered "ready" when its associated PodCliques have sufficient ready or starting pods.<br />If MinAvailable is breached, it will be used to signal that the PodCliqueScalingGroup is no longer operating with the desired availability.<br />MinAvailable cannot be greater than Replicas. If ScaleConfig is defined then its MinAvailable should not be less than ScaleConfig.MinReplicas.<br /><br />It serves two main purposes:<br />1. Gang Scheduling: MinAvailable defines the minimum number of replicas that are guaranteed to be gang scheduled.<br />2. Gang Termination: MinAvailable is used as a lower bound below which a PodGang becomes a candidate for Gang termination.<br />If not specified, it defaults to 1. | 1 |  |
-| `cliqueNames` _string array_ | CliqueNames is the list of PodClique names that are configured in the<br />matching PodCliqueScalingGroup in PodGangSet.Spec.Template.PodCliqueScalingGroupConfigs. |  |  |
+| `cliqueNames` _string array_ | CliqueNames is the list of PodClique names that are configured in the<br />matching PodCliqueScalingGroup in PodCliqueSet.Spec.Template.PodCliqueScalingGroupConfigs. |  |  |
 
 
 #### PodCliqueScalingGroupStatus
@@ -327,14 +327,140 @@ _Appears in:_
 | `replicas` _integer_ | Replicas is the observed number of replicas for the PodCliqueScalingGroup. |  |  |
 | `scheduledReplicas` _integer_ | ScheduledReplicas is the number of replicas that are scheduled for the PodCliqueScalingGroup.<br />A replica of PodCliqueScalingGroup is considered "scheduled" when at least MinAvailable number<br />of pods in each constituent PodClique has been scheduled. | 0 |  |
 | `availableReplicas` _integer_ | AvailableReplicas is the number of PodCliqueScalingGroup replicas that are available.<br />A PodCliqueScalingGroup replica is considered available when all constituent PodClique's have<br />PodClique.Status.ReadyReplicas greater than or equal to PodClique.Spec.MinAvailable | 0 |  |
-| `updatedReplicas` _integer_ | UpdatedReplicas is the number of PodCliqueScalingGroup replicas that correspond with the latest PodGangSetGenerationHash. | 0 |  |
+| `updatedReplicas` _integer_ | UpdatedReplicas is the number of PodCliqueScalingGroup replicas that correspond with the latest PodCliqueSetGenerationHash. | 0 |  |
 | `selector` _string_ | Selector is the selector used to identify the pods that belong to this scaling group. |  |  |
 | `observedGeneration` _integer_ | ObservedGeneration is the most recent generation observed by the controller. |  |  |
 | `lastOperation` _[LastOperation](#lastoperation)_ | LastOperation captures the last operation done by the respective reconciler on the PodClique. |  |  |
 | `lastErrors` _[LastError](#lasterror) array_ | LastErrors captures the last errors observed by the controller when reconciling the PodClique. |  |  |
 | `conditions` _[Condition](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.33/#condition-v1-meta) array_ | Conditions represents the latest available observations of the PodCliqueScalingGroup by its controller. |  |  |
-| `currentPodGangSetGenerationHash` _string_ | CurrentPodGangSetGenerationHash establishes a correlation to PodGangSet generation hash indicating<br />that the spec of the PodGangSet at this generation is fully realized in the PodCliqueScalingGroup. |  |  |
+| `currentPodCliqueSetGenerationHash` _string_ | CurrentPodCliqueSetGenerationHash establishes a correlation to PodCliqueSet generation hash indicating<br />that the spec of the PodCliqueSet at this generation is fully realized in the PodCliqueScalingGroup. |  |  |
 | `rollingUpdateProgress` _[PodCliqueScalingGroupRollingUpdateProgress](#podcliquescalinggrouprollingupdateprogress)_ | RollingUpdateProgress provides details about the ongoing rolling update of the PodCliqueScalingGroup. |  |  |
+
+
+#### PodCliqueSet
+
+
+
+PodCliqueSet is a set of PodGangs defining specification on how to spread and manage a gang of pods and monitoring their status.
+
+
+
+
+
+| Field | Description | Default | Validation |
+| --- | --- | --- | --- |
+| `apiVersion` _string_ | `grove.io/v1alpha1` | | |
+| `kind` _string_ | `PodCliqueSet` | | |
+| `metadata` _[ObjectMeta](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.33/#objectmeta-v1-meta)_ | Refer to Kubernetes API documentation for fields of `metadata`. |  |  |
+| `spec` _[PodCliqueSetSpec](#podcliquesetspec)_ | Spec defines the specification of the PodCliqueSet. |  |  |
+| `status` _[PodCliqueSetStatus](#podcliquesetstatus)_ | Status defines the status of the PodCliqueSet. |  |  |
+
+
+#### PodCliqueSetReplicaRollingUpdateProgress
+
+
+
+PodCliqueSetReplicaRollingUpdateProgress captures the progress of a rolling update for a specific PodCliqueSet replica.
+
+
+
+_Appears in:_
+- [PodCliqueSetRollingUpdateProgress](#podcliquesetrollingupdateprogress)
+
+| Field | Description | Default | Validation |
+| --- | --- | --- | --- |
+| `replicaIndex` _integer_ | ReplicaIndex is the replica index of the PodCliqueSet that is being updated. |  |  |
+| `updateStartedAt` _[Time](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.33/#time-v1-meta)_ | UpdateStartedAt is the time at which the rolling update started for this PodCliqueSet replica index. |  |  |
+
+
+#### PodCliqueSetRollingUpdateProgress
+
+
+
+PodCliqueSetRollingUpdateProgress captures the progress of a rolling update of the PodCliqueSet.
+
+
+
+_Appears in:_
+- [PodCliqueSetStatus](#podcliquesetstatus)
+
+| Field | Description | Default | Validation |
+| --- | --- | --- | --- |
+| `updateStartedAt` _[Time](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.33/#time-v1-meta)_ | UpdateStartedAt is the time at which the rolling update started for the PodCliqueSet. |  |  |
+| `updateEndedAt` _[Time](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.33/#time-v1-meta)_ | UpdateEndedAt is the time at which the rolling update ended for the PodCliqueSet. |  |  |
+| `updatedPodCliqueScalingGroups` _string array_ | UpdatedPodCliqueScalingGroups is a list of PodCliqueScalingGroup names that have been updated to the desired PodCliqueSet generation hash. |  |  |
+| `updatedPodCliques` _string array_ | UpdatedPodCliques is a list of PodClique names that have been updated to the desired PodCliqueSet generation hash. |  |  |
+| `currentlyUpdating` _[PodCliqueSetReplicaRollingUpdateProgress](#podcliquesetreplicarollingupdateprogress)_ | CurrentlyUpdating captures the progress of the PodCliqueSet replica that is currently being updated. |  |  |
+
+
+#### PodCliqueSetSpec
+
+
+
+PodCliqueSetSpec defines the specification of a PodCliqueSet.
+
+
+
+_Appears in:_
+- [PodCliqueSet](#podcliqueset)
+
+| Field | Description | Default | Validation |
+| --- | --- | --- | --- |
+| `replicas` _integer_ | Replicas is the number of desired replicas of the PodGang. | 0 |  |
+| `template` _[PodCliqueSetTemplateSpec](#podcliquesettemplatespec)_ | Template describes the template spec for PodGangs that will be created in the PodCliqueSet. |  |  |
+| `replicaSpreadConstraints` _[TopologySpreadConstraint](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.33/#topologyspreadconstraint-v1-core) array_ | ReplicaSpreadConstraints defines the constraints for spreading each replica of PodCliqueSet across domains identified by a topology key. |  |  |
+
+
+#### PodCliqueSetStatus
+
+
+
+PodCliqueSetStatus defines the status of a PodCliqueSet.
+
+
+
+_Appears in:_
+- [PodCliqueSet](#podcliqueset)
+
+| Field | Description | Default | Validation |
+| --- | --- | --- | --- |
+| `observedGeneration` _integer_ | ObservedGeneration is the most recent generation observed by the controller. |  |  |
+| `lastOperation` _[LastOperation](#lastoperation)_ | LastOperation captures the last operation done by the respective reconciler on the PodCliqueSet. |  |  |
+| `lastErrors` _[LastError](#lasterror) array_ | LastErrors captures the last errors observed by the controller when reconciling the PodCliqueSet. |  |  |
+| `replicas` _integer_ | Replicas is the total number of PodCliqueSet replicas created. |  |  |
+| `updatedReplicas` _integer_ | UpdatedReplicas is the number of replicas that have been updated to the desired revision of the PodCliqueSet. | 0 |  |
+| `availableReplicas` _integer_ | AvailableReplicas is the number of PodCliqueSet replicas that are available.<br />A PodCliqueSet replica is considered available when all standalone PodCliques within that replica<br />have MinAvailableBreached condition = False AND all PodCliqueScalingGroups (PCSG) within that replica<br />have MinAvailableBreached condition = False. | 0 |  |
+| `hpaPodSelector` _string_ | Selector is the label selector that determines which pods are part of the PodGang.<br />PodGang is a unit of scale and this selector is used by HPA to scale the PodGang based on metrics captured for the pods that match this selector. |  |  |
+| `podGangStatuses` _[PodGangStatus](#podgangstatus) array_ | PodGangStatuses captures the status for all the PodGang's that are part of the PodCliqueSet. |  |  |
+| `currentGenerationHash` _string_ | CurrentGenerationHash is a hash value generated out of a collection of fields in a PodCliqueSet.<br />Since only a subset of fields is taken into account when generating the hash, not every change in the PodCliqueSetSpec will<br />be accounted for when generating this hash value. A field in PodCliqueSetSpec is included if a change to it triggers<br />a rolling update of PodCliques and/or PodCliqueScalingGroups.<br />Only if this value is not nil and the newly computed hash value is different from the persisted CurrentGenerationHash value<br />then a rolling update needs to be triggerred. |  |  |
+| `rollingUpdateProgress` _[PodCliqueSetRollingUpdateProgress](#podcliquesetrollingupdateprogress)_ | RollingUpdateProgress represents the progress of a rolling update. |  |  |
+
+
+#### PodCliqueSetTemplateSpec
+
+
+
+PodCliqueSetTemplateSpec defines a template spec for a PodGang.
+A PodGang does not have a RestartPolicy field because the restart policy is predefined:
+If the number of pods in any of the cliques falls below the threshold, the entire PodGang will be restarted.
+The threshold is determined by either:
+- The value of "MinReplicas", if specified in the ScaleConfig of that clique, or
+- The "Replicas" value of that clique
+
+
+
+_Appears in:_
+- [PodCliqueSetSpec](#podcliquesetspec)
+
+| Field | Description | Default | Validation |
+| --- | --- | --- | --- |
+| `cliques` _[PodCliqueTemplateSpec](#podcliquetemplatespec) array_ | Cliques is a slice of cliques that make up the PodGang. There should be at least one PodClique. |  |  |
+| `cliqueStartupType` _[CliqueStartupType](#cliquestartuptype)_ | StartupType defines the type of startup dependency amongst the cliques within a PodGang.<br />If it is not defined then default of CliqueStartupTypeAnyOrder is used. | CliqueStartupTypeAnyOrder | Enum: [CliqueStartupTypeAnyOrder CliqueStartupTypeInOrder CliqueStartupTypeExplicit] <br /> |
+| `priorityClassName` _string_ | PriorityClassName is the name of the PriorityClass to be used for the PodCliqueSet.<br />If specified, indicates the priority of the PodCliqueSet. "system-node-critical" and<br />"system-cluster-critical" are two special keywords which indicate the<br />highest priorities with the former being the highest priority. Any other<br />name must be defined by creating a PriorityClass object with that name.<br />If not specified, the pod priority will be default or zero if there is no default. |  |  |
+| `headlessServiceConfig` _[HeadlessServiceConfig](#headlessserviceconfig)_ | HeadlessServiceConfig defines the config options for the headless service.<br />If present, create headless service for each PodGang. |  |  |
+| `schedulingPolicyConfig` _[SchedulingPolicyConfig](#schedulingpolicyconfig)_ | SchedulingPolicyConfig defines the scheduling policy configuration for the PodGang.<br />Defaulting only works for optional fields.<br />See https://github.com/kubernetes-sigs/controller-tools/issues/893#issuecomment-1991256368 |  |  |
+| `terminationDelay` _[Duration](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.33/#duration-v1-meta)_ | TerminationDelay is the delay after which the gang termination will be triggered.<br />A gang is a candidate for termination if number of running pods fall below a threshold for any PodClique.<br />If a PodGang remains a candidate past TerminationDelay then it will be terminated. This allows additional time<br />to the kube-scheduler to re-schedule sufficient pods in the PodGang that will result in having the total number of<br />running pods go above the threshold. |  |  |
+| `podCliqueScalingGroups` _[PodCliqueScalingGroupConfig](#podcliquescalinggroupconfig) array_ | PodCliqueScalingGroupConfigs is a list of scaling groups for the PodCliqueSet. |  |  |
 
 
 #### PodCliqueSpec
@@ -382,7 +508,7 @@ _Appears in:_
 | `scheduledReplicas` _integer_ | ScheduledReplicas is the number of Pods that have been scheduled by the kube-scheduler. | 0 |  |
 | `hpaPodSelector` _string_ | Selector is the label selector that determines which pods are part of the PodClique.<br />PodClique is a unit of scale and this selector is used by HPA to scale the PodClique based on metrics captured for the pods that match this selector. |  |  |
 | `conditions` _[Condition](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.33/#condition-v1-meta) array_ | Conditions represents the latest available observations of the clique by its controller. |  |  |
-| `currentPodGangSetGenerationHash` _string_ | CurrentPodGangSetGenerationHash establishes a correlation to PodGangSet generation hash indicating<br />that the spec of the PodGangSet at this generation is fully realized in the PodClique. |  |  |
+| `currentPodCliqueSetGenerationHash` _string_ | CurrentPodCliqueSetGenerationHash establishes a correlation to PodCliqueSet generation hash indicating<br />that the spec of the PodCliqueSet at this generation is fully realized in the PodClique. |  |  |
 | `currentPodTemplateHash` _string_ | CurrentPodTemplateHash establishes a correlation to PodClique template hash indicating<br />that the spec of the PodClique at this template hash is fully realized in the PodClique. |  |  |
 | `rollingUpdateProgress` _[PodCliqueRollingUpdateProgress](#podcliquerollingupdateprogress)_ | RollingUpdateProgress provides details about the ongoing rolling update of the PodClique. |  |  |
 
@@ -396,11 +522,11 @@ PodCliqueTemplateSpec defines a template spec for a PodClique.
 
 
 _Appears in:_
-- [PodGangSetTemplateSpec](#podgangsettemplatespec)
+- [PodCliqueSetTemplateSpec](#podcliquesettemplatespec)
 
 | Field | Description | Default | Validation |
 | --- | --- | --- | --- |
-| `name` _string_ | Name must be unique within a PodGangSet and is used to denote a role.<br />Once set it cannot be updated.<br />More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names#names |  |  |
+| `name` _string_ | Name must be unique within a PodCliqueSet and is used to denote a role.<br />Once set it cannot be updated.<br />More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names#names |  |  |
 | `labels` _object (keys:string, values:string)_ | Labels is a map of string keys and values that can be used to organize and categorize<br />(scope and select) objects. May match selectors of replication controllers<br />and services.<br />More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/labels |  |  |
 | `annotations` _object (keys:string, values:string)_ | Annotations is an unstructured key value map stored with a resource that may be<br />set by external tools to store and retrieve arbitrary metadata. They are not<br />queryable and should be preserved when modifying objects.<br />More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/annotations |  |  |
 | `spec` _[PodCliqueSpec](#podcliquespec)_ | Specification of the desired behavior of a PodClique.<br />More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#spec-and-status |  |  |
@@ -427,132 +553,6 @@ _Appears in:_
 | `Succeeded` | PodGangSucceeded indicates that all the pods in a PodGang have succeeded.<br />This is a terminal state and is typically used for batch jobs.<br /> |
 
 
-#### PodGangSet
-
-
-
-PodGangSet is a set of PodGangs defining specification on how to spread and manage a gang of pods and monitoring their status.
-
-
-
-
-
-| Field | Description | Default | Validation |
-| --- | --- | --- | --- |
-| `apiVersion` _string_ | `grove.io/v1alpha1` | | |
-| `kind` _string_ | `PodGangSet` | | |
-| `metadata` _[ObjectMeta](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.33/#objectmeta-v1-meta)_ | Refer to Kubernetes API documentation for fields of `metadata`. |  |  |
-| `spec` _[PodGangSetSpec](#podgangsetspec)_ | Spec defines the specification of the PodGangSet. |  |  |
-| `status` _[PodGangSetStatus](#podgangsetstatus)_ | Status defines the status of the PodGangSet. |  |  |
-
-
-#### PodGangSetReplicaRollingUpdateProgress
-
-
-
-PodGangSetReplicaRollingUpdateProgress captures the progress of a rolling update for a specific PodGangSet replica.
-
-
-
-_Appears in:_
-- [PodGangSetRollingUpdateProgress](#podgangsetrollingupdateprogress)
-
-| Field | Description | Default | Validation |
-| --- | --- | --- | --- |
-| `replicaIndex` _integer_ | ReplicaIndex is the replica index of the PodGangSet that is being updated. |  |  |
-| `updateStartedAt` _[Time](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.33/#time-v1-meta)_ | UpdateStartedAt is the time at which the rolling update started for this PodGangSet replica index. |  |  |
-
-
-#### PodGangSetRollingUpdateProgress
-
-
-
-PodGangSetRollingUpdateProgress captures the progress of a rolling update of the PodGangSet.
-
-
-
-_Appears in:_
-- [PodGangSetStatus](#podgangsetstatus)
-
-| Field | Description | Default | Validation |
-| --- | --- | --- | --- |
-| `updateStartedAt` _[Time](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.33/#time-v1-meta)_ | UpdateStartedAt is the time at which the rolling update started for the PodGangSet. |  |  |
-| `updateEndedAt` _[Time](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.33/#time-v1-meta)_ | UpdateEndedAt is the time at which the rolling update ended for the PodGangSet. |  |  |
-| `updatedPodCliqueScalingGroups` _string array_ | UpdatedPodCliqueScalingGroups is a list of PodCliqueScalingGroup names that have been updated to the desired PodGangSet generation hash. |  |  |
-| `updatedPodCliques` _string array_ | UpdatedPodCliques is a list of PodClique names that have been updated to the desired PodGangSet generation hash. |  |  |
-| `currentlyUpdating` _[PodGangSetReplicaRollingUpdateProgress](#podgangsetreplicarollingupdateprogress)_ | CurrentlyUpdating captures the progress of the PodGangSet replica that is currently being updated. |  |  |
-
-
-#### PodGangSetSpec
-
-
-
-PodGangSetSpec defines the specification of a PodGangSet.
-
-
-
-_Appears in:_
-- [PodGangSet](#podgangset)
-
-| Field | Description | Default | Validation |
-| --- | --- | --- | --- |
-| `replicas` _integer_ | Replicas is the number of desired replicas of the PodGang. | 0 |  |
-| `template` _[PodGangSetTemplateSpec](#podgangsettemplatespec)_ | Template describes the template spec for PodGangs that will be created in the PodGangSet. |  |  |
-| `replicaSpreadConstraints` _[TopologySpreadConstraint](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.33/#topologyspreadconstraint-v1-core) array_ | ReplicaSpreadConstraints defines the constraints for spreading each replica of PodGangSet across domains identified by a topology key. |  |  |
-
-
-#### PodGangSetStatus
-
-
-
-PodGangSetStatus defines the status of a PodGangSet.
-
-
-
-_Appears in:_
-- [PodGangSet](#podgangset)
-
-| Field | Description | Default | Validation |
-| --- | --- | --- | --- |
-| `observedGeneration` _integer_ | ObservedGeneration is the most recent generation observed by the controller. |  |  |
-| `lastOperation` _[LastOperation](#lastoperation)_ | LastOperation captures the last operation done by the respective reconciler on the PodGangSet. |  |  |
-| `lastErrors` _[LastError](#lasterror) array_ | LastErrors captures the last errors observed by the controller when reconciling the PodGangSet. |  |  |
-| `replicas` _integer_ | Replicas is the total number of PodGangSet replicas created. |  |  |
-| `updatedReplicas` _integer_ | UpdatedReplicas is the number of replicas that have been updated to the desired revision of the PodGangSet. | 0 |  |
-| `availableReplicas` _integer_ | AvailableReplicas is the number of PodGangSet replicas that are available.<br />A PodGangSet replica is considered available when all standalone PodCliques within that replica<br />have MinAvailableBreached condition = False AND all PodCliqueScalingGroups (PCSG) within that replica<br />have MinAvailableBreached condition = False. | 0 |  |
-| `hpaPodSelector` _string_ | Selector is the label selector that determines which pods are part of the PodGang.<br />PodGang is a unit of scale and this selector is used by HPA to scale the PodGang based on metrics captured for the pods that match this selector. |  |  |
-| `podGangStatuses` _[PodGangStatus](#podgangstatus) array_ | PodGangStatuses captures the status for all the PodGang's that are part of the PodGangSet. |  |  |
-| `currentGenerationHash` _string_ | CurrentGenerationHash is a hash value generated out of a collection of fields in a PodGangSet.<br />Since only a subset of fields is taken into account when generating the hash, not every change in the PodGangSetSpec will<br />be accounted for when generating this hash value. A field in PodGangSetSpec is included if a change to it triggers<br />a rolling update of PodCliques and/or PodCliqueScalingGroups.<br />Only if this value is not nil and the newly computed hash value is different from the persisted CurrentGenerationHash value<br />then a rolling update needs to be triggerred. |  |  |
-| `rollingUpdateProgress` _[PodGangSetRollingUpdateProgress](#podgangsetrollingupdateprogress)_ | RollingUpdateProgress represents the progress of a rolling update. |  |  |
-
-
-#### PodGangSetTemplateSpec
-
-
-
-PodGangSetTemplateSpec defines a template spec for a PodGang.
-A PodGang does not have a RestartPolicy field because the restart policy is predefined:
-If the number of pods in any of the cliques falls below the threshold, the entire PodGang will be restarted.
-The threshold is determined by either:
-- The value of "MinReplicas", if specified in the ScaleConfig of that clique, or
-- The "Replicas" value of that clique
-
-
-
-_Appears in:_
-- [PodGangSetSpec](#podgangsetspec)
-
-| Field | Description | Default | Validation |
-| --- | --- | --- | --- |
-| `cliques` _[PodCliqueTemplateSpec](#podcliquetemplatespec) array_ | Cliques is a slice of cliques that make up the PodGang. There should be at least one PodClique. |  |  |
-| `cliqueStartupType` _[CliqueStartupType](#cliquestartuptype)_ | StartupType defines the type of startup dependency amongst the cliques within a PodGang.<br />If it is not defined then default of CliqueStartupTypeAnyOrder is used. | CliqueStartupTypeAnyOrder | Enum: [CliqueStartupTypeAnyOrder CliqueStartupTypeInOrder CliqueStartupTypeExplicit] <br /> |
-| `priorityClassName` _string_ | PriorityClassName is the name of the PriorityClass to be used for the PodGangSet.<br />If specified, indicates the priority of the PodGangSet. "system-node-critical" and<br />"system-cluster-critical" are two special keywords which indicate the<br />highest priorities with the former being the highest priority. Any other<br />name must be defined by creating a PriorityClass object with that name.<br />If not specified, the pod priority will be default or zero if there is no default. |  |  |
-| `headlessServiceConfig` _[HeadlessServiceConfig](#headlessserviceconfig)_ | HeadlessServiceConfig defines the config options for the headless service.<br />If present, create headless service for each PodGang. |  |  |
-| `schedulingPolicyConfig` _[SchedulingPolicyConfig](#schedulingpolicyconfig)_ | SchedulingPolicyConfig defines the scheduling policy configuration for the PodGang.<br />Defaulting only works for optional fields.<br />See https://github.com/kubernetes-sigs/controller-tools/issues/893#issuecomment-1991256368 |  |  |
-| `terminationDelay` _[Duration](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.33/#duration-v1-meta)_ | TerminationDelay is the delay after which the gang termination will be triggered.<br />A gang is a candidate for termination if number of running pods fall below a threshold for any PodClique.<br />If a PodGang remains a candidate past TerminationDelay then it will be terminated. This allows additional time<br />to the kube-scheduler to re-schedule sufficient pods in the PodGang that will result in having the total number of<br />running pods go above the threshold. |  |  |
-| `podCliqueScalingGroups` _[PodCliqueScalingGroupConfig](#podcliquescalinggroupconfig) array_ | PodCliqueScalingGroupConfigs is a list of scaling groups for the PodGangSet. |  |  |
-
-
 #### PodGangStatus
 
 
@@ -562,7 +562,7 @@ PodGangStatus defines the status of a PodGang.
 
 
 _Appears in:_
-- [PodGangSetStatus](#podgangsetstatus)
+- [PodCliqueSetStatus](#podcliquesetstatus)
 
 | Field | Description | Default | Validation |
 | --- | --- | --- | --- |
@@ -597,11 +597,11 @@ SchedulingPolicyConfig defines the scheduling policy configuration for the PodGa
 
 
 _Appears in:_
-- [PodGangSetTemplateSpec](#podgangsettemplatespec)
+- [PodCliqueSetTemplateSpec](#podcliquesettemplatespec)
 
 | Field | Description | Default | Validation |
 | --- | --- | --- | --- |
-| `networkPackGroupConfigs` _[NetworkPackGroupConfig](#networkpackgroupconfig) array_ | NetworkPackGroupConfigs is a list of NetworkPackGroupConfig's that define how the pods in the PodGangSet are optimally packaged w.r.t cluster's network topology.<br />PodCliques that are not part of any NetworkPackGroupConfig are scheduled with best-effort network packing strategy.<br />Exercise caution when defining NetworkPackGroupConfig. Some of the downsides include:<br />1. Scheduling may be delayed until optimal placement is available.<br />2. Pods created due to scale-out or rolling upgrades is not guaranteed optimal placement. |  |  |
+| `networkPackGroupConfigs` _[NetworkPackGroupConfig](#networkpackgroupconfig) array_ | NetworkPackGroupConfigs is a list of NetworkPackGroupConfig's that define how the pods in the PodCliqueSet are optimally packaged w.r.t cluster's network topology.<br />PodCliques that are not part of any NetworkPackGroupConfig are scheduled with best-effort network packing strategy.<br />Exercise caution when defining NetworkPackGroupConfig. Some of the downsides include:<br />1. Scheduling may be delayed until optimal placement is available.<br />2. Pods created due to scale-out or rolling upgrades is not guaranteed optimal placement. |  |  |
 
 
 
@@ -659,7 +659,7 @@ _Appears in:_
 
 | Field | Description | Default | Validation |
 | --- | --- | --- | --- |
-| `podGangSet` _[PodGangSetControllerConfiguration](#podgangsetcontrollerconfiguration)_ | PodGangSet is the configuration for the PodGangSet controller. |  |  |
+| `podCliqueSet` _[PodCliqueSetControllerConfiguration](#podcliquesetcontrollerconfiguration)_ | PodCliqueSet is the configuration for the PodCliqueSet controller. |  |  |
 | `podClique` _[PodCliqueControllerConfiguration](#podcliquecontrollerconfiguration)_ | PodClique is the configuration for the PodClique controller. |  |  |
 | `podCliqueScalingGroup` _[PodCliqueScalingGroupControllerConfiguration](#podcliquescalinggroupcontrollerconfiguration)_ | PodCliqueScalingGroup is the configuration for the PodCliqueScalingGroup controller. |  |  |
 
@@ -771,11 +771,11 @@ _Appears in:_
 | `concurrentSyncs` _integer_ | ConcurrentSyncs is the number of workers used for the controller to concurrently work on events. |  |  |
 
 
-#### PodGangSetControllerConfiguration
+#### PodCliqueSetControllerConfiguration
 
 
 
-PodGangSetControllerConfiguration defines the configuration for the PodGangSet controller.
+PodCliqueSetControllerConfiguration defines the configuration for the PodCliqueSet controller.
 
 
 

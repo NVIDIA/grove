@@ -38,7 +38,7 @@ FROM gcr.io/distroless/static-debian11:nonroot AS grove-operator
 ARG VERSION
 
 LABEL org.opencontainers.image.title="Grove Operator"
-LABEL org.opencontainers.image.description="Kubernetes operator for PodGang and PodGangSet custom resources"
+LABEL org.opencontainers.image.description="Kubernetes operator for PodGang and PodCliqueSet custom resources"
 LABEL org.opencontainers.image.source="https://github.com/NVIDIA/grove/tree/main/operator"
 LABEL org.opencontainers.image.version=${VERSION}
 

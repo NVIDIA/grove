@@ -20,15 +20,15 @@ import (
 	configv1alpha1 "github.com/NVIDIA/grove/operator/api/config/v1alpha1"
 	"github.com/NVIDIA/grove/operator/internal/controller/podclique"
 	"github.com/NVIDIA/grove/operator/internal/controller/podcliquescalinggroup"
-	"github.com/NVIDIA/grove/operator/internal/controller/podgangset"
+	"github.com/NVIDIA/grove/operator/internal/controller/podcliqueset"
 
 	ctrl "sigs.k8s.io/controller-runtime"
 )
 
 // RegisterControllers registers all controllers with the manager.
 func RegisterControllers(mgr ctrl.Manager, controllerConfig configv1alpha1.ControllerConfiguration) error {
-	pgsReconciler := podgangset.NewReconciler(mgr, controllerConfig.PodGangSet)
-	if err := pgsReconciler.RegisterWithManager(mgr); err != nil {
+	pcsReconciler := podcliqueset.NewReconciler(mgr, controllerConfig.PodCliqueSet)
+	if err := pcsReconciler.RegisterWithManager(mgr); err != nil {
 		return err
 	}
 	pcReconciler := podclique.NewReconciler(mgr, controllerConfig.PodClique)

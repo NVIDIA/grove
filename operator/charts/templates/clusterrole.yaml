@@ -21,8 +21,8 @@ rules:
 - apiGroups:
   - grove.io
   resources:
-  - podgangsets
-  - podgangsets/status
+  - podcliquesets
+  - podcliquesets/status
   - podcliques
   - podcliques/status
   - podcliquescalinggroups

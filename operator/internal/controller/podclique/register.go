@@ -62,9 +62,9 @@ func (r *Reconciler) RegisterWithManager(mgr ctrl.Manager) error {
 		).
 		Owns(&corev1.Pod{}, builder.WithPredicates(podPredicate())).
 		Watches(
-			&grovecorev1alpha1.PodGangSet{},
-			handler.EnqueueRequestsFromMapFunc(mapPodGangSetToPCLQs()),
-			builder.WithPredicates(podGangSetPredicate()),
+			&grovecorev1alpha1.PodCliqueSet{},
+			handler.EnqueueRequestsFromMapFunc(mapPodCliqueSetToPCLQs()),
+			builder.WithPredicates(podCliqueSetPredicate()),
 		).
 		Watches(
 			&grovecorev1alpha1.PodCliqueScalingGroup{},
@@ -80,7 +80,7 @@ func (r *Reconciler) RegisterWithManager(mgr ctrl.Manager) error {
 }
 
 func managedPodCliquePredicate() predicate.Predicate {
-	expectedOwnerKinds := []string{constants.KindPodCliqueScalingGroup, constants.KindPodGangSet}
+	expectedOwnerKinds := []string{constants.KindPodCliqueScalingGroup, constants.KindPodCliqueSet}
 	return predicate.Funcs{
 		CreateFunc: func(e event.CreateEvent) bool {
 			return grovectrlutils.IsManagedPodClique(e.Object, expectedOwnerKinds...)
@@ -164,41 +164,41 @@ func hasStartedAndReadyChangedForAnyContainer(oldContainerStatuses []corev1.Cont
 	return false
 }
 
-// mapPodGangSetToPCLQs maps a PodGangSet to one or more reconcile.Request(s) to its constituent standalone Podcliques.
-// These events are needed to keep the PodClique.Status.CurrentPodGangSetGenerationHash in sync with the PodGangSet.
-func mapPodGangSetToPCLQs() handler.MapFunc {
+// mapPodCliqueSetToPCLQs maps a PodCliqueSet to one or more reconcile.Request(s) to its constituent standalone Podcliques.
+// These events are needed to keep the PodClique.Status.CurrentPodCliqueSetGenerationHash in sync with the PodCliqueSet.
+func mapPodCliqueSetToPCLQs() handler.MapFunc {
 	return func(_ context.Context, obj client.Object) []reconcile.Request {
-		pgs, ok := obj.(*grovecorev1alpha1.PodGangSet)
+		pcs, ok := obj.(*grovecorev1alpha1.PodCliqueSet)
 		if !ok {
 			return nil
 		}
-		return lo.Map(componentutils.GetPodCliqueFQNsForPGSNotInPCSG(pgs), func(pclqFQN string, _ int) reconcile.Request {
+		return lo.Map(componentutils.GetPodCliqueFQNsForPCSNotInPCSG(pcs), func(pclqFQN string, _ int) reconcile.Request {
 			return reconcile.Request{NamespacedName: types.NamespacedName{
-				Namespace: pgs.Namespace,
+				Namespace: pcs.Namespace,
 				Name:      pclqFQN,
 			}}
 		})
 	}
 }
 
-func podGangSetPredicate() predicate.Predicate {
+func podCliqueSetPredicate() predicate.Predicate {
 	return predicate.Funcs{
 		CreateFunc: func(_ event.CreateEvent) bool { return false },
 		DeleteFunc: func(_ event.DeleteEvent) bool { return false },
 		UpdateFunc: func(event event.UpdateEvent) bool {
-			oldPGS, okOld := event.ObjectOld.(*grovecorev1alpha1.PodGangSet)
-			newPGS, okNew := event.ObjectNew.(*grovecorev1alpha1.PodGangSet)
+			oldPCS, okOld := event.ObjectOld.(*grovecorev1alpha1.PodCliqueSet)
+			newPCS, okNew := event.ObjectNew.(*grovecorev1alpha1.PodCliqueSet)
 			if !okOld || !okNew {
 				return false
 			}
-			return oldPGS.Status.CurrentGenerationHash != newPGS.Status.CurrentGenerationHash
+			return oldPCS.Status.CurrentGenerationHash != newPCS.Status.CurrentGenerationHash
 		},
 		GenericFunc: func(_ event.GenericEvent) bool { return false },
 	}
 }
 
 // mapPodCliqueScalingGroupToPCLQs maps a PodCliqueScalingGroup to one or more reconcile.Request(s) to its constituent PodCliques.
-// These events are needed to keep the PodClique.Status.CurrentPodGangSetGenerationHash in sync with the PodGangSet.
+// These events are needed to keep the PodClique.Status.CurrentPodCliqueSetGenerationHash in sync with the PodCliqueSet.
 func mapPodCliqueScalingGroupToPCLQs() handler.MapFunc {
 	return func(_ context.Context, obj client.Object) []reconcile.Request {
 		pcsg, ok := obj.(*grovecorev1alpha1.PodCliqueScalingGroup)
@@ -224,8 +224,8 @@ func podCliqueScalingGroupPredicate() predicate.Predicate {
 			if !okOld || !okNew {
 				return false
 			}
-			return oldPCSG.Status.CurrentPodGangSetGenerationHash != nil && newPCSG.Status.RollingUpdateProgress != nil &&
-				*oldPCSG.Status.CurrentPodGangSetGenerationHash != newPCSG.Status.RollingUpdateProgress.PodGangSetGenerationHash
+			return oldPCSG.Status.CurrentPodCliqueSetGenerationHash != nil && newPCSG.Status.RollingUpdateProgress != nil &&
+				*oldPCSG.Status.CurrentPodCliqueSetGenerationHash != newPCSG.Status.RollingUpdateProgress.PodCliqueSetGenerationHash
 		},
 		GenericFunc: func(_ event.GenericEvent) bool { return false },
 	}

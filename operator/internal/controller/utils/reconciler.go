@@ -33,14 +33,14 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-// GetPodGangSet gets the latest PodGangSet object. It will usually hit the informer cache. If the object is not found, it will log a message and return DoNotRequeue.
-func GetPodGangSet(ctx context.Context, cl client.Client, logger logr.Logger, objectKey client.ObjectKey, pgs *v1alpha1.PodGangSet) grovectrl.ReconcileStepResult {
-	if err := cl.Get(ctx, objectKey, pgs); err != nil {
+// GetPodCliqueSet gets the latest PodCliqueSet object. It will usually hit the informer cache. If the object is not found, it will log a message and return DoNotRequeue.
+func GetPodCliqueSet(ctx context.Context, cl client.Client, logger logr.Logger, objectKey client.ObjectKey, pcs *v1alpha1.PodCliqueSet) grovectrl.ReconcileStepResult {
+	if err := cl.Get(ctx, objectKey, pcs); err != nil {
 		if apierrors.IsNotFound(err) {
-			logger.Info("PodGangSet not found", "objectKey", objectKey)
+			logger.Info("PodCliqueSet not found", "objectKey", objectKey)
 			return grovectrl.DoNotRequeue()
 		}
-		return grovectrl.ReconcileWithErrors("error getting PodGangSet", err)
+		return grovectrl.ReconcileWithErrors("error getting PodCliqueSet", err)
 	}
 	return grovectrl.ContinueReconcile()
 }

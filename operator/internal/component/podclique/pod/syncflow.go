@@ -50,22 +50,22 @@ func (r _resource) prepareSyncFlow(ctx context.Context, logger logr.Logger, pclq
 		err error
 	)
 
-	// Get associated PodGangSet for this PodClique.
-	sc.pgs, err = componentutils.GetPodGangSet(ctx, r.client, pclq.ObjectMeta)
+	// Get associated PodCliqueSet for this PodClique.
+	sc.pcs, err = componentutils.GetPodCliqueSet(ctx, r.client, pclq.ObjectMeta)
 	if err != nil {
 		return nil, groveerr.WrapError(err,
-			errCodeGetPodGangSet,
+			errCodeGetPodCliqueSet,
 			component.OperationSync,
-			fmt.Sprintf("failed to get owner PodGangSet of PodClique: %v", client.ObjectKeyFromObject(pclq)),
+			fmt.Sprintf("failed to get owner PodCliqueSet of PodClique: %v", client.ObjectKeyFromObject(pclq)),
 		)
 	}
 
-	sc.expectedPodTemplateHash, err = componentutils.GetExpectedPCLQPodTemplateHash(sc.pgs, pclq.ObjectMeta)
+	sc.expectedPodTemplateHash, err = componentutils.GetExpectedPCLQPodTemplateHash(sc.pcs, pclq.ObjectMeta)
 	if err != nil {
 		return nil, groveerr.WrapError(err,
 			errCodeGetPodCliqueTemplate,
 			component.OperationSync,
-			fmt.Sprintf("failed to compute pod clique template hash for PodClique: %v in PodGangSet", client.ObjectKeyFromObject(pclq)),
+			fmt.Sprintf("failed to compute pod clique template hash for PodClique: %v in PodCliqueSet", client.ObjectKeyFromObject(pclq)),
 		)
 	}
 
@@ -91,7 +91,7 @@ func (r _resource) prepareSyncFlow(ctx context.Context, logger logr.Logger, pclq
 	sc.podNamesUpdatedInPCLQPodGangs = r.getPodNamesUpdatedInAssociatedPodGang(existingPodGang, pclq.Name)
 
 	// Get all existing pods for this PCLQ.
-	sc.existingPCLQPods, err = componentutils.GetPCLQPods(ctx, r.client, sc.pgs.Name, pclq)
+	sc.existingPCLQPods, err = componentutils.GetPCLQPods(ctx, r.client, sc.pcs.Name, pclq)
 	if err != nil {
 		logger.Error(err, "Failed to list pods that belong to PodClique")
 		return nil, groveerr.WrapError(err,
@@ -408,7 +408,7 @@ func (r _resource) createPods(ctx context.Context, logger logr.Logger, sc *syncC
 		// Get the available Pod host name index. This ensures that we fill the holes in the indices if there are any when creating
 		// new pods.
 		podHostNameIndex := availableIndices[i]
-		createTasks = append(createTasks, r.createPodCreationTask(logger, sc.pgs, sc.pclq, sc.associatedPodGangName, sc.pclqExpectationsStoreKey, i, podHostNameIndex))
+		createTasks = append(createTasks, r.createPodCreationTask(logger, sc.pcs, sc.pclq, sc.associatedPodGangName, sc.pclqExpectationsStoreKey, i, podHostNameIndex))
 	}
 	runResult := utils.RunConcurrentlyWithSlowStart(ctx, logger, 1, createTasks)
 	if runResult.HasErrors() {
@@ -425,7 +425,7 @@ func (r _resource) createPods(ctx context.Context, logger logr.Logger, sc *syncC
 // syncContext holds the relevant state required during the sync flow run.
 type syncContext struct {
 	ctx                           context.Context
-	pgs                           *grovecorev1alpha1.PodGangSet
+	pcs                           *grovecorev1alpha1.PodCliqueSet
 	pclq                          *grovecorev1alpha1.PodClique
 	associatedPodGangName         string
 	existingPCLQPods              []*corev1.Pod

@@ -55,9 +55,9 @@ func (r *Reconciler) RegisterWithManager(mgr manager.Manager) error {
 				podCliqueScalingGroupUpdatePredicate(),
 			)),
 		).
-		Watches(&grovecorev1alpha1.PodGangSet{},
-			handler.EnqueueRequestsFromMapFunc(mapPGSToPCSG()),
-			builder.WithPredicates(podGangSetPredicate()),
+		Watches(&grovecorev1alpha1.PodCliqueSet{},
+			handler.EnqueueRequestsFromMapFunc(mapPCSToPCSG()),
+			builder.WithPredicates(podCliqueSetPredicate()),
 		).
 		Watches(&grovecorev1alpha1.PodClique{},
 			handler.EnqueueRequestsFromMapFunc(mapPCLQToPCSG()),
@@ -70,37 +70,37 @@ func podCliqueScalingGroupUpdatePredicate() predicate.Predicate {
 	return predicate.Funcs{
 		CreateFunc: func(createEvent event.CreateEvent) bool {
 			return ctrlutils.IsManagedByGrove(createEvent.Object.GetLabels()) &&
-				ctrlutils.HasExpectedOwner(constants.KindPodGangSet, createEvent.Object.GetOwnerReferences())
+				ctrlutils.HasExpectedOwner(constants.KindPodCliqueSet, createEvent.Object.GetOwnerReferences())
 		},
 		DeleteFunc: func(_ event.DeleteEvent) bool { return false },
 		UpdateFunc: func(updateEvent event.UpdateEvent) bool {
 			return ctrlutils.IsManagedByGrove(updateEvent.ObjectOld.GetLabels()) &&
-				ctrlutils.HasExpectedOwner(constants.KindPodGangSet, updateEvent.ObjectOld.GetOwnerReferences())
+				ctrlutils.HasExpectedOwner(constants.KindPodCliqueSet, updateEvent.ObjectOld.GetOwnerReferences())
 		},
 		GenericFunc: func(_ event.GenericEvent) bool { return false },
 	}
 }
 
-func mapPGSToPCSG() handler.MapFunc {
+func mapPCSToPCSG() handler.MapFunc {
 	return func(_ context.Context, obj client.Object) []reconcile.Request {
-		pgs, ok := obj.(*grovecorev1alpha1.PodGangSet)
+		pcs, ok := obj.(*grovecorev1alpha1.PodCliqueSet)
 		if !ok {
 			return nil
 		}
-		pcsgConfigs := pgs.Spec.Template.PodCliqueScalingGroupConfigs
+		pcsgConfigs := pcs.Spec.Template.PodCliqueScalingGroupConfigs
 		if len(pcsgConfigs) == 0 {
 			return nil
 		}
-		requests := make([]reconcile.Request, 0, int(pgs.Spec.Replicas)*len(pcsgConfigs))
-		// We are only interested in PGS events during rolling update.
-		if pgs.Status.RollingUpdateProgress != nil && pgs.Status.RollingUpdateProgress.CurrentlyUpdating != nil {
-			pgsReplicaIndex := pgs.Status.RollingUpdateProgress.CurrentlyUpdating.ReplicaIndex
+		requests := make([]reconcile.Request, 0, int(pcs.Spec.Replicas)*len(pcsgConfigs))
+		// We are only interested in PCS events during rolling update.
+		if pcs.Status.RollingUpdateProgress != nil && pcs.Status.RollingUpdateProgress.CurrentlyUpdating != nil {
+			pcsReplicaIndex := pcs.Status.RollingUpdateProgress.CurrentlyUpdating.ReplicaIndex
 			for _, pcsgConfig := range pcsgConfigs {
-				pcsgName := apicommon.GeneratePodCliqueScalingGroupName(apicommon.ResourceNameReplica{Name: pgs.Name, Replica: int(pgsReplicaIndex)}, pcsgConfig.Name)
+				pcsgName := apicommon.GeneratePodCliqueScalingGroupName(apicommon.ResourceNameReplica{Name: pcs.Name, Replica: int(pcsReplicaIndex)}, pcsgConfig.Name)
 				requests = append(requests, reconcile.Request{
 					NamespacedName: client.ObjectKey{
 						Name:      pcsgName,
-						Namespace: pgs.Namespace,
+						Namespace: pcs.Namespace,
 					},
 				})
 			}
@@ -109,29 +109,29 @@ func mapPGSToPCSG() handler.MapFunc {
 	}
 }
 
-func podGangSetPredicate() predicate.Predicate {
+func podCliqueSetPredicate() predicate.Predicate {
 	return predicate.Funcs{
 		CreateFunc: func(_ event.CreateEvent) bool { return false },
 		DeleteFunc: func(_ event.DeleteEvent) bool { return false },
 		UpdateFunc: func(updateEvent event.UpdateEvent) bool {
-			return shouldEnqueueOnPGSUpdate(updateEvent)
+			return shouldEnqueueOnPCSUpdate(updateEvent)
 		},
 		GenericFunc: func(_ event.GenericEvent) bool { return false },
 	}
 }
 
-func shouldEnqueueOnPGSUpdate(event event.UpdateEvent) bool {
-	oldPGS, okOld := event.ObjectOld.(*grovecorev1alpha1.PodGangSet)
-	newPGS, okNew := event.ObjectNew.(*grovecorev1alpha1.PodGangSet)
+func shouldEnqueueOnPCSUpdate(event event.UpdateEvent) bool {
+	oldPCS, okOld := event.ObjectOld.(*grovecorev1alpha1.PodCliqueSet)
+	newPCS, okNew := event.ObjectNew.(*grovecorev1alpha1.PodCliqueSet)
 	if !okOld || !okNew {
 		return false
 	}
 
-	if oldPGS.Status.RollingUpdateProgress != nil && newPGS.Status.RollingUpdateProgress != nil {
-		if utils.OnlyOneIsNil(oldPGS.Status.RollingUpdateProgress.CurrentlyUpdating, newPGS.Status.RollingUpdateProgress.CurrentlyUpdating) ||
-			oldPGS.Status.RollingUpdateProgress.CurrentlyUpdating != nil &&
-				newPGS.Status.RollingUpdateProgress.CurrentlyUpdating != nil &&
-				oldPGS.Status.RollingUpdateProgress.CurrentlyUpdating.ReplicaIndex != newPGS.Status.RollingUpdateProgress.CurrentlyUpdating.ReplicaIndex {
+	if oldPCS.Status.RollingUpdateProgress != nil && newPCS.Status.RollingUpdateProgress != nil {
+		if utils.OnlyOneIsNil(oldPCS.Status.RollingUpdateProgress.CurrentlyUpdating, newPCS.Status.RollingUpdateProgress.CurrentlyUpdating) ||
+			oldPCS.Status.RollingUpdateProgress.CurrentlyUpdating != nil &&
+				newPCS.Status.RollingUpdateProgress.CurrentlyUpdating != nil &&
+				oldPCS.Status.RollingUpdateProgress.CurrentlyUpdating.ReplicaIndex != newPCS.Status.RollingUpdateProgress.CurrentlyUpdating.ReplicaIndex {
 			return true
 		}
 	}

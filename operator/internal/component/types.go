@@ -38,15 +38,15 @@ const (
 
 // GroveCustomResourceType defines a type bound for generic types.
 type GroveCustomResourceType interface {
-	grovecorev1alpha1.PodGangSet | grovecorev1alpha1.PodClique | grovecorev1alpha1.PodCliqueScalingGroup
+	grovecorev1alpha1.PodCliqueSet | grovecorev1alpha1.PodClique | grovecorev1alpha1.PodCliqueScalingGroup
 }
 
-// Operator is a facade that manages one or more resources that are provisioned for a PodGangSet.
+// Operator is a facade that manages one or more resources that are provisioned for a PodCliqueSet.
 type Operator[T GroveCustomResourceType] interface {
 	// GetExistingResourceNames returns the names of all the existing resources that this Operator manages.
 	GetExistingResourceNames(ctx context.Context, logger logr.Logger, objMeta metav1.ObjectMeta) ([]string, error)
 	// Sync synchronizes all resources that this Operator manages. If a component does not exist then it will
-	// create it. If there are changes in the owning PodGangSet resource that transpires changes to one or more resources
+	// create it. If there are changes in the owning PodCliqueSet resource that transpires changes to one or more resources
 	// managed by this Operator then those component(s) will be either be updated or a deletion is triggered.
 	Sync(ctx context.Context, logger logr.Logger, obj *T) error
 	// Delete triggers the deletion of all resources that this Operator manages.
@@ -77,8 +77,8 @@ const (
 	KindPodCliqueScalingGroup Kind = "PodCliqueScalingGroup"
 	// KindPodGang indicates that the resource is a PodGang.
 	KindPodGang Kind = "PodGang"
-	// KindPodGangSetReplica indicates that the resource is a PodGangSet replica.
-	KindPodGangSetReplica Kind = "PodGangSetReplica"
+	// KindPodCliqueSetReplica indicates that the resource is a PodCliqueSet replica.
+	KindPodCliqueSetReplica Kind = "PodCliqueSetReplica"
 )
 
 // OperatorRegistry is a facade that gives access to all component operators.

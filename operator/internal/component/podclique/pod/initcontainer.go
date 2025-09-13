@@ -47,18 +47,18 @@ const (
 	volumeMountPathServiceAccount = "/var/run/secrets/kubernetes.io/serviceaccount"
 )
 
-func configurePodInitContainer(pgs *grovecorev1alpha1.PodGangSet, pclq *grovecorev1alpha1.PodClique, pod *corev1.Pod) error {
-	addServiceAccountTokenSecretVolume(pgs.Name, pod)
+func configurePodInitContainer(pcs *grovecorev1alpha1.PodCliqueSet, pclq *grovecorev1alpha1.PodClique, pod *corev1.Pod) error {
+	addServiceAccountTokenSecretVolume(pcs.Name, pod)
 	addPodInfoVolume(pod)
-	return addInitContainer(pgs, pclq, pod)
+	return addInitContainer(pcs, pclq, pod)
 }
 
-func addServiceAccountTokenSecretVolume(pgsName string, pod *corev1.Pod) {
+func addServiceAccountTokenSecretVolume(pcsName string, pod *corev1.Pod) {
 	saTokenSecretVol := corev1.Volume{
 		Name: serviceAccountTokenSecretVolumeName,
 		VolumeSource: corev1.VolumeSource{
 			Secret: &corev1.SecretVolumeSource{
-				SecretName:  apicommon.GenerateInitContainerSATokenSecretName(pgsName),
+				SecretName:  apicommon.GenerateInitContainerSATokenSecretName(pcsName),
 				DefaultMode: ptr.To[int32](420),
 			},
 		},
@@ -91,12 +91,12 @@ func addPodInfoVolume(pod *corev1.Pod) {
 	pod.Spec.Volumes = append(pod.Spec.Volumes, podInfoVol)
 }
 
-func addInitContainer(pgs *grovecorev1alpha1.PodGangSet, pclq *grovecorev1alpha1.PodClique, pod *corev1.Pod) error {
+func addInitContainer(pcs *grovecorev1alpha1.PodCliqueSet, pclq *grovecorev1alpha1.PodClique, pod *corev1.Pod) error {
 	image, err := getInitContainerImage()
 	if err != nil {
 		return err
 	}
-	args, err := generateArgsForInitContainer(pgs, pclq)
+	args, err := generateArgsForInitContainer(pcs, pclq)
 	if err != nil {
 		return err
 	}
@@ -133,10 +133,10 @@ func getInitContainerImage() (string, error) {
 	return initContainerImage, nil
 }
 
-func generateArgsForInitContainer(pgs *grovecorev1alpha1.PodGangSet, pclq *grovecorev1alpha1.PodClique) ([]string, error) {
+func generateArgsForInitContainer(pcs *grovecorev1alpha1.PodCliqueSet, pclq *grovecorev1alpha1.PodClique) ([]string, error) {
 	args := make([]string, 0)
 	for _, parentCliqueFQN := range pclq.Spec.StartsAfter {
-		parentCliqueTemplateSpec, ok := lo.Find(pgs.Spec.Template.Cliques, func(templateSpec *grovecorev1alpha1.PodCliqueTemplateSpec) bool {
+		parentCliqueTemplateSpec, ok := lo.Find(pcs.Spec.Template.Cliques, func(templateSpec *grovecorev1alpha1.PodCliqueTemplateSpec) bool {
 			return strings.HasSuffix(parentCliqueFQN, templateSpec.Name)
 		})
 		if !ok {

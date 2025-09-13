@@ -1,4 +1,4 @@
-# This PodgangSet definition highlights the following features:
+# This PodCliqueSet definition highlights the following features:
 # 1. PodClique with auto-scaling configuration. `pca` is configured with auto-scaling based on CPU utilization. An HPA resource will be created for this PodClique.
 # 2. PodCliques that are scaled as a group. `pcb` and `pcc` are configured to be scaled together as a group named `pcsg`.
 #    These PodCliques will not be auto-scaled individually, but rather as a group. An HPA resource will be created for
@@ -6,7 +6,7 @@
 # 3. PodCliques that are neither auto-scaled individually nor do they belong to a PodCliqueScalingGroup. `pcd` is configured without auto-scaling.
 ---
 apiVersion: grove.io/v1alpha1
-kind: PodGangSet
+kind: PodCliqueSet
 metadata:
   name: simple1
   labels:

@@ -75,34 +75,34 @@ func (r *Reconciler) recordReconcileStart(ctx context.Context, logger logr.Logge
 
 func (r *Reconciler) processRollingUpdate(ctx context.Context, logger logr.Logger, pcsg *grovecorev1alpha1.PodCliqueScalingGroup) ctrlcommon.ReconcileStepResult {
 	pcsgObjectKey := client.ObjectKeyFromObject(pcsg)
-	pgs, err := utils.GetPodGangSet(ctx, r.client, pcsg.ObjectMeta)
+	pcs, err := utils.GetPodCliqueSet(ctx, r.client, pcsg.ObjectMeta)
 	if err != nil {
-		return ctrlcommon.ReconcileWithErrors(fmt.Sprintf("could not get owner PodGangSet for PodCliqueScalingGroup: %v", pcsgObjectKey), err)
+		return ctrlcommon.ReconcileWithErrors(fmt.Sprintf("could not get owner PodCliqueSet for PodCliqueScalingGroup: %v", pcsgObjectKey), err)
 	}
-	if pgs.Status.RollingUpdateProgress == nil || pgs.Status.RollingUpdateProgress.CurrentlyUpdating == nil {
-		// No update has yet been triggered for the PodGangSet. Nothing to do here.
+	if pcs.Status.RollingUpdateProgress == nil || pcs.Status.RollingUpdateProgress.CurrentlyUpdating == nil {
+		// No update has yet been triggered for the PodCliqueSet. Nothing to do here.
 		return ctrlcommon.ContinueReconcile()
 	}
-	pgsReplicaInUpdating := pgs.Status.RollingUpdateProgress.CurrentlyUpdating.ReplicaIndex
-	pgsReplicaIndexStr, ok := pcsg.Labels[apicommon.LabelPodGangSetReplicaIndex]
+	pcsReplicaInUpdating := pcs.Status.RollingUpdateProgress.CurrentlyUpdating.ReplicaIndex
+	pcsReplicaIndexStr, ok := pcsg.Labels[apicommon.LabelPodCliqueSetReplicaIndex]
 	if !ok {
-		logger.Info("PodGangSet is currently under rolling update. Cannot process pending updates for this PodCliqueScalingGroup as no PodGangSet index label is found")
+		logger.Info("PodCliqueSet is currently under rolling update. Cannot process pending updates for this PodCliqueScalingGroup as no PodCliqueSet index label is found")
 		return ctrlcommon.ContinueReconcile()
 	}
-	if pgsReplicaIndexStr != strconv.Itoa(int(pgsReplicaInUpdating)) {
-		logger.Info("PodGangSet is currently under rolling update. Skipping processing pending updates for this PodCliqueScalingGroup as it does not belong to the PodGangSet Index in update", "currentlyUpdatingPGSIndex", pgsReplicaInUpdating, "pgsIndexForPCSG", pgsReplicaIndexStr)
+	if pcsReplicaIndexStr != strconv.Itoa(int(pcsReplicaInUpdating)) {
+		logger.Info("PodCliqueSet is currently under rolling update. Skipping processing pending updates for this PodCliqueScalingGroup as it does not belong to the PodCliqueSet Index in update", "currentlyUpdatingPCSIndex", pcsReplicaInUpdating, "pcsIndexForPCSG", pcsReplicaIndexStr)
 		return ctrlcommon.ContinueReconcile()
 	}
 
-	// Trigger processing of pending updates for this PCSG. Check if all pending updates for this PCSG and for the PGS CurrentGenerationHash
+	// Trigger processing of pending updates for this PCSG. Check if all pending updates for this PCSG and for the PCS CurrentGenerationHash
 	// has already been completed or are already in-progress. If that is true, then there is nothing more to do.
-	// If the rolling update is in-progress for a different PGS CurrentGenerationHash, or it has not even been started, then
+	// If the rolling update is in-progress for a different PCS CurrentGenerationHash, or it has not even been started, then
 	// reset the rolling update progress so that it can be restarted.
-	if shouldResetOrTriggerRollingUpdate(pgs, pcsg) {
+	if shouldResetOrTriggerRollingUpdate(pcs, pcsg) {
 		pcsg.Status.UpdatedReplicas = 0
 		pcsg.Status.RollingUpdateProgress = &grovecorev1alpha1.PodCliqueScalingGroupRollingUpdateProgress{
-			UpdateStartedAt:          metav1.Now(),
-			PodGangSetGenerationHash: *pgs.Status.CurrentGenerationHash,
+			UpdateStartedAt:            metav1.Now(),
+			PodCliqueSetGenerationHash: *pcs.Status.CurrentGenerationHash,
 		}
 		if err = r.client.Status().Update(ctx, pcsg); err != nil {
 			logger.Error(err, "could not update PodCliqueScalingGroup.Status.RollingUpdateProgress")
@@ -112,10 +112,10 @@ func (r *Reconciler) processRollingUpdate(ctx context.Context, logger logr.Logge
 	return ctrlcommon.ContinueReconcile()
 }
 
-func shouldResetOrTriggerRollingUpdate(pgs *grovecorev1alpha1.PodGangSet, pcsg *grovecorev1alpha1.PodCliqueScalingGroup) bool {
-	// If processing of rolling update of PCSG for PGS CurrentGenerationHash is either completed or in-progress,
-	// there is no need to reset or trigger another rolling update of this PCSG for the same PGS CurrentGenerationHash.
-	if pcsg.Status.RollingUpdateProgress != nil && pcsg.Status.RollingUpdateProgress.PodGangSetGenerationHash == *pgs.Status.CurrentGenerationHash {
+func shouldResetOrTriggerRollingUpdate(pcs *grovecorev1alpha1.PodCliqueSet, pcsg *grovecorev1alpha1.PodCliqueScalingGroup) bool {
+	// If processing of rolling update of PCSG for PCS CurrentGenerationHash is either completed or in-progress,
+	// there is no need to reset or trigger another rolling update of this PCSG for the same PCS CurrentGenerationHash.
+	if pcsg.Status.RollingUpdateProgress != nil && pcsg.Status.RollingUpdateProgress.PodCliqueSetGenerationHash == *pcs.Status.CurrentGenerationHash {
 		return false
 	}
 	return true

@@ -27,12 +27,12 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-// GetPodGangSetReplicaIndexFromPodCliqueFQN extracts the PodGangSet replica index from a Pod Clique FQN name.
-func GetPodGangSetReplicaIndexFromPodCliqueFQN(pgsName, pclqFQNName string) (int, error) {
-	replicaStartIndex := len(pgsName) + 1 // +1 for the hyphen
+// GetPodCliqueSetReplicaIndexFromPodCliqueFQN extracts the PodCliqueSet replica index from a Pod Clique FQN name.
+func GetPodCliqueSetReplicaIndexFromPodCliqueFQN(pcsName, pclqFQNName string) (int, error) {
+	replicaStartIndex := len(pcsName) + 1 // +1 for the hyphen
 	hyphenIndex := strings.Index(pclqFQNName[replicaStartIndex:], "-")
 	if hyphenIndex == -1 {
-		return -1, fmt.Errorf("PodClique FQN is not in the expected format of <pgs-name>-<pgs-replica-index>-<pclq-template-name>: %s", pclqFQNName)
+		return -1, fmt.Errorf("PodClique FQN is not in the expected format of <pcs-name>-<pcs-replica-index>-<pclq-template-name>: %s", pclqFQNName)
 	}
 	replicaEndIndex := replicaStartIndex + hyphenIndex
 	return strconv.Atoi(pclqFQNName[replicaStartIndex:replicaEndIndex])
@@ -54,16 +54,16 @@ func GetPodCliqueNameFromPodCliqueFQN(pclqObjectMeta metav1.ObjectMeta) (string,
 		return pclqObjectMeta.Name[len(pclqNamePrefix):], nil
 	}
 
-	// If it is not part of PCSG then the PCLQ is a standalone PCLQ which is part of PGS
-	pgsName, ok := pclqObjectMeta.Labels[apicommon.LabelPartOfKey]
+	// If it is not part of PCSG then the PCLQ is a standalone PCLQ which is part of PCS
+	pcsName, ok := pclqObjectMeta.Labels[apicommon.LabelPartOfKey]
 	if !ok {
 		return "", fmt.Errorf("missing label %s on PodClique: %v", apicommon.LabelPartOfKey, pclqObjectKey)
 	}
-	// Get the PGS replica index
-	pgsReplicaIndex, ok := pclqObjectMeta.Labels[apicommon.LabelPodGangSetReplicaIndex]
+	// Get the PCS replica index
+	pcsReplicaIndex, ok := pclqObjectMeta.Labels[apicommon.LabelPodCliqueSetReplicaIndex]
 	if !ok {
-		return "", fmt.Errorf("missing label %s on PodClique: %v", apicommon.LabelPodGangSetReplicaIndex, pclqObjectKey)
+		return "", fmt.Errorf("missing label %s on PodClique: %v", apicommon.LabelPodCliqueSetReplicaIndex, pclqObjectKey)
 	}
-	pclqNamePrefix := fmt.Sprintf("%s-%s-", pgsName, pgsReplicaIndex)
+	pclqNamePrefix := fmt.Sprintf("%s-%s-", pcsName, pcsReplicaIndex)
 	return pclqObjectMeta.Name[len(pclqNamePrefix):], nil
 }

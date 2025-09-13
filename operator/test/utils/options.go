@@ -174,23 +174,23 @@ func WithPCLQReplicaReadyStatus(ready int32) PCLQOption {
 	}
 }
 
-// WithPCLQCurrentPGSGenerationHash sets the CurrentPodGangSetGenerationHash in the PodClique status.
-func WithPCLQCurrentPGSGenerationHash(pgsGenerationHash string) PCLQOption {
+// WithPCLQCurrentPCSGenerationHash sets the CurrentPodCliqueSetGenerationHash in the PodClique status.
+func WithPCLQCurrentPCSGenerationHash(pcsGenerationHash string) PCLQOption {
 	return func(pclq *grovecorev1alpha1.PodClique) {
-		pclq.Status.CurrentPodGangSetGenerationHash = &pgsGenerationHash
+		pclq.Status.CurrentPodCliqueSetGenerationHash = &pcsGenerationHash
 	}
 }
 
-// WithPCSGCurrentPGSGenerationHash sets the CurrentPodGangSetGenerationHash in the PCSG status.
-func WithPCSGCurrentPGSGenerationHash(pgsGenerationHash string) PCSGOption {
+// WithPCSGCurrentPCSGenerationHash sets the CurrentPodCliqueSetGenerationHash in the PCSG status.
+func WithPCSGCurrentPCSGenerationHash(pcsGenerationHash string) PCSGOption {
 	return func(pcsg *grovecorev1alpha1.PodCliqueScalingGroup) {
-		pcsg.Status.CurrentPodGangSetGenerationHash = &pgsGenerationHash
+		pcsg.Status.CurrentPodCliqueSetGenerationHash = &pcsGenerationHash
 	}
 }
 
 // ============================================================================
-// PodGangSet Option Functions
+// PodCliqueSet Option Functions
 // ============================================================================
 
-// PGSOption is a function that modifies a PodGangSet for testing.
-type PGSOption func(*grovecorev1alpha1.PodGangSet)
+// PCSOption is a function that modifies a PodCliqueSet for testing.
+type PCSOption func(*grovecorev1alpha1.PodCliqueSet)

@@ -30,14 +30,14 @@ import (
 )
 
 // GetPCLQPods lists all Pods that belong to a PodClique
-func GetPCLQPods(ctx context.Context, cl client.Client, pgsName string, pclq *grovecorev1alpha1.PodClique) ([]*corev1.Pod, error) {
+func GetPCLQPods(ctx context.Context, cl client.Client, pcsName string, pclq *grovecorev1alpha1.PodClique) ([]*corev1.Pod, error) {
 	podList := &corev1.PodList{}
 	if err := cl.List(ctx,
 		podList,
 		client.InNamespace(pclq.Namespace),
 		client.MatchingLabels(
 			lo.Assign(
-				apicommon.GetDefaultLabelsForPodGangSetManagedResources(pgsName),
+				apicommon.GetDefaultLabelsForPodCliqueSetManagedResources(pcsName),
 				map[string]string{
 					apicommon.LabelPodClique: pclq.Name,
 				},

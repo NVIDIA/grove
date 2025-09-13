@@ -20,8 +20,8 @@ import (
 	"fmt"
 	"log/slog"
 
-	"github.com/NVIDIA/grove/operator/internal/webhook/admission/pgs/defaulting"
-	"github.com/NVIDIA/grove/operator/internal/webhook/admission/pgs/validation"
+	"github.com/NVIDIA/grove/operator/internal/webhook/admission/pcs/defaulting"
+	"github.com/NVIDIA/grove/operator/internal/webhook/admission/pcs/validation"
 
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 )

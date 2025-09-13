@@ -27,10 +27,10 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-// GetPodGangSelectorLabels creates the label selector to list all the PodGangs for a PodGangSet.
-func GetPodGangSelectorLabels(pgsObjMeta metav1.ObjectMeta) map[string]string {
+// GetPodGangSelectorLabels creates the label selector to list all the PodGangs for a PodCliqueSet.
+func GetPodGangSelectorLabels(pcsObjMeta metav1.ObjectMeta) map[string]string {
 	return lo.Assign(
-		apicommon.GetDefaultLabelsForPodGangSetManagedResources(pgsObjMeta.Name),
+		apicommon.GetDefaultLabelsForPodCliqueSetManagedResources(pcsObjMeta.Name),
 		map[string]string{
 			apicommon.LabelComponentKey: apicommon.LabelComponentNamePodGang,
 		})

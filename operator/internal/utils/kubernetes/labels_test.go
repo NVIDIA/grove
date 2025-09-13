@@ -32,7 +32,7 @@ func newTestObjectMetaWithReplicaIndex(index string) metav1.ObjectMeta {
 		Name:      "test-resource",
 		Namespace: "test-ns",
 		Labels: map[string]string{
-			apicommon.LabelPodGangSetReplicaIndex: index,
+			apicommon.LabelPodCliqueSetReplicaIndex: index,
 		},
 	}
 }
@@ -55,7 +55,7 @@ func newTestObjectMetaNilLabels() metav1.ObjectMeta {
 
 func newLabelsWithReplicaIndexAndExtras(index string, extraLabels map[string]string) map[string]string {
 	labels := map[string]string{
-		apicommon.LabelPodGangSetReplicaIndex: index,
+		apicommon.LabelPodCliqueSetReplicaIndex: index,
 	}
 	for k, v := range extraLabels {
 		labels[k] = v
@@ -63,7 +63,7 @@ func newLabelsWithReplicaIndexAndExtras(index string, extraLabels map[string]str
 	return labels
 }
 
-func TestGetPodGangSetReplicaIndex(t *testing.T) {
+func TestGetPodCliqueSetReplicaIndex(t *testing.T) {
 	testCases := []struct {
 		description   string
 		objMeta       metav1.ObjectMeta
@@ -87,13 +87,13 @@ func TestGetPodGangSetReplicaIndex(t *testing.T) {
 				"version": "v1.0",
 			}),
 			expectedIndex: 0,
-			expectedError: errNotFoundPodGangSetReplicaIndexLabel,
+			expectedError: errNotFoundPodCliqueSetReplicaIndexLabel,
 		},
 		{
 			description:   "nil labels map",
 			objMeta:       newTestObjectMetaNilLabels(),
 			expectedIndex: 0,
-			expectedError: errNotFoundPodGangSetReplicaIndexLabel,
+			expectedError: errNotFoundPodCliqueSetReplicaIndexLabel,
 		},
 		{
 			description:   "invalid replica index conversion",
@@ -117,7 +117,7 @@ func TestGetPodGangSetReplicaIndex(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.description, func(t *testing.T) {
-			index, err := GetPodGangSetReplicaIndex(tc.objMeta)
+			index, err := GetPodCliqueSetReplicaIndex(tc.objMeta)
 
 			if tc.expectedError != nil {
 				assert.Error(t, err)

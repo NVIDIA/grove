@@ -96,7 +96,7 @@ func (r _resource) processPendingUpdates(logger logr.Logger, sc *syncContext) er
 		}
 
 		// Trigger deletion of the next replica index.
-		deleteTask := r.createDeleteTasks(logger, sc.pgs, sc.pcsg.Name, []string{strconv.Itoa(*nextReplicaIndexToUpdate)}, "deleting replica for rolling update")
+		deleteTask := r.createDeleteTasks(logger, sc.pcs, sc.pcsg.Name, []string{strconv.Itoa(*nextReplicaIndexToUpdate)}, "deleting replica for rolling update")
 		if err := r.triggerDeletionOfPodCliques(sc.ctx, logger, client.ObjectKeyFromObject(sc.pcsg), deleteTask); err != nil {
 			return err
 		}
@@ -190,7 +190,7 @@ func (r _resource) deleteOldPendingAndUnavailableReplicas(logger logr.Logger, sc
 	replicaIndicesToDelete := lo.Map(append(work.oldPendingReplicaIndices, work.oldUnavailableReplicaIndices...), func(index int, _ int) string {
 		return strconv.Itoa(index)
 	})
-	deleteTasks := r.createDeleteTasks(logger, sc.pgs, sc.pcsg.Name, replicaIndicesToDelete,
+	deleteTasks := r.createDeleteTasks(logger, sc.pcs, sc.pcsg.Name, replicaIndicesToDelete,
 		"delete pending and unavailable PodCliqueScalingGroup replicas for rolling update")
 	return r.triggerDeletionOfPodCliques(sc.ctx, logger, client.ObjectKeyFromObject(sc.pcsg), deleteTasks)
 }
@@ -210,7 +210,7 @@ func isCurrentReplicaUpdateComplete(sc *syncContext) bool {
 	}
 	return lo.EveryBy(existingPCSGReplicaPCLQs, func(pclq grovecorev1alpha1.PodClique) bool {
 		return pclq.Status.CurrentPodTemplateHash != nil && *pclq.Status.CurrentPodTemplateHash == sc.expectedPCLQPodTemplateHashMap[pclq.Name] &&
-			pclq.Status.CurrentPodGangSetGenerationHash != nil && *pclq.Status.CurrentPodGangSetGenerationHash == *sc.pgs.Status.CurrentGenerationHash &&
+			pclq.Status.CurrentPodCliqueSetGenerationHash != nil && *pclq.Status.CurrentPodCliqueSetGenerationHash == *sc.pcs.Status.CurrentGenerationHash &&
 			pclq.Status.ReadyReplicas >= *pclq.Spec.MinAvailable
 	})
 }

@@ -28,90 +28,90 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-// GetExpectedPCSGFQNsForPGS computes the FQNs for all PodCliqueScalingGroups defined in PGS for the given replica.
-func GetExpectedPCSGFQNsForPGS(pgs *grovecorev1alpha1.PodGangSet) []string {
-	pcsgFQNsPerPGSReplica := GetExpectedPCSGFQNsPerPGSReplica(pgs)
-	return lo.Flatten(lo.Values(pcsgFQNsPerPGSReplica))
+// GetExpectedPCSGFQNsForPCS computes the FQNs for all PodCliqueScalingGroups defined in PCS for the given replica.
+func GetExpectedPCSGFQNsForPCS(pcs *grovecorev1alpha1.PodCliqueSet) []string {
+	pcsgFQNsPerPCSReplica := GetExpectedPCSGFQNsPerPCSReplica(pcs)
+	return lo.Flatten(lo.Values(pcsgFQNsPerPCSReplica))
 }
 
-// GetPodCliqueFQNsForPGSNotInPCSG computes the FQNs for all PodCliques for all PGS replicas which are not part of any PCSG.
-func GetPodCliqueFQNsForPGSNotInPCSG(pgs *grovecorev1alpha1.PodGangSet) []string {
-	pclqFQNs := make([]string, 0, int(pgs.Spec.Replicas)*len(pgs.Spec.Template.Cliques))
-	for pgsReplicaIndex := range int(pgs.Spec.Replicas) {
-		pclqFQNs = append(pclqFQNs, GetPodCliqueFQNsForPGSReplicaNotInPCSG(pgs, pgsReplicaIndex)...)
+// GetPodCliqueFQNsForPCSNotInPCSG computes the FQNs for all PodCliques for all PCS replicas which are not part of any PCSG.
+func GetPodCliqueFQNsForPCSNotInPCSG(pcs *grovecorev1alpha1.PodCliqueSet) []string {
+	pclqFQNs := make([]string, 0, int(pcs.Spec.Replicas)*len(pcs.Spec.Template.Cliques))
+	for pcsReplicaIndex := range int(pcs.Spec.Replicas) {
+		pclqFQNs = append(pclqFQNs, GetPodCliqueFQNsForPCSReplicaNotInPCSG(pcs, pcsReplicaIndex)...)
 	}
 	return pclqFQNs
 }
 
-// GetPodCliqueFQNsForPGSReplicaNotInPCSG computes the FQNs for all PodCliques for a PGS replica which are not part of any PCSG.
-func GetPodCliqueFQNsForPGSReplicaNotInPCSG(pgs *grovecorev1alpha1.PodGangSet, pgsReplicaIndex int) []string {
-	pclqNames := make([]string, 0, len(pgs.Spec.Template.Cliques))
-	for _, pclqTemplateSpec := range pgs.Spec.Template.Cliques {
-		if isStandalonePCLQ(pgs, pclqTemplateSpec.Name) {
-			pclqNames = append(pclqNames, common.GeneratePodCliqueName(common.ResourceNameReplica{Name: pgs.Name, Replica: pgsReplicaIndex}, pclqTemplateSpec.Name))
+// GetPodCliqueFQNsForPCSReplicaNotInPCSG computes the FQNs for all PodCliques for a PCS replica which are not part of any PCSG.
+func GetPodCliqueFQNsForPCSReplicaNotInPCSG(pcs *grovecorev1alpha1.PodCliqueSet, pcsReplicaIndex int) []string {
+	pclqNames := make([]string, 0, len(pcs.Spec.Template.Cliques))
+	for _, pclqTemplateSpec := range pcs.Spec.Template.Cliques {
+		if isStandalonePCLQ(pcs, pclqTemplateSpec.Name) {
+			pclqNames = append(pclqNames, common.GeneratePodCliqueName(common.ResourceNameReplica{Name: pcs.Name, Replica: pcsReplicaIndex}, pclqTemplateSpec.Name))
 		}
 	}
 	return pclqNames
 }
 
-// isStandalonePCLQ checks if the PodClique is managed by PodGangSet or not
-func isStandalonePCLQ(pgs *grovecorev1alpha1.PodGangSet, pclqName string) bool {
-	return !lo.Reduce(pgs.Spec.Template.PodCliqueScalingGroupConfigs, func(agg bool, pcsgConfig grovecorev1alpha1.PodCliqueScalingGroupConfig, _ int) bool {
+// isStandalonePCLQ checks if the PodClique is managed by PodCliqueSet or not
+func isStandalonePCLQ(pcs *grovecorev1alpha1.PodCliqueSet, pclqName string) bool {
+	return !lo.Reduce(pcs.Spec.Template.PodCliqueScalingGroupConfigs, func(agg bool, pcsgConfig grovecorev1alpha1.PodCliqueScalingGroupConfig, _ int) bool {
 		return agg || slices.Contains(pcsgConfig.CliqueNames, pclqName)
 	}, false)
 }
 
-// GetPodGangSet gets the owner PodGangSet object.
-func GetPodGangSet(ctx context.Context, cl client.Client, objectMeta metav1.ObjectMeta) (*grovecorev1alpha1.PodGangSet, error) {
-	pgsName := GetPodGangSetName(objectMeta)
-	pgs := &grovecorev1alpha1.PodGangSet{
+// GetPodCliqueSet gets the owner PodCliqueSet object.
+func GetPodCliqueSet(ctx context.Context, cl client.Client, objectMeta metav1.ObjectMeta) (*grovecorev1alpha1.PodCliqueSet, error) {
+	pcsName := GetPodCliqueSetName(objectMeta)
+	pcs := &grovecorev1alpha1.PodCliqueSet{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      pgsName,
+			Name:      pcsName,
 			Namespace: objectMeta.Namespace,
 		},
 	}
-	err := cl.Get(ctx, client.ObjectKeyFromObject(pgs), pgs)
-	return pgs, err
+	err := cl.Get(ctx, client.ObjectKeyFromObject(pcs), pcs)
+	return pcs, err
 }
 
-// GetPodGangSetName retrieves the PodGangSet name from the labels of the given ObjectMeta.
-// NOTE: It is assumed that all managed objects like PCSG, PCLQ and Pods will always have PGS name as value for grovecorev1alpha1.LabelPartOfKey label.
+// GetPodCliqueSetName retrieves the PodCliqueSet name from the labels of the given ObjectMeta.
+// NOTE: It is assumed that all managed objects like PCSG, PCLQ and Pods will always have PCS name as value for grovecorev1alpha1.LabelPartOfKey label.
 // It should be ensured that labels that are set by the operator are never removed.
-func GetPodGangSetName(objectMeta metav1.ObjectMeta) string {
-	pgsName := objectMeta.GetLabels()[common.LabelPartOfKey]
-	return pgsName
+func GetPodCliqueSetName(objectMeta metav1.ObjectMeta) string {
+	pcsName := objectMeta.GetLabels()[common.LabelPartOfKey]
+	return pcsName
 }
 
-// GetExpectedPCLQNamesGroupByOwner returns the expected unqualified PodClique names which are either owned by PodGangSet or PodCliqueScalingGroup.
-func GetExpectedPCLQNamesGroupByOwner(pgs *grovecorev1alpha1.PodGangSet) (expectedPCLQNamesForPGS []string, expectedPCLQNamesForPCSG []string) {
-	pcsgConfigs := pgs.Spec.Template.PodCliqueScalingGroupConfigs
+// GetExpectedPCLQNamesGroupByOwner returns the expected unqualified PodClique names which are either owned by PodCliqueSet or PodCliqueScalingGroup.
+func GetExpectedPCLQNamesGroupByOwner(pcs *grovecorev1alpha1.PodCliqueSet) (expectedPCLQNamesForPCS []string, expectedPCLQNamesForPCSG []string) {
+	pcsgConfigs := pcs.Spec.Template.PodCliqueScalingGroupConfigs
 	for _, pcsgConfig := range pcsgConfigs {
 		expectedPCLQNamesForPCSG = append(expectedPCLQNamesForPCSG, pcsgConfig.CliqueNames...)
 	}
-	pgsCliqueNames := lo.Map(pgs.Spec.Template.Cliques, func(pclqTemplateSpec *grovecorev1alpha1.PodCliqueTemplateSpec, _ int) string {
+	pcsCliqueNames := lo.Map(pcs.Spec.Template.Cliques, func(pclqTemplateSpec *grovecorev1alpha1.PodCliqueTemplateSpec, _ int) string {
 		return pclqTemplateSpec.Name
 	})
-	expectedPCLQNamesForPGS, _ = lo.Difference(pgsCliqueNames, expectedPCLQNamesForPCSG)
+	expectedPCLQNamesForPCS, _ = lo.Difference(pcsCliqueNames, expectedPCLQNamesForPCSG)
 	return
 }
 
-// GetExpectedPCSGFQNsPerPGSReplica computes the FQNs for all PodCliqueScalingGroups defined in PGS for each replica.
-func GetExpectedPCSGFQNsPerPGSReplica(pgs *grovecorev1alpha1.PodGangSet) map[int][]string {
-	pcsgFQNsByPGSReplica := make(map[int][]string)
-	for pgsReplicaIndex := range int(pgs.Spec.Replicas) {
-		for _, pcsgConfig := range pgs.Spec.Template.PodCliqueScalingGroupConfigs {
-			pcsgName := common.GeneratePodCliqueScalingGroupName(common.ResourceNameReplica{Name: pgs.Name, Replica: pgsReplicaIndex}, pcsgConfig.Name)
-			pcsgFQNsByPGSReplica[pgsReplicaIndex] = append(pcsgFQNsByPGSReplica[pgsReplicaIndex], pcsgName)
+// GetExpectedPCSGFQNsPerPCSReplica computes the FQNs for all PodCliqueScalingGroups defined in PCS for each replica.
+func GetExpectedPCSGFQNsPerPCSReplica(pcs *grovecorev1alpha1.PodCliqueSet) map[int][]string {
+	pcsgFQNsByPCSReplica := make(map[int][]string)
+	for pcsReplicaIndex := range int(pcs.Spec.Replicas) {
+		for _, pcsgConfig := range pcs.Spec.Template.PodCliqueScalingGroupConfigs {
+			pcsgName := common.GeneratePodCliqueScalingGroupName(common.ResourceNameReplica{Name: pcs.Name, Replica: pcsReplicaIndex}, pcsgConfig.Name)
+			pcsgFQNsByPCSReplica[pcsReplicaIndex] = append(pcsgFQNsByPCSReplica[pcsReplicaIndex], pcsgName)
 		}
 	}
-	return pcsgFQNsByPGSReplica
+	return pcsgFQNsByPCSReplica
 }
 
-// GetExpectedStandAlonePCLQFQNsPerPGSReplica computes the FQNs for all standalone PodCliques defined in PGS for each replica.
-func GetExpectedStandAlonePCLQFQNsPerPGSReplica(pgs *grovecorev1alpha1.PodGangSet) map[int][]string {
-	pclqFQNsByPGSReplica := make(map[int][]string)
-	for pgsReplicaIndex := range int(pgs.Spec.Replicas) {
-		pclqFQNsByPGSReplica[pgsReplicaIndex] = GetPodCliqueFQNsForPGSReplicaNotInPCSG(pgs, pgsReplicaIndex)
+// GetExpectedStandAlonePCLQFQNsPerPCSReplica computes the FQNs for all standalone PodCliques defined in PCS for each replica.
+func GetExpectedStandAlonePCLQFQNsPerPCSReplica(pcs *grovecorev1alpha1.PodCliqueSet) map[int][]string {
+	pclqFQNsByPCSReplica := make(map[int][]string)
+	for pcsReplicaIndex := range int(pcs.Spec.Replicas) {
+		pclqFQNsByPCSReplica[pcsReplicaIndex] = GetPodCliqueFQNsForPCSReplicaNotInPCSG(pcs, pcsReplicaIndex)
 	}
-	return pclqFQNsByPGSReplica
+	return pclqFQNsByPCSReplica
 }

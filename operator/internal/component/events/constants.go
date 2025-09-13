@@ -72,10 +72,10 @@ const (
 	ReasonPodGangDeleteFailed = "PodGangDeleteFailed"
 )
 
-// constants for PodGangSet lifecycle events
+// constants for PodCliqueSet lifecycle events
 const (
-	// ReasonPodGangSetReplicaDeleteSuccessful is an event reason which represents a successful deletion of a PodGangSet replica.
-	ReasonPodGangSetReplicaDeleteSuccessful = "PodGangSetReplicaDeleteSuccessful"
-	// ReasonPodGangSetReplicaDeleteFailed is an event reason which represents that the deletion of a PodGangSet replica failed.
-	ReasonPodGangSetReplicaDeleteFailed = "PodGangSetReplicaDeleteFailed"
+	// ReasonPodCliqueSetReplicaDeleteSuccessful is an event reason which represents a successful deletion of a PodCliqueSet replica.
+	ReasonPodCliqueSetReplicaDeleteSuccessful = "PodCliqueSetReplicaDeleteSuccessful"
+	// ReasonPodCliqueSetReplicaDeleteFailed is an event reason which represents that the deletion of a PodCliqueSet replica failed.
+	ReasonPodCliqueSetReplicaDeleteFailed = "PodCliqueSetReplicaDeleteFailed"
 )

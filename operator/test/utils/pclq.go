@@ -32,32 +32,32 @@ import (
 // PodCliqueBuilder is a builder for creating PodClique objects.
 // This should primarily be used for tests.
 type PodCliqueBuilder struct {
-	pgsName         string
-	pgsReplicaIndex int32
+	pcsName         string
+	pcsReplicaIndex int32
 	pclq            *grovecorev1alpha1.PodClique
 }
 
 // NewPodCliqueBuilder creates a new PodCliqueBuilder.
-func NewPodCliqueBuilder(pgsName string, pgsUID types.UID, pclqTemplateName, namespace string, pgsReplicaIndex int32) *PodCliqueBuilder {
+func NewPodCliqueBuilder(pcsName string, pcsUID types.UID, pclqTemplateName, namespace string, pcsReplicaIndex int32) *PodCliqueBuilder {
 	return &PodCliqueBuilder{
-		pgsName:         pgsName,
-		pgsReplicaIndex: pgsReplicaIndex,
-		pclq:            createDefaultPodCliqueWithoutPodSpec(pgsName, pgsUID, pclqTemplateName, namespace, pgsReplicaIndex),
+		pcsName:         pcsName,
+		pcsReplicaIndex: pcsReplicaIndex,
+		pclq:            createDefaultPodCliqueWithoutPodSpec(pcsName, pcsUID, pclqTemplateName, namespace, pcsReplicaIndex),
 	}
 }
 
 // NewPCSGPodCliqueBuilder creates a PodClique that belongs to a PodCliqueScalingGroup.
-func NewPCSGPodCliqueBuilder(name, namespace, pgsName, pcsgName string, pgsReplicaIndex, pcsgReplicaIndex int) *PodCliqueBuilder {
+func NewPCSGPodCliqueBuilder(name, namespace, pcsName, pcsgName string, pcsReplicaIndex, pcsgReplicaIndex int) *PodCliqueBuilder {
 	pclq := &grovecorev1alpha1.PodClique{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      name,
 			Namespace: namespace,
 			Labels: map[string]string{
 				apicommon.LabelManagedByKey:                      apicommon.LabelManagedByValue,
-				apicommon.LabelPartOfKey:                         pgsName,
+				apicommon.LabelPartOfKey:                         pcsName,
 				apicommon.LabelPodCliqueScalingGroup:             pcsgName,
 				apicommon.LabelComponentKey:                      apicommon.LabelComponentNamePodCliqueScalingGroupPodClique,
-				apicommon.LabelPodGangSetReplicaIndex:            strconv.Itoa(pgsReplicaIndex),
+				apicommon.LabelPodCliqueSetReplicaIndex:          strconv.Itoa(pcsReplicaIndex),
 				apicommon.LabelPodCliqueScalingGroupReplicaIndex: strconv.Itoa(pcsgReplicaIndex),
 			},
 		},
@@ -69,8 +69,8 @@ func NewPCSGPodCliqueBuilder(name, namespace, pgsName, pcsgName string, pgsRepli
 	}
 
 	return &PodCliqueBuilder{
-		pgsName:         pgsName,
-		pgsReplicaIndex: int32(pgsReplicaIndex),
+		pcsName:         pcsName,
+		pcsReplicaIndex: int32(pcsReplicaIndex),
 		pclq:            pclq,
 	}
 }
@@ -92,7 +92,7 @@ func (b *PodCliqueBuilder) WithReplicas(replicas int32) *PodCliqueBuilder {
 // WithStartsAfter sets the StartsAfter field for the PodClique.
 func (b *PodCliqueBuilder) WithStartsAfter(pclqTemplateNames []string) *PodCliqueBuilder {
 	pclqDependencies := lo.Map(pclqTemplateNames, func(pclqTemplateName string, _ int) string {
-		return apicommon.GeneratePodCliqueName(apicommon.ResourceNameReplica{Name: b.pgsName, Replica: int(b.pgsReplicaIndex)}, pclqTemplateName)
+		return apicommon.GeneratePodCliqueName(apicommon.ResourceNameReplica{Name: b.pcsName, Replica: int(b.pcsReplicaIndex)}, pclqTemplateName)
 	})
 	b.pclq.Spec.StartsAfter = pclqDependencies
 	return b
@@ -139,19 +139,19 @@ func (b *PodCliqueBuilder) withDefaultPodSpec() *PodCliqueBuilder {
 	return b
 }
 
-func createDefaultPodCliqueWithoutPodSpec(pgsName string, pgsUID types.UID, pclqTemplateName, namespace string, pgsReplicaIndex int32) *grovecorev1alpha1.PodClique {
-	pclqName := apicommon.GeneratePodCliqueName(apicommon.ResourceNameReplica{Name: pgsName, Replica: int(pgsReplicaIndex)}, pclqTemplateName)
+func createDefaultPodCliqueWithoutPodSpec(pcsName string, pcsUID types.UID, pclqTemplateName, namespace string, pcsReplicaIndex int32) *grovecorev1alpha1.PodClique {
+	pclqName := apicommon.GeneratePodCliqueName(apicommon.ResourceNameReplica{Name: pcsName, Replica: int(pcsReplicaIndex)}, pclqTemplateName)
 	return &grovecorev1alpha1.PodClique{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      pclqName,
 			Namespace: namespace,
-			Labels:    getDefaultLabels(pgsName, pclqName, pgsReplicaIndex),
+			Labels:    getDefaultLabels(pcsName, pclqName, pcsReplicaIndex),
 			OwnerReferences: []metav1.OwnerReference{
 				{
 					APIVersion:         grovecorev1alpha1.SchemeGroupVersion.String(),
-					Kind:               constants.KindPodGangSet,
-					Name:               pgsName,
-					UID:                pgsUID,
+					Kind:               constants.KindPodCliqueSet,
+					Name:               pcsName,
+					UID:                pcsUID,
 					Controller:         ptr.To(true),
 					BlockOwnerDeletion: ptr.To(true),
 				},
@@ -164,14 +164,14 @@ func createDefaultPodCliqueWithoutPodSpec(pgsName string, pgsUID types.UID, pclq
 	}
 }
 
-func getDefaultLabels(pgsName, pclqName string, pgsReplicaIndex int32) map[string]string {
+func getDefaultLabels(pcsName, pclqName string, pcsReplicaIndex int32) map[string]string {
 	pclqComponentLabels := map[string]string{
-		apicommon.LabelAppNameKey:             pclqName,
-		apicommon.LabelComponentKey:           apicommon.LabelComponentNamePodGangSetPodClique,
-		apicommon.LabelPodGangSetReplicaIndex: strconv.Itoa(int(pgsReplicaIndex)),
+		apicommon.LabelAppNameKey:               pclqName,
+		apicommon.LabelComponentKey:             apicommon.LabelComponentNamePodCliqueSetPodClique,
+		apicommon.LabelPodCliqueSetReplicaIndex: strconv.Itoa(int(pcsReplicaIndex)),
 	}
 	return lo.Assign(
-		apicommon.GetDefaultLabelsForPodGangSetManagedResources(pgsName),
+		apicommon.GetDefaultLabelsForPodCliqueSetManagedResources(pcsName),
 		pclqComponentLabels,
 	)
 }

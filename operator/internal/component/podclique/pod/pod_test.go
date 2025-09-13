@@ -54,9 +54,9 @@ func TestAddEnvironmentVariables(t *testing.T) {
 				},
 			},
 			expectedEnvVars: []string{
-				constants.EnvVarPGSName,
-				constants.EnvVarPGSIndex,
-				constants.EnvVarPCLQName,
+				constants.EnvVarPodCliqueSetName,
+				constants.EnvVarPodCliqueSetIndex,
+				constants.EnvVarPodCliqueName,
 				constants.EnvVarHeadlessService,
 				constants.EnvVarPodIndex,
 			},
@@ -83,9 +83,9 @@ func TestAddEnvironmentVariables(t *testing.T) {
 				},
 			},
 			expectedEnvVars: []string{
-				constants.EnvVarPGSName,
-				constants.EnvVarPGSIndex,
-				constants.EnvVarPCLQName,
+				constants.EnvVarPodCliqueSetName,
+				constants.EnvVarPodCliqueSetIndex,
+				constants.EnvVarPodCliqueName,
 				constants.EnvVarHeadlessService,
 				constants.EnvVarPodIndex,
 			},
@@ -98,7 +98,7 @@ func TestAddEnvironmentVariables(t *testing.T) {
 				Spec: tt.pclq.Spec.PodSpec,
 			}
 
-			addEnvironmentVariables(pod, tt.pclq, "test-pgs", 0, 0)
+			addEnvironmentVariables(pod, tt.pclq, "test-pcs", 0, 0)
 
 			// Check that all containers have the expected environment variables
 			for _, container := range pod.Spec.Containers {
@@ -145,8 +145,8 @@ func TestAddGroveEnvironmentVariables_NoDuplicates(t *testing.T) {
 								Name:  "test-container",
 								Image: "test-image",
 								Env: []corev1.EnvVar{
-									{Name: "GROVE_PGS_NAME", Value: "old-pgs-name"},
-									{Name: "GROVE_PGS_INDEX", Value: "old-index"},
+									{Name: "GROVE_PCS_NAME", Value: "old-pcs-name"},
+									{Name: "GROVE_PCS_INDEX", Value: "old-index"},
 								},
 							},
 						},
@@ -154,14 +154,14 @@ func TestAddGroveEnvironmentVariables_NoDuplicates(t *testing.T) {
 				},
 			},
 			expectedEnvVars: []string{
-				constants.EnvVarPGSName,
-				constants.EnvVarPGSIndex,
-				constants.EnvVarPCLQName,
+				constants.EnvVarPodCliqueSetName,
+				constants.EnvVarPodCliqueSetIndex,
+				constants.EnvVarPodCliqueName,
 				constants.EnvVarHeadlessService,
 			},
 			shouldReplace: map[string]string{
-				"GROVE_PGS_NAME":  "test-pgs",
-				"GROVE_PGS_INDEX": "0",
+				"GROVE_PCS_NAME":  "test-pcs",
+				"GROVE_PCS_INDEX": "0",
 			},
 		},
 		{
@@ -187,9 +187,9 @@ func TestAddGroveEnvironmentVariables_NoDuplicates(t *testing.T) {
 				},
 			},
 			expectedEnvVars: []string{
-				constants.EnvVarPGSName,
-				constants.EnvVarPGSIndex,
-				constants.EnvVarPCLQName,
+				constants.EnvVarPodCliqueSetName,
+				constants.EnvVarPodCliqueSetIndex,
+				constants.EnvVarPodCliqueName,
 				constants.EnvVarHeadlessService,
 			},
 			shouldPreserve: []string{"USER_VAR", "CUSTOM_CONFIG"},
@@ -209,7 +209,7 @@ func TestAddGroveEnvironmentVariables_NoDuplicates(t *testing.T) {
 								Image: "test-image",
 								Env: []corev1.EnvVar{
 									{Name: "USER_VAR", Value: "user-value"},
-									{Name: "GROVE_PGS_NAME", Value: "old-pgs-name"},
+									{Name: "GROVE_PCS_NAME", Value: "old-pcs-name"},
 									{Name: "CUSTOM_CONFIG", Value: "custom-value"},
 								},
 							},
@@ -218,13 +218,13 @@ func TestAddGroveEnvironmentVariables_NoDuplicates(t *testing.T) {
 				},
 			},
 			expectedEnvVars: []string{
-				constants.EnvVarPGSName,
-				constants.EnvVarPGSIndex,
-				constants.EnvVarPCLQName,
+				constants.EnvVarPodCliqueSetName,
+				constants.EnvVarPodCliqueSetIndex,
+				constants.EnvVarPodCliqueName,
 				constants.EnvVarHeadlessService,
 			},
 			shouldReplace: map[string]string{
-				"GROVE_PGS_NAME": "test-pgs",
+				"GROVE_PCS_NAME": "test-pcs",
 			},
 			shouldPreserve: []string{"USER_VAR", "CUSTOM_CONFIG"},
 		},
@@ -254,9 +254,9 @@ func TestAddGroveEnvironmentVariables_NoDuplicates(t *testing.T) {
 				},
 			},
 			expectedEnvVars: []string{
-				constants.EnvVarPGSName,
-				constants.EnvVarPGSIndex,
-				constants.EnvVarPCLQName,
+				constants.EnvVarPodCliqueSetName,
+				constants.EnvVarPodCliqueSetIndex,
+				constants.EnvVarPodCliqueName,
 				constants.EnvVarHeadlessService,
 			},
 			shouldReplace:  map[string]string{},
@@ -270,7 +270,7 @@ func TestAddGroveEnvironmentVariables_NoDuplicates(t *testing.T) {
 				Spec: tt.pclq.Spec.PodSpec,
 			}
 
-			addEnvironmentVariables(pod, tt.pclq, "test-pgs", 0, 0)
+			addEnvironmentVariables(pod, tt.pclq, "test-pcs", 0, 0)
 
 			// Check that all containers have the expected environment variables
 			for _, container := range pod.Spec.Containers {
@@ -296,7 +296,7 @@ func TestAddGroveEnvironmentVariables_EmptyContainers(t *testing.T) {
 	}
 
 	// Should not panic with empty containers
-	addEnvironmentVariables(pod, pclq, "test-pgs", 0, 0)
+	addEnvironmentVariables(pod, pclq, "test-pcs", 0, 0)
 	assert.Empty(t, pod.Spec.Containers)
 }
 
@@ -325,13 +325,13 @@ func TestAddGroveEnvironmentVariables_MultipleContainers(t *testing.T) {
 		},
 	}
 
-	addEnvironmentVariables(pod, pclq, "test-pgs", 0, 0)
+	addEnvironmentVariables(pod, pclq, "test-pcs", 0, 0)
 
 	// Both containers should have Grove environment variables
 	expectedEnvVars := []string{
-		constants.EnvVarPGSName,
-		constants.EnvVarPGSIndex,
-		constants.EnvVarPCLQName,
+		constants.EnvVarPodCliqueSetName,
+		constants.EnvVarPodCliqueSetIndex,
+		constants.EnvVarPodCliqueName,
 		constants.EnvVarHeadlessService,
 	}
 

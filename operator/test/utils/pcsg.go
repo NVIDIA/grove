@@ -33,16 +33,16 @@ type PodCliqueScalingGroupBuilder struct {
 }
 
 // NewPodCliqueScalingGroupBuilder creates a new PodCliqueScalingGroupBuilder with basic configuration.
-func NewPodCliqueScalingGroupBuilder(name, namespace, pgsName string, pgsReplicaIndex int) *PodCliqueScalingGroupBuilder {
+func NewPodCliqueScalingGroupBuilder(name, namespace, pcsName string, pcsReplicaIndex int) *PodCliqueScalingGroupBuilder {
 	return &PodCliqueScalingGroupBuilder{
 		pcsg: &grovecorev1alpha1.PodCliqueScalingGroup{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      name,
 				Namespace: namespace,
 				Labels: map[string]string{
-					apicommon.LabelManagedByKey:           apicommon.LabelManagedByValue,
-					apicommon.LabelPartOfKey:              pgsName,
-					apicommon.LabelPodGangSetReplicaIndex: strconv.Itoa(pgsReplicaIndex),
+					apicommon.LabelManagedByKey:             apicommon.LabelManagedByValue,
+					apicommon.LabelPartOfKey:                pcsName,
+					apicommon.LabelPodCliqueSetReplicaIndex: strconv.Itoa(pcsReplicaIndex),
 				},
 			},
 			Spec: grovecorev1alpha1.PodCliqueScalingGroupSpec{

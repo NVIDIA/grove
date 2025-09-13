@@ -27,19 +27,19 @@ import (
 )
 
 var (
-	errReplicaIndexIntConversion           = errors.New("failed to convert replica index to int")
-	errNotFoundPodGangSetReplicaIndexLabel = fmt.Errorf("label %s not found on resource", apicommon.LabelPodGangSetReplicaIndex)
+	errReplicaIndexIntConversion             = errors.New("failed to convert replica index to int")
+	errNotFoundPodCliqueSetReplicaIndexLabel = fmt.Errorf("label %s not found on resource", apicommon.LabelPodCliqueSetReplicaIndex)
 )
 
-// GetPodGangSetReplicaIndex extracts the PodGangSet replica index from the labels on the managed resource.
-func GetPodGangSetReplicaIndex(objMeta metav1.ObjectMeta) (int, error) {
-	pgsReplicaIndexStr, ok := objMeta.GetLabels()[apicommon.LabelPodGangSetReplicaIndex]
+// GetPodCliqueSetReplicaIndex extracts the PodCliqueSet replica index from the labels on the managed resource.
+func GetPodCliqueSetReplicaIndex(objMeta metav1.ObjectMeta) (int, error) {
+	pcsReplicaIndexStr, ok := objMeta.GetLabels()[apicommon.LabelPodCliqueSetReplicaIndex]
 	if !ok {
-		return 0, errNotFoundPodGangSetReplicaIndexLabel
+		return 0, errNotFoundPodCliqueSetReplicaIndexLabel
 	}
-	pgsReplicaIndex, err := strconv.Atoi(pgsReplicaIndexStr)
+	pcsReplicaIndex, err := strconv.Atoi(pcsReplicaIndexStr)
 	if err != nil {
-		return 0, fmt.Errorf("%w: %w invalid PodGangSet replica index label value set on resource %v", errReplicaIndexIntConversion, err, GetObjectKeyFromObjectMeta(objMeta))
+		return 0, fmt.Errorf("%w: %w invalid PodCliqueSet replica index label value set on resource %v", errReplicaIndexIntConversion, err, GetObjectKeyFromObjectMeta(objMeta))
 	}
-	return pgsReplicaIndex, nil
+	return pcsReplicaIndex, nil
 }

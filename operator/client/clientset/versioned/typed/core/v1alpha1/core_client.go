@@ -30,7 +30,7 @@ type GroveV1alpha1Interface interface {
 	RESTClient() rest.Interface
 	PodCliquesGetter
 	PodCliqueScalingGroupsGetter
-	PodGangSetsGetter
+	PodCliqueSetsGetter
 }
 
 // GroveV1alpha1Client is used to interact with features provided by the grove.io group.
@@ -46,8 +46,8 @@ func (c *GroveV1alpha1Client) PodCliqueScalingGroups(namespace string) PodClique
 	return newPodCliqueScalingGroups(c, namespace)
 }
 
-func (c *GroveV1alpha1Client) PodGangSets(namespace string) PodGangSetInterface {
-	return newPodGangSets(c, namespace)
+func (c *GroveV1alpha1Client) PodCliqueSets(namespace string) PodCliqueSetInterface {
+	return newPodCliqueSets(c, namespace)
 }
 
 // NewForConfig creates a new GroveV1alpha1Client for the given config.
