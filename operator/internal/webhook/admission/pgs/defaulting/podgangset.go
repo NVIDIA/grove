@@ -31,21 +31,21 @@ const (
 	defaultTerminationDelay = 30 * time.Second
 )
 
-// defaultPodGangSet adds defaults to a PodGangSet.
-func defaultPodGangSet(pgs *grovecorev1alpha1.PodGangSet) {
+// defaultPodGangSet adds defaults to a PodCliqueSet.
+func defaultPodGangSet(pgs *grovecorev1alpha1.PodCliqueSet) {
 	if utils.IsEmptyStringType(pgs.Namespace) {
 		pgs.Namespace = "default"
 	}
 	defaultPodGangSetSpec(&pgs.Spec)
 }
 
-// defaultPodGangSetSpec adds defaults to the specification of a PodGangSet.
-func defaultPodGangSetSpec(spec *grovecorev1alpha1.PodGangSetSpec) {
-	// default PodGangSetTemplateSpec
+// defaultPodGangSetSpec adds defaults to the specification of a PodCliqueSet.
+func defaultPodGangSetSpec(spec *grovecorev1alpha1.PodCliqueSetSpec) {
+	// default PodCliqueSetTemplateSpec
 	defaultPodGangSetTemplateSpec(&spec.Template)
 }
 
-func defaultPodGangSetTemplateSpec(spec *grovecorev1alpha1.PodGangSetTemplateSpec) {
+func defaultPodGangSetTemplateSpec(spec *grovecorev1alpha1.PodCliqueSetTemplateSpec) {
 	// default PodCliqueTemplateSpecs
 	spec.Cliques = defaultPodCliqueTemplateSpecs(spec.Cliques)
 	// default PodCliqueScalingGroupConfigs

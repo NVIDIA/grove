@@ -50,13 +50,13 @@ func (r _resource) prepareSyncFlow(ctx context.Context, logger logr.Logger, pclq
 		err error
 	)
 
-	// Get associated PodGangSet for this PodClique.
+	// Get associated PodCliqueSet for this PodClique.
 	sc.pgs, err = componentutils.GetPodGangSet(ctx, r.client, pclq.ObjectMeta)
 	if err != nil {
 		return nil, groveerr.WrapError(err,
 			errCodeGetPodGangSet,
 			component.OperationSync,
-			fmt.Sprintf("failed to get owner PodGangSet of PodClique: %v", client.ObjectKeyFromObject(pclq)),
+			fmt.Sprintf("failed to get owner PodCliqueSet of PodClique: %v", client.ObjectKeyFromObject(pclq)),
 		)
 	}
 
@@ -65,7 +65,7 @@ func (r _resource) prepareSyncFlow(ctx context.Context, logger logr.Logger, pclq
 		return nil, groveerr.WrapError(err,
 			errCodeGetPodCliqueTemplate,
 			component.OperationSync,
-			fmt.Sprintf("failed to compute pod clique template hash for PodClique: %v in PodGangSet", client.ObjectKeyFromObject(pclq)),
+			fmt.Sprintf("failed to compute pod clique template hash for PodClique: %v in PodCliqueSet", client.ObjectKeyFromObject(pclq)),
 		)
 	}
 
@@ -425,7 +425,7 @@ func (r _resource) createPods(ctx context.Context, logger logr.Logger, sc *syncC
 // syncContext holds the relevant state required during the sync flow run.
 type syncContext struct {
 	ctx                           context.Context
-	pgs                           *grovecorev1alpha1.PodGangSet
+	pgs                           *grovecorev1alpha1.PodCliqueSet
 	pclq                          *grovecorev1alpha1.PodClique
 	associatedPodGangName         string
 	existingPCLQPods              []*corev1.Pod

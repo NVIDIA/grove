@@ -49,7 +49,7 @@ type _resource struct {
 }
 
 // New creates an instance of Secret component operator.
-func New(client client.Client, scheme *runtime.Scheme) component.Operator[grovecorev1alpha1.PodGangSet] {
+func New(client client.Client, scheme *runtime.Scheme) component.Operator[grovecorev1alpha1.PodCliqueSet] {
 	return &_resource{
 		client: client,
 		scheme: scheme,
@@ -67,7 +67,7 @@ func (r _resource) GetExistingResourceNames(ctx context.Context, _ logr.Logger, 
 		return nil, groveerr.WrapError(err,
 			errCodeGetSecret,
 			component.OperationGetExistingResourceNames,
-			fmt.Sprintf("Error getting Secret: %v for PodGangSet: %v", objKey, k8sutils.GetObjectKeyFromObjectMeta(pgsObjMeta)),
+			fmt.Sprintf("Error getting Secret: %v for PodCliqueSet: %v", objKey, k8sutils.GetObjectKeyFromObjectMeta(pgsObjMeta)),
 		)
 	}
 	if metav1.IsControlledBy(partialObjMeta, &pgsObjMeta) {
@@ -76,14 +76,14 @@ func (r _resource) GetExistingResourceNames(ctx context.Context, _ logr.Logger, 
 	return secretNames, nil
 }
 
-func (r _resource) Sync(ctx context.Context, logger logr.Logger, pgs *grovecorev1alpha1.PodGangSet) error {
+func (r _resource) Sync(ctx context.Context, logger logr.Logger, pgs *grovecorev1alpha1.PodCliqueSet) error {
 	pgsObjKey := client.ObjectKeyFromObject(pgs)
 	existingSecretNames, err := r.GetExistingResourceNames(ctx, logger, pgs.ObjectMeta)
 	if err != nil {
 		return groveerr.WrapError(err,
 			errCodeGetSecret,
 			component.OperationSync,
-			fmt.Sprintf("Error getting existing satokensecret names for PodGangSet: %v", pgsObjKey),
+			fmt.Sprintf("Error getting existing satokensecret names for PodCliqueSet: %v", pgsObjKey),
 		)
 	}
 	if len(existingSecretNames) > 0 {
@@ -99,7 +99,7 @@ func (r _resource) Sync(ctx context.Context, logger logr.Logger, pgs *grovecorev
 		return groveerr.WrapError(err,
 			errCodeCreateSecret,
 			component.OperationSync,
-			fmt.Sprintf("Error creating satokensecret: %v for PodGangSet: %v", objKey, pgsObjKey),
+			fmt.Sprintf("Error creating satokensecret: %v for PodCliqueSet: %v", objKey, pgsObjKey),
 		)
 	}
 	logger.Info("Created Secret", "objectKey", objKey)
@@ -117,14 +117,14 @@ func (r _resource) Delete(ctx context.Context, logger logr.Logger, pgsObjMeta me
 		return groveerr.WrapError(err,
 			errCodeDeleteSecret,
 			component.OperationDelete,
-			fmt.Sprintf("Error deleting satokensecret: %v for PodGangSet: %v", objectKey, k8sutils.GetObjectKeyFromObjectMeta(pgsObjMeta)),
+			fmt.Sprintf("Error deleting satokensecret: %v for PodCliqueSet: %v", objectKey, k8sutils.GetObjectKeyFromObjectMeta(pgsObjMeta)),
 		)
 	}
 	logger.Info("Deleted Secret", "objectKey", objectKey)
 	return nil
 }
 
-func (r _resource) buildResource(pgs *grovecorev1alpha1.PodGangSet, secret *corev1.Secret) error {
+func (r _resource) buildResource(pgs *grovecorev1alpha1.PodCliqueSet, secret *corev1.Secret) error {
 	secret.Labels = getLabels(pgs.Name, secret.Name)
 	if err := controllerutil.SetControllerReference(pgs, secret, r.scheme); err != nil {
 		return groveerr.WrapError(err,
@@ -146,7 +146,7 @@ func getLabels(pgsName, secretName string) map[string]string {
 		apicommon.LabelAppNameKey:   secretName,
 	}
 	return lo.Assign(
-		apicommon.GetDefaultLabelsForPodGangSetManagedResources(pgsName),
+		apicommon.GetDefaultLabelsForPodCliqueSetManagedResources(pgsName),
 		secretLabels,
 	)
 }

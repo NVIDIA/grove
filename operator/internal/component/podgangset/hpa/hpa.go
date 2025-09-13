@@ -51,7 +51,7 @@ type _resource struct {
 }
 
 // New creates an instance of HPA component operator.
-func New(client client.Client, scheme *runtime.Scheme) component.Operator[grovecorev1alpha1.PodGangSet] {
+func New(client client.Client, scheme *runtime.Scheme) component.Operator[grovecorev1alpha1.PodCliqueSet] {
 	return &_resource{
 		client: client,
 		scheme: scheme,
@@ -71,14 +71,14 @@ func (r _resource) GetExistingResourceNames(ctx context.Context, logger logr.Log
 		return nil, groveerr.WrapError(err,
 			errListHPA,
 			component.OperationGetExistingResourceNames,
-			fmt.Sprintf("Error listing HorizontalPodAutoscaler for PodCliques belonging to PodGangSet: %s", k8sutils.GetObjectKeyFromObjectMeta(pgsObjMeta)),
+			fmt.Sprintf("Error listing HorizontalPodAutoscaler for PodCliques belonging to PodCliqueSet: %s", k8sutils.GetObjectKeyFromObjectMeta(pgsObjMeta)),
 		)
 	}
 	return k8sutils.FilterMapOwnedResourceNames(pgsObjMeta, objMetaList.Items), nil
 }
 
 // Sync synchronizes all resources that the HPA Operator manages.
-func (r _resource) Sync(ctx context.Context, logger logr.Logger, pgs *grovecorev1alpha1.PodGangSet) error {
+func (r _resource) Sync(ctx context.Context, logger logr.Logger, pgs *grovecorev1alpha1.PodCliqueSet) error {
 	existingHPANames, err := r.GetExistingResourceNames(ctx, logger, pgs.ObjectMeta)
 	if err != nil {
 		return err
@@ -93,10 +93,10 @@ func (r _resource) Sync(ctx context.Context, logger logr.Logger, pgs *grovecorev
 		return groveerr.WrapError(runResult.GetAggregatedError(),
 			errSyncHPA,
 			component.OperationSync,
-			fmt.Sprintf("Error CreateOrUpdate HorizontalPodAutoscalers for PodGangSet: %v, run summary: %s", client.ObjectKeyFromObject(pgs), runResult.GetSummary()),
+			fmt.Sprintf("Error CreateOrUpdate HorizontalPodAutoscalers for PodCliqueSet: %v, run summary: %s", client.ObjectKeyFromObject(pgs), runResult.GetSummary()),
 		)
 	}
-	logger.Info("Successfully synced HorizontalPodAutoscalers for PodGangSet")
+	logger.Info("Successfully synced HorizontalPodAutoscalers for PodCliqueSet")
 	return nil
 }
 
@@ -111,7 +111,7 @@ func (r _resource) Delete(ctx context.Context, logger logr.Logger, pgsObjMeta me
 		return groveerr.WrapError(err,
 			errDeleteHPA,
 			component.OperationDelete,
-			fmt.Sprintf("Error deleting HPA for PodGangSet %v", k8sutils.GetObjectKeyFromObjectMeta(pgsObjMeta)),
+			fmt.Sprintf("Error deleting HPA for PodCliqueSet %v", k8sutils.GetObjectKeyFromObjectMeta(pgsObjMeta)),
 		)
 	}
 	logger.Info("Deleted HPA(s)")
@@ -126,7 +126,7 @@ type hpaInfo struct {
 	scaleConfig             grovecorev1alpha1.AutoScalingConfig
 }
 
-func (r _resource) computeExpectedHPAs(pgs *grovecorev1alpha1.PodGangSet) []hpaInfo {
+func (r _resource) computeExpectedHPAs(pgs *grovecorev1alpha1.PodCliqueSet) []hpaInfo {
 	expectedHPAInfos := make([]hpaInfo, 0, (len(pgs.Spec.Template.Cliques)+len(pgs.Spec.Template.PodCliqueScalingGroupConfigs))*int(pgs.Spec.Replicas))
 	for replicaIndex := range pgs.Spec.Replicas {
 		// compute expected HPA for PodCliques with individual HPAs attached to them
@@ -166,7 +166,7 @@ func (r _resource) computeExpectedHPAs(pgs *grovecorev1alpha1.PodGangSet) []hpaI
 	return expectedHPAInfos
 }
 
-func (r _resource) createOrUpdateHPATasks(logger logr.Logger, pgs *grovecorev1alpha1.PodGangSet, expectedHPAInfos []hpaInfo) []utils.Task {
+func (r _resource) createOrUpdateHPATasks(logger logr.Logger, pgs *grovecorev1alpha1.PodCliqueSet, expectedHPAInfos []hpaInfo) []utils.Task {
 	createOrUpdateTasks := make([]utils.Task, 0, len(expectedHPAInfos))
 	for _, expectedHPAInfo := range expectedHPAInfos {
 		task := utils.Task{
@@ -181,7 +181,7 @@ func (r _resource) createOrUpdateHPATasks(logger logr.Logger, pgs *grovecorev1al
 	return createOrUpdateTasks
 }
 
-func (r _resource) deleteExcessHPATasks(logger logr.Logger, pgs *grovecorev1alpha1.PodGangSet, existingHPANames []string, expectedHPAInfos []hpaInfo) []utils.Task {
+func (r _resource) deleteExcessHPATasks(logger logr.Logger, pgs *grovecorev1alpha1.PodCliqueSet, existingHPANames []string, expectedHPAInfos []hpaInfo) []utils.Task {
 	deleteTasks := make([]utils.Task, 0)
 	expectedHPANames := lo.Map(expectedHPAInfos, func(h hpaInfo, _ int) string {
 		return h.objectKey.Name
@@ -206,7 +206,7 @@ func (r _resource) deleteExcessHPATasks(logger logr.Logger, pgs *grovecorev1alph
 	return deleteTasks
 }
 
-func (r _resource) doCreateOrUpdateHPA(ctx context.Context, logger logr.Logger, pgs *grovecorev1alpha1.PodGangSet, expectedHPAInfo hpaInfo) error {
+func (r _resource) doCreateOrUpdateHPA(ctx context.Context, logger logr.Logger, pgs *grovecorev1alpha1.PodCliqueSet, expectedHPAInfo hpaInfo) error {
 	logger.Info("Running CreateOrUpdate HPA", "targetScaleResourceKind", expectedHPAInfo.targetScaleResourceKind, "targetScaleResourceName", expectedHPAInfo.targetScaleResourceName, "hpaObjectKey", expectedHPAInfo.objectKey)
 	hpa := emptyHPA(expectedHPAInfo.objectKey)
 	opResult, err := controllerutil.CreateOrPatch(ctx, r.client, hpa, func() error {
@@ -233,14 +233,14 @@ func (r _resource) doDeleteHPA(ctx context.Context, logger logr.Logger, pgsObjec
 		return groveerr.WrapError(err,
 			errDeleteHPA,
 			component.OperationSync,
-			fmt.Sprintf("Error deleting excess HPA for PodGangSet %v", k8sutils.GetObjectKeyFromObjectMeta(pgsObjectMeta)),
+			fmt.Sprintf("Error deleting excess HPA for PodCliqueSet %v", k8sutils.GetObjectKeyFromObjectMeta(pgsObjectMeta)),
 		)
 	}
 	logger.Info("Triggered Delete of HPA", "hpaObjectKey", objectKey)
 	return nil
 }
 
-func (r _resource) buildResource(pgs *grovecorev1alpha1.PodGangSet, hpa *autoscalingv2.HorizontalPodAutoscaler, expectedHPAInfo hpaInfo) error {
+func (r _resource) buildResource(pgs *grovecorev1alpha1.PodCliqueSet, hpa *autoscalingv2.HorizontalPodAutoscaler, expectedHPAInfo hpaInfo) error {
 	// MinReplicas is always set by defaulting webhook
 	hpa.Spec.MinReplicas = expectedHPAInfo.scaleConfig.MinReplicas
 	hpa.Spec.MaxReplicas = expectedHPAInfo.scaleConfig.MaxReplicas
@@ -267,14 +267,14 @@ func getLabels(pgsName, hpaName string) map[string]string {
 		apicommon.LabelComponentKey: apicommon.LabelComponentNameHorizontalPodAutoscaler,
 	}
 	return lo.Assign(
-		apicommon.GetDefaultLabelsForPodGangSetManagedResources(pgsName),
+		apicommon.GetDefaultLabelsForPodCliqueSetManagedResources(pgsName),
 		hpaComponentLabels,
 	)
 }
 
 func getPodCliqueHPASelectorLabels(pgsObjectMeta metav1.ObjectMeta) map[string]string {
 	return lo.Assign(
-		apicommon.GetDefaultLabelsForPodGangSetManagedResources(pgsObjectMeta.Name),
+		apicommon.GetDefaultLabelsForPodCliqueSetManagedResources(pgsObjectMeta.Name),
 		map[string]string{
 			apicommon.LabelComponentKey: apicommon.LabelComponentNameHorizontalPodAutoscaler,
 		},

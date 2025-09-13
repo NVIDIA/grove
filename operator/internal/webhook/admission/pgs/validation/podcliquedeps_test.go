@@ -31,7 +31,7 @@ func TestGetUnknownCliques(t *testing.T) {
 		unknownCliques    []string
 	}{
 		{
-			name:              "All clique dependencies have been defined in the PodGangSet",
+			name:              "All clique dependencies have been defined in the PodCliqueSet",
 			discoveredCliques: []string{"c1", "c2", "c3"},
 			cliqueDeps: map[string][]string{
 				"c2": {"c1"},
@@ -40,7 +40,7 @@ func TestGetUnknownCliques(t *testing.T) {
 			unknownCliques: []string{},
 		},
 		{
-			name:              "Some clique dependencies have not been defined in the PodGangSet",
+			name:              "Some clique dependencies have not been defined in the PodCliqueSet",
 			discoveredCliques: []string{"c1", "c2", "c3"},
 			cliqueDeps: map[string][]string{
 				"c2": {"c1"},

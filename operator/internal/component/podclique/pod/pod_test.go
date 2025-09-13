@@ -54,9 +54,9 @@ func TestAddEnvironmentVariables(t *testing.T) {
 				},
 			},
 			expectedEnvVars: []string{
-				constants.EnvVarPGSName,
-				constants.EnvVarPGSIndex,
-				constants.EnvVarPCLQName,
+				constants.EnvVarPodCliqueSetName,
+				constants.EnvVarPodCliqueSetIndex,
+				constants.EnvVarPodCliqueName,
 				constants.EnvVarHeadlessService,
 				constants.EnvVarPodIndex,
 			},
@@ -83,9 +83,9 @@ func TestAddEnvironmentVariables(t *testing.T) {
 				},
 			},
 			expectedEnvVars: []string{
-				constants.EnvVarPGSName,
-				constants.EnvVarPGSIndex,
-				constants.EnvVarPCLQName,
+				constants.EnvVarPodCliqueSetName,
+				constants.EnvVarPodCliqueSetIndex,
+				constants.EnvVarPodCliqueName,
 				constants.EnvVarHeadlessService,
 				constants.EnvVarPodIndex,
 			},
@@ -154,9 +154,9 @@ func TestAddGroveEnvironmentVariables_NoDuplicates(t *testing.T) {
 				},
 			},
 			expectedEnvVars: []string{
-				constants.EnvVarPGSName,
-				constants.EnvVarPGSIndex,
-				constants.EnvVarPCLQName,
+				constants.EnvVarPodCliqueSetName,
+				constants.EnvVarPodCliqueSetIndex,
+				constants.EnvVarPodCliqueName,
 				constants.EnvVarHeadlessService,
 			},
 			shouldReplace: map[string]string{
@@ -187,9 +187,9 @@ func TestAddGroveEnvironmentVariables_NoDuplicates(t *testing.T) {
 				},
 			},
 			expectedEnvVars: []string{
-				constants.EnvVarPGSName,
-				constants.EnvVarPGSIndex,
-				constants.EnvVarPCLQName,
+				constants.EnvVarPodCliqueSetName,
+				constants.EnvVarPodCliqueSetIndex,
+				constants.EnvVarPodCliqueName,
 				constants.EnvVarHeadlessService,
 			},
 			shouldPreserve: []string{"USER_VAR", "CUSTOM_CONFIG"},
@@ -218,9 +218,9 @@ func TestAddGroveEnvironmentVariables_NoDuplicates(t *testing.T) {
 				},
 			},
 			expectedEnvVars: []string{
-				constants.EnvVarPGSName,
-				constants.EnvVarPGSIndex,
-				constants.EnvVarPCLQName,
+				constants.EnvVarPodCliqueSetName,
+				constants.EnvVarPodCliqueSetIndex,
+				constants.EnvVarPodCliqueName,
 				constants.EnvVarHeadlessService,
 			},
 			shouldReplace: map[string]string{
@@ -254,9 +254,9 @@ func TestAddGroveEnvironmentVariables_NoDuplicates(t *testing.T) {
 				},
 			},
 			expectedEnvVars: []string{
-				constants.EnvVarPGSName,
-				constants.EnvVarPGSIndex,
-				constants.EnvVarPCLQName,
+				constants.EnvVarPodCliqueSetName,
+				constants.EnvVarPodCliqueSetIndex,
+				constants.EnvVarPodCliqueName,
 				constants.EnvVarHeadlessService,
 			},
 			shouldReplace:  map[string]string{},
@@ -329,9 +329,9 @@ func TestAddGroveEnvironmentVariables_MultipleContainers(t *testing.T) {
 
 	// Both containers should have Grove environment variables
 	expectedEnvVars := []string{
-		constants.EnvVarPGSName,
-		constants.EnvVarPGSIndex,
-		constants.EnvVarPCLQName,
+		constants.EnvVarPodCliqueSetName,
+		constants.EnvVarPodCliqueSetIndex,
+		constants.EnvVarPodCliqueName,
 		constants.EnvVarHeadlessService,
 	}
 

@@ -38,7 +38,7 @@ func SetupFakeClient(objects ...client.Object) client.WithWatch {
 
 	return fake.NewClientBuilder().
 		WithScheme(scheme).
-		WithStatusSubresource(&grovecorev1alpha1.PodGangSet{}).
+		WithStatusSubresource(&grovecorev1alpha1.PodCliqueSet{}).
 		WithStatusSubresource(&grovecorev1alpha1.PodCliqueScalingGroup{}).
 		WithStatusSubresource(&grovecorev1alpha1.PodClique{}).
 		WithStatusSubresource(&v1.Pod{}).

@@ -25,9 +25,9 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 )
 
-// PodGangSetBuilder is a builder for PodGangSet objects.
+// PodGangSetBuilder is a builder for PodCliqueSet objects.
 type PodGangSetBuilder struct {
-	pgs *grovecorev1alpha1.PodGangSet
+	pgs *grovecorev1alpha1.PodCliqueSet
 }
 
 // NewPodGangSetBuilder creates a new PodGangSetBuilder.
@@ -37,19 +37,19 @@ func NewPodGangSetBuilder(name, namespace string, uid types.UID) *PodGangSetBuil
 	}
 }
 
-// WithCliqueStartupType sets the StartupType for the PodGangSet.
+// WithCliqueStartupType sets the StartupType for the PodCliqueSet.
 func (b *PodGangSetBuilder) WithCliqueStartupType(startupType *grovecorev1alpha1.CliqueStartupType) *PodGangSetBuilder {
 	b.pgs.Spec.Template.StartupType = startupType
 	return b
 }
 
-// WithReplicas sets the number of replicas for the PodGangSet.
+// WithReplicas sets the number of replicas for the PodCliqueSet.
 func (b *PodGangSetBuilder) WithReplicas(replicas int32) *PodGangSetBuilder {
 	b.pgs.Spec.Replicas = replicas
 	return b
 }
 
-// WithPodCliqueParameters is a convenience function that creates a PodCliqueTemplateSpec given the parameters and adds it to the PodGangSet.
+// WithPodCliqueParameters is a convenience function that creates a PodCliqueTemplateSpec given the parameters and adds it to the PodCliqueSet.
 func (b *PodGangSetBuilder) WithPodCliqueParameters(name string, replicas int32, startsAfter []string) *PodGangSetBuilder {
 	pclqTemplateSpec := NewPodCliqueTemplateSpecBuilder(name).
 		WithReplicas(replicas).
@@ -58,26 +58,26 @@ func (b *PodGangSetBuilder) WithPodCliqueParameters(name string, replicas int32,
 	return b.WithPodCliqueTemplateSpec(pclqTemplateSpec)
 }
 
-// WithPodCliqueTemplateSpec sets the PodCliqueTemplateSpec for the PodGangSet.
-// Consumers can use PodCliqueBuilder to create a PodCliqueTemplateSpec and then use this method to add it to the PodGangSet.
+// WithPodCliqueTemplateSpec sets the PodCliqueTemplateSpec for the PodCliqueSet.
+// Consumers can use PodCliqueBuilder to create a PodCliqueTemplateSpec and then use this method to add it to the PodCliqueSet.
 func (b *PodGangSetBuilder) WithPodCliqueTemplateSpec(pclq *grovecorev1alpha1.PodCliqueTemplateSpec) *PodGangSetBuilder {
 	b.pgs.Spec.Template.Cliques = append(b.pgs.Spec.Template.Cliques, pclq)
 	return b
 }
 
-// WithPodCliqueScalingGroupConfig adds a PodCliqueScalingGroupConfig to the PodGangSet.
+// WithPodCliqueScalingGroupConfig adds a PodCliqueScalingGroupConfig to the PodCliqueSet.
 func (b *PodGangSetBuilder) WithPodCliqueScalingGroupConfig(config grovecorev1alpha1.PodCliqueScalingGroupConfig) *PodGangSetBuilder {
 	b.pgs.Spec.Template.PodCliqueScalingGroupConfigs = append(b.pgs.Spec.Template.PodCliqueScalingGroupConfigs, config)
 	return b
 }
 
-// WithPriorityClassName sets the PriorityClassName for the PodGangSet.
+// WithPriorityClassName sets the PriorityClassName for the PodCliqueSet.
 func (b *PodGangSetBuilder) WithPriorityClassName(priorityClassName string) *PodGangSetBuilder {
 	b.pgs.Spec.Template.PriorityClassName = priorityClassName
 	return b
 }
 
-// WithTerminationDelay sets the TerminationDelay for the PodGangSet.
+// WithTerminationDelay sets the TerminationDelay for the PodCliqueSet.
 func (b *PodGangSetBuilder) WithTerminationDelay(duration time.Duration) *PodGangSetBuilder {
 	b.pgs.Spec.Template.TerminationDelay = &metav1.Duration{Duration: duration}
 	return b
@@ -136,25 +136,25 @@ func (b *PodGangSetBuilder) WithScalingGroupConfig(name string, cliqueNames []st
 	return b
 }
 
-// WithPodGangSetGenerationHash sets the CurrentGenerationHash in the PodGangSet status.
+// WithPodGangSetGenerationHash sets the CurrentGenerationHash in the PodCliqueSet status.
 func (b *PodGangSetBuilder) WithPodGangSetGenerationHash(pgsGenerationHash *string) *PodGangSetBuilder {
 	b.pgs.Status.CurrentGenerationHash = pgsGenerationHash
 	return b
 }
 
-// Build creates a PodGangSet object.
-func (b *PodGangSetBuilder) Build() *grovecorev1alpha1.PodGangSet {
+// Build creates a PodCliqueSet object.
+func (b *PodGangSetBuilder) Build() *grovecorev1alpha1.PodCliqueSet {
 	return b.pgs
 }
 
-func createEmptyPodGangSet(name, namespace string, uid types.UID) *grovecorev1alpha1.PodGangSet {
-	return &grovecorev1alpha1.PodGangSet{
+func createEmptyPodGangSet(name, namespace string, uid types.UID) *grovecorev1alpha1.PodCliqueSet {
+	return &grovecorev1alpha1.PodCliqueSet{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      name,
 			Namespace: namespace,
 			UID:       uid,
 		},
-		Spec: grovecorev1alpha1.PodGangSetSpec{
+		Spec: grovecorev1alpha1.PodCliqueSetSpec{
 			Replicas: 1,
 		},
 	}

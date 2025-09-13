@@ -57,8 +57,8 @@ type PodGangSpec struct {
 	// SpreadConstraints defines the constraints for spreading PodGang's filtered by the same label selector, across domains identified by a topology key.
 	// +optional
 	SpreadConstraints []corev1.TopologySpreadConstraint `json:"spreadConstraints,omitempty"`
-	// PriorityClassName is the name of the PriorityClass to be used for the PodGangSet.
-	// If specified, indicates the priority of the PodGangSet. "system-node-critical" and
+	// PriorityClassName is the name of the PriorityClass to be used for the PodCliqueSet.
+	// If specified, indicates the priority of the PodCliqueSet. "system-node-critical" and
 	// "system-cluster-critical" are two special keywords which indicate the
 	// highest priorities with the former being the highest priority. Any other
 	// name must be defined by creating a PriorityClass object with that name.

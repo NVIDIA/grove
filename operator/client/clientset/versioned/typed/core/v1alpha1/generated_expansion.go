@@ -22,4 +22,4 @@ type PodCliqueExpansion interface{}
 
 type PodCliqueScalingGroupExpansion interface{}
 
-type PodGangSetExpansion interface{}
+type PodCliqueSetExpansion interface{}

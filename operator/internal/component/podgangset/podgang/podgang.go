@@ -55,7 +55,7 @@ type _resource struct {
 }
 
 // New creates a new instance of PodGang component operator.
-func New(client client.Client, scheme *runtime.Scheme, eventRecorder record.EventRecorder) component.Operator[grovecorev1alpha1.PodGangSet] {
+func New(client client.Client, scheme *runtime.Scheme, eventRecorder record.EventRecorder) component.Operator[grovecorev1alpha1.PodCliqueSet] {
 	return &_resource{
 		client:        client,
 		scheme:        scheme,
@@ -64,7 +64,7 @@ func New(client client.Client, scheme *runtime.Scheme, eventRecorder record.Even
 }
 
 func (r _resource) GetExistingResourceNames(ctx context.Context, logger logr.Logger, pgsObjMeta metav1.ObjectMeta) ([]string, error) {
-	logger.Info("Looking for existing PodGang resources created per replica of PodGangSet")
+	logger.Info("Looking for existing PodGang resources created per replica of PodCliqueSet")
 	objMetaList := &metav1.PartialObjectMetadataList{}
 	objMetaList.SetGroupVersionKind(groveschedulerv1alpha1.SchemeGroupVersion.WithKind("PodGang"))
 	if err := r.client.List(ctx,
@@ -75,13 +75,13 @@ func (r _resource) GetExistingResourceNames(ctx context.Context, logger logr.Log
 		return nil, groveerr.WrapError(err,
 			errCodeListPodGangs,
 			component.OperationGetExistingResourceNames,
-			fmt.Sprintf("Error listing PodGang for PodGangSet: %v", k8sutils.GetObjectKeyFromObjectMeta(pgsObjMeta)),
+			fmt.Sprintf("Error listing PodGang for PodCliqueSet: %v", k8sutils.GetObjectKeyFromObjectMeta(pgsObjMeta)),
 		)
 	}
 	return k8sutils.FilterMapOwnedResourceNames(pgsObjMeta, objMetaList.Items), nil
 }
 
-func (r _resource) Sync(ctx context.Context, logger logr.Logger, pgs *grovecorev1alpha1.PodGangSet) error {
+func (r _resource) Sync(ctx context.Context, logger logr.Logger, pgs *grovecorev1alpha1.PodCliqueSet) error {
 	logger.Info("Syncing PodGang resources")
 	sc, err := r.prepareSyncFlow(ctx, logger, pgs)
 	if err != nil {
@@ -109,21 +109,21 @@ func (r _resource) Delete(ctx context.Context, logger logr.Logger, pgsObjectMeta
 		return groveerr.WrapError(err,
 			errCodeDeletePodGangs,
 			component.OperationDelete,
-			fmt.Sprintf("Failed to delete PodGangs for PodGangSet: %v", k8sutils.GetObjectKeyFromObjectMeta(pgsObjectMeta)),
+			fmt.Sprintf("Failed to delete PodGangs for PodCliqueSet: %v", k8sutils.GetObjectKeyFromObjectMeta(pgsObjectMeta)),
 		)
 	}
 	logger.Info("Deleted PodGangs")
 	return nil
 }
 
-func (r _resource) buildResource(pgs *grovecorev1alpha1.PodGangSet, pgInfo podGangInfo, pg *groveschedulerv1alpha1.PodGang) error {
+func (r _resource) buildResource(pgs *grovecorev1alpha1.PodCliqueSet, pgInfo podGangInfo, pg *groveschedulerv1alpha1.PodGang) error {
 	pg.Labels = getLabels(pgs.Name)
 	if err := controllerutil.SetControllerReference(pgs, pg, r.scheme); err != nil {
 		return groveerr.WrapError(
 			err,
 			errCodeSetControllerReference,
 			component.OperationSync,
-			fmt.Sprintf("failed to set the controller reference on PodGang %s to PodGangSet %v", pgInfo.fqn, client.ObjectKeyFromObject(pgs)),
+			fmt.Sprintf("failed to set the controller reference on PodGang %s to PodCliqueSet %v", pgInfo.fqn, client.ObjectKeyFromObject(pgs)),
 		)
 	}
 	pg.Spec.PodGroups = createPodGroupsForPodGang(pg.Namespace, pgInfo)
@@ -133,7 +133,7 @@ func (r _resource) buildResource(pgs *grovecorev1alpha1.PodGangSet, pgInfo podGa
 
 func getPodGangSelectorLabels(pgsObjMeta metav1.ObjectMeta) map[string]string {
 	return lo.Assign(
-		apicommon.GetDefaultLabelsForPodGangSetManagedResources(pgsObjMeta.Name),
+		apicommon.GetDefaultLabelsForPodCliqueSetManagedResources(pgsObjMeta.Name),
 		map[string]string{
 			apicommon.LabelComponentKey: apicommon.LabelComponentNamePodGang,
 		})
@@ -150,7 +150,7 @@ func emptyPodGang(objKey client.ObjectKey) *groveschedulerv1alpha1.PodGang {
 
 func getLabels(pgsName string) map[string]string {
 	return lo.Assign(
-		apicommon.GetDefaultLabelsForPodGangSetManagedResources(pgsName),
+		apicommon.GetDefaultLabelsForPodCliqueSetManagedResources(pgsName),
 		map[string]string{
 			apicommon.LabelComponentKey: apicommon.LabelComponentNamePodGang,
 		})

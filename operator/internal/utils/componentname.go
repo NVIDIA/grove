@@ -27,7 +27,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-// GetPodGangSetReplicaIndexFromPodCliqueFQN extracts the PodGangSet replica index from a Pod Clique FQN name.
+// GetPodGangSetReplicaIndexFromPodCliqueFQN extracts the PodCliqueSet replica index from a Pod Clique FQN name.
 func GetPodGangSetReplicaIndexFromPodCliqueFQN(pgsName, pclqFQNName string) (int, error) {
 	replicaStartIndex := len(pgsName) + 1 // +1 for the hyphen
 	hyphenIndex := strings.Index(pclqFQNName[replicaStartIndex:], "-")
@@ -60,9 +60,9 @@ func GetPodCliqueNameFromPodCliqueFQN(pclqObjectMeta metav1.ObjectMeta) (string,
 		return "", fmt.Errorf("missing label %s on PodClique: %v", apicommon.LabelPartOfKey, pclqObjectKey)
 	}
 	// Get the PGS replica index
-	pgsReplicaIndex, ok := pclqObjectMeta.Labels[apicommon.LabelPodGangSetReplicaIndex]
+	pgsReplicaIndex, ok := pclqObjectMeta.Labels[apicommon.LabelPodCliqueSetReplicaIndex]
 	if !ok {
-		return "", fmt.Errorf("missing label %s on PodClique: %v", apicommon.LabelPodGangSetReplicaIndex, pclqObjectKey)
+		return "", fmt.Errorf("missing label %s on PodClique: %v", apicommon.LabelPodCliqueSetReplicaIndex, pclqObjectKey)
 	}
 	pclqNamePrefix := fmt.Sprintf("%s-%s-", pgsName, pgsReplicaIndex)
 	return pclqObjectMeta.Name[len(pclqNamePrefix):], nil

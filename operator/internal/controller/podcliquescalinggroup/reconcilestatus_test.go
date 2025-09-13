@@ -239,7 +239,7 @@ func TestReconcileStatus(t *testing.T) {
 
 	tests := []struct {
 		name          string
-		setup         func() (*grovecorev1alpha1.PodCliqueScalingGroup, *grovecorev1alpha1.PodGangSet, []client.Object)
+		setup         func() (*grovecorev1alpha1.PodCliqueScalingGroup, *grovecorev1alpha1.PodCliqueSet, []client.Object)
 		wantScheduled int32
 		wantAvailable int32
 		wantUpdated   int32
@@ -247,7 +247,7 @@ func TestReconcileStatus(t *testing.T) {
 	}{
 		{
 			name: "happy path",
-			setup: func() (*grovecorev1alpha1.PodCliqueScalingGroup, *grovecorev1alpha1.PodGangSet, []client.Object) {
+			setup: func() (*grovecorev1alpha1.PodCliqueScalingGroup, *grovecorev1alpha1.PodCliqueSet, []client.Object) {
 				pcsg := testutils.NewPodCliqueScalingGroupBuilder("test-pcsg", "test-ns", "test-pgs", 0).
 					WithReplicas(2).
 					WithCliqueNames([]string{"frontend", "backend"}).
@@ -280,7 +280,7 @@ func TestReconcileStatus(t *testing.T) {
 		},
 		{
 			name: "mixed replica states",
-			setup: func() (*grovecorev1alpha1.PodCliqueScalingGroup, *grovecorev1alpha1.PodGangSet, []client.Object) {
+			setup: func() (*grovecorev1alpha1.PodCliqueScalingGroup, *grovecorev1alpha1.PodCliqueSet, []client.Object) {
 				pcsg := testutils.NewPodCliqueScalingGroupBuilder("test-pcsg", "test-ns", "test-pgs", 0).
 					WithReplicas(3).
 					WithCliqueNames([]string{"worker"}).
@@ -310,7 +310,7 @@ func TestReconcileStatus(t *testing.T) {
 		},
 		{
 			name: "with terminating cliques",
-			setup: func() (*grovecorev1alpha1.PodCliqueScalingGroup, *grovecorev1alpha1.PodGangSet, []client.Object) {
+			setup: func() (*grovecorev1alpha1.PodCliqueScalingGroup, *grovecorev1alpha1.PodCliqueSet, []client.Object) {
 				pcsg := testutils.NewPodCliqueScalingGroupBuilder("test-pcsg", "test-ns", "test-pgs", 0).
 					WithReplicas(2).
 					WithCliqueNames([]string{"frontend", "backend"}).

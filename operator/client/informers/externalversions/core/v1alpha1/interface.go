@@ -28,8 +28,8 @@ type Interface interface {
 	PodCliques() PodCliqueInformer
 	// PodCliqueScalingGroups returns a PodCliqueScalingGroupInformer.
 	PodCliqueScalingGroups() PodCliqueScalingGroupInformer
-	// PodGangSets returns a PodGangSetInformer.
-	PodGangSets() PodGangSetInformer
+	// PodCliqueSets returns a PodCliqueSetInformer.
+	PodCliqueSets() PodCliqueSetInformer
 }
 
 type version struct {
@@ -53,7 +53,7 @@ func (v *version) PodCliqueScalingGroups() PodCliqueScalingGroupInformer {
 	return &podCliqueScalingGroupInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
 }
 
-// PodGangSets returns a PodGangSetInformer.
-func (v *version) PodGangSets() PodGangSetInformer {
-	return &podGangSetInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
+// PodCliqueSets returns a PodCliqueSetInformer.
+func (v *version) PodCliqueSets() PodCliqueSetInformer {
+	return &podCliqueSetInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
 }

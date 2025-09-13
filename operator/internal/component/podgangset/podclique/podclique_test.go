@@ -53,25 +53,25 @@ func TestGetExistingResourceNames(t *testing.T) {
 		expectedErr                 *groveerr.GroveError
 	}{
 		{
-			description:            "PodGangSet has zero replicas and one PodClique",
+			description:            "PodCliqueSet has zero replicas and one PodClique",
 			pgsReplicas:            0,
 			podCliqueTemplateNames: []string{"howl"},
 			expectedPodCliqueNames: []string{},
 		},
 		{
-			description:            "PodGangSet has one replica and two PodCliques",
+			description:            "PodCliqueSet has one replica and two PodCliques",
 			pgsReplicas:            1,
 			podCliqueTemplateNames: []string{"howl", "grin"},
 			expectedPodCliqueNames: []string{"coyote-0-howl", "coyote-0-grin"},
 		},
 		{
-			description:            "PodGangSet has two replicas and two PodCliques",
+			description:            "PodCliqueSet has two replicas and two PodCliques",
 			pgsReplicas:            3,
 			podCliqueTemplateNames: []string{"howl", "grin"},
 			expectedPodCliqueNames: []string{"coyote-0-howl", "coyote-0-grin", "coyote-1-howl", "coyote-1-grin", "coyote-2-howl", "coyote-2-grin"},
 		},
 		{
-			description:                 "PodGangSet has two replicas and two PodCliques with one not owned by the PodGangSet",
+			description:                 "PodCliqueSet has two replicas and two PodCliques with one not owned by the PodCliqueSet",
 			pgsReplicas:                 2,
 			podCliqueTemplateNames:      []string{"howl"},
 			podCliqueNamesNotOwnedByPGS: []string{"bandit"},
@@ -94,7 +94,7 @@ func TestGetExistingResourceNames(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.description, func(t *testing.T) {
 			t.Parallel()
-			// Create a PodGangSet with the specified number of replicas and PodCliques
+			// Create a PodCliqueSet with the specified number of replicas and PodCliques
 			pgsBuilder := testutils.NewPodGangSetBuilder(testPGSetName, testPGSNamespace, uuid.NewUUID()).
 				WithReplicas(tc.pgsReplicas).
 				WithCliqueStartupType(ptr.To(grovecorev1alpha1.CliqueStartupTypeAnyOrder))
@@ -189,7 +189,7 @@ func createDefaultPodCliques(pgsObjMeta metav1.ObjectMeta, pclqNamePrefix string
 	return podCliqueNames
 }
 
-func createExistingPodCliquesFromPGS(pgs *grovecorev1alpha1.PodGangSet, podCliqueNamesNotOwnedByPGS []string) []client.Object {
+func createExistingPodCliquesFromPGS(pgs *grovecorev1alpha1.PodCliqueSet, podCliqueNamesNotOwnedByPGS []string) []client.Object {
 	existingPodCliques := make([]client.Object, 0, len(pgs.Spec.Template.Cliques)*int(pgs.Spec.Replicas)+len(podCliqueNamesNotOwnedByPGS))
 	for replicaIndex := range pgs.Spec.Replicas {
 		for _, pclqTemplate := range pgs.Spec.Template.Cliques {
@@ -200,11 +200,11 @@ func createExistingPodCliquesFromPGS(pgs *grovecorev1alpha1.PodGangSet, podCliqu
 			existingPodCliques = append(existingPodCliques, pclq)
 		}
 	}
-	// Add additional PodCliques not owned by the PodGangSet
+	// Add additional PodCliques not owned by the PodCliqueSet
 	nonExistingPGSName := "ebony"
 	for _, podCliqueName := range podCliqueNamesNotOwnedByPGS {
 		pclq := testutils.NewPodCliqueBuilder(nonExistingPGSName, uuid.NewUUID(), podCliqueName, pgs.Namespace, 0).
-			WithOwnerReference("PodGangSet", nonExistingPGSName, uuid.NewUUID()).Build()
+			WithOwnerReference("PodCliqueSet", nonExistingPGSName, uuid.NewUUID()).Build()
 		existingPodCliques = append(existingPodCliques, pclq)
 	}
 	return existingPodCliques

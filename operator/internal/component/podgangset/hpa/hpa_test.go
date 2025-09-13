@@ -36,7 +36,7 @@ var (
 func TestComputeExpectedHPAs(t *testing.T) {
 	tests := []struct {
 		name     string
-		pgs      *grovecorev1alpha1.PodGangSet
+		pgs      *grovecorev1alpha1.PodCliqueSet
 		expected []hpaInfo
 	}{
 		{

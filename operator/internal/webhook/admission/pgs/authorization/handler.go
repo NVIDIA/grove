@@ -23,7 +23,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 )
 
-// Handler is the PodGangSet authorization admission webhook handler.
+// Handler is the PodCliqueSet authorization admission webhook handler.
 type Handler struct {
 	Logger  logr.Logger
 	Decoder admission.Decoder

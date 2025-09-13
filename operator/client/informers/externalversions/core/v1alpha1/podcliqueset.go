@@ -32,71 +32,71 @@ import (
 	cache "k8s.io/client-go/tools/cache"
 )
 
-// PodGangSetInformer provides access to a shared informer and lister for
-// PodGangSets.
-type PodGangSetInformer interface {
+// PodCliqueSetInformer provides access to a shared informer and lister for
+// PodCliqueSets.
+type PodCliqueSetInformer interface {
 	Informer() cache.SharedIndexInformer
-	Lister() corev1alpha1.PodGangSetLister
+	Lister() corev1alpha1.PodCliqueSetLister
 }
 
-type podGangSetInformer struct {
+type podCliqueSetInformer struct {
 	factory          internalinterfaces.SharedInformerFactory
 	tweakListOptions internalinterfaces.TweakListOptionsFunc
 	namespace        string
 }
 
-// NewPodGangSetInformer constructs a new informer for PodGangSet type.
+// NewPodCliqueSetInformer constructs a new informer for PodCliqueSet type.
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
-func NewPodGangSetInformer(client versioned.Interface, namespace string, resyncPeriod time.Duration, indexers cache.Indexers) cache.SharedIndexInformer {
-	return NewFilteredPodGangSetInformer(client, namespace, resyncPeriod, indexers, nil)
+func NewPodCliqueSetInformer(client versioned.Interface, namespace string, resyncPeriod time.Duration, indexers cache.Indexers) cache.SharedIndexInformer {
+	return NewFilteredPodCliqueSetInformer(client, namespace, resyncPeriod, indexers, nil)
 }
 
-// NewFilteredPodGangSetInformer constructs a new informer for PodGangSet type.
+// NewFilteredPodCliqueSetInformer constructs a new informer for PodCliqueSet type.
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
-func NewFilteredPodGangSetInformer(client versioned.Interface, namespace string, resyncPeriod time.Duration, indexers cache.Indexers, tweakListOptions internalinterfaces.TweakListOptionsFunc) cache.SharedIndexInformer {
+func NewFilteredPodCliqueSetInformer(client versioned.Interface, namespace string, resyncPeriod time.Duration, indexers cache.Indexers, tweakListOptions internalinterfaces.TweakListOptionsFunc) cache.SharedIndexInformer {
 	return cache.NewSharedIndexInformer(
 		&cache.ListWatch{
 			ListFunc: func(options v1.ListOptions) (runtime.Object, error) {
 				if tweakListOptions != nil {
 					tweakListOptions(&options)
 				}
-				return client.GroveV1alpha1().PodGangSets(namespace).List(context.Background(), options)
+				return client.GroveV1alpha1().PodCliqueSets(namespace).List(context.Background(), options)
 			},
 			WatchFunc: func(options v1.ListOptions) (watch.Interface, error) {
 				if tweakListOptions != nil {
 					tweakListOptions(&options)
 				}
-				return client.GroveV1alpha1().PodGangSets(namespace).Watch(context.Background(), options)
+				return client.GroveV1alpha1().PodCliqueSets(namespace).Watch(context.Background(), options)
 			},
 			ListWithContextFunc: func(ctx context.Context, options v1.ListOptions) (runtime.Object, error) {
 				if tweakListOptions != nil {
 					tweakListOptions(&options)
 				}
-				return client.GroveV1alpha1().PodGangSets(namespace).List(ctx, options)
+				return client.GroveV1alpha1().PodCliqueSets(namespace).List(ctx, options)
 			},
 			WatchFuncWithContext: func(ctx context.Context, options v1.ListOptions) (watch.Interface, error) {
 				if tweakListOptions != nil {
 					tweakListOptions(&options)
 				}
-				return client.GroveV1alpha1().PodGangSets(namespace).Watch(ctx, options)
+				return client.GroveV1alpha1().PodCliqueSets(namespace).Watch(ctx, options)
 			},
 		},
-		&apicorev1alpha1.PodGangSet{},
+		&apicorev1alpha1.PodCliqueSet{},
 		resyncPeriod,
 		indexers,
 	)
 }
 
-func (f *podGangSetInformer) defaultInformer(client versioned.Interface, resyncPeriod time.Duration) cache.SharedIndexInformer {
-	return NewFilteredPodGangSetInformer(client, f.namespace, resyncPeriod, cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc}, f.tweakListOptions)
+func (f *podCliqueSetInformer) defaultInformer(client versioned.Interface, resyncPeriod time.Duration) cache.SharedIndexInformer {
+	return NewFilteredPodCliqueSetInformer(client, f.namespace, resyncPeriod, cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc}, f.tweakListOptions)
 }
 
-func (f *podGangSetInformer) Informer() cache.SharedIndexInformer {
-	return f.factory.InformerFor(&apicorev1alpha1.PodGangSet{}, f.defaultInformer)
+func (f *podCliqueSetInformer) Informer() cache.SharedIndexInformer {
+	return f.factory.InformerFor(&apicorev1alpha1.PodCliqueSet{}, f.defaultInformer)
 }
 
-func (f *podGangSetInformer) Lister() corev1alpha1.PodGangSetLister {
-	return corev1alpha1.NewPodGangSetLister(f.Informer().GetIndexer())
+func (f *podCliqueSetInformer) Lister() corev1alpha1.PodCliqueSetLister {
+	return corev1alpha1.NewPodCliqueSetLister(f.Informer().GetIndexer())
 }

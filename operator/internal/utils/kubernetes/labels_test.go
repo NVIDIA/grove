@@ -32,7 +32,7 @@ func newTestObjectMetaWithReplicaIndex(index string) metav1.ObjectMeta {
 		Name:      "test-resource",
 		Namespace: "test-ns",
 		Labels: map[string]string{
-			apicommon.LabelPodGangSetReplicaIndex: index,
+			apicommon.LabelPodCliqueSetReplicaIndex: index,
 		},
 	}
 }
@@ -55,7 +55,7 @@ func newTestObjectMetaNilLabels() metav1.ObjectMeta {
 
 func newLabelsWithReplicaIndexAndExtras(index string, extraLabels map[string]string) map[string]string {
 	labels := map[string]string{
-		apicommon.LabelPodGangSetReplicaIndex: index,
+		apicommon.LabelPodCliqueSetReplicaIndex: index,
 	}
 	for k, v := range extraLabels {
 		labels[k] = v

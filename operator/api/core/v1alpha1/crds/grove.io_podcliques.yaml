@@ -8611,10 +8611,10 @@ spec:
                   - type
                   type: object
                 type: array
-              currentPodGangSetGenerationHash:
+              currentPodCliqueSetGenerationHash:
                 description: |-
-                  CurrentPodGangSetGenerationHash establishes a correlation to PodGangSet generation hash indicating
-                  that the spec of the PodGangSet at this generation is fully realized in the PodClique.
+                  CurrentPodCliqueSetGenerationHash establishes a correlation to PodCliqueSet generation hash indicating
+                  that the spec of the PodCliqueSet at this generation is fully realized in the PodClique.
                 type: string
               currentPodTemplateHash:
                 description: |-
@@ -8696,11 +8696,11 @@ spec:
                 description: RollingUpdateProgress provides details about the ongoing
                   rolling update of the PodClique.
                 properties:
-                  podGangSetGenerationHash:
+                  podCliqueSetGenerationHash:
                     description: |-
-                      PodGangSetGenerationHash is the PodGangSet generation hash corresponding to the PodGangSet spec that is being rolled out.
-                      While the update is in progress PodCliqueStatus.CurrentPodGangSetGenerationHash will not match this hash. Once the update is complete the
-                      value of this field will be copied to PodCliqueStatus.CurrentPodGangSetGenerationHash.
+                      PodCliqueSetGenerationHash is the PodCliqueSet generation hash corresponding to the PodCliqueSet spec that is being rolled out.
+                      While the update is in progress PodCliqueStatus.CurrentPodCliqueSetGenerationHash will not match this hash. Once the update is complete the
+                      value of this field will be copied to PodCliqueStatus.CurrentPodCliqueSetGenerationHash.
                     type: string
                   podTemplateHash:
                     description: |-
@@ -8738,7 +8738,7 @@ spec:
                     format: date-time
                     type: string
                 required:
-                - podGangSetGenerationHash
+                - podCliqueSetGenerationHash
                 - podTemplateHash
                 type: object
               scheduleGatedReplicas:

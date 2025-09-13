@@ -147,16 +147,16 @@ type Server struct {
 
 // ControllerConfiguration defines the configuration for the controllers.
 type ControllerConfiguration struct {
-	// PodGangSet is the configuration for the PodGangSet controller.
-	PodGangSet PodGangSetControllerConfiguration `json:"podGangSet"`
+	// PodCliqueSet is the configuration for the PodCliqueSet controller.
+	PodCliqueSet PodCliqueSetControllerConfiguration `json:"podCliqueSet"`
 	// PodClique is the configuration for the PodClique controller.
 	PodClique PodCliqueControllerConfiguration `json:"podClique"`
 	// PodCliqueScalingGroup is the configuration for the PodCliqueScalingGroup controller.
 	PodCliqueScalingGroup PodCliqueScalingGroupControllerConfiguration `json:"podCliqueScalingGroup"`
 }
 
-// PodGangSetControllerConfiguration defines the configuration for the PodGangSet controller.
-type PodGangSetControllerConfiguration struct {
+// PodCliqueSetControllerConfiguration defines the configuration for the PodCliqueSet controller.
+type PodCliqueSetControllerConfiguration struct {
 	// ConcurrentSyncs is the number of workers used for the controller to concurrently work on events.
 	// +optional
 	ConcurrentSyncs *int `json:"concurrentSyncs,omitempty"`

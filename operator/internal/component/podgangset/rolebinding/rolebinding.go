@@ -50,7 +50,7 @@ type _resource struct {
 }
 
 // New creates an instance of RoleBinding component operator.
-func New(client client.Client, scheme *runtime.Scheme) component.Operator[grovecorev1alpha1.PodGangSet] {
+func New(client client.Client, scheme *runtime.Scheme) component.Operator[grovecorev1alpha1.PodCliqueSet] {
 	return &_resource{
 		client: client,
 		scheme: scheme,
@@ -70,7 +70,7 @@ func (r _resource) GetExistingResourceNames(ctx context.Context, _ logr.Logger, 
 		return roleBindingNames, groveerr.WrapError(err,
 			errGetRoleBinding,
 			component.OperationGetExistingResourceNames,
-			fmt.Sprintf("Error getting RoleBinding: %v for PodGangSet: %v", objectKey, k8sutils.GetObjectKeyFromObjectMeta(pgsObjMeta)),
+			fmt.Sprintf("Error getting RoleBinding: %v for PodCliqueSet: %v", objectKey, k8sutils.GetObjectKeyFromObjectMeta(pgsObjMeta)),
 		)
 	}
 	if metav1.IsControlledBy(objMeta, &pgsObjMeta) {
@@ -80,13 +80,13 @@ func (r _resource) GetExistingResourceNames(ctx context.Context, _ logr.Logger, 
 }
 
 // Sync synchronizes all resources that the RoleBinding Operator manages.
-func (r _resource) Sync(ctx context.Context, logger logr.Logger, pgs *grovecorev1alpha1.PodGangSet) error {
+func (r _resource) Sync(ctx context.Context, logger logr.Logger, pgs *grovecorev1alpha1.PodCliqueSet) error {
 	existingRoleBindingNames, err := r.GetExistingResourceNames(ctx, logger, pgs.ObjectMeta)
 	if err != nil {
 		return groveerr.WrapError(err,
 			errSyncRoleBinding,
 			component.OperationSync,
-			fmt.Sprintf("Error getting existing RoleBinding names for PodGangSet: %v", client.ObjectKeyFromObject(pgs)),
+			fmt.Sprintf("Error getting existing RoleBinding names for PodCliqueSet: %v", client.ObjectKeyFromObject(pgs)),
 		)
 	}
 	if len(existingRoleBindingNames) > 0 {
@@ -100,14 +100,14 @@ func (r _resource) Sync(ctx context.Context, logger logr.Logger, pgs *grovecorev
 		return groveerr.WrapError(err,
 			errSyncRoleBinding,
 			component.OperationSync,
-			fmt.Sprintf("Error building RoleBinding: %v for PodGangSet: %v", objectKey, client.ObjectKeyFromObject(pgs)),
+			fmt.Sprintf("Error building RoleBinding: %v for PodCliqueSet: %v", objectKey, client.ObjectKeyFromObject(pgs)),
 		)
 	}
 	if err := client.IgnoreAlreadyExists(r.client.Create(ctx, roleBinding)); err != nil {
 		return groveerr.WrapError(err,
 			errSyncRoleBinding,
 			component.OperationSync,
-			fmt.Sprintf("Error syncing RoleBinding: %v for PodGangSet: %v", objectKey, client.ObjectKeyFromObject(pgs)),
+			fmt.Sprintf("Error syncing RoleBinding: %v for PodCliqueSet: %v", objectKey, client.ObjectKeyFromObject(pgs)),
 		)
 	}
 	logger.Info("Created RoleBinding", "objectKey", objectKey)
@@ -125,14 +125,14 @@ func (r _resource) Delete(ctx context.Context, logger logr.Logger, pgsObjMeta me
 		return groveerr.WrapError(err,
 			errDeleteRoleBinding,
 			component.OperationDelete,
-			fmt.Sprintf("Error deleting RoleBinding: %v for PodGangSet: %v", objectKey, k8sutils.GetObjectKeyFromObjectMeta(pgsObjMeta)),
+			fmt.Sprintf("Error deleting RoleBinding: %v for PodCliqueSet: %v", objectKey, k8sutils.GetObjectKeyFromObjectMeta(pgsObjMeta)),
 		)
 	}
 	logger.Info("deleted RoleBinding", "objectKey", objectKey)
 	return nil
 }
 
-func (r _resource) buildResource(pgs *grovecorev1alpha1.PodGangSet, roleBinding *rbacv1.RoleBinding) error {
+func (r _resource) buildResource(pgs *grovecorev1alpha1.PodCliqueSet, roleBinding *rbacv1.RoleBinding) error {
 	roleBinding.Labels = getLabels(pgs.ObjectMeta)
 	if err := controllerutil.SetControllerReference(pgs, roleBinding, r.scheme); err != nil {
 		return groveerr.WrapError(err,
@@ -163,7 +163,7 @@ func getLabels(pgsObjMeta metav1.ObjectMeta) map[string]string {
 		apicommon.LabelAppNameKey:   strings.ReplaceAll(apicommon.GeneratePodRoleBindingName(pgsObjMeta.Name), ":", "-"),
 	}
 	return lo.Assign(
-		apicommon.GetDefaultLabelsForPodGangSetManagedResources(pgsObjMeta.Name),
+		apicommon.GetDefaultLabelsForPodCliqueSetManagedResources(pgsObjMeta.Name),
 		roleLabels,
 	)
 }

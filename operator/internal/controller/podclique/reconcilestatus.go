@@ -43,8 +43,8 @@ func (r *Reconciler) reconcileStatus(ctx context.Context, logger logr.Logger, pc
 
 	pgs, err := componentutils.GetPodGangSet(ctx, r.client, pclq.ObjectMeta)
 	if err != nil {
-		logger.Error(err, "could not get PodGangSet for PodClique", "pclqObjectKey", pclqObjectKey)
-		return ctrlcommon.ReconcileWithErrors("could not get PodGangSet for PodClique", err)
+		logger.Error(err, "could not get PodCliqueSet for PodClique", "pclqObjectKey", pclqObjectKey)
+		return ctrlcommon.ReconcileWithErrors("could not get PodCliqueSet for PodClique", err)
 	}
 
 	existingPods, err := componentutils.GetPCLQPods(ctx, r.client, pgsName, pclq)
@@ -55,7 +55,7 @@ func (r *Reconciler) reconcileStatus(ctx context.Context, logger logr.Logger, pc
 
 	podCategories := k8sutils.CategorizePodsByConditionType(logger, existingPods)
 
-	// mutate PodClique.Status.CurrentPodTemplateHash and PodClique.Status.CurrentPodGangSetGenerationHash
+	// mutate PodClique.Status.CurrentPodTemplateHash and PodClique.Status.CurrentPodCliqueSetGenerationHash
 	if err = mutateCurrentHashes(logger, pgs, pclq); err != nil {
 		logger.Error(err, "failed to compute PodClique current hashes")
 		return ctrlcommon.ReconcileWithErrors("failed to compute PodClique current hashes", err)
@@ -87,9 +87,9 @@ func (r *Reconciler) reconcileStatus(ctx context.Context, logger logr.Logger, pc
 	return ctrlcommon.ContinueReconcile()
 }
 
-func mutateCurrentHashes(logger logr.Logger, pgs *grovecorev1alpha1.PodGangSet, pclq *grovecorev1alpha1.PodClique) error {
+func mutateCurrentHashes(logger logr.Logger, pgs *grovecorev1alpha1.PodCliqueSet, pclq *grovecorev1alpha1.PodClique) error {
 	if componentutils.IsPCLQUpdateInProgress(pclq) || pclq.Status.UpdatedReplicas != pclq.Status.Replicas {
-		logger.Info("PodClique is currently updating, cannot set PodGangSet CurrentGenerationHash yet")
+		logger.Info("PodClique is currently updating, cannot set PodCliqueSet CurrentGenerationHash yet")
 		return nil
 	}
 	if pclq.Status.RollingUpdateProgress == nil {
@@ -99,12 +99,12 @@ func mutateCurrentHashes(logger logr.Logger, pgs *grovecorev1alpha1.PodGangSet, 
 		}
 		if pclq.Status.CurrentPodTemplateHash == nil || *pclq.Status.CurrentPodTemplateHash == expectedPodTemplateHash {
 			pclq.Status.CurrentPodTemplateHash = ptr.To(expectedPodTemplateHash)
-			pclq.Status.CurrentPodGangSetGenerationHash = pgs.Status.CurrentGenerationHash
+			pclq.Status.CurrentPodCliqueSetGenerationHash = pgs.Status.CurrentGenerationHash
 		}
 	} else if componentutils.IsLastPCLQUpdateCompleted(pclq) {
-		logger.Info("PodClique update has completed, setting CurrentPodGangSetGenerationHash")
+		logger.Info("PodClique update has completed, setting CurrentPodCliqueSetGenerationHash")
 		pclq.Status.CurrentPodTemplateHash = ptr.To(pclq.Status.RollingUpdateProgress.PodTemplateHash)
-		pclq.Status.CurrentPodGangSetGenerationHash = ptr.To(pclq.Status.RollingUpdateProgress.PodGangSetGenerationHash)
+		pclq.Status.CurrentPodCliqueSetGenerationHash = ptr.To(pclq.Status.RollingUpdateProgress.PodCliqueSetGenerationHash)
 	}
 	return nil
 }
@@ -120,7 +120,7 @@ func mutateReplicas(pclq *grovecorev1alpha1.PodClique, podCategories map[corev1.
 
 func mutateUpdatedReplica(pclq *grovecorev1alpha1.PodClique, existingPods []*corev1.Pod) {
 	var expectedPodTemplateHash string
-	// If the PCLQ update is in progress then take the expected PodTemplateHash from the PodClique.Status.RollingUpdateProgress.PodGangSetGenerationHash field
+	// If the PCLQ update is in progress then take the expected PodTemplateHash from the PodClique.Status.RollingUpdateProgress.PodCliqueSetGenerationHash field
 	// else take it from the PodClique.Status.CurrentPodTemplateHash field
 	if componentutils.IsPCLQUpdateInProgress(pclq) {
 		expectedPodTemplateHash = pclq.Status.RollingUpdateProgress.PodTemplateHash
@@ -147,7 +147,7 @@ func mutateSelector(pgsName string, pclq *grovecorev1alpha1.PodClique) error {
 		return nil
 	}
 	labels := lo.Assign(
-		apicommon.GetDefaultLabelsForPodGangSetManagedResources(pgsName),
+		apicommon.GetDefaultLabelsForPodCliqueSetManagedResources(pgsName),
 		map[string]string{
 			apicommon.LabelPodClique: pclq.Name,
 		},

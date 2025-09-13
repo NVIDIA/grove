@@ -94,8 +94,8 @@ func SetDefaults_ServerConfiguration(serverConfig *ServerConfiguration) {
 	}
 }
 
-// SetDefaults_PodGangSetControllerConfiguration sets defaults for the PodGangSetControllerConfiguration.
-func SetDefaults_PodGangSetControllerConfiguration(obj *PodGangSetControllerConfiguration) {
+// SetDefaults_PodCliqueSetControllerConfiguration sets defaults for the PodCliqueSetControllerConfiguration.
+func SetDefaults_PodCliqueSetControllerConfiguration(obj *PodCliqueSetControllerConfiguration) {
 	if obj.ConcurrentSyncs == nil {
 		obj.ConcurrentSyncs = ptr.To(1)
 	}

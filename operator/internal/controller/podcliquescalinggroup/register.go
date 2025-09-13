@@ -55,7 +55,7 @@ func (r *Reconciler) RegisterWithManager(mgr manager.Manager) error {
 				podCliqueScalingGroupUpdatePredicate(),
 			)),
 		).
-		Watches(&grovecorev1alpha1.PodGangSet{},
+		Watches(&grovecorev1alpha1.PodCliqueSet{},
 			handler.EnqueueRequestsFromMapFunc(mapPGSToPCSG()),
 			builder.WithPredicates(podGangSetPredicate()),
 		).
@@ -70,12 +70,12 @@ func podCliqueScalingGroupUpdatePredicate() predicate.Predicate {
 	return predicate.Funcs{
 		CreateFunc: func(createEvent event.CreateEvent) bool {
 			return ctrlutils.IsManagedByGrove(createEvent.Object.GetLabels()) &&
-				ctrlutils.HasExpectedOwner(constants.KindPodGangSet, createEvent.Object.GetOwnerReferences())
+				ctrlutils.HasExpectedOwner(constants.KindPodCliqueSet, createEvent.Object.GetOwnerReferences())
 		},
 		DeleteFunc: func(_ event.DeleteEvent) bool { return false },
 		UpdateFunc: func(updateEvent event.UpdateEvent) bool {
 			return ctrlutils.IsManagedByGrove(updateEvent.ObjectOld.GetLabels()) &&
-				ctrlutils.HasExpectedOwner(constants.KindPodGangSet, updateEvent.ObjectOld.GetOwnerReferences())
+				ctrlutils.HasExpectedOwner(constants.KindPodCliqueSet, updateEvent.ObjectOld.GetOwnerReferences())
 		},
 		GenericFunc: func(_ event.GenericEvent) bool { return false },
 	}
@@ -83,7 +83,7 @@ func podCliqueScalingGroupUpdatePredicate() predicate.Predicate {
 
 func mapPGSToPCSG() handler.MapFunc {
 	return func(_ context.Context, obj client.Object) []reconcile.Request {
-		pgs, ok := obj.(*grovecorev1alpha1.PodGangSet)
+		pgs, ok := obj.(*grovecorev1alpha1.PodCliqueSet)
 		if !ok {
 			return nil
 		}
@@ -121,8 +121,8 @@ func podGangSetPredicate() predicate.Predicate {
 }
 
 func shouldEnqueueOnPGSUpdate(event event.UpdateEvent) bool {
-	oldPGS, okOld := event.ObjectOld.(*grovecorev1alpha1.PodGangSet)
-	newPGS, okNew := event.ObjectNew.(*grovecorev1alpha1.PodGangSet)
+	oldPGS, okOld := event.ObjectOld.(*grovecorev1alpha1.PodCliqueSet)
+	newPGS, okNew := event.ObjectNew.(*grovecorev1alpha1.PodCliqueSet)
 	if !okOld || !okNew {
 		return false
 	}

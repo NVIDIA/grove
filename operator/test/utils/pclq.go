@@ -57,7 +57,7 @@ func NewPCSGPodCliqueBuilder(name, namespace, pgsName, pcsgName string, pgsRepli
 				apicommon.LabelPartOfKey:                         pgsName,
 				apicommon.LabelPodCliqueScalingGroup:             pcsgName,
 				apicommon.LabelComponentKey:                      apicommon.LabelComponentNamePodCliqueScalingGroupPodClique,
-				apicommon.LabelPodGangSetReplicaIndex:            strconv.Itoa(pgsReplicaIndex),
+				apicommon.LabelPodCliqueSetReplicaIndex:          strconv.Itoa(pgsReplicaIndex),
 				apicommon.LabelPodCliqueScalingGroupReplicaIndex: strconv.Itoa(pcsgReplicaIndex),
 			},
 		},
@@ -149,7 +149,7 @@ func createDefaultPodCliqueWithoutPodSpec(pgsName string, pgsUID types.UID, pclq
 			OwnerReferences: []metav1.OwnerReference{
 				{
 					APIVersion:         grovecorev1alpha1.SchemeGroupVersion.String(),
-					Kind:               constants.KindPodGangSet,
+					Kind:               constants.KindPodCliqueSet,
 					Name:               pgsName,
 					UID:                pgsUID,
 					Controller:         ptr.To(true),
@@ -166,12 +166,12 @@ func createDefaultPodCliqueWithoutPodSpec(pgsName string, pgsUID types.UID, pclq
 
 func getDefaultLabels(pgsName, pclqName string, pgsReplicaIndex int32) map[string]string {
 	pclqComponentLabels := map[string]string{
-		apicommon.LabelAppNameKey:             pclqName,
-		apicommon.LabelComponentKey:           apicommon.LabelComponentNamePodGangSetPodClique,
-		apicommon.LabelPodGangSetReplicaIndex: strconv.Itoa(int(pgsReplicaIndex)),
+		apicommon.LabelAppNameKey:               pclqName,
+		apicommon.LabelComponentKey:             apicommon.LabelComponentNamePodCliqueSetPodClique,
+		apicommon.LabelPodCliqueSetReplicaIndex: strconv.Itoa(int(pgsReplicaIndex)),
 	}
 	return lo.Assign(
-		apicommon.GetDefaultLabelsForPodGangSetManagedResources(pgsName),
+		apicommon.GetDefaultLabelsForPodCliqueSetManagedResources(pgsName),
 		pclqComponentLabels,
 	)
 }

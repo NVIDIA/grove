@@ -130,7 +130,7 @@ func (r _resource) Sync(ctx context.Context, logger logr.Logger, pclq *grovecore
 	return nil
 }
 
-func (r _resource) buildResource(pgs *grovecorev1alpha1.PodGangSet, pclq *grovecorev1alpha1.PodClique, podGangName string, pod *corev1.Pod, podIndex int) error {
+func (r _resource) buildResource(pgs *grovecorev1alpha1.PodCliqueSet, pclq *grovecorev1alpha1.PodClique, podGangName string, pod *corev1.Pod, podIndex int) error {
 	// Extract PGS replica index from PodClique name for now (will be replaced with direct parameter)
 	pgsName := componentutils.GetPodGangSetName(pclq.ObjectMeta)
 	pgsReplicaIndex, err := utils.GetPodGangSetReplicaIndexFromPodCliqueFQN(pgsName, pclq.Name)
@@ -198,7 +198,7 @@ func (r _resource) Delete(ctx context.Context, logger logr.Logger, pclqObjectMet
 func getSelectorLabelsForPods(pclqObjectMeta metav1.ObjectMeta) map[string]string {
 	pgsName := k8sutils.GetFirstOwnerName(pclqObjectMeta)
 	return lo.Assign(
-		apicommon.GetDefaultLabelsForPodGangSetManagedResources(pgsName),
+		apicommon.GetDefaultLabelsForPodCliqueSetManagedResources(pgsName),
 		map[string]string{
 			apicommon.LabelPodClique: pclqObjectMeta.Name,
 		},
@@ -207,12 +207,12 @@ func getSelectorLabelsForPods(pclqObjectMeta metav1.ObjectMeta) map[string]strin
 
 func getLabels(pclqObjectMeta metav1.ObjectMeta, pgsName, podGangName string, pgsReplicaIndex int) map[string]string {
 	labels := map[string]string{
-		apicommon.LabelPodClique:              pclqObjectMeta.Name,
-		apicommon.LabelPodGangSetReplicaIndex: strconv.Itoa(pgsReplicaIndex),
-		apicommon.LabelPodGang:                podGangName,
+		apicommon.LabelPodClique:                pclqObjectMeta.Name,
+		apicommon.LabelPodCliqueSetReplicaIndex: strconv.Itoa(pgsReplicaIndex),
+		apicommon.LabelPodGang:                  podGangName,
 	}
 	return lo.Assign(
-		apicommon.GetDefaultLabelsForPodGangSetManagedResources(pgsName),
+		apicommon.GetDefaultLabelsForPodCliqueSetManagedResources(pgsName),
 		pclqObjectMeta.Labels,
 		labels,
 	)
@@ -222,15 +222,15 @@ func getLabels(pclqObjectMeta metav1.ObjectMeta, pgsName, podGangName string, pg
 func addEnvironmentVariables(pod *corev1.Pod, pclq *grovecorev1alpha1.PodClique, pgsName string, pgsReplicaIndex, podIndex int) {
 	groveEnvVars := []corev1.EnvVar{
 		{
-			Name:  constants.EnvVarPGSName,
+			Name:  constants.EnvVarPodCliqueSetName,
 			Value: pgsName,
 		},
 		{
-			Name:  constants.EnvVarPGSIndex,
+			Name:  constants.EnvVarPodCliqueSetIndex,
 			Value: strconv.Itoa(pgsReplicaIndex),
 		},
 		{
-			Name:  constants.EnvVarPCLQName,
+			Name:  constants.EnvVarPodCliqueName,
 			Value: pclq.Name,
 		},
 		{

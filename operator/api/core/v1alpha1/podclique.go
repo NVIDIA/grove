@@ -128,9 +128,9 @@ type PodCliqueStatus struct {
 	Selector *string `json:"hpaPodSelector,omitempty"`
 	// Conditions represents the latest available observations of the clique by its controller.
 	Conditions []metav1.Condition `json:"conditions,omitempty"`
-	// CurrentPodGangSetGenerationHash establishes a correlation to PodGangSet generation hash indicating
-	// that the spec of the PodGangSet at this generation is fully realized in the PodClique.
-	CurrentPodGangSetGenerationHash *string `json:"currentPodGangSetGenerationHash,omitempty"`
+	// CurrentPodCliqueSetGenerationHash establishes a correlation to PodCliqueSet generation hash indicating
+	// that the spec of the PodCliqueSet at this generation is fully realized in the PodClique.
+	CurrentPodCliqueSetGenerationHash *string `json:"currentPodCliqueSetGenerationHash,omitempty"`
 	// CurrentPodTemplateHash establishes a correlation to PodClique template hash indicating
 	// that the spec of the PodClique at this template hash is fully realized in the PodClique.
 	CurrentPodTemplateHash *string `json:"currentPodTemplateHash,omitempty"`
@@ -145,10 +145,10 @@ type PodCliqueRollingUpdateProgress struct {
 	// UpdateEndedAt is the time at which the rolling update ended.
 	// It will be set to nil if the rolling update is still in progress.
 	UpdateEndedAt *metav1.Time `json:"updateEndedAt,omitempty"`
-	// PodGangSetGenerationHash is the PodGangSet generation hash corresponding to the PodGangSet spec that is being rolled out.
-	// While the update is in progress PodCliqueStatus.CurrentPodGangSetGenerationHash will not match this hash. Once the update is complete the
-	// value of this field will be copied to PodCliqueStatus.CurrentPodGangSetGenerationHash.
-	PodGangSetGenerationHash string `json:"podGangSetGenerationHash"`
+	// PodCliqueSetGenerationHash is the PodCliqueSet generation hash corresponding to the PodCliqueSet spec that is being rolled out.
+	// While the update is in progress PodCliqueStatus.CurrentPodCliqueSetGenerationHash will not match this hash. Once the update is complete the
+	// value of this field will be copied to PodCliqueStatus.CurrentPodCliqueSetGenerationHash.
+	PodCliqueSetGenerationHash string `json:"podCliqueSetGenerationHash"`
 	// PodTemplateHash is the PodClique template hash corresponding to the PodClique spec that is being rolled out.
 	// While the update is in progress PodCliqueStatus.CurrentPodTemplateHash will not match this hash. Once the update is complete the
 	// value of this field will be copied to PodCliqueStatus.CurrentPodTemplateHash.

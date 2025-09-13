@@ -4,22 +4,22 @@ kind: CustomResourceDefinition
 metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.17.3
-  name: podgangsets.grove.io
+  name: podcliquesets.grove.io
 spec:
   group: grove.io
   names:
-    kind: PodGangSet
-    listKind: PodGangSetList
-    plural: podgangsets
+    kind: PodCliqueSet
+    listKind: PodCliqueSetList
+    plural: podcliquesets
     shortNames:
-    - pgs
-    singular: podgangset
+    - pcs
+    singular: podcliqueset
   scope: Namespaced
   versions:
   - name: v1alpha1
     schema:
       openAPIV3Schema:
-        description: PodGangSet is a set of PodGangs defining specification on how
+        description: PodCliqueSet is a set of PodGangs defining specification on how
           to spread and manage a gang of pods and monitoring their status.
         properties:
           apiVersion:
@@ -40,12 +40,12 @@ spec:
           metadata:
             type: object
           spec:
-            description: Spec defines the specification of the PodGangSet.
+            description: Spec defines the specification of the PodCliqueSet.
             properties:
               replicaSpreadConstraints:
                 description: ReplicaSpreadConstraints defines the constraints for
-                  spreading each replica of PodGangSet across domains identified by
-                  a topology key.
+                  spreading each replica of PodCliqueSet across domains identified
+                  by a topology key.
                 items:
                   description: TopologySpreadConstraint specifies how to spread matching
                     pods among the given topology.
@@ -225,7 +225,7 @@ spec:
                 type: integer
               template:
                 description: Template describes the template spec for PodGangs that
-                  will be created in the PodGangSet.
+                  will be created in the PodCliqueSet.
                 properties:
                   cliqueStartupType:
                     default: CliqueStartupTypeAnyOrder
@@ -264,7 +264,7 @@ spec:
                           type: object
                         name:
                           description: |-
-                            Name must be unique within a PodGangSet and is used to denote a role.
+                            Name must be unique within a PodCliqueSet and is used to denote a role.
                             Once set it cannot be updated.
                             More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names#names
                           type: string
@@ -9055,7 +9055,7 @@ spec:
                     type: object
                   podCliqueScalingGroups:
                     description: PodCliqueScalingGroupConfigs is a list of scaling
-                      groups for the PodGangSet.
+                      groups for the PodCliqueSet.
                     items:
                       description: |-
                         PodCliqueScalingGroupConfig is a group of PodClique's that are scaled together.
@@ -9080,7 +9080,7 @@ spec:
                           type: integer
                         name:
                           description: |-
-                            Name is the name of the PodCliqueScalingGroupConfig. This should be unique within the PodGangSet.
+                            Name is the name of the PodCliqueScalingGroupConfig. This should be unique within the PodCliqueSet.
                             It allows consumers to give a semantic name to a group of PodCliques that needs to be scaled together.
                           type: string
                         replicas:
@@ -9603,8 +9603,8 @@ spec:
                     type: array
                   priorityClassName:
                     description: |-
-                      PriorityClassName is the name of the PriorityClass to be used for the PodGangSet.
-                      If specified, indicates the priority of the PodGangSet. "system-node-critical" and
+                      PriorityClassName is the name of the PriorityClass to be used for the PodCliqueSet.
+                      If specified, indicates the priority of the PodCliqueSet. "system-node-critical" and
                       "system-cluster-critical" are two special keywords which indicate the
                       highest priorities with the former being the highest priority. Any other
                       name must be defined by creating a PriorityClass object with that name.
@@ -9618,7 +9618,7 @@ spec:
                     properties:
                       networkPackGroupConfigs:
                         description: |-
-                          NetworkPackGroupConfigs is a list of NetworkPackGroupConfig's that define how the pods in the PodGangSet are optimally packaged w.r.t cluster's network topology.
+                          NetworkPackGroupConfigs is a list of NetworkPackGroupConfig's that define how the pods in the PodCliqueSet are optimally packaged w.r.t cluster's network topology.
                           PodCliques that are not part of any NetworkPackGroupConfig are scheduled with best-effort network packing strategy.
                           Exercise caution when defining NetworkPackGroupConfig. Some of the downsides include:
                           1. Scheduling may be delayed until optimal placement is available.
@@ -9654,22 +9654,22 @@ spec:
             - template
             type: object
           status:
-            description: Status defines the status of the PodGangSet.
+            description: Status defines the status of the PodCliqueSet.
             properties:
               availableReplicas:
                 default: 0
                 description: |-
-                  AvailableReplicas is the number of PodGangSet replicas that are available.
-                  A PodGangSet replica is considered available when all standalone PodCliques within that replica
+                  AvailableReplicas is the number of PodCliqueSet replicas that are available.
+                  A PodCliqueSet replica is considered available when all standalone PodCliques within that replica
                   have MinAvailableBreached condition = False AND all PodCliqueScalingGroups (PCSG) within that replica
                   have MinAvailableBreached condition = False.
                 format: int32
                 type: integer
               currentGenerationHash:
                 description: |-
-                  CurrentGenerationHash is a hash value generated out of a collection of fields in a PodGangSet.
-                  Since only a subset of fields is taken into account when generating the hash, not every change in the PodGangSetSpec will
-                  be accounted for when generating this hash value. A field in PodGangSetSpec is included if a change to it triggers
+                  CurrentGenerationHash is a hash value generated out of a collection of fields in a PodCliqueSet.
+                  Since only a subset of fields is taken into account when generating the hash, not every change in the PodCliqueSetSpec will
+                  be accounted for when generating this hash value. A field in PodCliqueSetSpec is included if a change to it triggers
                   a rolling update of PodCliques and/or PodCliqueScalingGroups.
                   Only if this value is not nil and the newly computed hash value is different from the persisted CurrentGenerationHash value
                   then a rolling update needs to be triggerred.
@@ -9681,7 +9681,7 @@ spec:
                 type: string
               lastErrors:
                 description: LastErrors captures the last errors observed by the controller
-                  when reconciling the PodGangSet.
+                  when reconciling the PodCliqueSet.
                 items:
                   description: LastError captures the last error observed by the controller
                     when reconciling an object.
@@ -9706,7 +9706,7 @@ spec:
                 type: array
               lastOperation:
                 description: LastOperation captures the last operation done by the
-                  respective reconciler on the PodGangSet.
+                  respective reconciler on the PodCliqueSet.
                 properties:
                   description:
                     description: Description is a human-readable description of the
@@ -9736,7 +9736,7 @@ spec:
                 type: integer
               podGangStatuses:
                 description: PodGangStatuses captures the status for all the PodGang's
-                  that are part of the PodGangSet.
+                  that are part of the PodCliqueSet.
                 items:
                   description: PodGangStatus defines the status of a PodGang.
                   properties:
@@ -9817,7 +9817,8 @@ spec:
                   type: object
                 type: array
               replicas:
-                description: Replicas is the total number of PodGangSet replicas created.
+                description: Replicas is the total number of PodCliqueSet replicas
+                  created.
                 format: int32
                 type: integer
               rollingUpdateProgress:
@@ -9825,17 +9826,17 @@ spec:
                   update.
                 properties:
                   currentlyUpdating:
-                    description: CurrentlyUpdating captures the progress of the PodGangSet
+                    description: CurrentlyUpdating captures the progress of the PodCliqueSet
                       replica that is currently being updated.
                     properties:
                       replicaIndex:
-                        description: ReplicaIndex is the replica index of the PodGangSet
+                        description: ReplicaIndex is the replica index of the PodCliqueSet
                           that is being updated.
                         format: int32
                         type: integer
                       updateStartedAt:
                         description: UpdateStartedAt is the time at which the rolling
-                          update started for this PodGangSet replica index.
+                          update started for this PodCliqueSet replica index.
                         format: date-time
                         type: string
                     required:
@@ -9843,24 +9844,24 @@ spec:
                     type: object
                   updateEndedAt:
                     description: UpdateEndedAt is the time at which the rolling update
-                      ended for the PodGangSet.
+                      ended for the PodCliqueSet.
                     format: date-time
                     type: string
                   updateStartedAt:
                     description: UpdateStartedAt is the time at which the rolling
-                      update started for the PodGangSet.
+                      update started for the PodCliqueSet.
                     format: date-time
                     type: string
                   updatedPodCliqueScalingGroups:
                     description: UpdatedPodCliqueScalingGroups is a list of PodCliqueScalingGroup
-                      names that have been updated to the desired PodGangSet generation
+                      names that have been updated to the desired PodCliqueSet generation
                       hash.
                     items:
                       type: string
                     type: array
                   updatedPodCliques:
                     description: UpdatedPodCliques is a list of PodClique names that
-                      have been updated to the desired PodGangSet generation hash.
+                      have been updated to the desired PodCliqueSet generation hash.
                     items:
                       type: string
                     type: array
@@ -9868,7 +9869,7 @@ spec:
               updatedReplicas:
                 default: 0
                 description: UpdatedReplicas is the number of replicas that have been
-                  updated to the desired revision of the PodGangSet.
+                  updated to the desired revision of the PodCliqueSet.
                 format: int32
                 type: integer
             required:

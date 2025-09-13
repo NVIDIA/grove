@@ -47,7 +47,7 @@ type _resource struct {
 }
 
 // New creates a new instance of the PodGangSetReplica operator.
-func New(client client.Client, eventRecorder record.EventRecorder) component.Operator[grovecorev1alpha1.PodGangSet] {
+func New(client client.Client, eventRecorder record.EventRecorder) component.Operator[grovecorev1alpha1.PodCliqueSet] {
 	return &_resource{
 		client:        client,
 		eventRecorder: eventRecorder,
@@ -59,7 +59,7 @@ func (r _resource) GetExistingResourceNames(_ context.Context, _ logr.Logger, _ 
 	return []string{}, nil
 }
 
-func (r _resource) Sync(ctx context.Context, logger logr.Logger, pgs *grovecorev1alpha1.PodGangSet) error {
+func (r _resource) Sync(ctx context.Context, logger logr.Logger, pgs *grovecorev1alpha1.PodCliqueSet) error {
 	pgsObjectKey := client.ObjectKeyFromObject(pgs)
 
 	delWork, err := r.getPGSReplicaDeletionWork(ctx, logger, pgs)
@@ -75,7 +75,7 @@ func (r _resource) Sync(ctx context.Context, logger logr.Logger, pgs *grovecorev
 			return groveerr.WrapError(runResult.GetAggregatedError(),
 				errCodeDeletePGSReplica,
 				component.OperationSync,
-				fmt.Sprintf("Error deleting PodCliques for PodGangSet: %v", pgsObjectKey),
+				fmt.Sprintf("Error deleting PodCliques for PodCliqueSet: %v", pgsObjectKey),
 			)
 		}
 	}

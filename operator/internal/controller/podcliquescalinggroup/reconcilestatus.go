@@ -51,8 +51,8 @@ func (r *Reconciler) reconcileStatus(ctx context.Context, logger logr.Logger, pc
 
 	pgs, err := componentutils.GetPodGangSet(ctx, r.client, pcsg.ObjectMeta)
 	if err != nil {
-		logger.Error(err, "failed to get owner PodGangSet")
-		return ctrlcommon.ReconcileWithErrors("failed to get owner PodGangSet", err)
+		logger.Error(err, "failed to get owner PodCliqueSet")
+		return ctrlcommon.ReconcileWithErrors("failed to get owner PodCliqueSet", err)
 	}
 
 	pclqsPerPCSGReplica, err := r.getPodCliquesPerPCSGReplica(ctx, pgs.Name, client.ObjectKeyFromObject(pcsg))
@@ -125,7 +125,7 @@ func computeReplicaStatus(logger logr.Logger, currentPGSGenerationHash *string, 
 		isUpdated = isAvailable &&
 			currentPGSGenerationHash != nil &&
 			lo.EveryBy(nonTerminatedPCSGPodCliques, func(pclq grovecorev1alpha1.PodClique) bool {
-				return pclq.Status.CurrentPodGangSetGenerationHash != nil && *pclq.Status.CurrentPodGangSetGenerationHash == *currentPGSGenerationHash
+				return pclq.Status.CurrentPodCliqueSetGenerationHash != nil && *pclq.Status.CurrentPodCliqueSetGenerationHash == *currentPGSGenerationHash
 			})
 	}
 	return
@@ -203,7 +203,7 @@ func computeMinAvailableBreachedReplicas(logger logr.Logger, pclqsPerPCSGReplica
 
 func (r *Reconciler) getPodCliquesPerPCSGReplica(ctx context.Context, pgsName string, pcsgObjKey client.ObjectKey) (map[string][]grovecorev1alpha1.PodClique, error) {
 	selectorLabels := lo.Assign(
-		apicommon.GetDefaultLabelsForPodGangSetManagedResources(pgsName),
+		apicommon.GetDefaultLabelsForPodCliqueSetManagedResources(pgsName),
 		map[string]string{
 			apicommon.LabelPodCliqueScalingGroup: pcsgObjKey.Name,
 			apicommon.LabelComponentKey:          apicommon.LabelComponentNamePodCliqueScalingGroupPodClique,
@@ -222,7 +222,7 @@ func (r *Reconciler) getPodCliquesPerPCSGReplica(ctx context.Context, pgsName st
 	return pclqsPerPCSGReplica, nil
 }
 
-func mutateSelector(pgs *grovecorev1alpha1.PodGangSet, pcsg *grovecorev1alpha1.PodCliqueScalingGroup) error {
+func mutateSelector(pgs *grovecorev1alpha1.PodCliqueSet, pcsg *grovecorev1alpha1.PodCliqueScalingGroup) error {
 	pgsReplicaIndex, err := k8sutils.GetPodGangSetReplicaIndex(pcsg.ObjectMeta)
 	if err != nil {
 		return err
@@ -240,7 +240,7 @@ func mutateSelector(pgs *grovecorev1alpha1.PodGangSet, pcsg *grovecorev1alpha1.P
 		return nil
 	}
 	labels := lo.Assign(
-		apicommon.GetDefaultLabelsForPodGangSetManagedResources(pgs.Name),
+		apicommon.GetDefaultLabelsForPodCliqueSetManagedResources(pgs.Name),
 		map[string]string{
 			apicommon.LabelPodCliqueScalingGroup: pcsg.Name,
 		},
@@ -253,15 +253,15 @@ func mutateSelector(pgs *grovecorev1alpha1.PodGangSet, pcsg *grovecorev1alpha1.P
 	return nil
 }
 
-func mutateCurrentPodGangSetGenerationHash(logger logr.Logger, pgs *grovecorev1alpha1.PodGangSet, pcsg *grovecorev1alpha1.PodCliqueScalingGroup, existingPCLQs []grovecorev1alpha1.PodClique) {
+func mutateCurrentPodGangSetGenerationHash(logger logr.Logger, pgs *grovecorev1alpha1.PodCliqueSet, pcsg *grovecorev1alpha1.PodCliqueScalingGroup, existingPCLQs []grovecorev1alpha1.PodClique) {
 	pclqFQNsPendingUpdate := componentutils.GetPCLQsInPCSGPendingUpdate(pgs, pcsg, existingPCLQs)
 	if len(pclqFQNsPendingUpdate) > 0 {
 		logger.Info("Found PodCliques associated to PodCliqueScalingGroup pending update", "pclqFQNsPendingUpdate", pclqFQNsPendingUpdate)
 		return
 	}
 	if componentutils.IsPCSGUpdateInProgress(pcsg) {
-		logger.Info("PodCliqueScalingGroup is currently updating, cannot set PodGangSet CurrentGenerationHash yet")
+		logger.Info("PodCliqueScalingGroup is currently updating, cannot set PodCliqueSet CurrentGenerationHash yet")
 		return
 	}
-	pcsg.Status.CurrentPodGangSetGenerationHash = pgs.Status.CurrentGenerationHash
+	pcsg.Status.CurrentPodCliqueSetGenerationHash = pgs.Status.CurrentGenerationHash
 }

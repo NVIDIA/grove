@@ -40,9 +40,9 @@ func NewPodCliqueScalingGroupBuilder(name, namespace, pgsName string, pgsReplica
 				Name:      name,
 				Namespace: namespace,
 				Labels: map[string]string{
-					apicommon.LabelManagedByKey:           apicommon.LabelManagedByValue,
-					apicommon.LabelPartOfKey:              pgsName,
-					apicommon.LabelPodGangSetReplicaIndex: strconv.Itoa(pgsReplicaIndex),
+					apicommon.LabelManagedByKey:             apicommon.LabelManagedByValue,
+					apicommon.LabelPartOfKey:                pgsName,
+					apicommon.LabelPodCliqueSetReplicaIndex: strconv.Itoa(pgsReplicaIndex),
 				},
 			},
 			Spec: grovecorev1alpha1.PodCliqueScalingGroupSpec{

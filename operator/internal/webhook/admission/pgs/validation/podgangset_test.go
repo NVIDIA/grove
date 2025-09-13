@@ -34,7 +34,7 @@ import (
 )
 
 // Temporary helper function for remaining tests - to be refactored
-func createDummyPodGangSet(name string) *grovecorev1alpha1.PodGangSet {
+func createDummyPodGangSet(name string) *grovecorev1alpha1.PodCliqueSet {
 	return testutils.NewPodGangSetBuilder(name, "default", uuid.NewUUID()).
 		WithReplicas(1).
 		WithTerminationDelay(30 * time.Second).
@@ -426,19 +426,19 @@ func TestPodCliqueUpdateValidation(t *testing.T) {
 func TestImmutableFieldsValidation(t *testing.T) {
 	testCases := []struct {
 		name           string
-		setupOldPGS    func() *grovecorev1alpha1.PodGangSet
-		setupNewPGS    func() *grovecorev1alpha1.PodGangSet
+		setupOldPGS    func() *grovecorev1alpha1.PodCliqueSet
+		setupNewPGS    func() *grovecorev1alpha1.PodCliqueSet
 		expectError    bool
 		expectedErrMsg string
 	}{
 		{
 			name: "Valid: PriorityClassName can be updated",
-			setupOldPGS: func() *grovecorev1alpha1.PodGangSet {
+			setupOldPGS: func() *grovecorev1alpha1.PodCliqueSet {
 				pgs := createDummyPodGangSet("test")
 				pgs.Spec.Template.PriorityClassName = "old-priority"
 				return pgs
 			},
-			setupNewPGS: func() *grovecorev1alpha1.PodGangSet {
+			setupNewPGS: func() *grovecorev1alpha1.PodCliqueSet {
 				pgs := createDummyPodGangSet("test")
 				pgs.Spec.Template.PriorityClassName = "new-priority"
 				return pgs
@@ -447,12 +447,12 @@ func TestImmutableFieldsValidation(t *testing.T) {
 		},
 		{
 			name: "Invalid: RoleName is immutable",
-			setupOldPGS: func() *grovecorev1alpha1.PodGangSet {
+			setupOldPGS: func() *grovecorev1alpha1.PodCliqueSet {
 				pgs := createDummyPodGangSet("test")
 				pgs.Spec.Template.Cliques[0].Spec.RoleName = "old-role"
 				return pgs
 			},
-			setupNewPGS: func() *grovecorev1alpha1.PodGangSet {
+			setupNewPGS: func() *grovecorev1alpha1.PodCliqueSet {
 				pgs := createDummyPodGangSet("test")
 				pgs.Spec.Template.Cliques[0].Spec.RoleName = "new-role"
 				return pgs
@@ -462,12 +462,12 @@ func TestImmutableFieldsValidation(t *testing.T) {
 		},
 		{
 			name: "Invalid: MinAvailable is immutable",
-			setupOldPGS: func() *grovecorev1alpha1.PodGangSet {
+			setupOldPGS: func() *grovecorev1alpha1.PodCliqueSet {
 				pgs := createDummyPodGangSet("test")
 				pgs.Spec.Template.Cliques[0].Spec.MinAvailable = ptr.To(int32(1))
 				return pgs
 			},
-			setupNewPGS: func() *grovecorev1alpha1.PodGangSet {
+			setupNewPGS: func() *grovecorev1alpha1.PodCliqueSet {
 				pgs := createDummyPodGangSet("test")
 				pgs.Spec.Template.Cliques[0].Spec.MinAvailable = ptr.To(int32(2))
 				return pgs
@@ -477,7 +477,7 @@ func TestImmutableFieldsValidation(t *testing.T) {
 		},
 		{
 			name: "Invalid: StartsAfter is immutable",
-			setupOldPGS: func() *grovecorev1alpha1.PodGangSet {
+			setupOldPGS: func() *grovecorev1alpha1.PodCliqueSet {
 				pgs := createDummyPodGangSet("test")
 				pgs.Spec.Template.StartupType = ptr.To(grovecorev1alpha1.CliqueStartupTypeExplicit)
 				pgs.Spec.Template.Cliques = append(pgs.Spec.Template.Cliques, createDummyPodCliqueTemplate("clique2"))
@@ -485,7 +485,7 @@ func TestImmutableFieldsValidation(t *testing.T) {
 				pgs.Spec.Template.Cliques[1].Spec.StartsAfter = []string{"test"}
 				return pgs
 			},
-			setupNewPGS: func() *grovecorev1alpha1.PodGangSet {
+			setupNewPGS: func() *grovecorev1alpha1.PodCliqueSet {
 				pgs := createDummyPodGangSet("test")
 				pgs.Spec.Template.StartupType = ptr.To(grovecorev1alpha1.CliqueStartupTypeExplicit)
 				pgs.Spec.Template.Cliques = append(pgs.Spec.Template.Cliques, createDummyPodCliqueTemplate("clique2"))
@@ -498,14 +498,14 @@ func TestImmutableFieldsValidation(t *testing.T) {
 		},
 		{
 			name: "Edge case: Multiple immutable field violations",
-			setupOldPGS: func() *grovecorev1alpha1.PodGangSet {
+			setupOldPGS: func() *grovecorev1alpha1.PodCliqueSet {
 				pgs := createDummyPodGangSet("test")
 				pgs.Spec.Template.Cliques[0].Spec.RoleName = "old-role"
 				pgs.Spec.Template.Cliques[0].Spec.MinAvailable = ptr.To(int32(1))
 				pgs.Spec.Template.Cliques[0].Spec.StartsAfter = []string{"dep1"}
 				return pgs
 			},
-			setupNewPGS: func() *grovecorev1alpha1.PodGangSet {
+			setupNewPGS: func() *grovecorev1alpha1.PodCliqueSet {
 				pgs := createDummyPodGangSet("test")
 				pgs.Spec.Template.Cliques[0].Spec.RoleName = "new-role"
 				pgs.Spec.Template.Cliques[0].Spec.MinAvailable = ptr.To(int32(2))

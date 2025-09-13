@@ -29,13 +29,13 @@ import (
 )
 
 func TestDefaultPodGangSet(t *testing.T) {
-	want := grovecorev1alpha1.PodGangSet{
+	want := grovecorev1alpha1.PodCliqueSet{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "PGS1",
 			Namespace: "default",
 		},
-		Spec: grovecorev1alpha1.PodGangSetSpec{
-			Template: grovecorev1alpha1.PodGangSetTemplateSpec{
+		Spec: grovecorev1alpha1.PodCliqueSetSpec{
+			Template: grovecorev1alpha1.PodCliqueSetTemplateSpec{
 				Cliques: []*grovecorev1alpha1.PodCliqueTemplateSpec{{
 					Name: "test",
 					Spec: grovecorev1alpha1.PodCliqueSpec{
@@ -59,12 +59,12 @@ func TestDefaultPodGangSet(t *testing.T) {
 			},
 		},
 	}
-	input := grovecorev1alpha1.PodGangSet{
+	input := grovecorev1alpha1.PodCliqueSet{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: "PGS1",
 		},
-		Spec: grovecorev1alpha1.PodGangSetSpec{
-			Template: grovecorev1alpha1.PodGangSetTemplateSpec{
+		Spec: grovecorev1alpha1.PodCliqueSetSpec{
+			Template: grovecorev1alpha1.PodCliqueSetTemplateSpec{
 				Cliques: []*grovecorev1alpha1.PodCliqueTemplateSpec{{
 					Name: "test",
 					Spec: grovecorev1alpha1.PodCliqueSpec{

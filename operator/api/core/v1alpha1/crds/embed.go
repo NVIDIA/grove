@@ -21,8 +21,8 @@ import _ "embed"
 var (
 	//go:embed grove.io_podcliques.yaml
 	podCliqueCRD string
-	//go:embed grove.io_podgangsets.yaml
-	podGangSetCRD string
+	//go:embed grove.io_podcliquesets.yaml
+	podCliqueSetCRD string
 )
 
 // PodCliqueCRD returns the PodClique CRD
@@ -30,7 +30,7 @@ func PodCliqueCRD() string {
 	return podCliqueCRD
 }
 
-// PodGangSetCRD returns the PodGangSet CRD
-func PodGangSetCRD() string {
-	return podGangSetCRD
+// PodCliqueSetCRD returns the PodCliqueSet CRD
+func PodCliqueSetCRD() string {
+	return podCliqueSetCRD
 }

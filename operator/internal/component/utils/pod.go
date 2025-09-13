@@ -37,7 +37,7 @@ func GetPCLQPods(ctx context.Context, cl client.Client, pgsName string, pclq *gr
 		client.InNamespace(pclq.Namespace),
 		client.MatchingLabels(
 			lo.Assign(
-				apicommon.GetDefaultLabelsForPodGangSetManagedResources(pgsName),
+				apicommon.GetDefaultLabelsForPodCliqueSetManagedResources(pgsName),
 				map[string]string{
 					apicommon.LabelPodClique: pclq.Name,
 				},

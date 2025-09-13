@@ -42,19 +42,19 @@ var allowedStartupTypes = sets.New(grovecorev1alpha1.CliqueStartupTypeInOrder, g
 
 type pgsValidator struct {
 	operation admissionv1.Operation
-	pgs       *grovecorev1alpha1.PodGangSet
+	pgs       *grovecorev1alpha1.PodCliqueSet
 }
 
-func newPGSValidator(pgs *grovecorev1alpha1.PodGangSet, operation admissionv1.Operation) *pgsValidator {
+func newPGSValidator(pgs *grovecorev1alpha1.PodCliqueSet, operation admissionv1.Operation) *pgsValidator {
 	return &pgsValidator{
 		operation: operation,
 		pgs:       pgs,
 	}
 }
 
-// ---------------------------- validate create of PodGangSet -----------------------------------------------
+// ---------------------------- validate create of PodCliqueSet -----------------------------------------------
 
-// validate validates the PodGangSet object.
+// validate validates the PodCliqueSet object.
 func (v *pgsValidator) validate() ([]string, error) {
 	allErrs := field.ErrorList{}
 
@@ -69,7 +69,7 @@ func (v *pgsValidator) validate() ([]string, error) {
 	return warnings, allErrs.ToAggregate()
 }
 
-// validatePodGangSetSpec validates the specification of a PodGangSet object.
+// validatePodGangSetSpec validates the specification of a PodCliqueSet object.
 func (v *pgsValidator) validatePodGangSetSpec(fldPath *field.Path) ([]string, field.ErrorList) {
 	allErrs := field.ErrorList{}
 
@@ -199,7 +199,7 @@ func (v *pgsValidator) validatePodCliqueScalingGroupConfigs(fldPath *field.Path)
 		}
 		pclqScalingGroupNames = append(pclqScalingGroupNames, scalingGroupConfig.Name)
 		cliqueNamesAcrossAllScalingGroups = append(cliqueNamesAcrossAllScalingGroups, scalingGroupConfig.CliqueNames...)
-		// validate that scaling groups only contains clique names that are defined in the PodGangSet.
+		// validate that scaling groups only contains clique names that are defined in the PodCliqueSet.
 		allErrs = append(allErrs, v.validateScalingGroupPodCliqueNames(scalingGroupConfig.Name, allPodGangSetCliqueNames,
 			scalingGroupConfig.CliqueNames, fldPath.Child("cliqueNames"), groupNameFiledPath)...)
 
@@ -358,7 +358,7 @@ func (v *pgsValidator) getScalingGroupCliqueNames() sets.Set[string] {
 	return scalingGroupCliqueNames
 }
 
-// checks if the PodClique names specified in PodCliqueScalingGroupConfig refer to a defined clique in the PodGangSet.
+// checks if the PodClique names specified in PodCliqueScalingGroupConfig refer to a defined clique in the PodCliqueSet.
 func (v *pgsValidator) validateScalingGroupPodCliqueNames(pcsgName string, allPclqNames, pclqNameInScalingGrp []string, fldPath, pcsgNameFieldPath *field.Path) field.ErrorList {
 	allErrs := field.ErrorList{}
 
@@ -470,10 +470,10 @@ func (v *pgsValidator) validatePodSpec(spec corev1.PodSpec, fldPath *field.Path)
 	return warnings, allErrs
 }
 
-// ---------------------------- validate update of PodGangSet -----------------------------------------------
+// ---------------------------- validate update of PodCliqueSet -----------------------------------------------
 
-// validateUpdate validates the update to a PodGangSet object. It compares the old and new PodGangSet objects and validates that the changes done are allowed/valid.
-func (v *pgsValidator) validateUpdate(oldPgs *grovecorev1alpha1.PodGangSet) error {
+// validateUpdate validates the update to a PodCliqueSet object. It compares the old and new PodCliqueSet objects and validates that the changes done are allowed/valid.
+func (v *pgsValidator) validateUpdate(oldPgs *grovecorev1alpha1.PodCliqueSet) error {
 	allErrs := field.ErrorList{}
 	fldPath := field.NewPath("spec")
 	allErrs = append(allErrs, apivalidation.ValidateImmutableField(v.pgs.Spec.ReplicaSpreadConstraints, oldPgs.Spec.ReplicaSpreadConstraints, fldPath.Child("replicaSpreadConstraints"))...)
@@ -481,13 +481,13 @@ func (v *pgsValidator) validateUpdate(oldPgs *grovecorev1alpha1.PodGangSet) erro
 	return allErrs.ToAggregate()
 }
 
-func validatePodGangSetSpecUpdate(newSpec, oldSpec *grovecorev1alpha1.PodGangSetSpec, fldPath *field.Path) field.ErrorList {
+func validatePodGangSetSpecUpdate(newSpec, oldSpec *grovecorev1alpha1.PodCliqueSetSpec, fldPath *field.Path) field.ErrorList {
 	allErrs := field.ErrorList{}
 	allErrs = append(allErrs, validatePodGangTemplateSpecUpdate(&newSpec.Template, &oldSpec.Template, fldPath.Child("template"))...)
 	return allErrs
 }
 
-func validatePodGangTemplateSpecUpdate(newSpec, oldSpec *grovecorev1alpha1.PodGangSetTemplateSpec, fldPath *field.Path) field.ErrorList {
+func validatePodGangTemplateSpecUpdate(newSpec, oldSpec *grovecorev1alpha1.PodCliqueSetTemplateSpec, fldPath *field.Path) field.ErrorList {
 	allErrs := field.ErrorList{}
 
 	allErrs = append(allErrs, validatePodCliqueUpdate(newSpec.Cliques, oldSpec.Cliques, newSpec.StartupType, fldPath.Child("cliques"))...)
@@ -649,10 +649,10 @@ func validatePodNameConstraints(pgsName, pcsgName, pclqName string) error {
 
 	if resourceNameLength > maxCombinedResourceNameLength {
 		if pcsgName != "" {
-			return fmt.Errorf("combined resource name length %d exceeds 45-character limit required for pod naming. Consider shortening: PodGangSet '%s', PodCliqueScalingGroup '%s', or PodClique '%s'",
+			return fmt.Errorf("combined resource name length %d exceeds 45-character limit required for pod naming. Consider shortening: PodCliqueSet '%s', PodCliqueScalingGroup '%s', or PodClique '%s'",
 				resourceNameLength, pgsName, pcsgName, pclqName)
 		}
-		return fmt.Errorf("combined resource name length %d exceeds 45-character limit required for pod naming. Consider shortening: PodGangSet '%s' or PodClique '%s'",
+		return fmt.Errorf("combined resource name length %d exceeds 45-character limit required for pod naming. Consider shortening: PodCliqueSet '%s' or PodClique '%s'",
 			resourceNameLength, pgsName, pclqName)
 	}
 	return nil

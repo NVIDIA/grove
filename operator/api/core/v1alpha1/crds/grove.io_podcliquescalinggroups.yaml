@@ -21,7 +21,7 @@ spec:
       openAPIV3Schema:
         description: |-
           PodCliqueScalingGroup is the schema to define scaling groups that is used to scale a group of PodClique's.
-          An instance of this custom resource will be created for every pod clique scaling group defined as part of PodGangSet.
+          An instance of this custom resource will be created for every pod clique scaling group defined as part of PodCliqueSet.
         properties:
           apiVersion:
             description: |-
@@ -46,7 +46,7 @@ spec:
               cliqueNames:
                 description: |-
                   CliqueNames is the list of PodClique names that are configured in the
-                  matching PodCliqueScalingGroup in PodGangSet.Spec.Template.PodCliqueScalingGroupConfigs.
+                  matching PodCliqueScalingGroup in PodCliqueSet.Spec.Template.PodCliqueScalingGroupConfigs.
                 items:
                   type: string
                 type: array
@@ -144,10 +144,10 @@ spec:
                   - type
                   type: object
                 type: array
-              currentPodGangSetGenerationHash:
+              currentPodCliqueSetGenerationHash:
                 description: |-
-                  CurrentPodGangSetGenerationHash establishes a correlation to PodGangSet generation hash indicating
-                  that the spec of the PodGangSet at this generation is fully realized in the PodCliqueScalingGroup.
+                  CurrentPodCliqueSetGenerationHash establishes a correlation to PodCliqueSet generation hash indicating
+                  that the spec of the PodCliqueSet at this generation is fully realized in the PodCliqueScalingGroup.
                 type: string
               lastErrors:
                 description: LastErrors captures the last errors observed by the controller
@@ -212,11 +212,11 @@ spec:
                 description: RollingUpdateProgress provides details about the ongoing
                   rolling update of the PodCliqueScalingGroup.
                 properties:
-                  podGangSetGenerationHash:
+                  podCliqueSetGenerationHash:
                     description: |-
-                      PodGangSetGenerationHash is the PodGangSet generation hash corresponding to the PodGangSet spec that is being rolled out.
-                      While the update is in progress PodCliqueScalingGroupStatus.CurrentPodGangSetGenerationHash will not match this hash. Once the update is complete the
-                      value of this field will be copied to PodCliqueScalingGroupStatus.CurrentPodGangSetGenerationHash.
+                      PodCliqueSetGenerationHash is the PodCliqueSet generation hash corresponding to the PodCliqueSet spec that is being rolled out.
+                      While the update is in progress PodCliqueScalingGroupStatus.CurrentPodCliqueSetGenerationHash will not match this hash. Once the update is complete the
+                      value of this field will be copied to PodCliqueScalingGroupStatus.CurrentPodCliqueSetGenerationHash.
                     type: string
                   readyReplicaIndicesSelectedToUpdate:
                     description: |-
@@ -226,7 +226,7 @@ spec:
                     properties:
                       completed:
                         description: Completed is the list of indices of PodCliqueScalingGroup
-                          replicas that have been updated to the latest PodGangSet
+                          replicas that have been updated to the latest PodCliqueSet
                           spec.
                         items:
                           format: int32
@@ -252,12 +252,12 @@ spec:
                     type: string
                   updatedPodCliques:
                     description: UpdatedPodCliques is the list of PodClique names
-                      that have been updated to the latest PodGangSet spec.
+                      that have been updated to the latest PodCliqueSet spec.
                     items:
                       type: string
                     type: array
                 required:
-                - podGangSetGenerationHash
+                - podCliqueSetGenerationHash
                 - updateStartedAt
                 type: object
               scheduledReplicas:
@@ -275,7 +275,7 @@ spec:
               updatedReplicas:
                 default: 0
                 description: UpdatedReplicas is the number of PodCliqueScalingGroup
-                  replicas that correspond with the latest PodGangSetGenerationHash.
+                  replicas that correspond with the latest PodCliqueSetGenerationHash.
                 format: int32
                 type: integer
             required:

@@ -49,7 +49,7 @@ func newTestObjectMetaWithOwnerRefs(name, namespace string, ownerRefs ...metav1.
 func newTestOwnerReference(name string, uid types.UID, isController bool) metav1.OwnerReference {
 	return metav1.OwnerReference{
 		APIVersion: version,
-		Kind:       constants.KindPodGangSet,
+		Kind:       constants.KindPodCliqueSet,
 		Name:       name,
 		UID:        uid,
 		Controller: ptr.To(isController),
@@ -61,7 +61,7 @@ func newTestOwnerReferenceSimple(name string, isController bool) metav1.OwnerRef
 }
 
 func TestGetDefaultLabelsForPodGangSetManagedResources(t *testing.T) {
-	labels := apicommon.GetDefaultLabelsForPodGangSetManagedResources(testPgsName)
+	labels := apicommon.GetDefaultLabelsForPodCliqueSetManagedResources(testPgsName)
 	assert.Equal(t, labels, map[string]string{
 		"app.kubernetes.io/managed-by": "grove-operator",
 		"app.kubernetes.io/part-of":    testPgsName,
@@ -92,7 +92,7 @@ func TestFilterMapOwnedResourceNames(t *testing.T) {
 						OwnerReferences: []metav1.OwnerReference{
 							{
 								APIVersion: "v1",
-								Kind:       "PodGangSet",
+								Kind:       "PodCliqueSet",
 								Name:       "other-pgs",
 								UID:        uuid.NewUUID(),
 								Controller: ptr.To(true),
@@ -115,7 +115,7 @@ func TestFilterMapOwnedResourceNames(t *testing.T) {
 						OwnerReferences: []metav1.OwnerReference{
 							{
 								APIVersion: "v1",
-								Kind:       "PodGangSet",
+								Kind:       "PodCliqueSet",
 								Name:       testPgsName,
 								UID:        testOwnerObjMeta.UID,
 								Controller: ptr.To(true),
@@ -131,7 +131,7 @@ func TestFilterMapOwnedResourceNames(t *testing.T) {
 						OwnerReferences: []metav1.OwnerReference{
 							{
 								APIVersion: "v1",
-								Kind:       "PodGangSet",
+								Kind:       "PodCliqueSet",
 								Name:       "other-pgs",
 								UID:        uuid.NewUUID(),
 								Controller: ptr.To(true),

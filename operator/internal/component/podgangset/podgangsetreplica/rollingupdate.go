@@ -36,7 +36,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-func (r _resource) orchestrateRollingUpdate(ctx context.Context, logger logr.Logger, pgs *grovecorev1alpha1.PodGangSet, pgsIndicesToTerminate, minAvailableBreachedPGSReplicaIndices []int) error {
+func (r _resource) orchestrateRollingUpdate(ctx context.Context, logger logr.Logger, pgs *grovecorev1alpha1.PodCliqueSet, pgsIndicesToTerminate, minAvailableBreachedPGSReplicaIndices []int) error {
 	updateWork, err := r.computePendingUpdateWork(ctx, pgs, pgsIndicesToTerminate)
 	if err != nil {
 		return err
@@ -50,7 +50,7 @@ func (r _resource) orchestrateRollingUpdate(ctx context.Context, logger logr.Log
 			return groveerr.New(
 				groveerr.ErrCodeContinueReconcileAndRequeue,
 				component.OperationSync,
-				fmt.Sprintf("rolling update of PodGangSet replica index %d is not completed", updateWork.currentlyUpdatingReplicaInfo.replicaIndex),
+				fmt.Sprintf("rolling update of PodCliqueSet replica index %d is not completed", updateWork.currentlyUpdatingReplicaInfo.replicaIndex),
 			)
 		}
 	}
@@ -65,13 +65,13 @@ func (r _resource) orchestrateRollingUpdate(ctx context.Context, logger logr.Log
 		return groveerr.New(
 			groveerr.ErrCodeContinueReconcileAndRequeue,
 			component.OperationSync,
-			fmt.Sprintf("commencing rolling update of PodGangSet replica index %d", nextReplicaToUpdate),
+			fmt.Sprintf("commencing rolling update of PodCliqueSet replica index %d", nextReplicaToUpdate),
 		)
 	}
 	return nil
 }
 
-func (r _resource) computePendingUpdateWork(ctx context.Context, pgs *grovecorev1alpha1.PodGangSet, pgsIndicesToTerminate []int) (*pendingUpdateWork, error) {
+func (r _resource) computePendingUpdateWork(ctx context.Context, pgs *grovecorev1alpha1.PodCliqueSet, pgsIndicesToTerminate []int) (*pendingUpdateWork, error) {
 	replicaInfos, err := r.getPGSReplicaInfos(ctx, pgs, pgsIndicesToTerminate)
 	if err != nil {
 		return nil, err
@@ -94,9 +94,9 @@ func (r _resource) computePendingUpdateWork(ctx context.Context, pgs *grovecorev
 	return pendingWork, nil
 }
 
-func (r _resource) getPGSReplicaInfos(ctx context.Context, pgs *grovecorev1alpha1.PodGangSet, pgsIndicesToTerminate []int) ([]pgsReplicaInfo, error) {
+func (r _resource) getPGSReplicaInfos(ctx context.Context, pgs *grovecorev1alpha1.PodCliqueSet, pgsIndicesToTerminate []int) ([]pgsReplicaInfo, error) {
 	pgsObjectKey := client.ObjectKeyFromObject(pgs)
-	pclqsByPGSIndex, err := componentutils.GetPCLQsByOwnerReplicaIndex(ctx, r.client, constants.KindPodGangSet, client.ObjectKeyFromObject(pgs), apicommon.GetDefaultLabelsForPodGangSetManagedResources(pgs.Name))
+	pclqsByPGSIndex, err := componentutils.GetPCLQsByOwnerReplicaIndex(ctx, r.client, constants.KindPodCliqueSet, client.ObjectKeyFromObject(pgs), apicommon.GetDefaultLabelsForPodCliqueSetManagedResources(pgs.Name))
 	if err != nil {
 		return nil, groveerr.WrapError(err,
 			errCodeListPCLQs,
@@ -127,7 +127,7 @@ func (r _resource) getPGSReplicaInfos(ctx context.Context, pgs *grovecorev1alpha
 	return replicaInfos, nil
 }
 
-func (r _resource) updatePGSWithReplicaUpdateProgress(ctx context.Context, logger logr.Logger, pgs *grovecorev1alpha1.PodGangSet, currentReplicaUpdateProgress replicaUpdateProgress) error {
+func (r _resource) updatePGSWithReplicaUpdateProgress(ctx context.Context, logger logr.Logger, pgs *grovecorev1alpha1.PodCliqueSet, currentReplicaUpdateProgress replicaUpdateProgress) error {
 	// Set the updatedCliques
 	updatedCliqueFQNs := lo.Uniq(append(pgs.Status.RollingUpdateProgress.UpdatedPodCliques, currentReplicaUpdateProgress.updatedPCLQFQNs...))
 	// There is a possibility that the replica that is currently getting updated has been deleted due to scale-in.
@@ -150,7 +150,7 @@ func (r _resource) updatePGSWithReplicaUpdateProgress(ctx context.Context, logge
 	slices.Sort(updatedPCSGFQNs)
 	pgs.Status.RollingUpdateProgress.UpdatedPodCliqueScalingGroups = updatedPCSGFQNs
 
-	logger.Info("Updating PodGangSet status with newly updated PodCliques and PodClique")
+	logger.Info("Updating PodCliqueSet status with newly updated PodCliques and PodClique")
 	if err := r.updateRollingUpdateProgressStatus(ctx, logger, pgs); err != nil {
 		logger.Error(err, "failed to update rolling update progress", "replicaIndex", pgs.Status.RollingUpdateProgress.CurrentlyUpdating.ReplicaIndex)
 		return err
@@ -158,14 +158,14 @@ func (r _resource) updatePGSWithReplicaUpdateProgress(ctx context.Context, logge
 	return nil
 }
 
-func (r _resource) updatePGSWithNextSelectedReplica(ctx context.Context, logger logr.Logger, pgs *grovecorev1alpha1.PodGangSet, nextPGSReplicaToUpdate *int) error {
+func (r _resource) updatePGSWithNextSelectedReplica(ctx context.Context, logger logr.Logger, pgs *grovecorev1alpha1.PodCliqueSet, nextPGSReplicaToUpdate *int) error {
 	if nextPGSReplicaToUpdate == nil {
 		logger.Info("Rolling update has completed")
 		pgs.Status.RollingUpdateProgress.UpdateEndedAt = ptr.To(metav1.Now())
 		pgs.Status.RollingUpdateProgress.CurrentlyUpdating = nil
 	} else {
 		logger.Info("Initiating rolling update for next replica index", "nextReplicaIndex", *nextPGSReplicaToUpdate)
-		pgs.Status.RollingUpdateProgress.CurrentlyUpdating = &grovecorev1alpha1.PodGangSetReplicaRollingUpdateProgress{
+		pgs.Status.RollingUpdateProgress.CurrentlyUpdating = &grovecorev1alpha1.PodCliqueSetReplicaRollingUpdateProgress{
 			ReplicaIndex:    int32(*nextPGSReplicaToUpdate),
 			UpdateStartedAt: metav1.Now(),
 		}
@@ -173,7 +173,7 @@ func (r _resource) updatePGSWithNextSelectedReplica(ctx context.Context, logger 
 	return r.updateRollingUpdateProgressStatus(ctx, logger, pgs)
 }
 
-func (r _resource) updateRollingUpdateProgressStatus(ctx context.Context, logger logr.Logger, pgs *grovecorev1alpha1.PodGangSet) error {
+func (r _resource) updateRollingUpdateProgressStatus(ctx context.Context, logger logr.Logger, pgs *grovecorev1alpha1.PodCliqueSet) error {
 	if err := r.client.Status().Update(ctx, pgs); err != nil {
 		return groveerr.WrapError(
 			err,
@@ -182,11 +182,11 @@ func (r _resource) updateRollingUpdateProgressStatus(ctx context.Context, logger
 			"could not update rolling update progress",
 		)
 	}
-	logger.Info("Updated the PodGangSet status with rolling update progress")
+	logger.Info("Updated the PodCliqueSet status with rolling update progress")
 	return nil
 }
 
-func orderPGSReplicaInfoForPGS(pgs *grovecorev1alpha1.PodGangSet, minAvailableBreachedPGSReplicaIndices []int) func(a, b pgsReplicaInfo) int {
+func orderPGSReplicaInfoForPGS(pgs *grovecorev1alpha1.PodCliqueSet, minAvailableBreachedPGSReplicaIndices []int) func(a, b pgsReplicaInfo) int {
 	return func(a, b pgsReplicaInfo) int {
 		scheduledPodsInA, scheduledPodsInB := a.getNumScheduledPods(pgs), b.getNumScheduledPods(pgs)
 		// 1. Pick the PGS Replica that has no scheduled pods.
@@ -233,7 +233,7 @@ type replicaUpdateProgress struct {
 	updatedPCSGFQNs []string
 }
 
-func (w *pendingUpdateWork) getNextReplicaToUpdate(pgs *grovecorev1alpha1.PodGangSet, minAvailableBreachedPGSReplicaIndices []int) *int {
+func (w *pendingUpdateWork) getNextReplicaToUpdate(pgs *grovecorev1alpha1.PodCliqueSet, minAvailableBreachedPGSReplicaIndices []int) *int {
 	slices.SortFunc(w.pendingUpdateReplicaInfos, orderPGSReplicaInfoForPGS(pgs, minAvailableBreachedPGSReplicaIndices))
 	if len(w.pendingUpdateReplicaInfos) > 0 {
 		return &w.pendingUpdateReplicaInfos[0].replicaIndex
@@ -241,7 +241,7 @@ func (w *pendingUpdateWork) getNextReplicaToUpdate(pgs *grovecorev1alpha1.PodGan
 	return nil
 }
 
-func (pri *pgsReplicaInfo) computeUpdateProgress(pgs *grovecorev1alpha1.PodGangSet) {
+func (pri *pgsReplicaInfo) computeUpdateProgress(pgs *grovecorev1alpha1.PodCliqueSet) {
 	progress := replicaUpdateProgress{}
 	for _, pclq := range pri.pclqs {
 		if isPCLQUpdateComplete(&pclq, *pgs.Status.CurrentGenerationHash) {
@@ -260,7 +260,7 @@ func (pri *pgsReplicaInfo) computeUpdateProgress(pgs *grovecorev1alpha1.PodGangS
 
 // getNumScheduledPods returns a normalized value, which is a sum of number of pending pods
 // in individual PodCliques, and the number of pending pods of PodCliqueScalingGroup PodCliques.
-func (pri *pgsReplicaInfo) getNumScheduledPods(pgs *grovecorev1alpha1.PodGangSet) int {
+func (pri *pgsReplicaInfo) getNumScheduledPods(pgs *grovecorev1alpha1.PodCliqueSet) int {
 	noScheduled := 0
 	for _, pclq := range pri.pclqs {
 		noScheduled += int(pclq.Status.ScheduledReplicas)
@@ -278,8 +278,8 @@ func (pri *pgsReplicaInfo) getNumScheduledPods(pgs *grovecorev1alpha1.PodGangSet
 }
 
 func isPCLQUpdateComplete(pclq *grovecorev1alpha1.PodClique, currentPGSGenerationHash string) bool {
-	if pclq.Status.CurrentPodGangSetGenerationHash != nil &&
-		*pclq.Status.CurrentPodGangSetGenerationHash == currentPGSGenerationHash &&
+	if pclq.Status.CurrentPodCliqueSetGenerationHash != nil &&
+		*pclq.Status.CurrentPodCliqueSetGenerationHash == currentPGSGenerationHash &&
 		pclq.Status.UpdatedReplicas >= *pclq.Spec.MinAvailable &&
 		pclq.Status.ReadyReplicas >= *pclq.Spec.MinAvailable {
 		return true
@@ -287,6 +287,6 @@ func isPCLQUpdateComplete(pclq *grovecorev1alpha1.PodClique, currentPGSGeneratio
 	return false
 }
 
-func isRollingUpdateInProgress(pgs *grovecorev1alpha1.PodGangSet) bool {
+func isRollingUpdateInProgress(pgs *grovecorev1alpha1.PodCliqueSet) bool {
 	return pgs.Status.RollingUpdateProgress != nil && pgs.Status.RollingUpdateProgress.UpdateEndedAt == nil
 }

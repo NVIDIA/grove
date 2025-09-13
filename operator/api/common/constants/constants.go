@@ -16,11 +16,11 @@
 
 package constants
 
-// Constants for finalizers.
+// Constants for finalizers.roup
 const (
-	// FinalizerPodGangSet is the finalizer for PodGangSet that is added to `.metadata.finalizers[]` slice. This will be placed on all PodGangSet resources
-	// during reconciliation. This finalizer is used to clean up resources that are created for a PodGangSet when it is deleted.
-	FinalizerPodGangSet = "grove.io/podgangset.grove.io"
+	// FinalizerPodCliqueSet is the finalizer for PodCliqueSet that is added to `.metadata.finalizers[]` slice. This will be placed on all PodCliqueSet resources
+	// during reconciliation. This finalizer is used to clean up resources that are created for a PodCliqueSet when it is deleted.
+	FinalizerPodCliqueSet = "grove.io/podcliqueset.grove.io"
 	// FinalizerPodClique is the finalizer for PodClique that is added to `.metadata.finalizers[]` slice. This will be placed on all PodClique resources
 	// during reconciliation. This finalizer is used to clean up resources that are created for a PodClique when it is deleted.
 	FinalizerPodClique = "grove.io/podclique.grove.io"
@@ -32,22 +32,22 @@ const (
 
 // Constants for Grove environment variables
 const (
-	// EnvVarPGSName is the environment variable name for PodGangSet name
-	EnvVarPGSName = "GROVE_PGS_NAME"
-	// EnvVarPGSIndex is the environment variable name for PodGangSet replica index
-	EnvVarPGSIndex = "GROVE_PGS_INDEX"
-	// EnvVarPCLQName is the environment variable name for PodClique name
-	EnvVarPCLQName = "GROVE_PCLQ_NAME"
+	// EnvVarPodCliqueSetName is the environment variable name for PodCliqueSet name
+	EnvVarPodCliqueSetName = "GROVE_PCS_NAME"
+	// EnvVarPodCliqueSetIndex is the environment variable name for PodCliqueSet replica index
+	EnvVarPodCliqueSetIndex = "GROVE_PCS_INDEX"
+	// EnvVarPodCliqueName is the environment variable name for PodClique name
+	EnvVarPodCliqueName = "GROVE_PCLQ_NAME"
 	// EnvVarHeadlessService is the environment variable name for headless service address
 	EnvVarHeadlessService = "GROVE_HEADLESS_SERVICE"
 	// EnvVarPodIndex is the environment variable name for pod index within PodClique
 	EnvVarPodIndex = "GROVE_PCLQ_POD_INDEX"
-	// EnvVarPCSGName is the environment variable name for PodCliqueScalingGroup name
-	EnvVarPCSGName = "GROVE_PCSG_NAME"
-	// EnvVarPCSGIndex is the environment variable name for PodCliqueScalingGroup replica index
-	EnvVarPCSGIndex = "GROVE_PCSG_INDEX"
-	// EnvVarPCSGTemplateNumPods is the environment variable name for total number of pods in PCSG template
-	EnvVarPCSGTemplateNumPods = "GROVE_PCSG_TEMPLATE_NUM_PODS"
+	// EnvVarPodCliqueScalingGroupName is the environment variable name for PodCliqueScalingGroup name
+	EnvVarPodCliqueScalingGroupName = "GROVE_PCSG_NAME"
+	// EnvVarPodCliqueScalingGroupIndex is the environment variable name for PodCliqueScalingGroup replica index
+	EnvVarPodCliqueScalingGroupIndex = "GROVE_PCSG_INDEX"
+	// EnvVarPodCliqueScalingGroupTemplateNumPods is the environment variable name for total number of pods in PodCliqueScalingGroup template
+	EnvVarPodCliqueScalingGroupTemplateNumPods = "GROVE_PCSG_TEMPLATE_NUM_PODS"
 )
 
 const (
@@ -95,8 +95,8 @@ const (
 )
 
 const (
-	// KindPodGangSet is the kind for a PodGangSet resource.
-	KindPodGangSet = "PodGangSet"
+	// KindPodCliqueSet is the kind for a PodCliqueSet resource.
+	KindPodCliqueSet = "PodCliqueSet"
 	// KindPodClique is the kind for a PodClique resource.
 	KindPodClique = "PodClique"
 	// KindPodCliqueScalingGroup is the kind for a PodCliqueScalingGroup resource.

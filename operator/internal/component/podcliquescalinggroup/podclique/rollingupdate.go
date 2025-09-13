@@ -210,7 +210,7 @@ func isCurrentReplicaUpdateComplete(sc *syncContext) bool {
 	}
 	return lo.EveryBy(existingPCSGReplicaPCLQs, func(pclq grovecorev1alpha1.PodClique) bool {
 		return pclq.Status.CurrentPodTemplateHash != nil && *pclq.Status.CurrentPodTemplateHash == sc.expectedPCLQPodTemplateHashMap[pclq.Name] &&
-			pclq.Status.CurrentPodGangSetGenerationHash != nil && *pclq.Status.CurrentPodGangSetGenerationHash == *sc.pgs.Status.CurrentGenerationHash &&
+			pclq.Status.CurrentPodCliqueSetGenerationHash != nil && *pclq.Status.CurrentPodCliqueSetGenerationHash == *sc.pgs.Status.CurrentGenerationHash &&
 			pclq.Status.ReadyReplicas >= *pclq.Spec.MinAvailable
 	})
 }

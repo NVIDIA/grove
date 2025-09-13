@@ -43,14 +43,14 @@ const (
 	controllerName = "podgangset-controller"
 )
 
-// RegisterWithManager registers the PodGangSet Reconciler with the manager.
+// RegisterWithManager registers the PodCliqueSet Reconciler with the manager.
 func (r *Reconciler) RegisterWithManager(mgr manager.Manager) error {
 	return builder.ControllerManagedBy(mgr).
 		Named(controllerName).
 		WithOptions(controller.Options{
 			MaxConcurrentReconciles: *r.config.ConcurrentSyncs,
 		}).
-		For(&grovecorev1alpha1.PodGangSet{}, builder.WithPredicates(predicate.GenerationChangedPredicate{})).
+		For(&grovecorev1alpha1.PodCliqueSet{}, builder.WithPredicates(predicate.GenerationChangedPredicate{})).
 		Watches(
 			&grovecorev1alpha1.PodClique{},
 			handler.EnqueueRequestsFromMapFunc(mapPodCliqueToPodGangSet()),
@@ -91,10 +91,10 @@ func podCliquePredicate() predicate.Predicate {
 	return predicate.Funcs{
 		CreateFunc: func(_ event.CreateEvent) bool { return false },
 		DeleteFunc: func(deleteEvent event.DeleteEvent) bool {
-			return grovectrlutils.IsManagedPodClique(deleteEvent.Object, constants.KindPodGangSet)
+			return grovectrlutils.IsManagedPodClique(deleteEvent.Object, constants.KindPodCliqueSet)
 		},
 		UpdateFunc: func(updateEvent event.UpdateEvent) bool {
-			return grovectrlutils.IsManagedPodClique(updateEvent.ObjectOld, constants.KindPodGangSet, constants.KindPodCliqueScalingGroup) &&
+			return grovectrlutils.IsManagedPodClique(updateEvent.ObjectOld, constants.KindPodCliqueSet, constants.KindPodCliqueScalingGroup) &&
 				(hasSpecChanged(updateEvent) || hasStatusChanged(updateEvent))
 		},
 		GenericFunc: func(_ event.GenericEvent) bool { return false },

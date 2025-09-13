@@ -27,7 +27,7 @@ import (
 
 // RegisterControllers registers all controllers with the manager.
 func RegisterControllers(mgr ctrl.Manager, controllerConfig configv1alpha1.ControllerConfiguration) error {
-	pgsReconciler := podgangset.NewReconciler(mgr, controllerConfig.PodGangSet)
+	pgsReconciler := podgangset.NewReconciler(mgr, controllerConfig.PodCliqueSet)
 	if err := pgsReconciler.RegisterWithManager(mgr); err != nil {
 		return err
 	}

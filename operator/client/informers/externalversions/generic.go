@@ -57,8 +57,8 @@ func (f *sharedInformerFactory) ForResource(resource schema.GroupVersionResource
 		return &genericInformer{resource: resource.GroupResource(), informer: f.Grove().V1alpha1().PodCliques().Informer()}, nil
 	case v1alpha1.SchemeGroupVersion.WithResource("podcliquescalinggroups"):
 		return &genericInformer{resource: resource.GroupResource(), informer: f.Grove().V1alpha1().PodCliqueScalingGroups().Informer()}, nil
-	case v1alpha1.SchemeGroupVersion.WithResource("podgangsets"):
-		return &genericInformer{resource: resource.GroupResource(), informer: f.Grove().V1alpha1().PodGangSets().Informer()}, nil
+	case v1alpha1.SchemeGroupVersion.WithResource("podcliquesets"):
+		return &genericInformer{resource: resource.GroupResource(), informer: f.Grove().V1alpha1().PodCliqueSets().Informer()}, nil
 
 	}
 

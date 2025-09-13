@@ -35,17 +35,17 @@ import (
 	ctrllogger "sigs.k8s.io/controller-runtime/pkg/log"
 )
 
-// Reconciler reconciles PodGangSet resources.
+// Reconciler reconciles PodCliqueSet resources.
 type Reconciler struct {
-	config                        configv1alpha1.PodGangSetControllerConfiguration
+	config                        configv1alpha1.PodCliqueSetControllerConfiguration
 	client                        ctrlclient.Client
 	reconcileStatusRecorder       ctrlcommon.ReconcileStatusRecorder
-	operatorRegistry              component.OperatorRegistry[grovecorev1alpha1.PodGangSet]
+	operatorRegistry              component.OperatorRegistry[grovecorev1alpha1.PodCliqueSet]
 	pgsGenerationHashExpectations sync.Map
 }
 
-// NewReconciler creates a new reconciler for PodGangSet.
-func NewReconciler(mgr ctrl.Manager, controllerCfg configv1alpha1.PodGangSetControllerConfiguration) *Reconciler {
+// NewReconciler creates a new reconciler for PodCliqueSet.
+func NewReconciler(mgr ctrl.Manager, controllerCfg configv1alpha1.PodCliqueSetControllerConfiguration) *Reconciler {
 	eventRecorder := mgr.GetEventRecorderFor(controllerName)
 	return &Reconciler{
 		config:                        controllerCfg,
@@ -56,11 +56,11 @@ func NewReconciler(mgr ctrl.Manager, controllerCfg configv1alpha1.PodGangSetCont
 	}
 }
 
-// Reconcile reconciles a PodGangSet resource.
+// Reconcile reconciles a PodCliqueSet resource.
 func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	logger := ctrllogger.FromContext(ctx).WithName(controllerName)
 
-	pgs := &grovecorev1alpha1.PodGangSet{}
+	pgs := &grovecorev1alpha1.PodCliqueSet{}
 	if result := ctrlutils.GetPodGangSet(ctx, r.client, logger, req.NamespacedName, pgs); ctrlcommon.ShortCircuitReconcileFlow(result) {
 		return result.Result()
 	}
@@ -77,9 +77,9 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	return reconcileSpecFlowResult.Result()
 }
 
-func (r *Reconciler) reconcileDelete(ctx context.Context, logger logr.Logger, pgs *grovecorev1alpha1.PodGangSet) ctrlcommon.ReconcileStepResult {
+func (r *Reconciler) reconcileDelete(ctx context.Context, logger logr.Logger, pgs *grovecorev1alpha1.PodCliqueSet) ctrlcommon.ReconcileStepResult {
 	if !pgs.DeletionTimestamp.IsZero() {
-		if !controllerutil.ContainsFinalizer(pgs, constants.FinalizerPodGangSet) {
+		if !controllerutil.ContainsFinalizer(pgs, constants.FinalizerPodCliqueSet) {
 			return ctrlcommon.DoNotRequeue()
 		}
 		dLog := logger.WithValues("operation", "delete")

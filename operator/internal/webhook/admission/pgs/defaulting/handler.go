@@ -29,7 +29,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 )
 
-// Handler struct sets default values on PodGangSet CR
+// Handler struct sets default values on PodCliqueSet CR
 type Handler struct {
 	logger logr.Logger
 }
@@ -43,16 +43,16 @@ func NewHandler(mgr manager.Manager) *Handler {
 
 // Default implements webhook.CustomDefaulter
 func (h *Handler) Default(ctx context.Context, obj runtime.Object) error {
-	h.logger.Info("Defaulting webhook invoked for PodGangSet")
-	pgs, ok := obj.(*v1alpha1.PodGangSet)
+	h.logger.Info("Defaulting webhook invoked for PodCliqueSet")
+	pgs, ok := obj.(*v1alpha1.PodCliqueSet)
 	if !ok {
-		return fmt.Errorf("expected an PodGangSet object but got %T", obj)
+		return fmt.Errorf("expected an PodCliqueSet object but got %T", obj)
 	}
 	req, err := admission.RequestFromContext(ctx)
 	if err != nil {
 		return err
 	}
-	h.logger.Info("Applying defaults", "PodGangSet", k8sutils.CreateObjectKeyForCreateWebhooks(pgs, req))
+	h.logger.Info("Applying defaults", "PodCliqueSet", k8sutils.CreateObjectKeyForCreateWebhooks(pgs, req))
 	defaultPodGangSet(pgs)
 	return nil
 }

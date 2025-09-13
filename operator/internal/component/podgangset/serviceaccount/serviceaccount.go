@@ -49,7 +49,7 @@ type _resource struct {
 }
 
 // New creates an instance of ServiceAccount component operator.
-func New(client client.Client, scheme *runtime.Scheme) component.Operator[v1alpha1.PodGangSet] {
+func New(client client.Client, scheme *runtime.Scheme) component.Operator[v1alpha1.PodCliqueSet] {
 	return &_resource{
 		client: client,
 		scheme: scheme,
@@ -69,7 +69,7 @@ func (r _resource) GetExistingResourceNames(ctx context.Context, _ logr.Logger, 
 		return saNames, groveerr.WrapError(err,
 			errGetServiceAccount,
 			component.OperationGetExistingResourceNames,
-			fmt.Sprintf("Error getting ServiceAccount: %v for PodGangSet: %v", objectKey, k8sutils.GetObjectKeyFromObjectMeta(pgsObjMeta)),
+			fmt.Sprintf("Error getting ServiceAccount: %v for PodCliqueSet: %v", objectKey, k8sutils.GetObjectKeyFromObjectMeta(pgsObjMeta)),
 		)
 	}
 	if metav1.IsControlledBy(objMeta, &pgsObjMeta) {
@@ -79,7 +79,7 @@ func (r _resource) GetExistingResourceNames(ctx context.Context, _ logr.Logger, 
 }
 
 // Sync synchronizes all resources that the ServiceAccount Operator manages.
-func (r _resource) Sync(ctx context.Context, logger logr.Logger, pgs *v1alpha1.PodGangSet) error {
+func (r _resource) Sync(ctx context.Context, logger logr.Logger, pgs *v1alpha1.PodCliqueSet) error {
 	objectKey := getObjectKey(pgs.ObjectMeta)
 	sa := emptyServiceAccount(objectKey)
 
@@ -91,7 +91,7 @@ func (r _resource) Sync(ctx context.Context, logger logr.Logger, pgs *v1alpha1.P
 		return groveerr.WrapError(err,
 			errSyncServiceAccount,
 			component.OperationSync,
-			fmt.Sprintf("Error syncing ServiceAccount: %v for PodGangSet: %v", objectKey, client.ObjectKeyFromObject(pgs)),
+			fmt.Sprintf("Error syncing ServiceAccount: %v for PodCliqueSet: %v", objectKey, client.ObjectKeyFromObject(pgs)),
 		)
 	}
 	logger.Info("Triggered create or update of ServiceAccount", "objectKey", objectKey, "result", opResult)
@@ -109,14 +109,14 @@ func (r _resource) Delete(ctx context.Context, logger logr.Logger, pgsObjMeta me
 		return groveerr.WrapError(err,
 			errDeleteServiceAccount,
 			component.OperationDelete,
-			fmt.Sprintf("Error deleting ServiceAccount: %v for PodGangSet: %v", objectKey, k8sutils.GetObjectKeyFromObjectMeta(pgsObjMeta)),
+			fmt.Sprintf("Error deleting ServiceAccount: %v for PodCliqueSet: %v", objectKey, k8sutils.GetObjectKeyFromObjectMeta(pgsObjMeta)),
 		)
 	}
 	logger.Info("Deleted ServiceAccount", "objectKey", objectKey)
 	return nil
 }
 
-func (r _resource) buildResource(pgs *v1alpha1.PodGangSet, sa *corev1.ServiceAccount) error {
+func (r _resource) buildResource(pgs *v1alpha1.PodCliqueSet, sa *corev1.ServiceAccount) error {
 	sa.Labels = getLabels(pgs.ObjectMeta)
 	if err := controllerutil.SetControllerReference(pgs, sa, r.scheme); err != nil {
 		return groveerr.WrapError(err,
@@ -135,7 +135,7 @@ func getLabels(pgsObjMeta metav1.ObjectMeta) map[string]string {
 		apicommon.LabelAppNameKey:   apicommon.GeneratePodServiceAccountName(pgsObjMeta.Name),
 	}
 	return lo.Assign(
-		apicommon.GetDefaultLabelsForPodGangSetManagedResources(pgsObjMeta.Name),
+		apicommon.GetDefaultLabelsForPodCliqueSetManagedResources(pgsObjMeta.Name),
 		roleLabels,
 	)
 }

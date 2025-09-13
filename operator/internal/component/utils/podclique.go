@@ -56,7 +56,7 @@ func GetPCLQsByOwnerReplicaIndex(ctx context.Context, cl client.Client, ownerKin
 	if err != nil {
 		return nil, err
 	}
-	return groupPCLQsByLabel(pclqs, apicommon.LabelPodGangSetReplicaIndex), nil
+	return groupPCLQsByLabel(pclqs, apicommon.LabelPodCliqueSetReplicaIndex), nil
 }
 
 // GetPCLQsMatchingLabels gets all the PodClique's in a given namespace matching selectorLabels.
@@ -83,7 +83,7 @@ func GroupPCLQsByPCSGReplicaIndex(pclqs []grovecorev1alpha1.PodClique) map[strin
 
 // GroupPCLQsByPGSReplicaIndex filters PCLQs that have a PodGangSetReplicaIndex label and groups them by the PGS replica.
 func GroupPCLQsByPGSReplicaIndex(pclqs []grovecorev1alpha1.PodClique) map[string][]grovecorev1alpha1.PodClique {
-	return groupPCLQsByLabel(pclqs, apicommon.LabelPodGangSetReplicaIndex)
+	return groupPCLQsByLabel(pclqs, apicommon.LabelPodCliqueSetReplicaIndex)
 }
 
 // GetMinAvailableBreachedPCLQInfo filters PodCliques that have grovecorev1alpha1.ConditionTypeMinAvailableBreached set to true.
@@ -109,16 +109,16 @@ func GetMinAvailableBreachedPCLQInfo(pclqs []grovecorev1alpha1.PodClique, termin
 	return pclqCandidateNames, waitForDurations[0]
 }
 
-// GetPodCliquesWithParentPGS retrieves PodClique objects that are not part of any PodCliqueScalingGroup for the given PodGangSet.
+// GetPodCliquesWithParentPGS retrieves PodClique objects that are not part of any PodCliqueScalingGroup for the given PodCliqueSet.
 func GetPodCliquesWithParentPGS(ctx context.Context, cl client.Client, pgsObjKey client.ObjectKey) ([]grovecorev1alpha1.PodClique, error) {
 	pclqList := &grovecorev1alpha1.PodCliqueList{}
 	err := cl.List(ctx,
 		pclqList,
 		client.InNamespace(pgsObjKey.Namespace),
 		client.MatchingLabels(lo.Assign(
-			apicommon.GetDefaultLabelsForPodGangSetManagedResources(pgsObjKey.Name),
+			apicommon.GetDefaultLabelsForPodCliqueSetManagedResources(pgsObjKey.Name),
 			map[string]string{
-				apicommon.LabelComponentKey: apicommon.LabelComponentNamePodGangSetPodClique,
+				apicommon.LabelComponentKey: apicommon.LabelComponentNamePodCliqueSetPodClique,
 			},
 		)),
 	)
@@ -163,8 +163,8 @@ func IsLastPCLQUpdateCompleted(pclq *grovecorev1alpha1.PodClique) bool {
 	return pclq.Status.RollingUpdateProgress != nil && pclq.Status.RollingUpdateProgress.UpdateEndedAt != nil
 }
 
-// GetExpectedPCLQPodTemplateHash finds the matching PodCliqueTemplateSpec from the PodGangSet and computes the pod template hash for the PCLQ pod spec.
-func GetExpectedPCLQPodTemplateHash(pgs *grovecorev1alpha1.PodGangSet, pclqObjectMeta metav1.ObjectMeta) (string, error) {
+// GetExpectedPCLQPodTemplateHash finds the matching PodCliqueTemplateSpec from the PodCliqueSet and computes the pod template hash for the PCLQ pod spec.
+func GetExpectedPCLQPodTemplateHash(pgs *grovecorev1alpha1.PodCliqueSet, pclqObjectMeta metav1.ObjectMeta) (string, error) {
 	cliqueName, err := utils.GetPodCliqueNameFromPodCliqueFQN(pclqObjectMeta)
 	if err != nil {
 		return "", err

@@ -26,56 +26,56 @@ import (
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
 // +kubebuilder:subresource:scale:specpath=.spec.replicas,statuspath=.status.replicas,selectorpath=.status.hpaPodSelector
-// +kubebuilder:resource:shortName={pgs}
+// +kubebuilder:resource:shortName={pcs}
 
-// PodGangSet is a set of PodGangs defining specification on how to spread and manage a gang of pods and monitoring their status.
-type PodGangSet struct {
+// PodCliqueSet is a set of PodGangs defining specification on how to spread and manage a gang of pods and monitoring their status.
+type PodCliqueSet struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
-	// Spec defines the specification of the PodGangSet.
-	Spec PodGangSetSpec `json:"spec"`
-	// Status defines the status of the PodGangSet.
-	Status PodGangSetStatus `json:"status,omitempty"`
+	// Spec defines the specification of the PodCliqueSet.
+	Spec PodCliqueSetSpec `json:"spec"`
+	// Status defines the status of the PodCliqueSet.
+	Status PodCliqueSetStatus `json:"status,omitempty"`
 }
 
 // +kubebuilder:object:root=true
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
-// PodGangSetList is a list of PodGangSet's.
-type PodGangSetList struct {
+// PodCliqueSetList is a list of PodCliqueSet's.
+type PodCliqueSetList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
-	// Items is a slice of PodGangSets.
-	Items []PodGangSet `json:"items"`
+	// Items is a slice of PodCliqueSets.
+	Items []PodCliqueSet `json:"items"`
 }
 
-// PodGangSetSpec defines the specification of a PodGangSet.
-type PodGangSetSpec struct {
+// PodCliqueSetSpec defines the specification of a PodCliqueSet.
+type PodCliqueSetSpec struct {
 	// Replicas is the number of desired replicas of the PodGang.
 	// +kubebuilder:default=0
 	Replicas int32 `json:"replicas,omitempty"`
-	// Template describes the template spec for PodGangs that will be created in the PodGangSet.
-	Template PodGangSetTemplateSpec `json:"template"`
-	// ReplicaSpreadConstraints defines the constraints for spreading each replica of PodGangSet across domains identified by a topology key.
+	// Template describes the template spec for PodGangs that will be created in the PodCliqueSet.
+	Template PodCliqueSetTemplateSpec `json:"template"`
+	// ReplicaSpreadConstraints defines the constraints for spreading each replica of PodCliqueSet across domains identified by a topology key.
 	// +optional
 	ReplicaSpreadConstraints []corev1.TopologySpreadConstraint `json:"replicaSpreadConstraints,omitempty"`
 }
 
-// PodGangSetStatus defines the status of a PodGangSet.
-type PodGangSetStatus struct {
+// PodCliqueSetStatus defines the status of a PodCliqueSet.
+type PodCliqueSetStatus struct {
 	// ObservedGeneration is the most recent generation observed by the controller.
 	ObservedGeneration *int64 `json:"observedGeneration,omitempty"`
-	// LastOperation captures the last operation done by the respective reconciler on the PodGangSet.
+	// LastOperation captures the last operation done by the respective reconciler on the PodCliqueSet.
 	LastOperation *LastOperation `json:"lastOperation,omitempty"`
-	// LastErrors captures the last errors observed by the controller when reconciling the PodGangSet.
+	// LastErrors captures the last errors observed by the controller when reconciling the PodCliqueSet.
 	LastErrors []LastError `json:"lastErrors,omitempty"`
-	// Replicas is the total number of PodGangSet replicas created.
+	// Replicas is the total number of PodCliqueSet replicas created.
 	Replicas int32 `json:"replicas,omitempty"`
-	// UpdatedReplicas is the number of replicas that have been updated to the desired revision of the PodGangSet.
+	// UpdatedReplicas is the number of replicas that have been updated to the desired revision of the PodCliqueSet.
 	// +kubebuilder:default=0
 	UpdatedReplicas int32 `json:"updatedReplicas"`
-	// AvailableReplicas is the number of PodGangSet replicas that are available.
-	// A PodGangSet replica is considered available when all standalone PodCliques within that replica
+	// AvailableReplicas is the number of PodCliqueSet replicas that are available.
+	// A PodCliqueSet replica is considered available when all standalone PodCliques within that replica
 	// have MinAvailableBreached condition = False AND all PodCliqueScalingGroups (PCSG) within that replica
 	// have MinAvailableBreached condition = False.
 	// +kubebuilder:default=0
@@ -83,50 +83,50 @@ type PodGangSetStatus struct {
 	// Selector is the label selector that determines which pods are part of the PodGang.
 	// PodGang is a unit of scale and this selector is used by HPA to scale the PodGang based on metrics captured for the pods that match this selector.
 	Selector *string `json:"hpaPodSelector,omitempty"`
-	// PodGangStatuses captures the status for all the PodGang's that are part of the PodGangSet.
+	// PodGangStatuses captures the status for all the PodGang's that are part of the PodCliqueSet.
 	PodGangStatutes []PodGangStatus `json:"podGangStatuses,omitempty"`
-	// CurrentGenerationHash is a hash value generated out of a collection of fields in a PodGangSet.
-	// Since only a subset of fields is taken into account when generating the hash, not every change in the PodGangSetSpec will
-	// be accounted for when generating this hash value. A field in PodGangSetSpec is included if a change to it triggers
+	// CurrentGenerationHash is a hash value generated out of a collection of fields in a PodCliqueSet.
+	// Since only a subset of fields is taken into account when generating the hash, not every change in the PodCliqueSetSpec will
+	// be accounted for when generating this hash value. A field in PodCliqueSetSpec is included if a change to it triggers
 	// a rolling update of PodCliques and/or PodCliqueScalingGroups.
 	// Only if this value is not nil and the newly computed hash value is different from the persisted CurrentGenerationHash value
 	// then a rolling update needs to be triggerred.
 	CurrentGenerationHash *string `json:"currentGenerationHash,omitempty"`
 	// RollingUpdateProgress represents the progress of a rolling update.
-	RollingUpdateProgress *PodGangSetRollingUpdateProgress `json:"rollingUpdateProgress,omitempty"`
+	RollingUpdateProgress *PodCliqueSetRollingUpdateProgress `json:"rollingUpdateProgress,omitempty"`
 }
 
-// PodGangSetRollingUpdateProgress captures the progress of a rolling update of the PodGangSet.
-type PodGangSetRollingUpdateProgress struct {
-	// UpdateStartedAt is the time at which the rolling update started for the PodGangSet.
+// PodCliqueSetRollingUpdateProgress captures the progress of a rolling update of the PodCliqueSet.
+type PodCliqueSetRollingUpdateProgress struct {
+	// UpdateStartedAt is the time at which the rolling update started for the PodCliqueSet.
 	UpdateStartedAt metav1.Time `json:"updateStartedAt,omitempty"`
-	// UpdateEndedAt is the time at which the rolling update ended for the PodGangSet.
+	// UpdateEndedAt is the time at which the rolling update ended for the PodCliqueSet.
 	// +optional
 	UpdateEndedAt *metav1.Time `json:"updateEndedAt,omitempty"`
-	// UpdatedPodCliqueScalingGroups is a list of PodCliqueScalingGroup names that have been updated to the desired PodGangSet generation hash.
+	// UpdatedPodCliqueScalingGroups is a list of PodCliqueScalingGroup names that have been updated to the desired PodCliqueSet generation hash.
 	UpdatedPodCliqueScalingGroups []string `json:"updatedPodCliqueScalingGroups,omitempty"`
-	// UpdatedPodCliques is a list of PodClique names that have been updated to the desired PodGangSet generation hash.
+	// UpdatedPodCliques is a list of PodClique names that have been updated to the desired PodCliqueSet generation hash.
 	UpdatedPodCliques []string `json:"updatedPodCliques,omitempty"`
-	// CurrentlyUpdating captures the progress of the PodGangSet replica that is currently being updated.
+	// CurrentlyUpdating captures the progress of the PodCliqueSet replica that is currently being updated.
 	// +optional
-	CurrentlyUpdating *PodGangSetReplicaRollingUpdateProgress `json:"currentlyUpdating,omitempty"`
+	CurrentlyUpdating *PodCliqueSetReplicaRollingUpdateProgress `json:"currentlyUpdating,omitempty"`
 }
 
-// PodGangSetReplicaRollingUpdateProgress captures the progress of a rolling update for a specific PodGangSet replica.
-type PodGangSetReplicaRollingUpdateProgress struct {
-	// ReplicaIndex is the replica index of the PodGangSet that is being updated.
+// PodCliqueSetReplicaRollingUpdateProgress captures the progress of a rolling update for a specific PodCliqueSet replica.
+type PodCliqueSetReplicaRollingUpdateProgress struct {
+	// ReplicaIndex is the replica index of the PodCliqueSet that is being updated.
 	ReplicaIndex int32 `json:"replicaIndex"`
-	// UpdateStartedAt is the time at which the rolling update started for this PodGangSet replica index.
+	// UpdateStartedAt is the time at which the rolling update started for this PodCliqueSet replica index.
 	UpdateStartedAt metav1.Time `json:"updateStartedAt,omitempty"`
 }
 
-// PodGangSetTemplateSpec defines a template spec for a PodGang.
+// PodCliqueSetTemplateSpec defines a template spec for a PodGang.
 // A PodGang does not have a RestartPolicy field because the restart policy is predefined:
 // If the number of pods in any of the cliques falls below the threshold, the entire PodGang will be restarted.
 // The threshold is determined by either:
 // - The value of "MinReplicas", if specified in the ScaleConfig of that clique, or
 // - The "Replicas" value of that clique
-type PodGangSetTemplateSpec struct {
+type PodCliqueSetTemplateSpec struct {
 	// Cliques is a slice of cliques that make up the PodGang. There should be at least one PodClique.
 	Cliques []*PodCliqueTemplateSpec `json:"cliques"`
 	// StartupType defines the type of startup dependency amongst the cliques within a PodGang.
@@ -134,8 +134,8 @@ type PodGangSetTemplateSpec struct {
 	// +kubebuilder:default=CliqueStartupTypeAnyOrder
 	// +optional
 	StartupType *CliqueStartupType `json:"cliqueStartupType,omitempty"`
-	// PriorityClassName is the name of the PriorityClass to be used for the PodGangSet.
-	// If specified, indicates the priority of the PodGangSet. "system-node-critical" and
+	// PriorityClassName is the name of the PriorityClass to be used for the PodCliqueSet.
+	// If specified, indicates the priority of the PodCliqueSet. "system-node-critical" and
 	// "system-cluster-critical" are two special keywords which indicate the
 	// highest priorities with the former being the highest priority. Any other
 	// name must be defined by creating a PriorityClass object with that name.
@@ -158,13 +158,13 @@ type PodGangSetTemplateSpec struct {
 	// running pods go above the threshold.
 	// +optional
 	TerminationDelay *metav1.Duration `json:"terminationDelay,omitempty"`
-	// PodCliqueScalingGroupConfigs is a list of scaling groups for the PodGangSet.
+	// PodCliqueScalingGroupConfigs is a list of scaling groups for the PodCliqueSet.
 	PodCliqueScalingGroupConfigs []PodCliqueScalingGroupConfig `json:"podCliqueScalingGroups,omitempty"`
 }
 
 // PodCliqueTemplateSpec defines a template spec for a PodClique.
 type PodCliqueTemplateSpec struct {
-	// Name must be unique within a PodGangSet and is used to denote a role.
+	// Name must be unique within a PodCliqueSet and is used to denote a role.
 	// Once set it cannot be updated.
 	// More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names#names
 	Name string `json:"name"`
@@ -187,7 +187,7 @@ type PodCliqueTemplateSpec struct {
 
 // SchedulingPolicyConfig defines the scheduling policy configuration for the PodGang.
 type SchedulingPolicyConfig struct {
-	// NetworkPackGroupConfigs is a list of NetworkPackGroupConfig's that define how the pods in the PodGangSet are optimally packaged w.r.t cluster's network topology.
+	// NetworkPackGroupConfigs is a list of NetworkPackGroupConfig's that define how the pods in the PodCliqueSet are optimally packaged w.r.t cluster's network topology.
 	// PodCliques that are not part of any NetworkPackGroupConfig are scheduled with best-effort network packing strategy.
 	// Exercise caution when defining NetworkPackGroupConfig. Some of the downsides include:
 	// 1. Scheduling may be delayed until optimal placement is available.
@@ -206,7 +206,7 @@ type NetworkPackGroupConfig struct {
 // Each member PodClique.Replicas will be computed as a product of PodCliqueScalingGroupConfig.Replicas and PodCliqueTemplateSpec.Spec.Replicas.
 // NOTE: If a PodCliqueScalingGroupConfig is defined, then for the member PodClique's, individual AutoScalingConfig cannot be defined.
 type PodCliqueScalingGroupConfig struct {
-	// Name is the name of the PodCliqueScalingGroupConfig. This should be unique within the PodGangSet.
+	// Name is the name of the PodCliqueScalingGroupConfig. This should be unique within the PodCliqueSet.
 	// It allows consumers to give a semantic name to a group of PodCliques that needs to be scaled together.
 	Name string `json:"name"`
 	// CliqueNames is the list of names of the PodClique's that are part of the scaling group.
@@ -303,7 +303,7 @@ const (
 	LastOperationStateError LastOperationState = "Error"
 )
 
-// LastOperation captures the last operation done by the respective reconciler on the PodGangSet.
+// LastOperation captures the last operation done by the respective reconciler on the PodCliqueSet.
 type LastOperation struct {
 	// Type is the type of the last operation.
 	Type LastOperationType `json:"type"`
@@ -328,12 +328,12 @@ type LastError struct {
 	ObservedAt metav1.Time `json:"observedAt"`
 }
 
-// SetLastErrors sets the last errors observed by the controller when reconciling the PodGangSet.
-func (pgs *PodGangSet) SetLastErrors(lastErrs ...LastError) {
-	pgs.Status.LastErrors = lastErrs
+// SetLastErrors sets the last errors observed by the controller when reconciling the PodCliqueSet.
+func (pcs *PodCliqueSet) SetLastErrors(lastErrs ...LastError) {
+	pcs.Status.LastErrors = lastErrs
 }
 
-// SetLastOperation sets the last operation done by the respective reconciler on the PodGangSet.
-func (pgs *PodGangSet) SetLastOperation(operation *LastOperation) {
-	pgs.Status.LastOperation = operation
+// SetLastOperation sets the last operation done by the respective reconciler on the PodCliqueSet.
+func (pcs *PodCliqueSet) SetLastOperation(operation *LastOperation) {
+	pcs.Status.LastOperation = operation
 }

@@ -36,8 +36,8 @@ func (c *FakeGroveV1alpha1) PodCliqueScalingGroups(namespace string) v1alpha1.Po
 	return newFakePodCliqueScalingGroups(c, namespace)
 }
 
-func (c *FakeGroveV1alpha1) PodGangSets(namespace string) v1alpha1.PodGangSetInterface {
-	return newFakePodGangSets(c, namespace)
+func (c *FakeGroveV1alpha1) PodCliqueSets(namespace string) v1alpha1.PodCliqueSetInterface {
+	return newFakePodCliqueSets(c, namespace)
 }
 
 // RESTClient returns a RESTClient that is used to communicate

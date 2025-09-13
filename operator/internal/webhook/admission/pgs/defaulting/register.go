@@ -24,7 +24,7 @@ import (
 )
 
 const (
-	// Name is the name of the default webhook handler for PodGangSet.
+	// Name is the name of the default webhook handler for PodCliqueSet.
 	Name        = "podgangset-defaulting-webhook"
 	webhookPath = "/webhooks/default-podgangset"
 )
@@ -32,7 +32,7 @@ const (
 // RegisterWithManager registers the webhook with the manager.
 func (h *Handler) RegisterWithManager(mgr manager.Manager) error {
 	webhook := admission.
-		WithCustomDefaulter(mgr.GetScheme(), &v1alpha1.PodGangSet{}, h).
+		WithCustomDefaulter(mgr.GetScheme(), &v1alpha1.PodCliqueSet{}, h).
 		WithRecoverPanic(true)
 	mgr.GetWebhookServer().Register(webhookPath, webhook)
 	return nil
