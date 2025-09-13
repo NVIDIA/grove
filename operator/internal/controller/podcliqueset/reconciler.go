@@ -14,7 +14,7 @@
 // limitations under the License.
 // */
 
-package podgangset
+package podcliqueset
 
 import (
 	"context"
@@ -24,7 +24,7 @@ import (
 	configv1alpha1 "github.com/NVIDIA/grove/operator/api/config/v1alpha1"
 	grovecorev1alpha1 "github.com/NVIDIA/grove/operator/api/core/v1alpha1"
 	"github.com/NVIDIA/grove/operator/internal/component"
-	pgscomponent "github.com/NVIDIA/grove/operator/internal/component/podcliqueset"
+	pcscomponent "github.com/NVIDIA/grove/operator/internal/component/podcliqueset"
 	ctrlcommon "github.com/NVIDIA/grove/operator/internal/controller/common"
 	ctrlutils "github.com/NVIDIA/grove/operator/internal/controller/utils"
 
@@ -41,7 +41,7 @@ type Reconciler struct {
 	client                        ctrlclient.Client
 	reconcileStatusRecorder       ctrlcommon.ReconcileStatusRecorder
 	operatorRegistry              component.OperatorRegistry[grovecorev1alpha1.PodCliqueSet]
-	pgsGenerationHashExpectations sync.Map
+	pcsGenerationHashExpectations sync.Map
 }
 
 // NewReconciler creates a new reconciler for PodCliqueSet.
@@ -51,8 +51,8 @@ func NewReconciler(mgr ctrl.Manager, controllerCfg configv1alpha1.PodCliqueSetCo
 		config:                        controllerCfg,
 		client:                        mgr.GetClient(),
 		reconcileStatusRecorder:       ctrlcommon.NewReconcileStatusRecorder(mgr.GetClient(), eventRecorder),
-		operatorRegistry:              pgscomponent.CreateOperatorRegistry(mgr, eventRecorder),
-		pgsGenerationHashExpectations: sync.Map{},
+		operatorRegistry:              pcscomponent.CreateOperatorRegistry(mgr, eventRecorder),
+		pcsGenerationHashExpectations: sync.Map{},
 	}
 }
 
@@ -60,30 +60,30 @@ func NewReconciler(mgr ctrl.Manager, controllerCfg configv1alpha1.PodCliqueSetCo
 func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	logger := ctrllogger.FromContext(ctx).WithName(controllerName)
 
-	pgs := &grovecorev1alpha1.PodCliqueSet{}
-	if result := ctrlutils.GetPodGangSet(ctx, r.client, logger, req.NamespacedName, pgs); ctrlcommon.ShortCircuitReconcileFlow(result) {
+	pcs := &grovecorev1alpha1.PodCliqueSet{}
+	if result := ctrlutils.GetPodCliqueSet(ctx, r.client, logger, req.NamespacedName, pcs); ctrlcommon.ShortCircuitReconcileFlow(result) {
 		return result.Result()
 	}
 
-	if result := r.reconcileDelete(ctx, logger, pgs); ctrlcommon.ShortCircuitReconcileFlow(result) {
+	if result := r.reconcileDelete(ctx, logger, pcs); ctrlcommon.ShortCircuitReconcileFlow(result) {
 		return result.Result()
 	}
 
-	reconcileSpecFlowResult := r.reconcileSpec(ctx, logger, pgs)
-	if statusReconcileResult := r.reconcileStatus(ctx, logger, pgs); ctrlcommon.ShortCircuitReconcileFlow(statusReconcileResult) {
+	reconcileSpecFlowResult := r.reconcileSpec(ctx, logger, pcs)
+	if statusReconcileResult := r.reconcileStatus(ctx, logger, pcs); ctrlcommon.ShortCircuitReconcileFlow(statusReconcileResult) {
 		return statusReconcileResult.Result()
 	}
 
 	return reconcileSpecFlowResult.Result()
 }
 
-func (r *Reconciler) reconcileDelete(ctx context.Context, logger logr.Logger, pgs *grovecorev1alpha1.PodCliqueSet) ctrlcommon.ReconcileStepResult {
-	if !pgs.DeletionTimestamp.IsZero() {
-		if !controllerutil.ContainsFinalizer(pgs, constants.FinalizerPodCliqueSet) {
+func (r *Reconciler) reconcileDelete(ctx context.Context, logger logr.Logger, pcs *grovecorev1alpha1.PodCliqueSet) ctrlcommon.ReconcileStepResult {
+	if !pcs.DeletionTimestamp.IsZero() {
+		if !controllerutil.ContainsFinalizer(pcs, constants.FinalizerPodCliqueSet) {
 			return ctrlcommon.DoNotRequeue()
 		}
 		dLog := logger.WithValues("operation", "delete")
-		return r.triggerDeletionFlow(ctx, dLog, pgs)
+		return r.triggerDeletionFlow(ctx, dLog, pcs)
 	}
 	return ctrlcommon.ContinueReconcile()
 }

@@ -31,7 +31,7 @@ import (
 )
 
 const (
-	testPgsName      = "test-pgs"
+	testPgsName      = "test-pcs"
 	testNamespace    = "test-ns"
 	testResourceName = "test-resource"
 	version          = "v1alpha1"
@@ -93,7 +93,7 @@ func TestFilterMapOwnedResourceNames(t *testing.T) {
 							{
 								APIVersion: "v1",
 								Kind:       "PodCliqueSet",
-								Name:       "other-pgs",
+								Name:       "other-pcs",
 								UID:        uuid.NewUUID(),
 								Controller: ptr.To(true),
 							},
@@ -132,7 +132,7 @@ func TestFilterMapOwnedResourceNames(t *testing.T) {
 							{
 								APIVersion: "v1",
 								Kind:       "PodCliqueSet",
-								Name:       "other-pgs",
+								Name:       "other-pcs",
 								UID:        uuid.NewUUID(),
 								Controller: ptr.To(true),
 							},

@@ -136,8 +136,8 @@ func (b *PodGangSetBuilder) WithScalingGroupConfig(name string, cliqueNames []st
 	return b
 }
 
-// WithPodGangSetGenerationHash sets the CurrentGenerationHash in the PodCliqueSet status.
-func (b *PodGangSetBuilder) WithPodGangSetGenerationHash(pgsGenerationHash *string) *PodGangSetBuilder {
+// WithPodCliqueSetGenerationHash sets the CurrentGenerationHash in the PodCliqueSet status.
+func (b *PodGangSetBuilder) WithPodCliqueSetGenerationHash(pgsGenerationHash *string) *PodGangSetBuilder {
 	b.pgs.Status.CurrentGenerationHash = pgsGenerationHash
 	return b
 }

@@ -46,8 +46,8 @@ func TestGetPodGangSetReplicaIndexFromPodCliqueFQN(t *testing.T) {
 		},
 		{
 			description:   "PodClique name with hyphen and PGS name with hyphen",
-			pgsName:       "pgs-inference",
-			pclqFQNName:   "pgs-inference-2-prefill-worker",
+			pgsName:       "pcs-inference",
+			pclqFQNName:   "pcs-inference-2-prefill-worker",
 			expectedIndex: 2,
 			expectedErr:   false,
 		},

@@ -50,7 +50,7 @@ func TestHasExpectedOwner(t *testing.T) {
 		{
 			description:       "should return true when single owner matches expected kind",
 			expectedOwnerKind: "PodCliqueSet",
-			ownerRefs:         []metav1.OwnerReference{newOwnerReference("PodCliqueSet", "test-pgs", true)},
+			ownerRefs:         []metav1.OwnerReference{newOwnerReference("PodCliqueSet", "test-pcs", true)},
 			expected:          true,
 		},
 		{
@@ -75,7 +75,7 @@ func TestHasExpectedOwner(t *testing.T) {
 			description:       "should return false when multiple owner references exist",
 			expectedOwnerKind: "PodCliqueSet",
 			ownerRefs: []metav1.OwnerReference{
-				newOwnerReference("PodCliqueSet", "test-pgs", true),
+				newOwnerReference("PodCliqueSet", "test-pcs", true),
 				newOwnerReference("PodCliqueScalingGroup", "test-pcsg", false),
 			},
 			expected: false,
@@ -150,7 +150,7 @@ func TestIsManagedPodClique(t *testing.T) {
 						apicommon.LabelManagedByKey: apicommon.LabelManagedByValue,
 					},
 					OwnerReferences: []metav1.OwnerReference{
-						newOwnerReference("PodCliqueSet", "test-pgs", true),
+						newOwnerReference("PodCliqueSet", "test-pcs", true),
 					},
 				},
 			},
@@ -167,7 +167,7 @@ func TestIsManagedPodClique(t *testing.T) {
 						apicommon.LabelManagedByKey: "other-operator",
 					},
 					OwnerReferences: []metav1.OwnerReference{
-						newOwnerReference("PodCliqueSet", "test-pgs", true),
+						newOwnerReference("PodCliqueSet", "test-pcs", true),
 					},
 				},
 			},
@@ -195,13 +195,13 @@ func TestIsManagedPodClique(t *testing.T) {
 			description: "should return false when object is not a PodClique",
 			obj: &grovecorev1alpha1.PodCliqueSet{
 				ObjectMeta: metav1.ObjectMeta{
-					Name:      "test-pgs",
+					Name:      "test-pcs",
 					Namespace: "different-ns",
 					Labels: map[string]string{
 						apicommon.LabelManagedByKey: apicommon.LabelManagedByValue,
 					},
 					OwnerReferences: []metav1.OwnerReference{
-						newOwnerReference("PodCliqueSet", "test-pgs", true),
+						newOwnerReference("PodCliqueSet", "test-pcs", true),
 					},
 				},
 			},
@@ -216,7 +216,7 @@ func TestIsManagedPodClique(t *testing.T) {
 					Namespace: "test-ns",
 					Labels:    nil,
 					OwnerReferences: []metav1.OwnerReference{
-						newOwnerReference("PodCliqueSet", "test-pgs", true),
+						newOwnerReference("PodCliqueSet", "test-pcs", true),
 					},
 				},
 			},

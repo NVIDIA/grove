@@ -85,13 +85,13 @@ This make target leverages Grove [Helm](https://helm.sh/) charts and [Skaffold](
 - You can now fetch resources like `PodCliqueSet` (pgs), `PodGang` (pg), `PodClique` (pclq), `PodCliqueScalingGroup` (pcsg), etc. created by the Grove operator, by running:
 
   ```bash
-  kubectl get pgs,pclq,pcsg,pg,pod -owide
+  kubectl get pcs,pclq,pcsg,pg,pod -owide
   ```
 
   You would see output like this:
 
   ```bash
-  ❯ kubectl get pgs,pclq,pcsg,pg,pod -owide
+  ❯ kubectl get pcs,pclq,pcsg,pg,pod -owide
   NAME                          AGE
   podcliqueset.grove.io/simple1   34s
 
@@ -135,7 +135,7 @@ As specified in the [README.md](../README.md) and the [docs](../docs), there are
   Fetching all resources to check the newly created resources:
 
   ```bash
-  ❯ kubectl get pgs,pclq,pcsg,pg,pod -owide
+  ❯ kubectl get pcs,pclq,pcsg,pg,pod -owide
   NAME                          AGE
   podcliqueset.grove.io/simple1   2m28s
 
@@ -182,11 +182,11 @@ As specified in the [README.md](../README.md) and the [docs](../docs), there are
 - Scaling can also be triggered at the `PodCliqueSet` level, as can be seen here:
 
   ```bash
-  kubectl scale pgs simple1 --replicas=2
+  kubectl scale pcs simple1 --replicas=2
   ```
 
   ```bash
-  ❯ kubectl get pgs,pclq,pcsg,pg,pod -owide
+  ❯ kubectl get pcs,pclq,pcsg,pg,pod -owide
   NAME                          AGE
   podcliqueset.grove.io/simple1   6m25s
 
@@ -233,7 +233,7 @@ As specified in the [README.md](../README.md) and the [docs](../docs), there are
   Similarly, the `PodCliqueSet` can be scaled back in to 1 replicas like so:
 
   ```bash
-  kubectl scale pgs simple1 --replicas=1
+  kubectl scale pcs simple1 --replicas=1
   ```
 
 ## Supported Schedulers

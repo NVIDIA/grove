@@ -117,7 +117,7 @@ func TestGetPodGangSetReplicaIndex(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.description, func(t *testing.T) {
-			index, err := GetPodGangSetReplicaIndex(tc.objMeta)
+			index, err := GetPodCliqueSetReplicaIndex(tc.objMeta)
 
 			if tc.expectedError != nil {
 				assert.Error(t, err)

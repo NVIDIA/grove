@@ -31,8 +31,8 @@ var (
 	errNotFoundPodGangSetReplicaIndexLabel = fmt.Errorf("label %s not found on resource", apicommon.LabelPodCliqueSetReplicaIndex)
 )
 
-// GetPodGangSetReplicaIndex extracts the PodCliqueSet replica index from the labels on the managed resource.
-func GetPodGangSetReplicaIndex(objMeta metav1.ObjectMeta) (int, error) {
+// GetPodCliqueSetReplicaIndex extracts the PodCliqueSet replica index from the labels on the managed resource.
+func GetPodCliqueSetReplicaIndex(objMeta metav1.ObjectMeta) (int, error) {
 	pgsReplicaIndexStr, ok := objMeta.GetLabels()[apicommon.LabelPodCliqueSetReplicaIndex]
 	if !ok {
 		return 0, errNotFoundPodGangSetReplicaIndexLabel

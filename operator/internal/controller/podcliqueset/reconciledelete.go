@@ -14,7 +14,7 @@
 // limitations under the License.
 // */
 
-package podgangset
+package podcliqueset
 
 import (
 	"context"
@@ -31,39 +31,39 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )
 
-func (r *Reconciler) triggerDeletionFlow(ctx context.Context, logger logr.Logger, pgs *v1alpha1.PodCliqueSet) ctrlcommon.ReconcileStepResult {
+func (r *Reconciler) triggerDeletionFlow(ctx context.Context, logger logr.Logger, pcs *v1alpha1.PodCliqueSet) ctrlcommon.ReconcileStepResult {
 	deleteStepFns := []ctrlcommon.ReconcileStepFn[v1alpha1.PodCliqueSet]{
 		r.recordDeletionStart,
-		r.deletePodGangSetResources,
+		r.deletePodCliqueSetResources,
 		r.verifyNoResourcesAwaitsCleanup,
 		r.removeFinalizer,
 	}
 	for _, fn := range deleteStepFns {
-		if stepResult := fn(ctx, logger, pgs); ctrlcommon.ShortCircuitReconcileFlow(stepResult) {
-			return r.recordIncompleteDeletion(ctx, logger, pgs, &stepResult)
+		if stepResult := fn(ctx, logger, pcs); ctrlcommon.ShortCircuitReconcileFlow(stepResult) {
+			return r.recordIncompleteDeletion(ctx, logger, pcs, &stepResult)
 		}
 	}
 	logger.Info("PodCliqueSet deleted successfully")
 	return ctrlcommon.DoNotRequeue()
 }
 
-func (r *Reconciler) recordDeletionStart(ctx context.Context, logger logr.Logger, pgs *v1alpha1.PodCliqueSet) ctrlcommon.ReconcileStepResult {
-	if err := r.reconcileStatusRecorder.RecordStart(ctx, pgs, v1alpha1.LastOperationTypeDelete); err != nil {
+func (r *Reconciler) recordDeletionStart(ctx context.Context, logger logr.Logger, pcs *v1alpha1.PodCliqueSet) ctrlcommon.ReconcileStepResult {
+	if err := r.reconcileStatusRecorder.RecordStart(ctx, pcs, v1alpha1.LastOperationTypeDelete); err != nil {
 		errMsg := "failed to record deletion start operation"
-		logger.Error(err, errMsg, "PodCliqueSet", pgs)
+		logger.Error(err, errMsg, "PodCliqueSet", pcs)
 		return ctrlcommon.ReconcileWithErrors(errMsg, err)
 	}
 	return ctrlcommon.ContinueReconcile()
 }
 
-func (r *Reconciler) deletePodGangSetResources(ctx context.Context, logger logr.Logger, pgs *v1alpha1.PodCliqueSet) ctrlcommon.ReconcileStepResult {
+func (r *Reconciler) deletePodCliqueSetResources(ctx context.Context, logger logr.Logger, pcs *v1alpha1.PodCliqueSet) ctrlcommon.ReconcileStepResult {
 	operators := r.operatorRegistry.GetAllOperators()
 	deleteTasks := make([]utils.Task, 0, len(operators))
 	for kind, operator := range operators {
 		deleteTasks = append(deleteTasks, utils.Task{
 			Name: fmt.Sprintf("delete-%s", kind),
 			Fn: func(ctx context.Context) error {
-				return operator.Delete(ctx, logger, pgs.ObjectMeta)
+				return operator.Delete(ctx, logger, pcs.ObjectMeta)
 			},
 		})
 	}
@@ -76,25 +76,25 @@ func (r *Reconciler) deletePodGangSetResources(ctx context.Context, logger logr.
 	return ctrlcommon.ContinueReconcile()
 }
 
-func (r *Reconciler) verifyNoResourcesAwaitsCleanup(ctx context.Context, logger logr.Logger, pgs *v1alpha1.PodCliqueSet) ctrlcommon.ReconcileStepResult {
-	return ctrlutils.VerifyNoResourceAwaitsCleanup(ctx, logger, r.operatorRegistry, pgs.ObjectMeta)
+func (r *Reconciler) verifyNoResourcesAwaitsCleanup(ctx context.Context, logger logr.Logger, pcs *v1alpha1.PodCliqueSet) ctrlcommon.ReconcileStepResult {
+	return ctrlutils.VerifyNoResourceAwaitsCleanup(ctx, logger, r.operatorRegistry, pcs.ObjectMeta)
 }
 
-func (r *Reconciler) removeFinalizer(ctx context.Context, logger logr.Logger, pgs *v1alpha1.PodCliqueSet) ctrlcommon.ReconcileStepResult {
-	if !controllerutil.ContainsFinalizer(pgs, constants.FinalizerPodCliqueSet) {
-		logger.Info("Finalizer not found", "PodCliqueSet", pgs)
+func (r *Reconciler) removeFinalizer(ctx context.Context, logger logr.Logger, pcs *v1alpha1.PodCliqueSet) ctrlcommon.ReconcileStepResult {
+	if !controllerutil.ContainsFinalizer(pcs, constants.FinalizerPodCliqueSet) {
+		logger.Info("Finalizer not found", "PodCliqueSet", pcs)
 		return ctrlcommon.ContinueReconcile()
 	}
-	logger.Info("Removing finalizer", "PodCliqueSet", pgs, "finalizerName", constants.FinalizerPodCliqueSet)
-	if err := ctrlutils.RemoveAndPatchFinalizer(ctx, r.client, pgs, constants.FinalizerPodCliqueSet); err != nil {
-		return ctrlcommon.ReconcileWithErrors("error removing finalizer", fmt.Errorf("failed to remove finalizer: %s from PodCliqueSet: %v: %w", constants.FinalizerPodCliqueSet, client.ObjectKeyFromObject(pgs), err))
+	logger.Info("Removing finalizer", "PodCliqueSet", pcs, "finalizerName", constants.FinalizerPodCliqueSet)
+	if err := ctrlutils.RemoveAndPatchFinalizer(ctx, r.client, pcs, constants.FinalizerPodCliqueSet); err != nil {
+		return ctrlcommon.ReconcileWithErrors("error removing finalizer", fmt.Errorf("failed to remove finalizer: %s from PodCliqueSet: %v: %w", constants.FinalizerPodCliqueSet, client.ObjectKeyFromObject(pcs), err))
 	}
 	return ctrlcommon.ContinueReconcile()
 }
 
-func (r *Reconciler) recordIncompleteDeletion(ctx context.Context, logger logr.Logger, pgs *v1alpha1.PodCliqueSet, errResult *ctrlcommon.ReconcileStepResult) ctrlcommon.ReconcileStepResult {
-	if err := r.reconcileStatusRecorder.RecordCompletion(ctx, pgs, v1alpha1.LastOperationTypeDelete, errResult); err != nil {
-		logger.Error(err, "failed to record deletion completion operation", "PodCliqueSet", pgs)
+func (r *Reconciler) recordIncompleteDeletion(ctx context.Context, logger logr.Logger, pcs *v1alpha1.PodCliqueSet, errResult *ctrlcommon.ReconcileStepResult) ctrlcommon.ReconcileStepResult {
+	if err := r.reconcileStatusRecorder.RecordCompletion(ctx, pcs, v1alpha1.LastOperationTypeDelete, errResult); err != nil {
+		logger.Error(err, "failed to record deletion completion operation", "PodCliqueSet", pcs)
 		// combine all errors
 		allErrs := append(errResult.GetErrors(), err)
 		return ctrlcommon.ReconcileWithErrors("error recording incomplete reconciliation", allErrs...)

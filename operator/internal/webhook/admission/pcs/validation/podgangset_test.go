@@ -123,7 +123,7 @@ func TestResourceNamingValidation(t *testing.T) {
 		},
 		{
 			description:   "Maximum valid character usage",
-			pgsName:       "pgs",
+			pgsName:       "pcs",
 			cliqueNames:   []string{"cliquename20charssss"},
 			scalingGroups: []grovecorev1alpha1.PodCliqueScalingGroupConfig{createScalingGroupConfig("sg", []string{"cliquename20charssss"})},
 			expectError:   false,

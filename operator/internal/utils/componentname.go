@@ -32,7 +32,7 @@ func GetPodCliqueSetReplicaIndexFromPodCliqueFQN(pgsName, pclqFQNName string) (i
 	replicaStartIndex := len(pgsName) + 1 // +1 for the hyphen
 	hyphenIndex := strings.Index(pclqFQNName[replicaStartIndex:], "-")
 	if hyphenIndex == -1 {
-		return -1, fmt.Errorf("PodClique FQN is not in the expected format of <pgs-name>-<pgs-replica-index>-<pclq-template-name>: %s", pclqFQNName)
+		return -1, fmt.Errorf("PodClique FQN is not in the expected format of <pcs-name>-<pcs-replica-index>-<pclq-template-name>: %s", pclqFQNName)
 	}
 	replicaEndIndex := replicaStartIndex + hyphenIndex
 	return strconv.Atoi(pclqFQNName[replicaStartIndex:replicaEndIndex])

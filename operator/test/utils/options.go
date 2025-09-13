@@ -174,8 +174,8 @@ func WithPCLQReplicaReadyStatus(ready int32) PCLQOption {
 	}
 }
 
-// WithPCLQCurrentPGSGenerationHash sets the CurrentPodCliqueSetGenerationHash in the PodClique status.
-func WithPCLQCurrentPGSGenerationHash(pgsGenerationHash string) PCLQOption {
+// WithPCLQCurrentPCSGenerationHash sets the CurrentPodCliqueSetGenerationHash in the PodClique status.
+func WithPCLQCurrentPCSGenerationHash(pgsGenerationHash string) PCLQOption {
 	return func(pclq *grovecorev1alpha1.PodClique) {
 		pclq.Status.CurrentPodCliqueSetGenerationHash = &pgsGenerationHash
 	}

@@ -21,8 +21,8 @@ import (
 	"os"
 	"strings"
 
-	defaultingwebhook "github.com/NVIDIA/grove/operator/internal/webhook/admission/pgs/defaulting"
-	validatingwebhook "github.com/NVIDIA/grove/operator/internal/webhook/admission/pgs/validation"
+	defaultingwebhook "github.com/NVIDIA/grove/operator/internal/webhook/admission/pcs/defaulting"
+	validatingwebhook "github.com/NVIDIA/grove/operator/internal/webhook/admission/pcs/validation"
 
 	"github.com/go-logr/logr"
 	cert "github.com/open-policy-agent/cert-controller/pkg/rotator"

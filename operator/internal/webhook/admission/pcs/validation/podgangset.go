@@ -632,10 +632,10 @@ func clearContainerImages(containers []corev1.Container) {
 // to construct pod names.
 //
 // Pod names that belong to a PCSG follow the format:
-// <pgs-name>-<pgs-index>-<pcsg-name>-<pcsg-index>-<pclq-name>-<random>
+// <pcs-name>-<pcs-index>-<pcsg-name>-<pcsg-index>-<pclq-name>-<random>
 //
 // Pod names that do not belong to a PCSG follow the format:
-// <pgs-name>-<pgs-index>-<pclq-name>-<random>
+// <pcs-name>-<pcs-index>-<pclq-name>-<random>
 //
 // Constraints:
 // - Random string + hyphens: 10 chars for PCSG pods, 8 chars for non-PCSG pods

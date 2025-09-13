@@ -14,7 +14,7 @@
 // limitations under the License.
 // */
 
-package podgangset
+package podcliqueset
 
 import (
 	"context"
@@ -53,36 +53,36 @@ func (r *Reconciler) RegisterWithManager(mgr manager.Manager) error {
 		For(&grovecorev1alpha1.PodCliqueSet{}, builder.WithPredicates(predicate.GenerationChangedPredicate{})).
 		Watches(
 			&grovecorev1alpha1.PodClique{},
-			handler.EnqueueRequestsFromMapFunc(mapPodCliqueToPodGangSet()),
+			handler.EnqueueRequestsFromMapFunc(mapPodCliqueToPodCliqueSet()),
 			builder.WithPredicates(podCliquePredicate()),
 		).
 		Watches(
 			&grovecorev1alpha1.PodCliqueScalingGroup{},
-			handler.EnqueueRequestsFromMapFunc(mapPodCliqueScaleGroupToPodGangSet()),
+			handler.EnqueueRequestsFromMapFunc(mapPodCliqueScaleGroupToPodCliqueSet()),
 			builder.WithPredicates(podCliqueScalingGroupPredicate()),
 		).
 		Complete(r)
 }
 
-func mapPodCliqueToPodGangSet() handler.MapFunc {
+func mapPodCliqueToPodCliqueSet() handler.MapFunc {
 	return func(_ context.Context, obj client.Object) []reconcile.Request {
 		pclq, ok := obj.(*grovecorev1alpha1.PodClique)
 		if !ok {
 			return nil
 		}
-		pgsName := componentutils.GetPodCliqueSetName(pclq.ObjectMeta)
-		return []reconcile.Request{{NamespacedName: types.NamespacedName{Name: pgsName, Namespace: pclq.Namespace}}}
+		pcsName := componentutils.GetPodCliqueSetName(pclq.ObjectMeta)
+		return []reconcile.Request{{NamespacedName: types.NamespacedName{Name: pcsName, Namespace: pclq.Namespace}}}
 	}
 }
 
-func mapPodCliqueScaleGroupToPodGangSet() handler.MapFunc {
+func mapPodCliqueScaleGroupToPodCliqueSet() handler.MapFunc {
 	return func(_ context.Context, obj client.Object) []reconcile.Request {
 		pcsg, ok := obj.(*grovecorev1alpha1.PodCliqueScalingGroup)
 		if !ok {
 			return nil
 		}
-		pgsName := componentutils.GetPodCliqueSetName(pcsg.ObjectMeta)
-		return []reconcile.Request{{NamespacedName: types.NamespacedName{Name: pgsName, Namespace: pcsg.Namespace}}}
+		pcsName := componentutils.GetPodCliqueSetName(pcsg.ObjectMeta)
+		return []reconcile.Request{{NamespacedName: types.NamespacedName{Name: pcsName, Namespace: pcsg.Namespace}}}
 	}
 }
 

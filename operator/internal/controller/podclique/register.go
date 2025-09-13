@@ -63,8 +63,8 @@ func (r *Reconciler) RegisterWithManager(mgr ctrl.Manager) error {
 		Owns(&corev1.Pod{}, builder.WithPredicates(podPredicate())).
 		Watches(
 			&grovecorev1alpha1.PodCliqueSet{},
-			handler.EnqueueRequestsFromMapFunc(mapPodGangSetToPCLQs()),
-			builder.WithPredicates(podGangSetPredicate()),
+			handler.EnqueueRequestsFromMapFunc(mapPodCliqueSetToPCLQs()),
+			builder.WithPredicates(podCliqueSetPredicate()),
 		).
 		Watches(
 			&grovecorev1alpha1.PodCliqueScalingGroup{},
@@ -164,34 +164,34 @@ func hasStartedAndReadyChangedForAnyContainer(oldContainerStatuses []corev1.Cont
 	return false
 }
 
-// mapPodGangSetToPCLQs maps a PodCliqueSet to one or more reconcile.Request(s) to its constituent standalone Podcliques.
+// mapPodCliqueSetToPCLQs maps a PodCliqueSet to one or more reconcile.Request(s) to its constituent standalone Podcliques.
 // These events are needed to keep the PodClique.Status.CurrentPodCliqueSetGenerationHash in sync with the PodCliqueSet.
-func mapPodGangSetToPCLQs() handler.MapFunc {
+func mapPodCliqueSetToPCLQs() handler.MapFunc {
 	return func(_ context.Context, obj client.Object) []reconcile.Request {
-		pgs, ok := obj.(*grovecorev1alpha1.PodCliqueSet)
+		pcs, ok := obj.(*grovecorev1alpha1.PodCliqueSet)
 		if !ok {
 			return nil
 		}
-		return lo.Map(componentutils.GetPodCliqueFQNsForPCSNotInPCSG(pgs), func(pclqFQN string, _ int) reconcile.Request {
+		return lo.Map(componentutils.GetPodCliqueFQNsForPCSNotInPCSG(pcs), func(pclqFQN string, _ int) reconcile.Request {
 			return reconcile.Request{NamespacedName: types.NamespacedName{
-				Namespace: pgs.Namespace,
+				Namespace: pcs.Namespace,
 				Name:      pclqFQN,
 			}}
 		})
 	}
 }
 
-func podGangSetPredicate() predicate.Predicate {
+func podCliqueSetPredicate() predicate.Predicate {
 	return predicate.Funcs{
 		CreateFunc: func(_ event.CreateEvent) bool { return false },
 		DeleteFunc: func(_ event.DeleteEvent) bool { return false },
 		UpdateFunc: func(event event.UpdateEvent) bool {
-			oldPGS, okOld := event.ObjectOld.(*grovecorev1alpha1.PodCliqueSet)
-			newPGS, okNew := event.ObjectNew.(*grovecorev1alpha1.PodCliqueSet)
+			oldPCS, okOld := event.ObjectOld.(*grovecorev1alpha1.PodCliqueSet)
+			newPCS, okNew := event.ObjectNew.(*grovecorev1alpha1.PodCliqueSet)
 			if !okOld || !okNew {
 				return false
 			}
-			return oldPGS.Status.CurrentGenerationHash != newPGS.Status.CurrentGenerationHash
+			return oldPCS.Status.CurrentGenerationHash != newPCS.Status.CurrentGenerationHash
 		},
 		GenericFunc: func(_ event.GenericEvent) bool { return false },
 	}
