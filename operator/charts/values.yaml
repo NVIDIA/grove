@@ -54,7 +54,7 @@ config:
   debugging:
     enableProfiling: false
   controllers:
-    podGangSet:
+    podCliqueSet:
       concurrentSyncs: 3
     podClique:
       concurrentSyncs: 3
@@ -109,17 +109,17 @@ clusterRoleBinding:
     app.kubernetes.io/part-of: grove
 
 webhooks:
-  podgangsetValidationWebhook:
+  podCliqueSetValidationWebhook:
     isEnabled: true
     labels:
-      app.kubernetes.io/component: operator-pgs-validating-webhook
-      app.kubernetes.io/name: pgs-validating-webhook
+      app.kubernetes.io/component: operator-pcs-validating-webhook
+      app.kubernetes.io/name: pcs-validating-webhook
       app.kubernetes.io/part-of: grove
-  podgangsetDefaultingWebhook:
+  podCliqueSetDefaultingWebhook:
     isEnabled: true
     labels:
-      app.kubernetes.io/component: operator-pgs-defaulting-webhook
-      app.kubernetes.io/name: pgs-defaulting-webhook
+      app.kubernetes.io/component: operator-pcs-defaulting-webhook
+      app.kubernetes.io/name: pcs-defaulting-webhook
       app.kubernetes.io/part-of: grove
 
 webhookServerSecret:

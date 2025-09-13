@@ -59,7 +59,7 @@ spec:
             - name: kube-api-access-grove
               mountPath: /var/run/secrets/kubernetes.io/serviceaccount
               readOnly: true
-            {{- if .Values.webhooks.podgangsetValidationWebhook.isEnabled }}
+            {{- if .Values.webhooks.podCliqueSetValidationWebhook.isEnabled }}
             - name: grove-webhook-server-cert
               mountPath: /etc/grove-operator/webhook-certs
               readOnly: true
@@ -88,7 +88,7 @@ spec:
         - name: operator-config
           configMap:
             name: {{ include "operator.config.name" . }}
-        {{- if .Values.webhooks.podgangsetValidationWebhook.isEnabled }}
+        {{- if .Values.webhooks.podCliqueSetValidationWebhook.isEnabled }}
         - name: grove-webhook-server-cert
           secret:
             secretName: grove-webhook-server-cert

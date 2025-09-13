@@ -1,12 +1,12 @@
-{{- if .Values.webhooks.podgangsetDefaultingWebhook.isEnabled }}
+{{- if .Values.webhooks.podCliqueSetDefaultingWebhook.isEnabled }}
 ---
 apiVersion: admissionregistration.k8s.io/v1
 kind: MutatingWebhookConfiguration
 metadata:
-  name: podgangset-defaulting-webhook
+  name: podcliqueset-defaulting-webhook
   namespace: {{ .Release.Namespace }}
   labels:
-{{- include "operator.pgs.defaulting.webhook.labels" . | nindent 4 }}
+{{- include "operator.pcs.defaulting.webhook.labels" . | nindent 4 }}
 webhooks:
   - admissionReviewVersions:
       - v1
@@ -18,7 +18,7 @@ webhooks:
         port: {{ required ".Values.config.server.webhooks.port" .Values.config.server.webhooks.port }}
     failurePolicy: Fail
     matchPolicy: Exact
-    name: pgs.defaulting.webhooks.grove.io
+    name: pcs.defaulting.webhooks.grove.io
     namespaceSelector: { }
     rules:
       - apiGroups:
@@ -29,7 +29,7 @@ webhooks:
           - CREATE
           - UPDATE
         resources:
-          - podgangsets
+          - podcliquesets
         scope: '*'
     sideEffects: None
     timeoutSeconds: 10
