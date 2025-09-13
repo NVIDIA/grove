@@ -1,6 +1,6 @@
-# This PodGangSet definition explicitly sets the startup order of the cliques.
-# Startup order is observed amongst the PodCliques that are part of a PodGang that is created for a PodGangSet.
-# In the example below, the following startup order is expected for every PodGang that is created for this PodGangSet.
+# This PodCliqueSet definition explicitly sets the startup order of the cliques.
+# Startup order is observed amongst the PodCliques that are part of a PodGang that is created for a PodCliqueSet.
+# In the example below, the following startup order is expected for every PodGang that is created for this PodCliqueSet.
 # 1. pca (this is the first clique to start)
 # 2. pcb, pcc (these two cliques will start in parallel after pca)
 # 3. pcd (this clique will start after pcb and pcc)
@@ -11,7 +11,7 @@
 # - In addition, you can check the logs of the last `InitContainer` of each Pod to get the details of dependency handling.
 ---
 apiVersion: grove.io/v1alpha1
-kind: PodGangSet
+kind: PodCliqueSet
 metadata:
   name: simple2
   labels:
