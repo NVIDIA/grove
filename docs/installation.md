@@ -82,7 +82,7 @@ This make target leverages Grove [Helm](https://helm.sh/) charts and [Skaffold](
   kubectl apply -f ./samples/simple/simple1.yaml
   ```
 
-- You can now fetch resources like `PodCliqueSet` (pgs), `PodGang` (pg), `PodClique` (pclq), `PodCliqueScalingGroup` (pcsg), etc. created by the Grove operator, by running:
+- You can now fetch resources like `PodCliqueSet` (pcs), `PodGang` (pg), `PodClique` (pclq), `PodCliqueScalingGroup` (pcsg), etc. created by the Grove operator, by running:
 
   ```bash
   kubectl get pcs,pclq,pcsg,pg,pod -owide

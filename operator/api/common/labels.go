@@ -83,7 +83,7 @@ const (
 	LabelComponentNamePodCliqueScalingGroupPodClique = "pcsg-podclique"
 )
 
-// GetDefaultLabelsForPodCliqueSetManagedResources gets the default labels for resources managed by PodGangset.
+// GetDefaultLabelsForPodCliqueSetManagedResources gets the default labels for resources managed by PodCliqueSet.
 func GetDefaultLabelsForPodCliqueSetManagedResources(pcsName string) map[string]string {
 	return map[string]string{
 		LabelManagedByKey: LabelManagedByValue,

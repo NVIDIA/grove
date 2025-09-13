@@ -1,5 +1,5 @@
 # grove
-PodGangSet CRD and Controller for Network Topology Aware Gang Scheduling & Autoscaling
+PodCliqueSet CRD and Controller for Network Topology Aware Gang Scheduling & Autoscaling
 
 :construction_worker: `This project site is currently under active construction`
 
@@ -44,7 +44,7 @@ Grove implements a sophisticated **two-tier gang scheduling** system based on th
 #### Scenario 1: Database Cluster
 ```yaml
 apiVersion: grove.io/v1alpha1
-kind: PodGangSet
+kind: PodCliqueSet
 spec:
   template:
     podCliqueScalingGroupConfigs:
@@ -62,7 +62,7 @@ spec:
 #### Scenario 2: Machine Learning Training
 ```yaml
 apiVersion: grove.io/v1alpha1  
-kind: PodGangSet
+kind: PodCliqueSet
 spec:
   template:
     podCliqueScalingGroupConfigs:
