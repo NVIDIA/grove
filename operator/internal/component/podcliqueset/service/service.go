@@ -38,8 +38,8 @@ import (
 )
 
 const (
-	errSyncPodGangSetService   grovecorev1alpha1.ErrorCode = "ERR_SYNC_PODGANGSET_SERVICE"
-	errDeletePodGangSetService grovecorev1alpha1.ErrorCode = "ERR_DELETE_PODGANGSET_SERVICE"
+	errSyncPodCliqueSetService   grovecorev1alpha1.ErrorCode = "ERR_SYNC_PODCLIQUESET_SERVICE"
+	errDeletePodCliqueSetService grovecorev1alpha1.ErrorCode = "ERR_DELETE_PODCLIQUESET_SERVICE"
 )
 
 type _resource struct {
@@ -56,42 +56,42 @@ func New(client client.Client, scheme *runtime.Scheme) component.Operator[grovec
 }
 
 // GetExistingResourceNames returns the names of all the existing resources that the Service Operator manages.
-func (r _resource) GetExistingResourceNames(ctx context.Context, logger logr.Logger, pgsObjMeta metav1.ObjectMeta) ([]string, error) {
-	logger.Info("Looking for existing PodCliqueSet Headless Services", "objectKey", k8sutils.GetObjectKeyFromObjectMeta(pgsObjMeta))
+func (r _resource) GetExistingResourceNames(ctx context.Context, logger logr.Logger, pcsObjMeta metav1.ObjectMeta) ([]string, error) {
+	logger.Info("Looking for existing PodCliqueSet Headless Services", "objectKey", k8sutils.GetObjectKeyFromObjectMeta(pcsObjMeta))
 	objMetaList := &metav1.PartialObjectMetadataList{}
 	objMetaList.SetGroupVersionKind(corev1.SchemeGroupVersion.WithKind("Service"))
 	if err := r.client.List(ctx,
 		objMetaList,
-		client.InNamespace(pgsObjMeta.Namespace),
-		client.MatchingLabels(getSelectorLabelsForAllHeadlessServices(pgsObjMeta.Name)),
+		client.InNamespace(pcsObjMeta.Namespace),
+		client.MatchingLabels(getSelectorLabelsForAllHeadlessServices(pcsObjMeta.Name)),
 	); err != nil {
 		return nil, groveerr.WrapError(err,
-			errSyncPodGangSetService,
+			errSyncPodCliqueSetService,
 			component.OperationGetExistingResourceNames,
-			fmt.Sprintf("Error listing Headless Services for PodCliqueSet: %v", k8sutils.GetObjectKeyFromObjectMeta(pgsObjMeta)),
+			fmt.Sprintf("Error listing Headless Services for PodCliqueSet: %v", k8sutils.GetObjectKeyFromObjectMeta(pcsObjMeta)),
 		)
 	}
-	return k8sutils.FilterMapOwnedResourceNames(pgsObjMeta, objMetaList.Items), nil
+	return k8sutils.FilterMapOwnedResourceNames(pcsObjMeta, objMetaList.Items), nil
 }
 
 // Sync synchronizes all resources that the Service Operator manages.
-func (r _resource) Sync(ctx context.Context, logger logr.Logger, pgs *grovecorev1alpha1.PodCliqueSet) error {
-	replicaIndexToObjectKeys := getObjectKeys(pgs)
+func (r _resource) Sync(ctx context.Context, logger logr.Logger, pcs *grovecorev1alpha1.PodCliqueSet) error {
+	replicaIndexToObjectKeys := getObjectKeys(pcs)
 	tasks := make([]utils.Task, 0, len(replicaIndexToObjectKeys))
 	for replicaIndex, objectKey := range replicaIndexToObjectKeys {
 		createOrUpdateTask := utils.Task{
-			Name: fmt.Sprintf("CreateOrUpdatePodGangSetService-%s", objectKey),
+			Name: fmt.Sprintf("CreateOrUpdatePodCliqueSetService-%s", objectKey),
 			Fn: func(ctx context.Context) error {
-				return r.doCreateOrUpdate(ctx, logger, pgs, replicaIndex, objectKey)
+				return r.doCreateOrUpdate(ctx, logger, pcs, replicaIndex, objectKey)
 			},
 		}
 		tasks = append(tasks, createOrUpdateTask)
 	}
 	if runResult := utils.RunConcurrently(ctx, logger, tasks); runResult.HasErrors() {
 		return groveerr.WrapError(runResult.GetAggregatedError(),
-			errSyncPodGangSetService,
+			errSyncPodCliqueSetService,
 			component.OperationSync,
-			fmt.Sprintf("Error creating or updating PodCliqueSet Headless Services for PodCliqueSet: %v, run summary: %s", client.ObjectKeyFromObject(pgs), runResult.GetSummary()),
+			fmt.Sprintf("Error creating or updating PodCliqueSet Headless Services for PodCliqueSet: %v, run summary: %s", client.ObjectKeyFromObject(pcs), runResult.GetSummary()),
 		)
 	}
 	logger.Info("Successfully synced Headless Services")
@@ -105,7 +105,7 @@ func (r _resource) Delete(ctx context.Context, logger logr.Logger, pgObjMeta met
 		client.InNamespace(pgObjMeta.Namespace),
 		client.MatchingLabels(getSelectorLabelsForAllHeadlessServices(pgObjMeta.Name))); err != nil {
 		return groveerr.WrapError(err,
-			errDeletePodGangSetService,
+			errDeletePodCliqueSetService,
 			component.OperationDelete,
 			fmt.Sprintf("Failed to delete Headless Services for PodCliqueSet: %v", k8sutils.GetObjectKeyFromObjectMeta(pgObjMeta)),
 		)
@@ -114,86 +114,86 @@ func (r _resource) Delete(ctx context.Context, logger logr.Logger, pgObjMeta met
 	return nil
 }
 
-func (r _resource) doCreateOrUpdate(ctx context.Context, logger logr.Logger, pgs *grovecorev1alpha1.PodCliqueSet, pgsReplicaIndex int, pgServiceObjectKey client.ObjectKey) error {
-	logger.Info("Running CreateOrUpdate PodCliqueSet Headless Service", "pgsReplicaIndex", pgsReplicaIndex, "objectKey", pgServiceObjectKey)
-	pgService := emptyPGService(pgServiceObjectKey)
+func (r _resource) doCreateOrUpdate(ctx context.Context, logger logr.Logger, pcs *grovecorev1alpha1.PodCliqueSet, pcsReplicaIndex int, pgServiceObjectKey client.ObjectKey) error {
+	logger.Info("Running CreateOrUpdate PodCliqueSet Headless Service", "pcsReplicaIndex", pcsReplicaIndex, "objectKey", pgServiceObjectKey)
+	pgService := emptyPCService(pgServiceObjectKey)
 	opResult, err := controllerutil.CreateOrPatch(ctx, r.client, pgService, func() error {
-		return r.buildResource(pgService, pgs, pgsReplicaIndex)
+		return r.buildResource(pgService, pcs, pcsReplicaIndex)
 	})
 	if err != nil {
 		return groveerr.WrapError(err,
-			errSyncPodGangSetService,
+			errSyncPodCliqueSetService,
 			component.OperationSync,
-			fmt.Sprintf("Error syncing Headless Service: %v for PodCliqueSet: %v", pgServiceObjectKey, client.ObjectKeyFromObject(pgs)),
+			fmt.Sprintf("Error syncing Headless Service: %v for PodCliqueSet: %v", pgServiceObjectKey, client.ObjectKeyFromObject(pcs)),
 		)
 	}
 	logger.Info("Triggered create or update of PodGang Headless Service", "pgServiceObjectKey", pgServiceObjectKey, "result", opResult)
 	return nil
 }
 
-func (r _resource) buildResource(svc *corev1.Service, pgs *grovecorev1alpha1.PodCliqueSet, pgsReplicaIndex int) error {
-	svc.Labels = getLabels(pgs.Name, client.ObjectKeyFromObject(svc), pgsReplicaIndex)
+func (r _resource) buildResource(svc *corev1.Service, pcs *grovecorev1alpha1.PodCliqueSet, pcsReplicaIndex int) error {
+	svc.Labels = getLabels(pcs.Name, client.ObjectKeyFromObject(svc), pcsReplicaIndex)
 	var publishNotReadyAddresses bool
-	if pgs.Spec.Template.HeadlessServiceConfig != nil {
-		publishNotReadyAddresses = pgs.Spec.Template.HeadlessServiceConfig.PublishNotReadyAddresses
+	if pcs.Spec.Template.HeadlessServiceConfig != nil {
+		publishNotReadyAddresses = pcs.Spec.Template.HeadlessServiceConfig.PublishNotReadyAddresses
 	}
 	svc.Spec = corev1.ServiceSpec{
-		Selector:                 getLabelSelectorForPodsInAPodGangSetReplica(pgs.Name, pgsReplicaIndex),
+		Selector:                 getLabelSelectorForPodsInAPodCliqueSetReplica(pcs.Name, pcsReplicaIndex),
 		ClusterIP:                "None",
 		PublishNotReadyAddresses: publishNotReadyAddresses,
 	}
 
-	if err := controllerutil.SetControllerReference(pgs, svc, r.scheme); err != nil {
+	if err := controllerutil.SetControllerReference(pcs, svc, r.scheme); err != nil {
 		return err
 	}
 
 	return nil
 }
 
-func getLabels(pgsName string, svcObjectKey client.ObjectKey, pgsReplicaIndex int) map[string]string {
+func getLabels(pcsName string, svcObjectKey client.ObjectKey, pcsReplicaIndex int) map[string]string {
 	svcLabels := map[string]string{
 		apicommon.LabelAppNameKey:               svcObjectKey.Name,
 		apicommon.LabelComponentKey:             apicommon.LabelComponentNamePodCliqueSetReplicaHeadlessService,
-		apicommon.LabelPodCliqueSetReplicaIndex: strconv.Itoa(pgsReplicaIndex),
+		apicommon.LabelPodCliqueSetReplicaIndex: strconv.Itoa(pcsReplicaIndex),
 	}
 	return lo.Assign(
-		apicommon.GetDefaultLabelsForPodCliqueSetManagedResources(pgsName),
+		apicommon.GetDefaultLabelsForPodCliqueSetManagedResources(pcsName),
 		svcLabels,
 	)
 }
 
-func getLabelSelectorForPodsInAPodGangSetReplica(pgsName string, pgsReplicaIndex int) map[string]string {
+func getLabelSelectorForPodsInAPodCliqueSetReplica(pcsName string, pcsReplicaIndex int) map[string]string {
 	return lo.Assign(
-		apicommon.GetDefaultLabelsForPodCliqueSetManagedResources(pgsName),
+		apicommon.GetDefaultLabelsForPodCliqueSetManagedResources(pcsName),
 		map[string]string{
-			apicommon.LabelPodCliqueSetReplicaIndex: strconv.Itoa(pgsReplicaIndex),
+			apicommon.LabelPodCliqueSetReplicaIndex: strconv.Itoa(pcsReplicaIndex),
 		},
 	)
 }
 
-func getSelectorLabelsForAllHeadlessServices(pgsName string) map[string]string {
+func getSelectorLabelsForAllHeadlessServices(pcsName string) map[string]string {
 	svcMatchingLabels := map[string]string{
 		apicommon.LabelComponentKey: apicommon.LabelComponentNamePodCliqueSetReplicaHeadlessService,
 	}
 	return lo.Assign(
-		apicommon.GetDefaultLabelsForPodCliqueSetManagedResources(pgsName),
+		apicommon.GetDefaultLabelsForPodCliqueSetManagedResources(pcsName),
 		svcMatchingLabels,
 	)
 }
 
-func getObjectKeys(pgs *grovecorev1alpha1.PodCliqueSet) []client.ObjectKey {
-	objectKeys := make([]client.ObjectKey, 0, pgs.Spec.Replicas)
-	for replicaIndex := range pgs.Spec.Replicas {
-		serviceName := apicommon.GenerateHeadlessServiceName(apicommon.ResourceNameReplica{Name: pgs.Name, Replica: int(replicaIndex)})
+func getObjectKeys(pcs *grovecorev1alpha1.PodCliqueSet) []client.ObjectKey {
+	objectKeys := make([]client.ObjectKey, 0, pcs.Spec.Replicas)
+	for replicaIndex := range pcs.Spec.Replicas {
+		serviceName := apicommon.GenerateHeadlessServiceName(apicommon.ResourceNameReplica{Name: pcs.Name, Replica: int(replicaIndex)})
 		objectKeys = append(objectKeys, client.ObjectKey{
 			Name:      serviceName,
-			Namespace: pgs.Namespace,
+			Namespace: pcs.Namespace,
 		})
 	}
 	return objectKeys
 }
 
-func emptyPGService(objKey client.ObjectKey) *corev1.Service {
+func emptyPCService(objKey client.ObjectKey) *corev1.Service {
 	return &corev1.Service{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      objKey.Name,

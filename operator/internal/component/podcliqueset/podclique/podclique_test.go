@@ -38,48 +38,48 @@ import (
 )
 
 const (
-	testPGSetName    = "coyote"
-	testPGSNamespace = "cobalt-ns"
+	testPCSName      = "coyote"
+	testPCSNamespace = "cobalt-ns"
 )
 
 func TestGetExistingResourceNames(t *testing.T) {
 	testCases := []struct {
 		description                 string
-		pgsReplicas                 int32
+		pcsReplicas                 int32
 		podCliqueTemplateNames      []string
-		podCliqueNamesNotOwnedByPGS []string
+		podCliqueNamesNotOwnedByPCS []string
 		expectedPodCliqueNames      []string
 		listErr                     *apierrors.StatusError
 		expectedErr                 *groveerr.GroveError
 	}{
 		{
 			description:            "PodCliqueSet has zero replicas and one PodClique",
-			pgsReplicas:            0,
+			pcsReplicas:            0,
 			podCliqueTemplateNames: []string{"howl"},
 			expectedPodCliqueNames: []string{},
 		},
 		{
 			description:            "PodCliqueSet has one replica and two PodCliques",
-			pgsReplicas:            1,
+			pcsReplicas:            1,
 			podCliqueTemplateNames: []string{"howl", "grin"},
 			expectedPodCliqueNames: []string{"coyote-0-howl", "coyote-0-grin"},
 		},
 		{
 			description:            "PodCliqueSet has two replicas and two PodCliques",
-			pgsReplicas:            3,
+			pcsReplicas:            3,
 			podCliqueTemplateNames: []string{"howl", "grin"},
 			expectedPodCliqueNames: []string{"coyote-0-howl", "coyote-0-grin", "coyote-1-howl", "coyote-1-grin", "coyote-2-howl", "coyote-2-grin"},
 		},
 		{
 			description:                 "PodCliqueSet has two replicas and two PodCliques with one not owned by the PodCliqueSet",
-			pgsReplicas:                 2,
+			pcsReplicas:                 2,
 			podCliqueTemplateNames:      []string{"howl"},
-			podCliqueNamesNotOwnedByPGS: []string{"bandit"},
+			podCliqueNamesNotOwnedByPCS: []string{"bandit"},
 			expectedPodCliqueNames:      []string{"coyote-0-howl", "coyote-1-howl"},
 		},
 		{
 			description:            "should return error when list fails",
-			pgsReplicas:            2,
+			pcsReplicas:            2,
 			podCliqueTemplateNames: []string{"howl"},
 			listErr:                testutils.TestAPIInternalErr,
 			expectedErr: &groveerr.GroveError{
@@ -95,19 +95,19 @@ func TestGetExistingResourceNames(t *testing.T) {
 		t.Run(tc.description, func(t *testing.T) {
 			t.Parallel()
 			// Create a PodCliqueSet with the specified number of replicas and PodCliques
-			pgsBuilder := testutils.NewPodGangSetBuilder(testPGSetName, testPGSNamespace, uuid.NewUUID()).
-				WithReplicas(tc.pgsReplicas).
+			pcsBuilder := testutils.NewPodCliqueSetBuilder(testPCSName, testPCSNamespace, uuid.NewUUID()).
+				WithReplicas(tc.pcsReplicas).
 				WithCliqueStartupType(ptr.To(grovecorev1alpha1.CliqueStartupTypeAnyOrder))
 			for _, pclqTemplateName := range tc.podCliqueTemplateNames {
-				pgsBuilder.WithPodCliqueParameters(pclqTemplateName, 1, nil)
+				pcsBuilder.WithPodCliqueParameters(pclqTemplateName, 1, nil)
 			}
-			pgs := pgsBuilder.Build()
+			pcs := pcsBuilder.Build()
 			// Create existing objects
-			existingObjects := createExistingPodCliquesFromPGS(pgs, tc.podCliqueNamesNotOwnedByPGS)
+			existingObjects := createExistingPodCliquesFromPCS(pcs, tc.podCliqueNamesNotOwnedByPCS)
 			// Create a fake client with PodCliques
-			cl := testutils.CreateFakeClientForObjectsMatchingLabels(nil, tc.listErr, pgs.Namespace, grovecorev1alpha1.SchemeGroupVersion.WithKind("PodClique"), getPodCliqueSelectorLabels(pgs.ObjectMeta), existingObjects...)
+			cl := testutils.CreateFakeClientForObjectsMatchingLabels(nil, tc.listErr, pcs.Namespace, grovecorev1alpha1.SchemeGroupVersion.WithKind("PodClique"), getPodCliqueSelectorLabels(pcs.ObjectMeta), existingObjects...)
 			operator := New(cl, groveclientscheme.Scheme, record.NewFakeRecorder(10))
-			actualPCLQNames, err := operator.GetExistingResourceNames(context.Background(), logr.Discard(), pgs.ObjectMeta)
+			actualPCLQNames, err := operator.GetExistingResourceNames(context.Background(), logr.Discard(), pcs.ObjectMeta)
 			if tc.expectedErr == nil {
 				assert.NoError(t, err)
 				assert.ElementsMatch(t, tc.expectedPodCliqueNames, actualPCLQNames)
@@ -148,63 +148,63 @@ func TestDelete(t *testing.T) {
 	}
 
 	t.Parallel()
-	pgsObjMeta := metav1.ObjectMeta{
-		Name:      testPGSetName,
-		Namespace: testPGSNamespace,
+	pcsObjMeta := metav1.ObjectMeta{
+		Name:      testPCSName,
+		Namespace: testPCSNamespace,
 		UID:       uuid.NewUUID(),
 	}
 	for _, tc := range testCases {
 		t.Run(tc.description, func(t *testing.T) {
 			t.Parallel()
-			existingPodCliques := createDefaultPodCliques(pgsObjMeta, "howl", tc.numExistingPodCliques)
+			existingPodCliques := createDefaultPodCliques(pcsObjMeta, "howl", tc.numExistingPodCliques)
 			// Create a fake client with PodCliques
-			cl := testutils.CreateFakeClientForObjectsMatchingLabels(tc.deleteError, nil, testPGSNamespace, grovecorev1alpha1.SchemeGroupVersion.WithKind("PodClique"), getPodCliqueSelectorLabels(pgsObjMeta), existingPodCliques...)
+			cl := testutils.CreateFakeClientForObjectsMatchingLabels(tc.deleteError, nil, testPCSNamespace, grovecorev1alpha1.SchemeGroupVersion.WithKind("PodClique"), getPodCliqueSelectorLabels(pcsObjMeta), existingPodCliques...)
 			operator := New(cl, groveclientscheme.Scheme, record.NewFakeRecorder(10))
-			err := operator.Delete(context.Background(), logr.Discard(), pgsObjMeta)
+			err := operator.Delete(context.Background(), logr.Discard(), pcsObjMeta)
 			if tc.expectedError != nil {
 				testutils.CheckGroveError(t, tc.expectedError, err)
 			} else {
 				assert.NoError(t, err)
-				podCliquesPostDelete := getExistingPodCliques(t, cl, pgsObjMeta)
+				podCliquesPostDelete := getExistingPodCliques(t, cl, pcsObjMeta)
 				assert.Empty(t, podCliquesPostDelete)
 			}
 		})
 	}
 }
 
-func getExistingPodCliques(t *testing.T, cl client.Client, pgsObjMeta metav1.ObjectMeta) []grovecorev1alpha1.PodClique {
+func getExistingPodCliques(t *testing.T, cl client.Client, pcsObjMeta metav1.ObjectMeta) []grovecorev1alpha1.PodClique {
 	podCliqueList := &grovecorev1alpha1.PodCliqueList{}
-	assert.NoError(t, cl.List(context.Background(), podCliqueList, client.InNamespace(pgsObjMeta.Namespace), client.MatchingLabels(getPodCliqueSelectorLabels(pgsObjMeta))))
+	assert.NoError(t, cl.List(context.Background(), podCliqueList, client.InNamespace(pcsObjMeta.Namespace), client.MatchingLabels(getPodCliqueSelectorLabels(pcsObjMeta))))
 	return podCliqueList.Items
 }
 
-func createDefaultPodCliques(pgsObjMeta metav1.ObjectMeta, pclqNamePrefix string, numPodCliques int) []client.Object {
+func createDefaultPodCliques(pcsObjMeta metav1.ObjectMeta, pclqNamePrefix string, numPodCliques int) []client.Object {
 	podCliqueNames := make([]client.Object, 0, numPodCliques)
 	for i := range numPodCliques {
-		pclq := testutils.NewPodCliqueBuilder(pgsObjMeta.Name, pgsObjMeta.GetUID(), fmt.Sprintf("%s-%d", pclqNamePrefix, i), pgsObjMeta.Namespace, 0).
-			WithLabels(getPodCliqueSelectorLabels(pgsObjMeta)).
+		pclq := testutils.NewPodCliqueBuilder(pcsObjMeta.Name, pcsObjMeta.GetUID(), fmt.Sprintf("%s-%d", pclqNamePrefix, i), pcsObjMeta.Namespace, 0).
+			WithLabels(getPodCliqueSelectorLabels(pcsObjMeta)).
 			Build()
 		podCliqueNames = append(podCliqueNames, pclq)
 	}
 	return podCliqueNames
 }
 
-func createExistingPodCliquesFromPGS(pgs *grovecorev1alpha1.PodCliqueSet, podCliqueNamesNotOwnedByPGS []string) []client.Object {
-	existingPodCliques := make([]client.Object, 0, len(pgs.Spec.Template.Cliques)*int(pgs.Spec.Replicas)+len(podCliqueNamesNotOwnedByPGS))
-	for replicaIndex := range pgs.Spec.Replicas {
-		for _, pclqTemplate := range pgs.Spec.Template.Cliques {
-			pclq := testutils.NewPodCliqueBuilder(pgs.Name, pgs.UID, pclqTemplate.Name, pgs.Namespace, replicaIndex).
-				WithLabels(getPodCliqueSelectorLabels(pgs.ObjectMeta)).
+func createExistingPodCliquesFromPCS(pcs *grovecorev1alpha1.PodCliqueSet, podCliqueNamesNotOwnedByPCS []string) []client.Object {
+	existingPodCliques := make([]client.Object, 0, len(pcs.Spec.Template.Cliques)*int(pcs.Spec.Replicas)+len(podCliqueNamesNotOwnedByPCS))
+	for replicaIndex := range pcs.Spec.Replicas {
+		for _, pclqTemplate := range pcs.Spec.Template.Cliques {
+			pclq := testutils.NewPodCliqueBuilder(pcs.Name, pcs.UID, pclqTemplate.Name, pcs.Namespace, replicaIndex).
+				WithLabels(getPodCliqueSelectorLabels(pcs.ObjectMeta)).
 				WithStartsAfter(pclqTemplate.Spec.StartsAfter).
 				Build()
 			existingPodCliques = append(existingPodCliques, pclq)
 		}
 	}
 	// Add additional PodCliques not owned by the PodCliqueSet
-	nonExistingPGSName := "ebony"
-	for _, podCliqueName := range podCliqueNamesNotOwnedByPGS {
-		pclq := testutils.NewPodCliqueBuilder(nonExistingPGSName, uuid.NewUUID(), podCliqueName, pgs.Namespace, 0).
-			WithOwnerReference("PodCliqueSet", nonExistingPGSName, uuid.NewUUID()).Build()
+	nonExistingPCSName := "ebony"
+	for _, podCliqueName := range podCliqueNamesNotOwnedByPCS {
+		pclq := testutils.NewPodCliqueBuilder(nonExistingPCSName, uuid.NewUUID(), podCliqueName, pcs.Namespace, 0).
+			WithOwnerReference("PodCliqueSet", nonExistingPCSName, uuid.NewUUID()).Build()
 		existingPodCliques = append(existingPodCliques, pclq)
 	}
 	return existingPodCliques

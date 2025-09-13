@@ -28,9 +28,9 @@ import (
 )
 
 // GetPodGangSelectorLabels creates the label selector to list all the PodGangs for a PodCliqueSet.
-func GetPodGangSelectorLabels(pgsObjMeta metav1.ObjectMeta) map[string]string {
+func GetPodGangSelectorLabels(pcsObjMeta metav1.ObjectMeta) map[string]string {
 	return lo.Assign(
-		apicommon.GetDefaultLabelsForPodCliqueSetManagedResources(pgsObjMeta.Name),
+		apicommon.GetDefaultLabelsForPodCliqueSetManagedResources(pcsObjMeta.Name),
 		map[string]string{
 			apicommon.LabelComponentKey: apicommon.LabelComponentNamePodGang,
 		})

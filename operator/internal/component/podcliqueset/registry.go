@@ -14,21 +14,21 @@
 // limitations under the License.
 // */
 
-package podgangset
+package podcliqueset
 
 import (
 	"github.com/NVIDIA/grove/operator/api/core/v1alpha1"
 	"github.com/NVIDIA/grove/operator/internal/component"
-	"github.com/NVIDIA/grove/operator/internal/component/podgangset/hpa"
-	"github.com/NVIDIA/grove/operator/internal/component/podgangset/podclique"
-	"github.com/NVIDIA/grove/operator/internal/component/podgangset/podcliquescalinggroup"
-	"github.com/NVIDIA/grove/operator/internal/component/podgangset/podgang"
-	"github.com/NVIDIA/grove/operator/internal/component/podgangset/podgangsetreplica"
-	"github.com/NVIDIA/grove/operator/internal/component/podgangset/role"
-	"github.com/NVIDIA/grove/operator/internal/component/podgangset/rolebinding"
-	"github.com/NVIDIA/grove/operator/internal/component/podgangset/satokensecret"
-	"github.com/NVIDIA/grove/operator/internal/component/podgangset/service"
-	"github.com/NVIDIA/grove/operator/internal/component/podgangset/serviceaccount"
+	"github.com/NVIDIA/grove/operator/internal/component/podcliqueset/hpa"
+	"github.com/NVIDIA/grove/operator/internal/component/podcliqueset/podclique"
+	"github.com/NVIDIA/grove/operator/internal/component/podcliqueset/podcliquescalinggroup"
+	"github.com/NVIDIA/grove/operator/internal/component/podcliqueset/podcliquesetreplica"
+	"github.com/NVIDIA/grove/operator/internal/component/podcliqueset/podgang"
+	"github.com/NVIDIA/grove/operator/internal/component/podcliqueset/role"
+	"github.com/NVIDIA/grove/operator/internal/component/podcliqueset/rolebinding"
+	"github.com/NVIDIA/grove/operator/internal/component/podcliqueset/satokensecret"
+	"github.com/NVIDIA/grove/operator/internal/component/podcliqueset/service"
+	"github.com/NVIDIA/grove/operator/internal/component/podcliqueset/serviceaccount"
 
 	"k8s.io/client-go/tools/record"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
@@ -47,6 +47,6 @@ func CreateOperatorRegistry(mgr manager.Manager, eventRecorder record.EventRecor
 	reg.Register(component.KindPodCliqueScalingGroup, podcliquescalinggroup.New(cl, mgr.GetScheme(), eventRecorder))
 	reg.Register(component.KindHorizontalPodAutoscaler, hpa.New(cl, mgr.GetScheme()))
 	reg.Register(component.KindPodGang, podgang.New(cl, mgr.GetScheme(), eventRecorder))
-	reg.Register(component.KindPodGangSetReplica, podgangsetreplica.New(cl, eventRecorder))
+	reg.Register(component.KindPodCliqueSetReplica, podcliquesetreplica.New(cl, eventRecorder))
 	return reg
 }

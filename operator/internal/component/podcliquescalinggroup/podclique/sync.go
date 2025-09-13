@@ -40,7 +40,7 @@ import (
 
 type syncContext struct {
 	ctx                            context.Context
-	pgs                            *grovecorev1alpha1.PodCliqueSet
+	pcs                            *grovecorev1alpha1.PodCliqueSet
 	pcsg                           *grovecorev1alpha1.PodCliqueScalingGroup
 	existingPCLQs                  []grovecorev1alpha1.PodClique
 	pcsgIndicesToTerminate         []string
@@ -59,10 +59,10 @@ func (r _resource) prepareSyncContext(ctx context.Context, logger logr.Logger, p
 	)
 
 	// get the PodCliqueSet
-	syncCtx.pgs, err = componentutils.GetPodGangSet(ctx, r.client, pcsg.ObjectMeta)
+	syncCtx.pcs, err = componentutils.GetPodCliqueSet(ctx, r.client, pcsg.ObjectMeta)
 	if err != nil {
 		return nil, groveerr.WrapError(err,
-			errCodeGetPodGangSet,
+			errCodeGetPodCliqueSet,
 			component.OperationSync,
 			fmt.Sprintf("failed to get owner PodCliqueSet for PodCliqueScalingGroup %s", client.ObjectKeyFromObject(pcsg)),
 		)
@@ -78,10 +78,10 @@ func (r _resource) prepareSyncContext(ctx context.Context, logger logr.Logger, p
 	// compute the PCSG indices that have their MinAvailableBreached condition set to true. Segregated these into two
 	// pcsgIndicesToTerminate will have the indices for which the TerminationDelay has expired.
 	// pcsgIndicesToRequeue will have the indices for which the TerminationDelay has not yet expired.
-	syncCtx.pcsgIndicesToTerminate, syncCtx.pcsgIndicesToRequeue = getMinAvailableBreachedPCSGIndices(logger, syncCtx.existingPCLQs, syncCtx.pgs.Spec.Template.TerminationDelay.Duration)
+	syncCtx.pcsgIndicesToTerminate, syncCtx.pcsgIndicesToRequeue = getMinAvailableBreachedPCSGIndices(logger, syncCtx.existingPCLQs, syncCtx.pcs.Spec.Template.TerminationDelay.Duration)
 
 	// pre-compute expected PodTemplateHash for each PCLQ
-	syncCtx.expectedPCLQPodTemplateHashMap = getExpectedPCLQPodTemplateHashMap(syncCtx.pgs, pcsg)
+	syncCtx.expectedPCLQPodTemplateHashMap = getExpectedPCLQPodTemplateHashMap(syncCtx.pcs, pcsg)
 
 	return syncCtx, nil
 }
@@ -102,7 +102,7 @@ func (r _resource) runSyncFlow(logger logr.Logger, sc *syncContext) error {
 	if !componentutils.IsPCSGUpdateInProgress(sc.pcsg) {
 		if err := r.processMinAvailableBreachedPCSGReplicas(logger, sc); err != nil {
 			if errors.Is(err, errPCCGMinAvailableBreached) {
-				logger.Info("Skipping further reconciliation as MinAvailable for the PCSG has been breached. This can potentially trigger PGS replica deletion.")
+				logger.Info("Skipping further reconciliation as MinAvailable for the PCSG has been breached. This can potentially trigger PCS replica deletion.")
 				return nil
 			}
 			return err
@@ -133,7 +133,7 @@ func (r _resource) triggerDeletionOfExcessPCSGReplicas(logger logr.Logger, sc *s
 		logger.Info("Found more PodCliques than expected, triggering deletion of excess PodCliques", "expected", int(sc.pcsg.Spec.Replicas), "existing", existingPCSGReplicas, "diff", diff)
 		reason := "Delete excess PodCliqueScalingGroup replicas"
 		replicaIndicesToDelete := computePCSGReplicasToDelete(existingPCSGReplicas, int(sc.pcsg.Spec.Replicas))
-		deletionTasks := r.createDeleteTasks(logger, sc.pgs, pcsgObjectKey.Name, replicaIndicesToDelete, reason)
+		deletionTasks := r.createDeleteTasks(logger, sc.pcs, pcsgObjectKey.Name, replicaIndicesToDelete, reason)
 		if err := r.triggerDeletionOfPodCliques(sc.ctx, logger, pcsgObjectKey, deletionTasks); err != nil {
 			return err
 		}
@@ -180,7 +180,7 @@ func (r _resource) createExpectedPCLQs(logger logr.Logger, sc *syncContext) erro
 			createTask := utils.Task{
 				Name: fmt.Sprintf("CreatePodClique-%s", pclqObjectKey),
 				Fn: func(ctx context.Context) error {
-					return r.doCreate(ctx, logger, sc.pgs, sc.pcsg, pcsgReplicaIndex, pclqObjectKey)
+					return r.doCreate(ctx, logger, sc.pcs, sc.pcsg, pcsgReplicaIndex, pclqObjectKey)
 				},
 			}
 			tasks = append(tasks, createTask)
@@ -207,8 +207,8 @@ func (r _resource) processMinAvailableBreachedPCSGReplicas(logger logr.Logger, s
 	// its minAvailable breached for a duration > terminationDelay then gang terminate such PCSG replicas.
 	if len(sc.pcsgIndicesToTerminate) > 0 {
 		logger.Info("Identified PodCliqueScalingGroup indices for gang termination", "indices", sc.pcsgIndicesToTerminate)
-		reason := fmt.Sprintf("Delete PodCliques %v for PodCliqueScalingGroup %v which have breached MinAvailable longer than TerminationDelay: %s", sc.pcsgIndicesToTerminate, client.ObjectKeyFromObject(sc.pcsg), sc.pgs.Spec.Template.TerminationDelay.Duration)
-		pclqGangTerminationTasks := r.createDeleteTasks(logger, sc.pgs, sc.pcsg.Name, sc.pcsgIndicesToTerminate, reason)
+		reason := fmt.Sprintf("Delete PodCliques %v for PodCliqueScalingGroup %v which have breached MinAvailable longer than TerminationDelay: %s", sc.pcsgIndicesToTerminate, client.ObjectKeyFromObject(sc.pcsg), sc.pcs.Spec.Template.TerminationDelay.Duration)
+		pclqGangTerminationTasks := r.createDeleteTasks(logger, sc.pcs, sc.pcsg.Name, sc.pcsgIndicesToTerminate, reason)
 		if err := r.triggerDeletionOfPodCliques(sc.ctx, logger, client.ObjectKeyFromObject(sc.pcsg), pclqGangTerminationTasks); err != nil {
 			return err
 		}
@@ -270,17 +270,17 @@ func (r _resource) getExistingPCLQs(ctx context.Context, pcsg *grovecorev1alpha1
 	return existingPCLQs, nil
 }
 
-func getExpectedPCLQPodTemplateHashMap(pgs *grovecorev1alpha1.PodCliqueSet, pcsg *grovecorev1alpha1.PodCliqueScalingGroup) map[string]string {
+func getExpectedPCLQPodTemplateHashMap(pcs *grovecorev1alpha1.PodCliqueSet, pcsg *grovecorev1alpha1.PodCliqueScalingGroup) map[string]string {
 	pclqFQNToHash := make(map[string]string)
 	pcsgPCLQNames := pcsg.Spec.CliqueNames
 	for _, pcsgCliqueName := range pcsgPCLQNames {
-		pclqTemplateSpec, ok := lo.Find(pgs.Spec.Template.Cliques, func(pclqTemplateSpec *grovecorev1alpha1.PodCliqueTemplateSpec) bool {
+		pclqTemplateSpec, ok := lo.Find(pcs.Spec.Template.Cliques, func(pclqTemplateSpec *grovecorev1alpha1.PodCliqueTemplateSpec) bool {
 			return pclqTemplateSpec.Name == pcsgCliqueName
 		})
 		if !ok {
 			continue
 		}
-		podTemplateHash := componentutils.ComputePCLQPodTemplateHash(pclqTemplateSpec, pgs.Spec.Template.PriorityClassName)
+		podTemplateHash := componentutils.ComputePCLQPodTemplateHash(pclqTemplateSpec, pcs.Spec.Template.PriorityClassName)
 		for pcsgReplicaIndex := range int(pcsg.Spec.Replicas) {
 			cliqueFQN := apicommon.GeneratePodCliqueName(apicommon.ResourceNameReplica{
 				Name:    pcsg.Name,

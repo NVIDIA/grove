@@ -25,8 +25,8 @@ import (
 
 const (
 	// Name is the name of the default webhook handler for PodCliqueSet.
-	Name        = "podgangset-defaulting-webhook"
-	webhookPath = "/webhooks/default-podgangset"
+	Name        = "podcliqueset-defaulting-webhook"
+	webhookPath = "/webhooks/default-podcliqueset"
 )
 
 // RegisterWithManager registers the webhook with the manager.

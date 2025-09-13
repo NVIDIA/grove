@@ -49,7 +49,7 @@ func (r *Reconciler) reconcileStatus(ctx context.Context, logger logr.Logger, pc
 
 	patchObj := client.MergeFrom(pcsg.DeepCopy())
 
-	pgs, err := componentutils.GetPodGangSet(ctx, r.client, pcsg.ObjectMeta)
+	pgs, err := componentutils.GetPodCliqueSet(ctx, r.client, pcsg.ObjectMeta)
 	if err != nil {
 		logger.Error(err, "failed to get owner PodCliqueSet")
 		return ctrlcommon.ReconcileWithErrors("failed to get owner PodCliqueSet", err)

@@ -47,7 +47,7 @@ func TestComputePGSAvailableReplicas(t *testing.T) {
 		{
 			name: "all healthy - 2 replicas with standalone and scaling groups",
 			setupPGS: func() *grovecorev1alpha1.PodCliqueSet {
-				return testutils.NewPodGangSetBuilder(testPGSName, testNamespace, pgsUID).
+				return testutils.NewPodCliqueSetBuilder(testPGSName, testNamespace, pgsUID).
 					WithReplicas(2).
 					WithStandaloneClique("worker").
 					WithScalingGroup("compute", []string{"frontend", "backend"}).
@@ -73,7 +73,7 @@ func TestComputePGSAvailableReplicas(t *testing.T) {
 		{
 			name: "mixed health - 1 healthy, 1 unhealthy",
 			setupPGS: func() *grovecorev1alpha1.PodCliqueSet {
-				return testutils.NewPodGangSetBuilder(testPGSName, testNamespace, pgsUID).
+				return testutils.NewPodCliqueSetBuilder(testPGSName, testNamespace, pgsUID).
 					WithReplicas(2).
 					WithStandaloneClique("worker").
 					WithScalingGroup("compute", []string{"frontend"}).
@@ -96,7 +96,7 @@ func TestComputePGSAvailableReplicas(t *testing.T) {
 		{
 			name: "count mismatch - missing resources",
 			setupPGS: func() *grovecorev1alpha1.PodCliqueSet {
-				return testutils.NewPodGangSetBuilder(testPGSName, testNamespace, pgsUID).
+				return testutils.NewPodCliqueSetBuilder(testPGSName, testNamespace, pgsUID).
 					WithReplicas(1).
 					WithStandaloneClique("worker").
 					WithScalingGroup("compute", []string{"frontend"}).
@@ -116,7 +116,7 @@ func TestComputePGSAvailableReplicas(t *testing.T) {
 		{
 			name: "empty configuration",
 			setupPGS: func() *grovecorev1alpha1.PodCliqueSet {
-				return testutils.NewPodGangSetBuilder(testPGSName, testNamespace, pgsUID).
+				return testutils.NewPodCliqueSetBuilder(testPGSName, testNamespace, pgsUID).
 					WithReplicas(1).
 					Build()
 			},
@@ -126,7 +126,7 @@ func TestComputePGSAvailableReplicas(t *testing.T) {
 		{
 			name: "only standalone cliques - all healthy",
 			setupPGS: func() *grovecorev1alpha1.PodCliqueSet {
-				return testutils.NewPodGangSetBuilder(testPGSName, testNamespace, pgsUID).
+				return testutils.NewPodCliqueSetBuilder(testPGSName, testNamespace, pgsUID).
 					WithReplicas(2).
 					WithStandaloneClique("worker").
 					WithStandaloneClique("monitor").
@@ -150,7 +150,7 @@ func TestComputePGSAvailableReplicas(t *testing.T) {
 		{
 			name: "only scaling groups - all healthy",
 			setupPGS: func() *grovecorev1alpha1.PodCliqueSet {
-				return testutils.NewPodGangSetBuilder(testPGSName, testNamespace, pgsUID).
+				return testutils.NewPodCliqueSetBuilder(testPGSName, testNamespace, pgsUID).
 					WithReplicas(2).
 					WithScalingGroup("compute", []string{"frontend", "backend"}).
 					WithScalingGroup("storage", []string{"database"}).
@@ -174,7 +174,7 @@ func TestComputePGSAvailableReplicas(t *testing.T) {
 		{
 			name: "terminating resources",
 			setupPGS: func() *grovecorev1alpha1.PodCliqueSet {
-				return testutils.NewPodGangSetBuilder(testPGSName, testNamespace, pgsUID).
+				return testutils.NewPodCliqueSetBuilder(testPGSName, testNamespace, pgsUID).
 					WithReplicas(1).
 					WithStandaloneClique("worker").
 					WithPodGangSetGenerationHash(&pgsGenerationHash).
@@ -191,7 +191,7 @@ func TestComputePGSAvailableReplicas(t *testing.T) {
 		{
 			name: "unknown condition status",
 			setupPGS: func() *grovecorev1alpha1.PodCliqueSet {
-				return testutils.NewPodGangSetBuilder(testPGSName, testNamespace, pgsUID).
+				return testutils.NewPodCliqueSetBuilder(testPGSName, testNamespace, pgsUID).
 					WithReplicas(1).
 					WithScalingGroup("compute", []string{"frontend"}).
 					WithPodGangSetGenerationHash(&pgsGenerationHash).
@@ -208,7 +208,7 @@ func TestComputePGSAvailableReplicas(t *testing.T) {
 		{
 			name: "no conditions set",
 			setupPGS: func() *grovecorev1alpha1.PodCliqueSet {
-				return testutils.NewPodGangSetBuilder(testPGSName, testNamespace, pgsUID).
+				return testutils.NewPodCliqueSetBuilder(testPGSName, testNamespace, pgsUID).
 					WithReplicas(1).
 					WithStandaloneClique("worker").
 					WithPodGangSetGenerationHash(&pgsGenerationHash).
@@ -226,7 +226,7 @@ func TestComputePGSAvailableReplicas(t *testing.T) {
 		{
 			name: "no child resources when expected",
 			setupPGS: func() *grovecorev1alpha1.PodCliqueSet {
-				return testutils.NewPodGangSetBuilder(testPGSName, testNamespace, pgsUID).
+				return testutils.NewPodCliqueSetBuilder(testPGSName, testNamespace, pgsUID).
 					WithReplicas(1).
 					WithScalingGroup("compute", []string{"frontend"}).
 					WithPodGangSetGenerationHash(&pgsGenerationHash).
@@ -238,7 +238,7 @@ func TestComputePGSAvailableReplicas(t *testing.T) {
 		{
 			name: "extra unexpected resources",
 			setupPGS: func() *grovecorev1alpha1.PodCliqueSet {
-				return testutils.NewPodGangSetBuilder(testPGSName, testNamespace, pgsUID).
+				return testutils.NewPodCliqueSetBuilder(testPGSName, testNamespace, pgsUID).
 					WithReplicas(1).
 					WithStandaloneClique("worker").
 					WithPodGangSetGenerationHash(&pgsGenerationHash).

@@ -40,7 +40,7 @@ import (
 )
 
 const (
-	controllerName = "podgangset-controller"
+	controllerName = "podcliqueset-controller"
 )
 
 // RegisterWithManager registers the PodCliqueSet Reconciler with the manager.
@@ -70,7 +70,7 @@ func mapPodCliqueToPodGangSet() handler.MapFunc {
 		if !ok {
 			return nil
 		}
-		pgsName := componentutils.GetPodGangSetName(pclq.ObjectMeta)
+		pgsName := componentutils.GetPodCliqueSetName(pclq.ObjectMeta)
 		return []reconcile.Request{{NamespacedName: types.NamespacedName{Name: pgsName, Namespace: pclq.Namespace}}}
 	}
 }
@@ -81,7 +81,7 @@ func mapPodCliqueScaleGroupToPodGangSet() handler.MapFunc {
 		if !ok {
 			return nil
 		}
-		pgsName := componentutils.GetPodGangSetName(pcsg.ObjectMeta)
+		pgsName := componentutils.GetPodCliqueSetName(pcsg.ObjectMeta)
 		return []reconcile.Request{{NamespacedName: types.NamespacedName{Name: pgsName, Namespace: pcsg.Namespace}}}
 	}
 }

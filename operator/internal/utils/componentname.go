@@ -27,8 +27,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-// GetPodGangSetReplicaIndexFromPodCliqueFQN extracts the PodCliqueSet replica index from a Pod Clique FQN name.
-func GetPodGangSetReplicaIndexFromPodCliqueFQN(pgsName, pclqFQNName string) (int, error) {
+// GetPodCliqueSetReplicaIndexFromPodCliqueFQN extracts the PodCliqueSet replica index from a Pod Clique FQN name.
+func GetPodCliqueSetReplicaIndexFromPodCliqueFQN(pgsName, pclqFQNName string) (int, error) {
 	replicaStartIndex := len(pgsName) + 1 // +1 for the hyphen
 	hyphenIndex := strings.Index(pclqFQNName[replicaStartIndex:], "-")
 	if hyphenIndex == -1 {

@@ -35,7 +35,7 @@ import (
 
 // Temporary helper function for remaining tests - to be refactored
 func createDummyPodGangSet(name string) *grovecorev1alpha1.PodCliqueSet {
-	return testutils.NewPodGangSetBuilder(name, "default", uuid.NewUUID()).
+	return testutils.NewPodCliqueSetBuilder(name, "default", uuid.NewUUID()).
 		WithReplicas(1).
 		WithTerminationDelay(30 * time.Second).
 		WithCliqueStartupType(ptr.To(grovecorev1alpha1.CliqueStartupTypeAnyOrder)).
@@ -132,7 +132,7 @@ func TestResourceNamingValidation(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.description, func(t *testing.T) {
-			pgsBuilder := testutils.NewPodGangSetBuilder(tc.pgsName, "default", uuid.NewUUID()).
+			pgsBuilder := testutils.NewPodCliqueSetBuilder(tc.pgsName, "default", uuid.NewUUID()).
 				WithReplicas(1).
 				WithTerminationDelay(30 * time.Second).
 				WithCliqueStartupType(ptr.To(grovecorev1alpha1.CliqueStartupTypeAnyOrder))

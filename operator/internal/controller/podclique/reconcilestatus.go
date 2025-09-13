@@ -37,11 +37,11 @@ import (
 )
 
 func (r *Reconciler) reconcileStatus(ctx context.Context, logger logr.Logger, pclq *grovecorev1alpha1.PodClique) ctrlcommon.ReconcileStepResult {
-	pgsName := componentutils.GetPodGangSetName(pclq.ObjectMeta)
+	pgsName := componentutils.GetPodCliqueSetName(pclq.ObjectMeta)
 	pclqObjectKey := client.ObjectKeyFromObject(pclq)
 	patch := client.MergeFrom(pclq.DeepCopy())
 
-	pgs, err := componentutils.GetPodGangSet(ctx, r.client, pclq.ObjectMeta)
+	pgs, err := componentutils.GetPodCliqueSet(ctx, r.client, pclq.ObjectMeta)
 	if err != nil {
 		logger.Error(err, "could not get PodCliqueSet for PodClique", "pclqObjectKey", pclqObjectKey)
 		return ctrlcommon.ReconcileWithErrors("could not get PodCliqueSet for PodClique", err)

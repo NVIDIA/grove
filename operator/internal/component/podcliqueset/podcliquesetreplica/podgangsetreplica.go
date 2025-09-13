@@ -14,7 +14,7 @@
 // limitations under the License.
 // */
 
-package podgangsetreplica
+package podcliquesetreplica
 
 import (
 	"context"
@@ -34,11 +34,11 @@ import (
 )
 
 const (
-	errCodeComputingPGSReplicaDeletionWork grovecorev1alpha1.ErrorCode = "ERR_COMPUTE_PGS_REPLICA_DELETION_WORK"
-	errCodeDeletePGSReplica                grovecorev1alpha1.ErrorCode = "ERR_DELETE_PGS_REPLICA"
+	errCodeComputingPCSReplicaDeletionWork grovecorev1alpha1.ErrorCode = "ERR_COMPUTE_PCS_REPLICA_DELETION_WORK"
+	errCodeDeletePCSReplica                grovecorev1alpha1.ErrorCode = "ERR_DELETE_PCS_REPLICA"
 	errCodeListPCLQs                       grovecorev1alpha1.ErrorCode = "ERR_LIST_PCLQs"
 	errCodeListPCSGs                       grovecorev1alpha1.ErrorCode = "ERR_LIST_PCGS"
-	errCodeUpdatePGSStatus                 grovecorev1alpha1.ErrorCode = "ERR_UPDATE_PGS_STATUS"
+	errCodeUpdatePCSStatus                 grovecorev1alpha1.ErrorCode = "ERR_UPDATE_PCS_STATUS"
 )
 
 type _resource struct {
@@ -46,7 +46,7 @@ type _resource struct {
 	eventRecorder record.EventRecorder
 }
 
-// New creates a new instance of the PodGangSetReplica operator.
+// New creates a new instance of the PodCliqueSetReplica operator.
 func New(client client.Client, eventRecorder record.EventRecorder) component.Operator[grovecorev1alpha1.PodCliqueSet] {
 	return &_resource{
 		client:        client,
@@ -59,30 +59,30 @@ func (r _resource) GetExistingResourceNames(_ context.Context, _ logr.Logger, _ 
 	return []string{}, nil
 }
 
-func (r _resource) Sync(ctx context.Context, logger logr.Logger, pgs *grovecorev1alpha1.PodCliqueSet) error {
-	pgsObjectKey := client.ObjectKeyFromObject(pgs)
+func (r _resource) Sync(ctx context.Context, logger logr.Logger, pcs *grovecorev1alpha1.PodCliqueSet) error {
+	pcsObjectKey := client.ObjectKeyFromObject(pcs)
 
-	delWork, err := r.getPGSReplicaDeletionWork(ctx, logger, pgs)
+	delWork, err := r.getPCSReplicaDeletionWork(ctx, logger, pcs)
 	if err != nil {
 		return groveerr.WrapError(err,
-			errCodeComputingPGSReplicaDeletionWork,
+			errCodeComputingPCSReplicaDeletionWork,
 			component.OperationSync,
-			fmt.Sprintf("Could not compute pending replica deletion delWork for PGS: %v", pgsObjectKey))
+			fmt.Sprintf("Could not compute pending replica deletion delWork for PCS: %v", pcsObjectKey))
 	}
 
-	if delWork.hasPendingPGSReplicaDeletion() {
+	if delWork.hasPendingPCSReplicaDeletion() {
 		if runResult := utils.RunConcurrently(ctx, logger, delWork.deletionTasks); runResult.HasErrors() {
 			return groveerr.WrapError(runResult.GetAggregatedError(),
-				errCodeDeletePGSReplica,
+				errCodeDeletePCSReplica,
 				component.OperationSync,
-				fmt.Sprintf("Error deleting PodCliques for PodCliqueSet: %v", pgsObjectKey),
+				fmt.Sprintf("Error deleting PodCliques for PodCliqueSet: %v", pcsObjectKey),
 			)
 		}
 	}
 
-	if isRollingUpdateInProgress(pgs) {
-		minAvailableBreachedPGSReplicaIndices := slices.Collect(maps.Keys(delWork.minAvailableBreachedConstituents))
-		if err := r.orchestrateRollingUpdate(ctx, logger, pgs, delWork.pgsIndicesToTerminate, minAvailableBreachedPGSReplicaIndices); err != nil {
+	if isRollingUpdateInProgress(pcs) {
+		minAvailableBreachedPCSReplicaIndices := slices.Collect(maps.Keys(delWork.minAvailableBreachedConstituents))
+		if err := r.orchestrateRollingUpdate(ctx, logger, pcs, delWork.pcsIndicesToTerminate, minAvailableBreachedPCSReplicaIndices); err != nil {
 			return err
 		}
 	}
@@ -90,7 +90,7 @@ func (r _resource) Sync(ctx context.Context, logger logr.Logger, pgs *grovecorev
 	if delWork.shouldRequeue() {
 		return groveerr.New(groveerr.ErrCodeContinueReconcileAndRequeue,
 			component.OperationSync,
-			"Requeuing to re-process PGS replicas that have breached MinAvailable but not crossed TerminationDelay",
+			"Requeuing to re-process PCS replicas that have breached MinAvailable but not crossed TerminationDelay",
 		)
 	}
 	return nil

@@ -49,11 +49,11 @@ func TestMinAvailableWithHPAScaling(t *testing.T) {
 			minAvailable:        ptr.To(int32(1)),
 			initialReplicas:     2,
 			scaledReplicas:      4,
-			expectedBasePodGang: "test-pgs-0", // Contains replicas 0 to (minAvailable-1) = 0
+			expectedBasePodGang: "test-pcs-0", // Contains replicas 0 to (minAvailable-1) = 0
 			expectedScaledPodGangs: []string{
-				"test-pgs-0-test-sg-0", // scaled PodGang 0 (scaling group replica 1)
-				"test-pgs-0-test-sg-1", // scaled PodGang 1 (scaling group replica 2)
-				"test-pgs-0-test-sg-2", // scaled PodGang 2 (scaling group replica 3)
+				"test-pcs-0-test-sg-0", // scaled PodGang 0 (scaling group replica 1)
+				"test-pcs-0-test-sg-1", // scaled PodGang 1 (scaling group replica 2)
+				"test-pcs-0-test-sg-2", // scaled PodGang 2 (scaling group replica 3)
 			},
 		},
 		{
@@ -61,12 +61,12 @@ func TestMinAvailableWithHPAScaling(t *testing.T) {
 			minAvailable:        ptr.To(int32(2)),
 			initialReplicas:     3,
 			scaledReplicas:      6,
-			expectedBasePodGang: "test-pgs-0", // Contains replicas 0-1
+			expectedBasePodGang: "test-pcs-0", // Contains replicas 0-1
 			expectedScaledPodGangs: []string{
-				"test-pgs-0-test-sg-0", // scaled PodGang 0 (scaling group replica 2)
-				"test-pgs-0-test-sg-1", // scaled PodGang 1 (scaling group replica 3)
-				"test-pgs-0-test-sg-2", // scaled PodGang 2 (scaling group replica 4)
-				"test-pgs-0-test-sg-3", // scaled PodGang 3 (scaling group replica 5)
+				"test-pcs-0-test-sg-0", // scaled PodGang 0 (scaling group replica 2)
+				"test-pcs-0-test-sg-1", // scaled PodGang 1 (scaling group replica 3)
+				"test-pcs-0-test-sg-2", // scaled PodGang 2 (scaling group replica 4)
+				"test-pcs-0-test-sg-3", // scaled PodGang 3 (scaling group replica 5)
 			},
 		},
 		{
@@ -74,10 +74,10 @@ func TestMinAvailableWithHPAScaling(t *testing.T) {
 			minAvailable:        ptr.To(int32(1)),
 			initialReplicas:     5,
 			scaledReplicas:      3,
-			expectedBasePodGang: "test-pgs-0", // Contains replica 0 (unchanged)
+			expectedBasePodGang: "test-pcs-0", // Contains replica 0 (unchanged)
 			expectedScaledPodGangs: []string{
-				"test-pgs-0-test-sg-0", // scaled PodGang 0 (scaling group replica 1)
-				"test-pgs-0-test-sg-1", // scaled PodGang 1 (scaling group replica 2)
+				"test-pcs-0-test-sg-0", // scaled PodGang 0 (scaling group replica 1)
+				"test-pcs-0-test-sg-1", // scaled PodGang 1 (scaling group replica 2)
 				// scaling group replicas 3-4 should be deleted
 			},
 		},
@@ -86,7 +86,7 @@ func TestMinAvailableWithHPAScaling(t *testing.T) {
 			minAvailable:           ptr.To(int32(2)),
 			initialReplicas:        4,
 			scaledReplicas:         2,
-			expectedBasePodGang:    "test-pgs-0", // Contains replicas 0-1
+			expectedBasePodGang:    "test-pcs-0", // Contains replicas 0-1
 			expectedScaledPodGangs: []string{
 				// No scaled PodGangs when replicas == minAvailable
 			},
@@ -96,9 +96,9 @@ func TestMinAvailableWithHPAScaling(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// Create test PodCliqueSet
-			pgs := &grovecorev1alpha1.PodCliqueSet{
+			pcs := &grovecorev1alpha1.PodCliqueSet{
 				ObjectMeta: metav1.ObjectMeta{
-					Name:      "test-pgs",
+					Name:      "test-pcs",
 					Namespace: "default",
 					UID:       "test-uid-123",
 				},
@@ -129,18 +129,18 @@ func TestMinAvailableWithHPAScaling(t *testing.T) {
 			// Create test PodCliqueScalingGroup (simulates what HPA would create)
 			pcsg := &grovecorev1alpha1.PodCliqueScalingGroup{
 				ObjectMeta: metav1.ObjectMeta{
-					Name:      "test-pgs-0-test-sg",
+					Name:      "test-pcs-0-test-sg",
 					Namespace: "default",
 					Labels: map[string]string{
-						"app.kubernetes.io/managed-by":      "grove-operator",
-						"app.kubernetes.io/part-of":         "test-pgs",
-						"grove.io/podgangset-replica-index": "0",
+						"app.kubernetes.io/managed-by":        "grove-operator",
+						"app.kubernetes.io/part-of":           "test-pcs",
+						"grove.io/podcliqueset-replica-index": "0",
 					},
 					OwnerReferences: []metav1.OwnerReference{
 						{
 							APIVersion: "grove.io/v1alpha1",
 							Kind:       "PodCliqueSet",
-							Name:       "test-pgs",
+							Name:       "test-pcs",
 							UID:        "test-uid-123",
 							Controller: ptr.To(true),
 						},
@@ -153,9 +153,9 @@ func TestMinAvailableWithHPAScaling(t *testing.T) {
 				},
 			}
 
-			// Create fake client with both PGS and PCSG using testutils
+			// Create fake client with both PCS and PCSG using testutils
 			fakeClient := testutils.NewTestClientBuilder().
-				WithObjects(pgs, pcsg).
+				WithObjects(pcs, pcsg).
 				Build()
 
 			// Test the PodGang creation logic
@@ -163,7 +163,7 @@ func TestMinAvailableWithHPAScaling(t *testing.T) {
 			ctx := context.Background()
 
 			// Test scaled PodGang creation - this should read the scaled PCSG
-			expectedPodGangs, err := r.getExpectedPodGangsForPCSG(ctx, pgs, 0)
+			expectedPodGangs, err := r.getExpectedPodGangsForPCSG(ctx, pcs, 0)
 			require.NoError(t, err)
 
 			// Verify scaled PodGangs
@@ -175,8 +175,8 @@ func TestMinAvailableWithHPAScaling(t *testing.T) {
 				"Scaled PodGangs should match expected after scaling")
 
 			// Test base PodGang logic - this should be independent of scaling
-			sc := &syncContext{pgs: pgs}
-			basePodGangs := getExpectedPodGangForPGSReplicas(sc)
+			sc := &syncContext{pcs: pcs}
+			basePodGangs := getExpectedPodGangForPCSReplicas(sc)
 			require.Len(t, basePodGangs, 1, "Should have exactly one base PodGang")
 			assert.Equal(t, tt.expectedBasePodGang, basePodGangs[0].fqn,
 				"Base PodGang name should be correct and unchanged by scaling")
@@ -229,9 +229,9 @@ func TestGetPodsPendingCreation(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// Create test PodCliqueSet
-			pgs := &grovecorev1alpha1.PodCliqueSet{
+			pcs := &grovecorev1alpha1.PodCliqueSet{
 				ObjectMeta: metav1.ObjectMeta{
-					Name:      "test-pgs",
+					Name:      "test-pcs",
 					Namespace: "default",
 					UID:       "test-uid-123",
 				},
@@ -273,9 +273,9 @@ func TestGetPodsPendingCreation(t *testing.T) {
 				},
 			}
 
-			// Create fake client with both PGS and PCSG using testutils
+			// Create fake client with both PCS and PCSG using testutils
 			fakeClient := testutils.NewTestClientBuilder().
-				WithObjects(pgs).
+				WithObjects(pcs).
 				Build()
 
 			// Setup test
@@ -284,7 +284,7 @@ func TestGetPodsPendingCreation(t *testing.T) {
 			logger := ctrllogger.FromContext(ctx).WithName("grove-test")
 
 			// Prepare sync context
-			sc, err := r.prepareSyncFlow(ctx, logger, pgs)
+			sc, err := r.prepareSyncFlow(ctx, logger, pcs)
 			require.NoError(t, err)
 
 			// Validate the number of expected PodGangs

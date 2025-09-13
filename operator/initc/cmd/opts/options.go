@@ -82,9 +82,7 @@ func InitializeCLIOptions() (CLIOptions, error) {
 	config := CLIOptions{
 		podCliques: make([]string, 0),
 	}
-
 	config.RegisterFlags(pflag.CommandLine)
 	pflag.Parse()
-
 	return config, nil
 }

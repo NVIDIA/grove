@@ -30,8 +30,8 @@ type PodGangSetBuilder struct {
 	pgs *grovecorev1alpha1.PodCliqueSet
 }
 
-// NewPodGangSetBuilder creates a new PodGangSetBuilder.
-func NewPodGangSetBuilder(name, namespace string, uid types.UID) *PodGangSetBuilder {
+// NewPodCliqueSetBuilder creates a new PodGangSetBuilder.
+func NewPodCliqueSetBuilder(name, namespace string, uid types.UID) *PodGangSetBuilder {
 	return &PodGangSetBuilder{
 		pgs: createEmptyPodGangSet(name, namespace, uid),
 	}

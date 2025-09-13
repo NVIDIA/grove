@@ -57,9 +57,9 @@ func New(client client.Client, scheme *runtime.Scheme) component.Operator[grovec
 }
 
 // GetExistingResourceNames returns the names of all the existing resources that the Role Operator manages.
-func (r _resource) GetExistingResourceNames(ctx context.Context, _ logr.Logger, pgsObjMeta metav1.ObjectMeta) ([]string, error) {
+func (r _resource) GetExistingResourceNames(ctx context.Context, _ logr.Logger, pcsObjMeta metav1.ObjectMeta) ([]string, error) {
 	roleNames := make([]string, 0, 1)
-	objectKey := getObjectKey(pgsObjMeta)
+	objectKey := getObjectKey(pcsObjMeta)
 	partialObjMeta, err := k8sutils.GetExistingPartialObjectMetadata(ctx, r.client, rbacv1.SchemeGroupVersion.WithKind("Role"), objectKey)
 	if err != nil {
 		if errors.IsNotFound(err) {
@@ -68,52 +68,52 @@ func (r _resource) GetExistingResourceNames(ctx context.Context, _ logr.Logger, 
 		return nil, groveerr.WrapError(err,
 			errCodeGetRole,
 			component.OperationGetExistingResourceNames,
-			fmt.Sprintf("Error getting Role: %v for PodCliqueSet: %v", objectKey, k8sutils.GetObjectKeyFromObjectMeta(pgsObjMeta)),
+			fmt.Sprintf("Error getting Role: %v for PodCliqueSet: %v", objectKey, k8sutils.GetObjectKeyFromObjectMeta(pcsObjMeta)),
 		)
 	}
-	if metav1.IsControlledBy(partialObjMeta, &pgsObjMeta) {
+	if metav1.IsControlledBy(partialObjMeta, &pcsObjMeta) {
 		roleNames = append(roleNames, partialObjMeta.Name)
 	}
 	return roleNames, nil
 }
 
 // Sync synchronizes all resources that the Role Operator manages.
-func (r _resource) Sync(ctx context.Context, logger logr.Logger, pgs *grovecorev1alpha1.PodCliqueSet) error {
-	existingRoleNames, err := r.GetExistingResourceNames(ctx, logger, pgs.ObjectMeta)
+func (r _resource) Sync(ctx context.Context, logger logr.Logger, pcs *grovecorev1alpha1.PodCliqueSet) error {
+	existingRoleNames, err := r.GetExistingResourceNames(ctx, logger, pcs.ObjectMeta)
 	if err != nil {
 		return groveerr.WrapError(err,
 			errCodeGetRole,
 			component.OperationSync,
-			fmt.Sprintf("Error getting existing Role names for PodCliqueSet: %v", client.ObjectKeyFromObject(pgs)),
+			fmt.Sprintf("Error getting existing Role names for PodCliqueSet: %v", client.ObjectKeyFromObject(pcs)),
 		)
 	}
 	if len(existingRoleNames) > 0 {
 		logger.Info("Role already exists, skipping creation", "existingRole", existingRoleNames[0])
 		return nil
 	}
-	objectKey := getObjectKey(pgs.ObjectMeta)
+	objectKey := getObjectKey(pcs.ObjectMeta)
 	role := emptyRole(objectKey)
 	logger.Info("Running CreateOrUpdate Role", "objectKey", objectKey)
-	if err := r.buildResource(pgs, role); err != nil {
+	if err := r.buildResource(pcs, role); err != nil {
 		return groveerr.WrapError(err,
 			errSyncRole,
 			component.OperationSync,
-			fmt.Sprintf("Error building Role: %v for PodCliqueSet: %v", objectKey, client.ObjectKeyFromObject(pgs)),
+			fmt.Sprintf("Error building Role: %v for PodCliqueSet: %v", objectKey, client.ObjectKeyFromObject(pcs)),
 		)
 	}
 	if err := client.IgnoreAlreadyExists(r.client.Create(ctx, role)); err != nil {
 		return groveerr.WrapError(err,
 			errSyncRole,
 			component.OperationSync,
-			fmt.Sprintf("Error syncing Role: %v for PodCliqueSet: %v", objectKey, client.ObjectKeyFromObject(pgs)),
+			fmt.Sprintf("Error syncing Role: %v for PodCliqueSet: %v", objectKey, client.ObjectKeyFromObject(pcs)),
 		)
 	}
 	logger.Info("Created Role", "objectKey", objectKey)
 	return nil
 }
 
-func (r _resource) Delete(ctx context.Context, logger logr.Logger, pgsObjMeta metav1.ObjectMeta) error {
-	objectKey := getObjectKey(pgsObjMeta)
+func (r _resource) Delete(ctx context.Context, logger logr.Logger, pcsObjMeta metav1.ObjectMeta) error {
+	objectKey := getObjectKey(pcsObjMeta)
 	logger.Info("Triggering delete of Role", "objectKey", objectKey)
 	if err := r.client.Delete(ctx, emptyRole(objectKey)); err != nil {
 		if errors.IsNotFound(err) {
@@ -123,16 +123,16 @@ func (r _resource) Delete(ctx context.Context, logger logr.Logger, pgsObjMeta me
 		return groveerr.WrapError(err,
 			errDeleteRole,
 			component.OperationDelete,
-			fmt.Sprintf("Error deleting Role: %v for PodCliqueSet: %v", objectKey, k8sutils.GetObjectKeyFromObjectMeta(pgsObjMeta)),
+			fmt.Sprintf("Error deleting Role: %v for PodCliqueSet: %v", objectKey, k8sutils.GetObjectKeyFromObjectMeta(pcsObjMeta)),
 		)
 	}
 	logger.Info("deleted Role", "objectKey", objectKey)
 	return nil
 }
 
-func (r _resource) buildResource(pgs *grovecorev1alpha1.PodCliqueSet, role *rbacv1.Role) error {
-	role.Labels = getLabels(pgs.ObjectMeta)
-	if err := controllerutil.SetControllerReference(pgs, role, r.scheme); err != nil {
+func (r _resource) buildResource(pcs *grovecorev1alpha1.PodCliqueSet, role *rbacv1.Role) error {
+	role.Labels = getLabels(pcs.ObjectMeta)
+	if err := controllerutil.SetControllerReference(pcs, role, r.scheme); err != nil {
 		return groveerr.WrapError(err,
 			errSyncRole,
 			component.OperationSync,
@@ -149,21 +149,21 @@ func (r _resource) buildResource(pgs *grovecorev1alpha1.PodCliqueSet, role *rbac
 	return nil
 }
 
-func getLabels(pgsObjMeta metav1.ObjectMeta) map[string]string {
+func getLabels(pcsObjMeta metav1.ObjectMeta) map[string]string {
 	roleLabels := map[string]string{
 		apicommon.LabelComponentKey: apicommon.LabelComponentNamePodRole,
-		apicommon.LabelAppNameKey:   strings.ReplaceAll(apicommon.GeneratePodRoleName(pgsObjMeta.Name), ":", "-"),
+		apicommon.LabelAppNameKey:   strings.ReplaceAll(apicommon.GeneratePodRoleName(pcsObjMeta.Name), ":", "-"),
 	}
 	return lo.Assign(
-		apicommon.GetDefaultLabelsForPodCliqueSetManagedResources(pgsObjMeta.Name),
+		apicommon.GetDefaultLabelsForPodCliqueSetManagedResources(pcsObjMeta.Name),
 		roleLabels,
 	)
 }
 
-func getObjectKey(pgsObjMeta metav1.ObjectMeta) client.ObjectKey {
+func getObjectKey(pcsObjMeta metav1.ObjectMeta) client.ObjectKey {
 	return client.ObjectKey{
-		Name:      apicommon.GeneratePodRoleName(pgsObjMeta.Name),
-		Namespace: pgsObjMeta.Namespace,
+		Name:      apicommon.GeneratePodRoleName(pcsObjMeta.Name),
+		Namespace: pcsObjMeta.Namespace,
 	}
 }
 

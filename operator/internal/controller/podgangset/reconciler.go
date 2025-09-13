@@ -24,7 +24,7 @@ import (
 	configv1alpha1 "github.com/NVIDIA/grove/operator/api/config/v1alpha1"
 	grovecorev1alpha1 "github.com/NVIDIA/grove/operator/api/core/v1alpha1"
 	"github.com/NVIDIA/grove/operator/internal/component"
-	pgscomponent "github.com/NVIDIA/grove/operator/internal/component/podgangset"
+	pgscomponent "github.com/NVIDIA/grove/operator/internal/component/podcliqueset"
 	ctrlcommon "github.com/NVIDIA/grove/operator/internal/controller/common"
 	ctrlutils "github.com/NVIDIA/grove/operator/internal/controller/utils"
 

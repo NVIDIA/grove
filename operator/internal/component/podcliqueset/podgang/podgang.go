@@ -41,8 +41,8 @@ const (
 	errCodeListPodGangs            grovecorev1alpha1.ErrorCode = "ERR_LIST_PODGANGS"
 	errCodeDeletePodGangs          grovecorev1alpha1.ErrorCode = "ERR_DELETE_PODGANGS"
 	errCodeDeleteExcessPodGang     grovecorev1alpha1.ErrorCode = "ERR_DELETE_EXCESS_PODGANG"
-	errCodeListPods                grovecorev1alpha1.ErrorCode = "ERR_LIST_PODS_FOR_PODGANGSET"
-	errCodeListPodCliques          grovecorev1alpha1.ErrorCode = "ERR_LIST_PODCLIQUES_FOR_PODGANGSET"
+	errCodeListPods                grovecorev1alpha1.ErrorCode = "ERR_LIST_PODS_FOR_PODCLIQUESET"
+	errCodeListPodCliques          grovecorev1alpha1.ErrorCode = "ERR_LIST_PODCLIQUES_FOR_PODCLIQUESET"
 	errCodeComputeExistingPodGangs grovecorev1alpha1.ErrorCode = "ERR_COMPUTE_EXISTING_PODGANG"
 	errCodeSetControllerReference  grovecorev1alpha1.ErrorCode = "ERR_SET_CONTROLLER_REFERENCE"
 	errCodeCreateOrPatchPodGang    grovecorev1alpha1.ErrorCode = "ERR_CREATE_OR_PATCH_PODGANG"
@@ -63,27 +63,27 @@ func New(client client.Client, scheme *runtime.Scheme, eventRecorder record.Even
 	}
 }
 
-func (r _resource) GetExistingResourceNames(ctx context.Context, logger logr.Logger, pgsObjMeta metav1.ObjectMeta) ([]string, error) {
+func (r _resource) GetExistingResourceNames(ctx context.Context, logger logr.Logger, pcsObjMeta metav1.ObjectMeta) ([]string, error) {
 	logger.Info("Looking for existing PodGang resources created per replica of PodCliqueSet")
 	objMetaList := &metav1.PartialObjectMetadataList{}
 	objMetaList.SetGroupVersionKind(groveschedulerv1alpha1.SchemeGroupVersion.WithKind("PodGang"))
 	if err := r.client.List(ctx,
 		objMetaList,
-		client.InNamespace(pgsObjMeta.Namespace),
-		client.MatchingLabels(componentutils.GetPodGangSelectorLabels(pgsObjMeta)),
+		client.InNamespace(pcsObjMeta.Namespace),
+		client.MatchingLabels(componentutils.GetPodGangSelectorLabels(pcsObjMeta)),
 	); err != nil {
 		return nil, groveerr.WrapError(err,
 			errCodeListPodGangs,
 			component.OperationGetExistingResourceNames,
-			fmt.Sprintf("Error listing PodGang for PodCliqueSet: %v", k8sutils.GetObjectKeyFromObjectMeta(pgsObjMeta)),
+			fmt.Sprintf("Error listing PodGang for PodCliqueSet: %v", k8sutils.GetObjectKeyFromObjectMeta(pcsObjMeta)),
 		)
 	}
-	return k8sutils.FilterMapOwnedResourceNames(pgsObjMeta, objMetaList.Items), nil
+	return k8sutils.FilterMapOwnedResourceNames(pcsObjMeta, objMetaList.Items), nil
 }
 
-func (r _resource) Sync(ctx context.Context, logger logr.Logger, pgs *grovecorev1alpha1.PodCliqueSet) error {
+func (r _resource) Sync(ctx context.Context, logger logr.Logger, pcs *grovecorev1alpha1.PodCliqueSet) error {
 	logger.Info("Syncing PodGang resources")
-	sc, err := r.prepareSyncFlow(ctx, logger, pgs)
+	sc, err := r.prepareSyncFlow(ctx, logger, pcs)
 	if err != nil {
 		return err
 	}
@@ -100,40 +100,40 @@ func (r _resource) Sync(ctx context.Context, logger logr.Logger, pgs *grovecorev
 	return nil
 }
 
-func (r _resource) Delete(ctx context.Context, logger logr.Logger, pgsObjectMeta metav1.ObjectMeta) error {
+func (r _resource) Delete(ctx context.Context, logger logr.Logger, pcsObjectMeta metav1.ObjectMeta) error {
 	logger.Info("Triggering deletion of PodGangs")
 	if err := r.client.DeleteAllOf(ctx,
 		&groveschedulerv1alpha1.PodGang{},
-		client.InNamespace(pgsObjectMeta.Namespace),
-		client.MatchingLabels(getPodGangSelectorLabels(pgsObjectMeta))); err != nil {
+		client.InNamespace(pcsObjectMeta.Namespace),
+		client.MatchingLabels(getPodGangSelectorLabels(pcsObjectMeta))); err != nil {
 		return groveerr.WrapError(err,
 			errCodeDeletePodGangs,
 			component.OperationDelete,
-			fmt.Sprintf("Failed to delete PodGangs for PodCliqueSet: %v", k8sutils.GetObjectKeyFromObjectMeta(pgsObjectMeta)),
+			fmt.Sprintf("Failed to delete PodGangs for PodCliqueSet: %v", k8sutils.GetObjectKeyFromObjectMeta(pcsObjectMeta)),
 		)
 	}
 	logger.Info("Deleted PodGangs")
 	return nil
 }
 
-func (r _resource) buildResource(pgs *grovecorev1alpha1.PodCliqueSet, pgInfo podGangInfo, pg *groveschedulerv1alpha1.PodGang) error {
-	pg.Labels = getLabels(pgs.Name)
-	if err := controllerutil.SetControllerReference(pgs, pg, r.scheme); err != nil {
+func (r _resource) buildResource(pcs *grovecorev1alpha1.PodCliqueSet, pgInfo podGangInfo, pg *groveschedulerv1alpha1.PodGang) error {
+	pg.Labels = getLabels(pcs.Name)
+	if err := controllerutil.SetControllerReference(pcs, pg, r.scheme); err != nil {
 		return groveerr.WrapError(
 			err,
 			errCodeSetControllerReference,
 			component.OperationSync,
-			fmt.Sprintf("failed to set the controller reference on PodGang %s to PodCliqueSet %v", pgInfo.fqn, client.ObjectKeyFromObject(pgs)),
+			fmt.Sprintf("failed to set the controller reference on PodGang %s to PodCliqueSet %v", pgInfo.fqn, client.ObjectKeyFromObject(pcs)),
 		)
 	}
 	pg.Spec.PodGroups = createPodGroupsForPodGang(pg.Namespace, pgInfo)
-	pg.Spec.PriorityClassName = pgs.Spec.Template.PriorityClassName
+	pg.Spec.PriorityClassName = pcs.Spec.Template.PriorityClassName
 	return nil
 }
 
-func getPodGangSelectorLabels(pgsObjMeta metav1.ObjectMeta) map[string]string {
+func getPodGangSelectorLabels(pcsObjMeta metav1.ObjectMeta) map[string]string {
 	return lo.Assign(
-		apicommon.GetDefaultLabelsForPodCliqueSetManagedResources(pgsObjMeta.Name),
+		apicommon.GetDefaultLabelsForPodCliqueSetManagedResources(pcsObjMeta.Name),
 		map[string]string{
 			apicommon.LabelComponentKey: apicommon.LabelComponentNamePodGang,
 		})
@@ -148,9 +148,9 @@ func emptyPodGang(objKey client.ObjectKey) *groveschedulerv1alpha1.PodGang {
 	}
 }
 
-func getLabels(pgsName string) map[string]string {
+func getLabels(pcsName string) map[string]string {
 	return lo.Assign(
-		apicommon.GetDefaultLabelsForPodCliqueSetManagedResources(pgsName),
+		apicommon.GetDefaultLabelsForPodCliqueSetManagedResources(pcsName),
 		map[string]string{
 			apicommon.LabelComponentKey: apicommon.LabelComponentNamePodGang,
 		})

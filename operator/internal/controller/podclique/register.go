@@ -172,7 +172,7 @@ func mapPodGangSetToPCLQs() handler.MapFunc {
 		if !ok {
 			return nil
 		}
-		return lo.Map(componentutils.GetPodCliqueFQNsForPGSNotInPCSG(pgs), func(pclqFQN string, _ int) reconcile.Request {
+		return lo.Map(componentutils.GetPodCliqueFQNsForPCSNotInPCSG(pgs), func(pclqFQN string, _ int) reconcile.Request {
 			return reconcile.Request{NamespacedName: types.NamespacedName{
 				Namespace: pgs.Namespace,
 				Name:      pclqFQN,

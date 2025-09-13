@@ -30,18 +30,18 @@ import (
 )
 
 var (
-	pgsUID = uuid.NewUUID()
+	pcsUID = uuid.NewUUID()
 )
 
 func TestComputeExpectedHPAs(t *testing.T) {
 	tests := []struct {
 		name     string
-		pgs      *grovecorev1alpha1.PodCliqueSet
+		pcs      *grovecorev1alpha1.PodCliqueSet
 		expected []hpaInfo
 	}{
 		{
 			name: "PodClique HPA",
-			pgs: testutils.NewPodGangSetBuilder("test-pgs", "default", pgsUID).
+			pcs: testutils.NewPodCliqueSetBuilder("test-pcs", "default", pcsUID).
 				WithReplicas(1).
 				WithPodCliqueTemplateSpec(
 					testutils.NewPodCliqueTemplateSpecBuilder("test-clique").
@@ -54,7 +54,7 @@ func TestComputeExpectedHPAs(t *testing.T) {
 			expected: []hpaInfo{
 				{
 					targetScaleResourceKind: constants.KindPodClique,
-					targetScaleResourceName: "test-pgs-0-test-clique",
+					targetScaleResourceName: "test-pcs-0-test-clique",
 					scaleConfig: grovecorev1alpha1.AutoScalingConfig{
 						MinReplicas: ptr.To(int32(2)),
 						MaxReplicas: 5,
@@ -64,7 +64,7 @@ func TestComputeExpectedHPAs(t *testing.T) {
 		},
 		{
 			name: "PodCliqueScalingGroup HPA",
-			pgs: testutils.NewPodGangSetBuilder("test-pgs", "default", pgsUID).
+			pcs: testutils.NewPodCliqueSetBuilder("test-pcs", "default", pcsUID).
 				WithReplicas(1).
 				WithPodCliqueScalingGroupConfig(grovecorev1alpha1.PodCliqueScalingGroupConfig{
 					Name:         "test-sg",
@@ -80,7 +80,7 @@ func TestComputeExpectedHPAs(t *testing.T) {
 			expected: []hpaInfo{
 				{
 					targetScaleResourceKind: constants.KindPodCliqueScalingGroup,
-					targetScaleResourceName: "test-pgs-0-test-sg",
+					targetScaleResourceName: "test-pcs-0-test-sg",
 					scaleConfig: grovecorev1alpha1.AutoScalingConfig{
 						MinReplicas: ptr.To(int32(2)),
 						MaxReplicas: 6,
@@ -90,7 +90,7 @@ func TestComputeExpectedHPAs(t *testing.T) {
 		},
 		{
 			name: "Both PodClique and PodCliqueScalingGroup HPAs",
-			pgs: testutils.NewPodGangSetBuilder("test-pgs", "default", pgsUID).
+			pcs: testutils.NewPodCliqueSetBuilder("test-pcs", "default", pcsUID).
 				WithReplicas(1).
 				WithPodCliqueTemplateSpec(
 					testutils.NewPodCliqueTemplateSpecBuilder("individual-clique").
@@ -113,7 +113,7 @@ func TestComputeExpectedHPAs(t *testing.T) {
 			expected: []hpaInfo{
 				{
 					targetScaleResourceKind: constants.KindPodClique,
-					targetScaleResourceName: "test-pgs-0-individual-clique",
+					targetScaleResourceName: "test-pcs-0-individual-clique",
 					scaleConfig: grovecorev1alpha1.AutoScalingConfig{
 						MinReplicas: ptr.To(int32(2)),
 						MaxReplicas: 4,
@@ -121,7 +121,7 @@ func TestComputeExpectedHPAs(t *testing.T) {
 				},
 				{
 					targetScaleResourceKind: constants.KindPodCliqueScalingGroup,
-					targetScaleResourceName: "test-pgs-0-scaling-group",
+					targetScaleResourceName: "test-pcs-0-scaling-group",
 					scaleConfig: grovecorev1alpha1.AutoScalingConfig{
 						MinReplicas: ptr.To(int32(1)),
 						MaxReplicas: 5,
@@ -134,7 +134,7 @@ func TestComputeExpectedHPAs(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			r := &_resource{}
-			result := r.computeExpectedHPAs(tt.pgs)
+			result := r.computeExpectedHPAs(tt.pcs)
 
 			assert.Equal(t, len(tt.expected), len(result), "Number of HPAs should match")
 
@@ -173,11 +173,11 @@ func TestBuildResource(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			r := &_resource{}
-			pgs := testutils.NewPodGangSetBuilder("test-pgs", "default", pgsUID).Build()
+			pcs := testutils.NewPodCliqueSetBuilder("test-pcs", "default", pcsUID).Build()
 			hpa := &autoscalingv2.HorizontalPodAutoscaler{}
 
 			// This would normally be set by the scheme, but for testing we can skip it
-			err := r.buildResource(pgs, hpa, tt.hpaInfo)
+			err := r.buildResource(pcs, hpa, tt.hpaInfo)
 
 			// We expect an error due to missing scheme, but we can still check the spec
 			assert.NotNil(t, err) // Expected due to SetControllerReference failing

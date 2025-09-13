@@ -89,9 +89,9 @@ func TestExtractScalingGroupNameFromPCSGFQN(t *testing.T) {
 		},
 		{
 			name:     "long PCS name with scaling group",
-			pcsgName: "very-long-podgangset-name-0-sg",
+			pcsgName: "very-long-podcliqueset-name-0-sg",
 			pcsNameReplica: ResourceNameReplica{
-				Name:    "very-long-podgangset-name",
+				Name:    "very-long-podcliqueset-name",
 				Replica: 0,
 			},
 			expected: "sg",

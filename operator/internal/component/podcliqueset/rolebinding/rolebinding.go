@@ -58,9 +58,9 @@ func New(client client.Client, scheme *runtime.Scheme) component.Operator[grovec
 }
 
 // GetExistingResourceNames returns the names of all the existing resources that the RoleBinding Operator manages.
-func (r _resource) GetExistingResourceNames(ctx context.Context, _ logr.Logger, pgsObjMeta metav1.ObjectMeta) ([]string, error) {
+func (r _resource) GetExistingResourceNames(ctx context.Context, _ logr.Logger, pcsObjMeta metav1.ObjectMeta) ([]string, error) {
 	roleBindingNames := make([]string, 0, 1)
-	objectKey := getObjectKey(pgsObjMeta)
+	objectKey := getObjectKey(pcsObjMeta)
 	objMeta := &metav1.PartialObjectMetadata{}
 	objMeta.SetGroupVersionKind(rbacv1.SchemeGroupVersion.WithKind("RoleBinding"))
 	if err := r.client.Get(ctx, objectKey, objMeta); err != nil {
@@ -70,52 +70,52 @@ func (r _resource) GetExistingResourceNames(ctx context.Context, _ logr.Logger, 
 		return roleBindingNames, groveerr.WrapError(err,
 			errGetRoleBinding,
 			component.OperationGetExistingResourceNames,
-			fmt.Sprintf("Error getting RoleBinding: %v for PodCliqueSet: %v", objectKey, k8sutils.GetObjectKeyFromObjectMeta(pgsObjMeta)),
+			fmt.Sprintf("Error getting RoleBinding: %v for PodCliqueSet: %v", objectKey, k8sutils.GetObjectKeyFromObjectMeta(pcsObjMeta)),
 		)
 	}
-	if metav1.IsControlledBy(objMeta, &pgsObjMeta) {
+	if metav1.IsControlledBy(objMeta, &pcsObjMeta) {
 		roleBindingNames = append(roleBindingNames, objMeta.Name)
 	}
 	return roleBindingNames, nil
 }
 
 // Sync synchronizes all resources that the RoleBinding Operator manages.
-func (r _resource) Sync(ctx context.Context, logger logr.Logger, pgs *grovecorev1alpha1.PodCliqueSet) error {
-	existingRoleBindingNames, err := r.GetExistingResourceNames(ctx, logger, pgs.ObjectMeta)
+func (r _resource) Sync(ctx context.Context, logger logr.Logger, pcs *grovecorev1alpha1.PodCliqueSet) error {
+	existingRoleBindingNames, err := r.GetExistingResourceNames(ctx, logger, pcs.ObjectMeta)
 	if err != nil {
 		return groveerr.WrapError(err,
 			errSyncRoleBinding,
 			component.OperationSync,
-			fmt.Sprintf("Error getting existing RoleBinding names for PodCliqueSet: %v", client.ObjectKeyFromObject(pgs)),
+			fmt.Sprintf("Error getting existing RoleBinding names for PodCliqueSet: %v", client.ObjectKeyFromObject(pcs)),
 		)
 	}
 	if len(existingRoleBindingNames) > 0 {
 		logger.Info("RoleBinding already exists, skipping creation", "existingRoleBinding", existingRoleBindingNames[0])
 		return nil
 	}
-	objectKey := getObjectKey(pgs.ObjectMeta)
+	objectKey := getObjectKey(pcs.ObjectMeta)
 	roleBinding := emptyRoleBinding(objectKey)
 	logger.Info("Running CreateOrUpdate RoleBinding", "objectKey", objectKey)
-	if err := r.buildResource(pgs, roleBinding); err != nil {
+	if err := r.buildResource(pcs, roleBinding); err != nil {
 		return groveerr.WrapError(err,
 			errSyncRoleBinding,
 			component.OperationSync,
-			fmt.Sprintf("Error building RoleBinding: %v for PodCliqueSet: %v", objectKey, client.ObjectKeyFromObject(pgs)),
+			fmt.Sprintf("Error building RoleBinding: %v for PodCliqueSet: %v", objectKey, client.ObjectKeyFromObject(pcs)),
 		)
 	}
 	if err := client.IgnoreAlreadyExists(r.client.Create(ctx, roleBinding)); err != nil {
 		return groveerr.WrapError(err,
 			errSyncRoleBinding,
 			component.OperationSync,
-			fmt.Sprintf("Error syncing RoleBinding: %v for PodCliqueSet: %v", objectKey, client.ObjectKeyFromObject(pgs)),
+			fmt.Sprintf("Error syncing RoleBinding: %v for PodCliqueSet: %v", objectKey, client.ObjectKeyFromObject(pcs)),
 		)
 	}
 	logger.Info("Created RoleBinding", "objectKey", objectKey)
 	return nil
 }
 
-func (r _resource) Delete(ctx context.Context, logger logr.Logger, pgsObjMeta metav1.ObjectMeta) error {
-	objectKey := getObjectKey(pgsObjMeta)
+func (r _resource) Delete(ctx context.Context, logger logr.Logger, pcsObjMeta metav1.ObjectMeta) error {
+	objectKey := getObjectKey(pcsObjMeta)
 	logger.Info("Triggering delete of RoleBinding", "objectKey", objectKey)
 	if err := r.client.Delete(ctx, emptyRoleBinding(objectKey)); err != nil {
 		if errors.IsNotFound(err) {
@@ -125,16 +125,16 @@ func (r _resource) Delete(ctx context.Context, logger logr.Logger, pgsObjMeta me
 		return groveerr.WrapError(err,
 			errDeleteRoleBinding,
 			component.OperationDelete,
-			fmt.Sprintf("Error deleting RoleBinding: %v for PodCliqueSet: %v", objectKey, k8sutils.GetObjectKeyFromObjectMeta(pgsObjMeta)),
+			fmt.Sprintf("Error deleting RoleBinding: %v for PodCliqueSet: %v", objectKey, k8sutils.GetObjectKeyFromObjectMeta(pcsObjMeta)),
 		)
 	}
 	logger.Info("deleted RoleBinding", "objectKey", objectKey)
 	return nil
 }
 
-func (r _resource) buildResource(pgs *grovecorev1alpha1.PodCliqueSet, roleBinding *rbacv1.RoleBinding) error {
-	roleBinding.Labels = getLabels(pgs.ObjectMeta)
-	if err := controllerutil.SetControllerReference(pgs, roleBinding, r.scheme); err != nil {
+func (r _resource) buildResource(pcs *grovecorev1alpha1.PodCliqueSet, roleBinding *rbacv1.RoleBinding) error {
+	roleBinding.Labels = getLabels(pcs.ObjectMeta)
+	if err := controllerutil.SetControllerReference(pcs, roleBinding, r.scheme); err != nil {
 		return groveerr.WrapError(err,
 			errSyncRoleBinding,
 			component.OperationSync,
@@ -144,34 +144,34 @@ func (r _resource) buildResource(pgs *grovecorev1alpha1.PodCliqueSet, roleBindin
 	roleBinding.RoleRef = rbacv1.RoleRef{
 		APIGroup: rbacv1.SchemeGroupVersion.Group,
 		Kind:     "Role",
-		Name:     apicommon.GeneratePodRoleName(pgs.Name),
+		Name:     apicommon.GeneratePodRoleName(pcs.Name),
 	}
 	roleBinding.Subjects = []rbacv1.Subject{
 		{
 			APIGroup:  corev1.SchemeGroupVersion.Group,
 			Kind:      "ServiceAccount",
-			Name:      apicommon.GeneratePodServiceAccountName(pgs.Name),
-			Namespace: pgs.Namespace,
+			Name:      apicommon.GeneratePodServiceAccountName(pcs.Name),
+			Namespace: pcs.Namespace,
 		},
 	}
 	return nil
 }
 
-func getLabels(pgsObjMeta metav1.ObjectMeta) map[string]string {
+func getLabels(pcsObjMeta metav1.ObjectMeta) map[string]string {
 	roleLabels := map[string]string{
 		apicommon.LabelComponentKey: apicommon.LabelComponentNamePodRoleBinding,
-		apicommon.LabelAppNameKey:   strings.ReplaceAll(apicommon.GeneratePodRoleBindingName(pgsObjMeta.Name), ":", "-"),
+		apicommon.LabelAppNameKey:   strings.ReplaceAll(apicommon.GeneratePodRoleBindingName(pcsObjMeta.Name), ":", "-"),
 	}
 	return lo.Assign(
-		apicommon.GetDefaultLabelsForPodCliqueSetManagedResources(pgsObjMeta.Name),
+		apicommon.GetDefaultLabelsForPodCliqueSetManagedResources(pcsObjMeta.Name),
 		roleLabels,
 	)
 }
 
-func getObjectKey(pgsObjMeta metav1.ObjectMeta) client.ObjectKey {
+func getObjectKey(pcsObjMeta metav1.ObjectMeta) client.ObjectKey {
 	return client.ObjectKey{
-		Name:      apicommon.GeneratePodRoleBindingName(pgsObjMeta.Name),
-		Namespace: pgsObjMeta.Namespace,
+		Name:      apicommon.GeneratePodRoleBindingName(pcsObjMeta.Name),
+		Namespace: pcsObjMeta.Namespace,
 	}
 }
 

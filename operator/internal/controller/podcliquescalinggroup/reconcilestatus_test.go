@@ -252,7 +252,7 @@ func TestReconcileStatus(t *testing.T) {
 					WithReplicas(2).
 					WithCliqueNames([]string{"frontend", "backend"}).
 					WithOptions(testutils.WithPCSGObservedGeneration(1)).Build()
-				pgs := testutils.NewPodGangSetBuilder("test-pgs", "test-ns", uuid.NewUUID()).WithPodGangSetGenerationHash(&pgsGenerationHash).Build()
+				pgs := testutils.NewPodCliqueSetBuilder("test-pgs", "test-ns", uuid.NewUUID()).WithPodGangSetGenerationHash(&pgsGenerationHash).Build()
 				cliques := []client.Object{
 					testutils.NewPCSGPodCliqueBuilder("test-pgs-0-frontend-0", "test-ns", "test-pgs", "test-pcsg", 0, 0).
 						WithOwnerReference("PodCliqueScalingGroup", "test-pcsg", "").
@@ -286,7 +286,7 @@ func TestReconcileStatus(t *testing.T) {
 					WithCliqueNames([]string{"worker"}).
 					WithMinAvailable(2).
 					WithOptions(testutils.WithPCSGObservedGeneration(1)).Build()
-				pgs := testutils.NewPodGangSetBuilder("test-pgs", "test-ns", uuid.NewUUID()).WithPodGangSetGenerationHash(&pgsGenerationHash).Build()
+				pgs := testutils.NewPodCliqueSetBuilder("test-pgs", "test-ns", uuid.NewUUID()).WithPodGangSetGenerationHash(&pgsGenerationHash).Build()
 				cliques := []client.Object{
 					testutils.NewPCSGPodCliqueBuilder("test-pgs-0-worker-0", "test-ns", "test-pgs", "test-pcsg", 0, 0).
 						WithOwnerReference("PodCliqueScalingGroup", "test-pcsg", "").
@@ -315,7 +315,7 @@ func TestReconcileStatus(t *testing.T) {
 					WithReplicas(2).
 					WithCliqueNames([]string{"frontend", "backend"}).
 					WithOptions(testutils.WithPCSGObservedGeneration(1)).Build()
-				pgs := testutils.NewPodGangSetBuilder("test-pgs", "test-ns", uuid.NewUUID()).WithPodGangSetGenerationHash(&pgsGenerationHash).Build()
+				pgs := testutils.NewPodCliqueSetBuilder("test-pgs", "test-ns", uuid.NewUUID()).WithPodGangSetGenerationHash(&pgsGenerationHash).Build()
 				cliques := []client.Object{
 					// Replica 0: healthy
 					testutils.NewPCSGPodCliqueBuilder("test-pgs-0-frontend-0", "test-ns", "test-pgs", "test-pcsg", 0, 0).
@@ -390,7 +390,7 @@ func TestReconcileStatus_EdgeCases(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			pgs := testutils.NewPodGangSetBuilder("test-pgs", "test-ns", uuid.NewUUID()).Build()
+			pgs := testutils.NewPodCliqueSetBuilder("test-pgs", "test-ns", uuid.NewUUID()).Build()
 			fakeClient := testutils.SetupFakeClient(tt.pcsg, pgs)
 			reconciler := &Reconciler{client: fakeClient}
 

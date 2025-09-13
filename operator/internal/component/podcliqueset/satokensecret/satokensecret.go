@@ -56,9 +56,9 @@ func New(client client.Client, scheme *runtime.Scheme) component.Operator[grovec
 	}
 }
 
-func (r _resource) GetExistingResourceNames(ctx context.Context, _ logr.Logger, pgsObjMeta metav1.ObjectMeta) ([]string, error) {
+func (r _resource) GetExistingResourceNames(ctx context.Context, _ logr.Logger, pcsObjMeta metav1.ObjectMeta) ([]string, error) {
 	secretNames := make([]string, 0, 1)
-	objKey := getObjectKey(pgsObjMeta)
+	objKey := getObjectKey(pcsObjMeta)
 	partialObjMeta, err := k8sutils.GetExistingPartialObjectMetadata(ctx, r.client, corev1.SchemeGroupVersion.WithKind("Secret"), objKey)
 	if err != nil {
 		if errors.IsNotFound(err) {
@@ -67,47 +67,47 @@ func (r _resource) GetExistingResourceNames(ctx context.Context, _ logr.Logger, 
 		return nil, groveerr.WrapError(err,
 			errCodeGetSecret,
 			component.OperationGetExistingResourceNames,
-			fmt.Sprintf("Error getting Secret: %v for PodCliqueSet: %v", objKey, k8sutils.GetObjectKeyFromObjectMeta(pgsObjMeta)),
+			fmt.Sprintf("Error getting Secret: %v for PodCliqueSet: %v", objKey, k8sutils.GetObjectKeyFromObjectMeta(pcsObjMeta)),
 		)
 	}
-	if metav1.IsControlledBy(partialObjMeta, &pgsObjMeta) {
+	if metav1.IsControlledBy(partialObjMeta, &pcsObjMeta) {
 		secretNames = append(secretNames, partialObjMeta.Name)
 	}
 	return secretNames, nil
 }
 
-func (r _resource) Sync(ctx context.Context, logger logr.Logger, pgs *grovecorev1alpha1.PodCliqueSet) error {
-	pgsObjKey := client.ObjectKeyFromObject(pgs)
-	existingSecretNames, err := r.GetExistingResourceNames(ctx, logger, pgs.ObjectMeta)
+func (r _resource) Sync(ctx context.Context, logger logr.Logger, pcs *grovecorev1alpha1.PodCliqueSet) error {
+	pcsObjKey := client.ObjectKeyFromObject(pcs)
+	existingSecretNames, err := r.GetExistingResourceNames(ctx, logger, pcs.ObjectMeta)
 	if err != nil {
 		return groveerr.WrapError(err,
 			errCodeGetSecret,
 			component.OperationSync,
-			fmt.Sprintf("Error getting existing satokensecret names for PodCliqueSet: %v", pgsObjKey),
+			fmt.Sprintf("Error getting existing satokensecret names for PodCliqueSet: %v", pcsObjKey),
 		)
 	}
 	if len(existingSecretNames) > 0 {
 		logger.Info("Secret already exists, skipping creation", "existingSecret", existingSecretNames[0])
 		return nil
 	}
-	objKey := getObjectKey(pgs.ObjectMeta)
+	objKey := getObjectKey(pcs.ObjectMeta)
 	secret := emptySecret(objKey)
-	if err = r.buildResource(pgs, secret); err != nil {
+	if err = r.buildResource(pcs, secret); err != nil {
 		return err
 	}
 	if err = client.IgnoreAlreadyExists(r.client.Create(ctx, secret)); err != nil {
 		return groveerr.WrapError(err,
 			errCodeCreateSecret,
 			component.OperationSync,
-			fmt.Sprintf("Error creating satokensecret: %v for PodCliqueSet: %v", objKey, pgsObjKey),
+			fmt.Sprintf("Error creating satokensecret: %v for PodCliqueSet: %v", objKey, pcsObjKey),
 		)
 	}
 	logger.Info("Created Secret", "objectKey", objKey)
 	return nil
 }
 
-func (r _resource) Delete(ctx context.Context, logger logr.Logger, pgsObjMeta metav1.ObjectMeta) error {
-	objectKey := getObjectKey(pgsObjMeta)
+func (r _resource) Delete(ctx context.Context, logger logr.Logger, pcsObjMeta metav1.ObjectMeta) error {
+	objectKey := getObjectKey(pcsObjMeta)
 	logger.Info("Triggering delete of Secret", "objectKey", objectKey)
 	if err := r.client.Delete(ctx, emptySecret(objectKey)); err != nil {
 		if errors.IsNotFound(err) {
@@ -117,16 +117,16 @@ func (r _resource) Delete(ctx context.Context, logger logr.Logger, pgsObjMeta me
 		return groveerr.WrapError(err,
 			errCodeDeleteSecret,
 			component.OperationDelete,
-			fmt.Sprintf("Error deleting satokensecret: %v for PodCliqueSet: %v", objectKey, k8sutils.GetObjectKeyFromObjectMeta(pgsObjMeta)),
+			fmt.Sprintf("Error deleting satokensecret: %v for PodCliqueSet: %v", objectKey, k8sutils.GetObjectKeyFromObjectMeta(pcsObjMeta)),
 		)
 	}
 	logger.Info("Deleted Secret", "objectKey", objectKey)
 	return nil
 }
 
-func (r _resource) buildResource(pgs *grovecorev1alpha1.PodCliqueSet, secret *corev1.Secret) error {
-	secret.Labels = getLabels(pgs.Name, secret.Name)
-	if err := controllerutil.SetControllerReference(pgs, secret, r.scheme); err != nil {
+func (r _resource) buildResource(pcs *grovecorev1alpha1.PodCliqueSet, secret *corev1.Secret) error {
+	secret.Labels = getLabels(pcs.Name, secret.Name)
+	if err := controllerutil.SetControllerReference(pcs, secret, r.scheme); err != nil {
 		return groveerr.WrapError(err,
 			errCodeSetControllerReference,
 			component.OperationSync,
@@ -135,26 +135,26 @@ func (r _resource) buildResource(pgs *grovecorev1alpha1.PodCliqueSet, secret *co
 	}
 	secret.Type = corev1.SecretTypeServiceAccountToken
 	secret.Annotations = map[string]string{
-		corev1.ServiceAccountNameKey: apicommon.GeneratePodServiceAccountName(pgs.Name),
+		corev1.ServiceAccountNameKey: apicommon.GeneratePodServiceAccountName(pcs.Name),
 	}
 	return nil
 }
 
-func getLabels(pgsName, secretName string) map[string]string {
+func getLabels(pcsName, secretName string) map[string]string {
 	secretLabels := map[string]string{
 		apicommon.LabelComponentKey: apicommon.LabelComponentNameServiceAccountTokenSecret,
 		apicommon.LabelAppNameKey:   secretName,
 	}
 	return lo.Assign(
-		apicommon.GetDefaultLabelsForPodCliqueSetManagedResources(pgsName),
+		apicommon.GetDefaultLabelsForPodCliqueSetManagedResources(pcsName),
 		secretLabels,
 	)
 }
 
-func getObjectKey(pgsObjMeta metav1.ObjectMeta) client.ObjectKey {
+func getObjectKey(pcsObjMeta metav1.ObjectMeta) client.ObjectKey {
 	return client.ObjectKey{
-		Name:      apicommon.GenerateInitContainerSATokenSecretName(pgsObjMeta.Name),
-		Namespace: pgsObjMeta.Namespace,
+		Name:      apicommon.GenerateInitContainerSATokenSecretName(pcsObjMeta.Name),
+		Namespace: pcsObjMeta.Namespace,
 	}
 }
 

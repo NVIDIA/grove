@@ -76,7 +76,7 @@ func (r *Reconciler) recordReconcileStart(ctx context.Context, logger logr.Logge
 
 func (r *Reconciler) processRollingUpdate(ctx context.Context, logger logr.Logger, pclq *grovecorev1alpha1.PodClique) ctrlcommon.ReconcileStepResult {
 	pclqObjectKey := client.ObjectKeyFromObject(pclq)
-	pgs, err := componentutils.GetPodGangSet(ctx, r.client, pclq.ObjectMeta)
+	pgs, err := componentutils.GetPodCliqueSet(ctx, r.client, pclq.ObjectMeta)
 	if err != nil {
 		return ctrlcommon.ReconcileWithErrors(fmt.Sprintf("could not get owner PodCliqueSet for PodClique: %v", pclqObjectKey), err)
 	}
@@ -110,7 +110,7 @@ func shouldCheckPendingUpdatesForPCLQ(logger logr.Logger, pgs *grovecorev1alpha1
 	// Only if PCLQ does not belong to any PCSG should an update be triggered for the PCLQ. For PCLQs that belong to
 	// a PCSG, the PCSG controller will handle the updates by deleting the PCLQ resources instead of updating PCLQ pods
 	// individually.
-	if !slices.Contains(componentutils.GetPodCliqueFQNsForPGSNotInPCSG(pgs), pclq.Name) {
+	if !slices.Contains(componentutils.GetPodCliqueFQNsForPCSNotInPCSG(pgs), pclq.Name) {
 		return false, nil
 	}
 

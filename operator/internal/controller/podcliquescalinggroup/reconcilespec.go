@@ -75,7 +75,7 @@ func (r *Reconciler) recordReconcileStart(ctx context.Context, logger logr.Logge
 
 func (r *Reconciler) processRollingUpdate(ctx context.Context, logger logr.Logger, pcsg *grovecorev1alpha1.PodCliqueScalingGroup) ctrlcommon.ReconcileStepResult {
 	pcsgObjectKey := client.ObjectKeyFromObject(pcsg)
-	pgs, err := utils.GetPodGangSet(ctx, r.client, pcsg.ObjectMeta)
+	pgs, err := utils.GetPodCliqueSet(ctx, r.client, pcsg.ObjectMeta)
 	if err != nil {
 		return ctrlcommon.ReconcileWithErrors(fmt.Sprintf("could not get owner PodCliqueSet for PodCliqueScalingGroup: %v", pcsgObjectKey), err)
 	}

@@ -60,7 +60,7 @@ func TestGetPodGangSetReplicaIndexFromPodCliqueFQN(t *testing.T) {
 	}
 	for _, tc := range testCases {
 		t.Run(tc.description, func(t *testing.T) {
-			index, err := GetPodGangSetReplicaIndexFromPodCliqueFQN(tc.pgsName, tc.pclqFQNName)
+			index, err := GetPodCliqueSetReplicaIndexFromPodCliqueFQN(tc.pgsName, tc.pclqFQNName)
 			if tc.expectedErr {
 				assert.Error(t, err)
 			} else {

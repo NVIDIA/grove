@@ -67,11 +67,11 @@ func (r *Reconciler) computeAvailableAndUpdatedReplicas(ctx context.Context, log
 		pgsObjectKey      = client.ObjectKeyFromObject(pgs)
 	)
 
-	expectedPCSGFQNsPerPGSReplica := componentutils.GetExpectedPCSGFQNsPerPGSReplica(pgs)
-	expectedStandAlonePCLQFQNsPerPGSReplica := componentutils.GetExpectedStandAlonePCLQFQNsPerPGSReplica(pgs)
+	expectedPCSGFQNsPerPGSReplica := componentutils.GetExpectedPCSGFQNsPerPCSReplica(pgs)
+	expectedStandAlonePCLQFQNsPerPGSReplica := componentutils.GetExpectedStandAlonePCLQFQNsPerPCSReplica(pgs)
 
 	// Fetch all PCSGs for this PGS
-	pcsgs, err := componentutils.GetPCSGsForPGS(ctx, r.client, pgsObjectKey)
+	pcsgs, err := componentutils.GetPCSGsForPCS(ctx, r.client, pgsObjectKey)
 	if err != nil {
 		return availableReplicas, updatedReplicas, err
 	}
@@ -82,7 +82,7 @@ func (r *Reconciler) computeAvailableAndUpdatedReplicas(ctx context.Context, log
 	})
 
 	// Fetch all standalone PodCliques for this PGS
-	standalonePCLQs, err := componentutils.GetPodCliquesWithParentPGS(ctx, r.client, pgsObjectKey)
+	standalonePCLQs, err := componentutils.GetPodCliquesWithParentPCS(ctx, r.client, pgsObjectKey)
 	if err != nil {
 		return availableReplicas, updatedReplicas, err
 	}
@@ -93,8 +93,8 @@ func (r *Reconciler) computeAvailableAndUpdatedReplicas(ctx context.Context, log
 	})
 
 	// Group both resources by PGS replica index
-	standalonePCLQsByReplica := componentutils.GroupPCLQsByPGSReplicaIndex(standalonePCLQs)
-	pcsgsByReplica := componentutils.GroupPCSGsByPGSReplicaIndex(pcsgs)
+	standalonePCLQsByReplica := componentutils.GroupPCLQsByPCSReplicaIndex(standalonePCLQs)
+	pcsgsByReplica := componentutils.GroupPCSGsByPCSReplicaIndex(pcsgs)
 
 	for replicaIndex := 0; replicaIndex < int(pgs.Spec.Replicas); replicaIndex++ {
 		replicaIndexStr := strconv.Itoa(replicaIndex)
