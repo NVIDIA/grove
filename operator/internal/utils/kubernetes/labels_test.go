@@ -63,7 +63,7 @@ func newLabelsWithReplicaIndexAndExtras(index string, extraLabels map[string]str
 	return labels
 }
 
-func TestGetPodGangSetReplicaIndex(t *testing.T) {
+func TestGetPodCliqueSetReplicaIndex(t *testing.T) {
 	testCases := []struct {
 		description   string
 		objMeta       metav1.ObjectMeta
@@ -87,13 +87,13 @@ func TestGetPodGangSetReplicaIndex(t *testing.T) {
 				"version": "v1.0",
 			}),
 			expectedIndex: 0,
-			expectedError: errNotFoundPodGangSetReplicaIndexLabel,
+			expectedError: errNotFoundPodCliqueSetReplicaIndexLabel,
 		},
 		{
 			description:   "nil labels map",
 			objMeta:       newTestObjectMetaNilLabels(),
 			expectedIndex: 0,
-			expectedError: errNotFoundPodGangSetReplicaIndexLabel,
+			expectedError: errNotFoundPodCliqueSetReplicaIndexLabel,
 		},
 		{
 			description:   "invalid replica index conversion",

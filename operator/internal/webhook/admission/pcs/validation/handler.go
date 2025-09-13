@@ -31,10 +31,10 @@ import (
 )
 
 const (
-	// ErrValidateCreatePodGangSet is the error code returned where the request to create a PodCliqueSet is invalid.
-	ErrValidateCreatePodGangSet v1alpha1.ErrorCode = "ERR_VALIDATE_CREATE_PODGANGSET"
-	// ErrValidateUpdatePodGangSet is the error code returned where the request to update a PodCliqueSet is invalid.
-	ErrValidateUpdatePodGangSet v1alpha1.ErrorCode = "ERR_VALIDATE_UPDATE_PODGANGSET"
+	// ErrValidateCreatePodCliqueSet is the error code returned where the request to create a PodCliqueSet is invalid.
+	ErrValidateCreatePodCliqueSet v1alpha1.ErrorCode = "ERR_VALIDATE_CREATE_PODCLIQUESET"
+	// ErrValidateUpdatePodCliqueSet is the error code returned where the request to update a PodCliqueSet is invalid.
+	ErrValidateUpdatePodCliqueSet v1alpha1.ErrorCode = "ERR_VALIDATE_UPDATE_PODCLIQUESET"
 )
 
 // Handler is a handler for validating PodCliqueSet resources.
@@ -52,30 +52,30 @@ func NewHandler(mgr manager.Manager) *Handler {
 // ValidateCreate validates a PodCliqueSet create request.
 func (h *Handler) ValidateCreate(ctx context.Context, obj runtime.Object) (admission.Warnings, error) {
 	h.logValidatorFunctionInvocation(ctx)
-	pgs, err := castToPodGangSet(obj)
+	pcs, err := castToPodCliqueSet(obj)
 	if err != nil {
-		return nil, errors.WrapError(err, ErrValidateCreatePodGangSet, string(admissionv1.Create), "failed to cast object to PodCliqueSet")
+		return nil, errors.WrapError(err, ErrValidateCreatePodCliqueSet, string(admissionv1.Create), "failed to cast object to PodCliqueSet")
 	}
-	return newPGSValidator(pgs, admissionv1.Create).validate()
+	return newPCSValidator(pcs, admissionv1.Create).validate()
 }
 
 // ValidateUpdate validates a PodCliqueSet update request.
 func (h *Handler) ValidateUpdate(ctx context.Context, newObj, oldObj runtime.Object) (admission.Warnings, error) {
 	h.logValidatorFunctionInvocation(ctx)
-	newPgs, err := castToPodGangSet(newObj)
+	newPCS, err := castToPodCliqueSet(newObj)
 	if err != nil {
-		return nil, errors.WrapError(err, ErrValidateUpdatePodGangSet, string(admissionv1.Update), "failed to cast new object to PodCliqueSet")
+		return nil, errors.WrapError(err, ErrValidateUpdatePodCliqueSet, string(admissionv1.Update), "failed to cast new object to PodCliqueSet")
 	}
-	oldPgs, err := castToPodGangSet(oldObj)
+	oldPCS, err := castToPodCliqueSet(oldObj)
 	if err != nil {
-		return nil, errors.WrapError(err, ErrValidateUpdatePodGangSet, string(admissionv1.Update), "failed to cast old object to PodCliqueSet")
+		return nil, errors.WrapError(err, ErrValidateUpdatePodCliqueSet, string(admissionv1.Update), "failed to cast old object to PodCliqueSet")
 	}
-	validator := newPGSValidator(newPgs, admissionv1.Update)
+	validator := newPCSValidator(newPCS, admissionv1.Update)
 	warnings, err := validator.validate()
 	if err != nil {
 		return warnings, err
 	}
-	return warnings, validator.validateUpdate(oldPgs)
+	return warnings, validator.validateUpdate(oldPCS)
 }
 
 // ValidateDelete validates a PodCliqueSet delete request.
@@ -83,12 +83,12 @@ func (h *Handler) ValidateDelete(_ context.Context, _ runtime.Object) (admission
 	return nil, nil
 }
 
-func castToPodGangSet(obj runtime.Object) (*v1alpha1.PodCliqueSet, error) {
-	pgs, ok := obj.(*v1alpha1.PodCliqueSet)
+func castToPodCliqueSet(obj runtime.Object) (*v1alpha1.PodCliqueSet, error) {
+	pcs, ok := obj.(*v1alpha1.PodCliqueSet)
 	if !ok {
 		return nil, fmt.Errorf("expected an PodCliqueSet object but got %T", obj)
 	}
-	return pgs, nil
+	return pcs, nil
 }
 
 func (h *Handler) logValidatorFunctionInvocation(ctx context.Context) {

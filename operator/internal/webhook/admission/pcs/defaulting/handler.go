@@ -44,7 +44,7 @@ func NewHandler(mgr manager.Manager) *Handler {
 // Default implements webhook.CustomDefaulter
 func (h *Handler) Default(ctx context.Context, obj runtime.Object) error {
 	h.logger.Info("Defaulting webhook invoked for PodCliqueSet")
-	pgs, ok := obj.(*v1alpha1.PodCliqueSet)
+	pcs, ok := obj.(*v1alpha1.PodCliqueSet)
 	if !ok {
 		return fmt.Errorf("expected an PodCliqueSet object but got %T", obj)
 	}
@@ -52,7 +52,7 @@ func (h *Handler) Default(ctx context.Context, obj runtime.Object) error {
 	if err != nil {
 		return err
 	}
-	h.logger.Info("Applying defaults", "PodCliqueSet", k8sutils.CreateObjectKeyForCreateWebhooks(pgs, req))
-	defaultPodGangSet(pgs)
+	h.logger.Info("Applying defaults", "PodCliqueSet", k8sutils.CreateObjectKeyForCreateWebhooks(pcs, req))
+	defaultPodCliqueSet(pcs)
 	return nil
 }

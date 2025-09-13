@@ -28,10 +28,10 @@ import (
 	"k8s.io/utils/ptr"
 )
 
-func TestDefaultPodGangSet(t *testing.T) {
+func TestDefaultPodCliqueSet(t *testing.T) {
 	want := grovecorev1alpha1.PodCliqueSet{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      "PGS1",
+			Name:      "PCS1",
 			Namespace: "default",
 		},
 		Spec: grovecorev1alpha1.PodCliqueSetSpec{
@@ -61,7 +61,7 @@ func TestDefaultPodGangSet(t *testing.T) {
 	}
 	input := grovecorev1alpha1.PodCliqueSet{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: "PGS1",
+			Name: "PCS1",
 		},
 		Spec: grovecorev1alpha1.PodCliqueSetSpec{
 			Template: grovecorev1alpha1.PodCliqueSetTemplateSpec{
@@ -78,6 +78,6 @@ func TestDefaultPodGangSet(t *testing.T) {
 			},
 		},
 	}
-	defaultPodGangSet(&input)
+	defaultPodCliqueSet(&input)
 	assert.Equal(t, want, input)
 }
