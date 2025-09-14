@@ -16,7 +16,7 @@
 
 package constants
 
-// Constants for finalizers.roup
+// Constants for finalizers.
 const (
 	// FinalizerPodCliqueSet is the finalizer for PodCliqueSet that is added to `.metadata.finalizers[]` slice. This will be placed on all PodCliqueSet resources
 	// during reconciliation. This finalizer is used to clean up resources that are created for a PodCliqueSet when it is deleted.
