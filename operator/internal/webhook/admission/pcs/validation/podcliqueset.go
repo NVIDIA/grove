@@ -18,7 +18,6 @@ package validation
 
 import (
 	"fmt"
-	"reflect"
 	"slices"
 	"strings"
 
@@ -579,52 +578,9 @@ func validatePodCliqueUpdate(newCliques, oldCliques []*grovecorev1alpha1.PodCliq
 		allErrs = append(allErrs, apivalidation.ValidateImmutableField(newClique.Spec.RoleName, oldIndexCliqueTuple.B.Spec.RoleName, cliqueFldPath.Child("roleName"))...)
 		allErrs = append(allErrs, apivalidation.ValidateImmutableField(newClique.Spec.MinAvailable, oldIndexCliqueTuple.B.Spec.MinAvailable, cliqueFldPath.Child("minAvailable"))...)
 		allErrs = append(allErrs, apivalidation.ValidateImmutableField(newClique.Spec.StartsAfter, oldIndexCliqueTuple.B.Spec.StartsAfter, cliqueFldPath.Child("startsAfter"))...)
-
-		allErrs = append(allErrs, validatePodSpecUpdate(&newClique.Spec.PodSpec, &oldIndexCliqueTuple.B.Spec.PodSpec, fldPath.Child("spec", "podSpec"))...)
 	}
 
 	return allErrs
-}
-
-func validatePodSpecUpdate(newSpec, oldSpec *corev1.PodSpec, fldPath *field.Path) field.ErrorList {
-	allErrs := field.ErrorList{}
-
-	// spec: Forbidden: pod updates may not change fields other than:
-	//  `spec.containers[*].image`,
-	//  `spec.initContainers[*].image`,
-	//  `spec.activeDeadlineSeconds`,
-	//  `spec.tolerations` (only additions to existing tolerations),
-	//  `spec.terminationGracePeriodSeconds` (allow it to be set to 1 if it was previously negative)
-	if len(newSpec.Tolerations) < len(oldSpec.Tolerations) || !reflect.DeepEqual(oldSpec.Tolerations, newSpec.Tolerations[:len(oldSpec.Tolerations)]) {
-		allErrs = append(allErrs, field.Forbidden(fldPath.Child("tolerations"), "not allowed to change immutable pod fields"))
-	}
-	if oldSpec.TerminationGracePeriodSeconds != nil && *oldSpec.TerminationGracePeriodSeconds < 0 {
-		// The only change that is allowed is to set this value to 1. All other modifications should be rejected.
-		if newSpec.TerminationGracePeriodSeconds != nil && *newSpec.TerminationGracePeriodSeconds != 1 {
-			allErrs = append(allErrs, field.Forbidden(fldPath.Child("terminationGracePeriodSeconds"), "value can only be set to 1 if previously negative"))
-		}
-	}
-	// hide mutable fields
-	spec1 := newSpec.DeepCopy()
-	spec2 := oldSpec.DeepCopy()
-
-	clearContainerImages(spec1.Containers)
-	clearContainerImages(spec2.Containers)
-	clearContainerImages(spec1.InitContainers)
-	clearContainerImages(spec2.InitContainers)
-	spec1.ActiveDeadlineSeconds, spec2.ActiveDeadlineSeconds = nil, nil
-	spec1.Tolerations, spec2.Tolerations = []corev1.Toleration{}, []corev1.Toleration{}
-	spec1.TerminationGracePeriodSeconds, spec2.TerminationGracePeriodSeconds = nil, nil
-
-	allErrs = append(allErrs, apivalidation.ValidateImmutableField(spec1, spec2, fldPath)...)
-
-	return allErrs
-}
-
-func clearContainerImages(containers []corev1.Container) {
-	for i := range containers {
-		containers[i].Image = ""
-	}
 }
 
 // validatePodNameConstraints validates Grove pod name component constraints.
