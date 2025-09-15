@@ -68,7 +68,7 @@ const (
 	LabelComponentNameServiceAccountTokenSecret = "pod-sa-token-secret"
 	// LabelComponentNamePodCliqueScalingGroup is the label key representing the component name for a
 	// PodCliqueScalingGroup resource.
-	LabelComponentNamePodCliqueScalingGroup = "pcs-pod-clique-scaling-group"
+	LabelComponentNamePodCliqueScalingGroup = "pcs-podcliquescalinggroup"
 	// LabelComponentNameHorizontalPodAutoscaler is the label key representing the component name for
 	// a HorizontalPodAutoscaler that is created for every PodClique and/or PodCliqueScalingGroup that has
 	// ScaleConfig defined.

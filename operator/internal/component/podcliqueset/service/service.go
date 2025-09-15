@@ -114,20 +114,20 @@ func (r _resource) Delete(ctx context.Context, logger logr.Logger, pgObjMeta met
 	return nil
 }
 
-func (r _resource) doCreateOrUpdate(ctx context.Context, logger logr.Logger, pcs *grovecorev1alpha1.PodCliqueSet, pcsReplicaIndex int, pgServiceObjectKey client.ObjectKey) error {
-	logger.Info("Running CreateOrUpdate PodCliqueSet Headless Service", "pcsReplicaIndex", pcsReplicaIndex, "objectKey", pgServiceObjectKey)
-	pgService := emptyPCService(pgServiceObjectKey)
-	opResult, err := controllerutil.CreateOrPatch(ctx, r.client, pgService, func() error {
-		return r.buildResource(pgService, pcs, pcsReplicaIndex)
+func (r _resource) doCreateOrUpdate(ctx context.Context, logger logr.Logger, pcs *grovecorev1alpha1.PodCliqueSet, pcsReplicaIndex int, svcObjectKey client.ObjectKey) error {
+	logger.Info("Running CreateOrUpdate PodCliqueSet Headless Service", "pcsReplicaIndex", pcsReplicaIndex, "objectKey", svcObjectKey)
+	svc := emptyService(svcObjectKey)
+	opResult, err := controllerutil.CreateOrPatch(ctx, r.client, svc, func() error {
+		return r.buildResource(svc, pcs, pcsReplicaIndex)
 	})
 	if err != nil {
 		return groveerr.WrapError(err,
 			errSyncPodCliqueSetService,
 			component.OperationSync,
-			fmt.Sprintf("Error syncing Headless Service: %v for PodCliqueSet: %v", pgServiceObjectKey, client.ObjectKeyFromObject(pcs)),
+			fmt.Sprintf("Error syncing Headless Service: %v for PodCliqueSet: %v", svcObjectKey, client.ObjectKeyFromObject(pcs)),
 		)
 	}
-	logger.Info("Triggered create or update of PodGang Headless Service", "pgServiceObjectKey", pgServiceObjectKey, "result", opResult)
+	logger.Info("Triggered create or update of PodGang Headless Service", "svcObjectKey", svcObjectKey, "result", opResult)
 	return nil
 }
 
@@ -193,7 +193,7 @@ func getObjectKeys(pcs *grovecorev1alpha1.PodCliqueSet) []client.ObjectKey {
 	return objectKeys
 }
 
-func emptyPCService(objKey client.ObjectKey) *corev1.Service {
+func emptyService(objKey client.ObjectKey) *corev1.Service {
 	return &corev1.Service{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      objKey.Name,
