@@ -6,7 +6,6 @@ require (
 	github.com/NVIDIA/grove/operator/api v0.0.0
 	github.com/NVIDIA/grove/scheduler/api v0.0.0
 	github.com/go-logr/logr v1.4.3
-	github.com/google/uuid v1.6.0
 	github.com/open-policy-agent/cert-controller v0.13.0
 	github.com/samber/lo v1.51.0
 	github.com/spf13/pflag v1.0.7
@@ -35,6 +34,7 @@ require (
 	github.com/google/btree v1.1.3 // indirect
 	github.com/google/gnostic-models v0.7.0 // indirect
 	github.com/google/go-cmp v0.7.0 // indirect
+	github.com/google/uuid v1.6.0 // indirect
 	github.com/josharian/intern v1.0.0 // indirect
 	github.com/json-iterator/go v1.1.12 // indirect
 	github.com/mailru/easyjson v0.9.0 // indirect
