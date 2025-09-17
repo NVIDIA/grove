@@ -14,6 +14,8 @@
 // limitations under the License.
 // */
 
+// Package podcliquescalinggroup provides component operators for managing PodCliqueScalingGroup resources.
+// It orchestrates the creation, updating, and deletion of PodClique resources based on scaling requirements.
 package podcliquescalinggroup
 
 import (
@@ -25,9 +27,14 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 )
 
-// CreateOperatorRegistry initializes the operator registry for the PodCliqueScalingGroup reconciler.
+// CreateOperatorRegistry creates and configures an operator registry for PodCliqueScalingGroup reconciliation.
+// It registers all component operators needed to manage PodCliqueScalingGroup resources and their dependencies.
 func CreateOperatorRegistry(mgr manager.Manager, eventRecorder record.EventRecorder) component.OperatorRegistry[v1alpha1.PodCliqueScalingGroup] {
+	// Initialize the operator registry for PodCliqueScalingGroup resources
 	reg := component.NewOperatorRegistry[v1alpha1.PodCliqueScalingGroup]()
+
+	// Register the PodClique operator to handle PodClique lifecycle management
 	reg.Register(component.KindPodClique, podclique.New(mgr.GetClient(), mgr.GetScheme(), eventRecorder))
+
 	return reg
 }
