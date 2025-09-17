@@ -19,9 +19,8 @@ package common
 import (
 	"context"
 	"errors"
+	"github.com/NVIDIA/grove/operator/internal/controller/common/component"
 	"time"
-
-	"github.com/NVIDIA/grove/operator/internal/component"
 
 	"github.com/go-logr/logr"
 	ctrl "sigs.k8s.io/controller-runtime"

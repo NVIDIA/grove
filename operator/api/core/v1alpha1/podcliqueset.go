@@ -65,8 +65,6 @@ type PodCliqueSetSpec struct {
 type PodCliqueSetStatus struct {
 	// ObservedGeneration is the most recent generation observed by the controller.
 	ObservedGeneration *int64 `json:"observedGeneration,omitempty"`
-	// LastOperation captures the last operation done by the respective reconciler on the PodCliqueSet.
-	LastOperation *LastOperation `json:"lastOperation,omitempty"`
 	// LastErrors captures the last errors observed by the controller when reconciling the PodCliqueSet.
 	LastErrors []LastError `json:"lastErrors,omitempty"`
 	// Replicas is the total number of PodCliqueSet replicas created.
@@ -331,9 +329,4 @@ type LastError struct {
 // SetLastErrors sets the last errors observed by the controller when reconciling the PodCliqueSet.
 func (pcs *PodCliqueSet) SetLastErrors(lastErrs ...LastError) {
 	pcs.Status.LastErrors = lastErrs
-}
-
-// SetLastOperation sets the last operation done by the respective reconciler on the PodCliqueSet.
-func (pcs *PodCliqueSet) SetLastOperation(operation *LastOperation) {
-	pcs.Status.LastOperation = operation
 }

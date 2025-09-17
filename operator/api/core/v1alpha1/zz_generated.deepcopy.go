@@ -402,11 +402,6 @@ func (in *PodCliqueScalingGroupStatus) DeepCopyInto(out *PodCliqueScalingGroupSt
 		*out = new(int64)
 		**out = **in
 	}
-	if in.LastOperation != nil {
-		in, out := &in.LastOperation, &out.LastOperation
-		*out = new(LastOperation)
-		(*in).DeepCopyInto(*out)
-	}
 	if in.LastErrors != nil {
 		in, out := &in.LastErrors, &out.LastErrors
 		*out = make([]LastError, len(*in))
@@ -590,11 +585,6 @@ func (in *PodCliqueSetStatus) DeepCopyInto(out *PodCliqueSetStatus) {
 		*out = new(int64)
 		**out = **in
 	}
-	if in.LastOperation != nil {
-		in, out := &in.LastOperation, &out.LastOperation
-		*out = new(LastOperation)
-		(*in).DeepCopyInto(*out)
-	}
 	if in.LastErrors != nil {
 		in, out := &in.LastErrors, &out.LastErrors
 		*out = make([]LastError, len(*in))
@@ -730,11 +720,6 @@ func (in *PodCliqueStatus) DeepCopyInto(out *PodCliqueStatus) {
 		in, out := &in.ObservedGeneration, &out.ObservedGeneration
 		*out = new(int64)
 		**out = **in
-	}
-	if in.LastOperation != nil {
-		in, out := &in.LastOperation, &out.LastOperation
-		*out = new(LastOperation)
-		(*in).DeepCopyInto(*out)
 	}
 	if in.LastErrors != nil {
 		in, out := &in.LastErrors, &out.LastErrors

@@ -104,8 +104,6 @@ type AutoScalingConfig struct {
 type PodCliqueStatus struct {
 	// ObservedGeneration is the most recent generation observed by the controller.
 	ObservedGeneration *int64 `json:"observedGeneration,omitempty"`
-	// LastOperation captures the last operation done by the respective reconciler on the PodClique.
-	LastOperation *LastOperation `json:"lastOperation,omitempty"`
 	// LastErrors captures the last errors observed by the controller when reconciling the PodClique.
 	LastErrors []LastError `json:"lastErrors,omitempty"`
 	// Replicas is the total number of non-terminated Pods targeted by this PodClique.
@@ -168,9 +166,4 @@ type PodsSelectedToUpdate struct {
 // SetLastErrors sets the last errors observed by the controller when reconciling the PodClique.
 func (pclq *PodClique) SetLastErrors(lastErrs ...LastError) {
 	pclq.Status.LastErrors = lastErrs
-}
-
-// SetLastOperation sets the last operation done by the respective reconciler on the PodClique.
-func (pclq *PodClique) SetLastOperation(operation *LastOperation) {
-	pclq.Status.LastOperation = operation
 }

@@ -18,11 +18,11 @@ package podclique
 
 import (
 	"context"
+	utils2 "github.com/NVIDIA/grove/operator/internal/controller/common/component/utils"
 	"strings"
 
 	"github.com/NVIDIA/grove/operator/api/common/constants"
 	grovecorev1alpha1 "github.com/NVIDIA/grove/operator/api/core/v1alpha1"
-	componentutils "github.com/NVIDIA/grove/operator/internal/component/utils"
 	grovectrlutils "github.com/NVIDIA/grove/operator/internal/controller/utils"
 	"github.com/NVIDIA/grove/operator/internal/utils"
 	k8sutils "github.com/NVIDIA/grove/operator/internal/utils/kubernetes"
@@ -172,7 +172,7 @@ func mapPodCliqueSetToPCLQs() handler.MapFunc {
 		if !ok {
 			return nil
 		}
-		return lo.Map(componentutils.GetPodCliqueFQNsForPCSNotInPCSG(pcs), func(pclqFQN string, _ int) reconcile.Request {
+		return lo.Map(utils2.GetPodCliqueFQNsForPCSNotInPCSG(pcs), func(pclqFQN string, _ int) reconcile.Request {
 			return reconcile.Request{NamespacedName: types.NamespacedName{
 				Namespace: pcs.Namespace,
 				Name:      pclqFQN,
@@ -205,7 +205,7 @@ func mapPodCliqueScalingGroupToPCLQs() handler.MapFunc {
 		if !ok {
 			return nil
 		}
-		return lo.Map(componentutils.GetPodCliqueFQNsForPCSG(pcsg), func(pclqFQN string, _ int) reconcile.Request {
+		return lo.Map(utils2.GetPodCliqueFQNsForPCSG(pcsg), func(pclqFQN string, _ int) reconcile.Request {
 			return reconcile.Request{NamespacedName: types.NamespacedName{
 				Namespace: pcsg.Namespace,
 				Name:      pclqFQN,

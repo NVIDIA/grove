@@ -9704,31 +9704,6 @@ spec:
                   - observedAt
                   type: object
                 type: array
-              lastOperation:
-                description: LastOperation captures the last operation done by the
-                  respective reconciler on the PodCliqueSet.
-                properties:
-                  description:
-                    description: Description is a human-readable description of the
-                      last operation.
-                    type: string
-                  lastUpdateTime:
-                    description: LastUpdateTime is the time at which the last operation
-                      was updated.
-                    format: date-time
-                    type: string
-                  state:
-                    description: State is the state of the last operation.
-                    type: string
-                  type:
-                    description: Type is the type of the last operation.
-                    type: string
-                required:
-                - description
-                - lastUpdateTime
-                - state
-                - type
-                type: object
               observedGeneration:
                 description: ObservedGeneration is the most recent generation observed
                   by the controller.
