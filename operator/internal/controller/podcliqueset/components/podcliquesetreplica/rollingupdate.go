@@ -19,14 +19,14 @@ package podcliquesetreplica
 import (
 	"context"
 	"fmt"
-	"github.com/NVIDIA/grove/operator/internal/controller/common/component"
-	"github.com/NVIDIA/grove/operator/internal/controller/common/component/utils"
 	"slices"
 	"strconv"
 
 	apicommon "github.com/NVIDIA/grove/operator/api/common"
 	"github.com/NVIDIA/grove/operator/api/common/constants"
 	grovecorev1alpha1 "github.com/NVIDIA/grove/operator/api/core/v1alpha1"
+	"github.com/NVIDIA/grove/operator/internal/controller/common/component"
+	"github.com/NVIDIA/grove/operator/internal/controller/common/component/utils"
 	groveerr "github.com/NVIDIA/grove/operator/internal/errors"
 
 	"github.com/go-logr/logr"

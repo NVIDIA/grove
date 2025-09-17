@@ -19,8 +19,6 @@ package podclique
 import (
 	"context"
 	"fmt"
-	"github.com/NVIDIA/grove/operator/internal/controller/common/component"
-	utils2 "github.com/NVIDIA/grove/operator/internal/controller/common/component/utils"
 	"slices"
 	"strconv"
 	"strings"
@@ -28,6 +26,8 @@ import (
 	apicommon "github.com/NVIDIA/grove/operator/api/common"
 	grovecorev1alpha1 "github.com/NVIDIA/grove/operator/api/core/v1alpha1"
 	"github.com/NVIDIA/grove/operator/internal/constants"
+	"github.com/NVIDIA/grove/operator/internal/controller/common/component"
+	utils2 "github.com/NVIDIA/grove/operator/internal/controller/common/component/utils"
 	groveerr "github.com/NVIDIA/grove/operator/internal/errors"
 	"github.com/NVIDIA/grove/operator/internal/utils"
 	k8sutils "github.com/NVIDIA/grove/operator/internal/utils/kubernetes"

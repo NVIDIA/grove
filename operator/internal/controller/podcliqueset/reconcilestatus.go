@@ -19,11 +19,11 @@ package podcliqueset
 import (
 	"context"
 	"fmt"
-	"github.com/NVIDIA/grove/operator/internal/controller/common/component/utils"
 	"strconv"
 
 	grovecorev1alpha1 "github.com/NVIDIA/grove/operator/api/core/v1alpha1"
 	ctrlcommon "github.com/NVIDIA/grove/operator/internal/controller/common"
+	"github.com/NVIDIA/grove/operator/internal/controller/common/component/utils"
 	k8sutils "github.com/NVIDIA/grove/operator/internal/utils/kubernetes"
 
 	"github.com/go-logr/logr"
