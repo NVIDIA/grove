@@ -29,7 +29,7 @@ import (
 	grovecorev1alpha1 "github.com/NVIDIA/grove/operator/api/core/v1alpha1"
 	"github.com/NVIDIA/grove/operator/internal/constants"
 	"github.com/NVIDIA/grove/operator/internal/controller/common/component"
-	utils2 "github.com/NVIDIA/grove/operator/internal/controller/common/component/utils"
+	componentutils "github.com/NVIDIA/grove/operator/internal/controller/common/component/utils"
 	groveerr "github.com/NVIDIA/grove/operator/internal/errors"
 	"github.com/NVIDIA/grove/operator/internal/utils"
 	k8sutils "github.com/NVIDIA/grove/operator/internal/utils/kubernetes"
@@ -314,8 +314,8 @@ func (r _resource) addEnvironmentVariablesToPodContainerSpecs(pclq *grovecorev1a
 		},
 	}
 	pclqObjPodSpec := &pclq.Spec.PodSpec
-	utils2.AddEnvVarsToContainers(pclqObjPodSpec.Containers, pcsgEnvVars)
-	utils2.AddEnvVarsToContainers(pclqObjPodSpec.InitContainers, pcsgEnvVars)
+	componentutils.AddEnvVarsToContainers(pclqObjPodSpec.Containers, pcsgEnvVars)
+	componentutils.AddEnvVarsToContainers(pclqObjPodSpec.InitContainers, pcsgEnvVars)
 }
 
 func getPCSReplicaFromPCSG(pcsg *grovecorev1alpha1.PodCliqueScalingGroup) (int, error) {
@@ -359,7 +359,7 @@ func getInOrderStartupDependencies(pcs *grovecorev1alpha1.PodCliqueSet, pcsRepli
 
 	// Current pcsgReplicaIndex belongs to the base PodGang
 	if pcsgReplicaIndex < int(*pcsg.Spec.MinAvailable) {
-		return utils2.GenerateDependencyNamesForBasePodGang(pcs, pcsReplicaIndex, parentCliqueName)
+		return componentutils.GenerateDependencyNamesForBasePodGang(pcs, pcsReplicaIndex, parentCliqueName)
 	}
 
 	// Startup ordering is only enforced within a PodGang.
@@ -378,7 +378,7 @@ func getExplicitStartupDependencies(pcs *grovecorev1alpha1.PodCliqueSet, pcsRepl
 	// Current pcsgReplicaIndex belongs to the base PodGang
 	if pcsgReplicaIndex < int(*pcsg.Spec.MinAvailable) {
 		for _, dependency := range pclq.Spec.StartsAfter {
-			parentCliqueNames = append(parentCliqueNames, utils2.GenerateDependencyNamesForBasePodGang(pcs, pcsReplicaIndex, dependency)...)
+			parentCliqueNames = append(parentCliqueNames, componentutils.GenerateDependencyNamesForBasePodGang(pcs, pcsReplicaIndex, dependency)...)
 		}
 		return parentCliqueNames
 	}
@@ -394,7 +394,7 @@ func getExplicitStartupDependencies(pcs *grovecorev1alpha1.PodCliqueSet, pcsRepl
 }
 
 func getPodCliqueSelectorLabels(pcsgObjectMeta metav1.ObjectMeta) map[string]string {
-	pcsName := utils2.GetPodCliqueSetName(pcsgObjectMeta)
+	pcsName := componentutils.GetPodCliqueSetName(pcsgObjectMeta)
 	return lo.Assign(
 		apicommon.GetDefaultLabelsForPodCliqueSetManagedResources(pcsName),
 		map[string]string{
@@ -412,7 +412,7 @@ func getLabels(pcs *grovecorev1alpha1.PodCliqueSet, pcsReplicaIndex int, pcsg *g
 		apicommon.LabelPodGang:                           podGangName,
 		apicommon.LabelPodCliqueSetReplicaIndex:          strconv.Itoa(pcsReplicaIndex),
 		apicommon.LabelPodCliqueScalingGroupReplicaIndex: strconv.Itoa(pcsgReplicaIndex),
-		apicommon.LabelPodTemplateHash:                   utils2.ComputePCLQPodTemplateHash(pclqTemplateSpec, pcs.Spec.Template.PriorityClassName),
+		apicommon.LabelPodTemplateHash:                   componentutils.ComputePCLQPodTemplateHash(pclqTemplateSpec, pcs.Spec.Template.PriorityClassName),
 	}
 
 	// Add base-podgang label for scaled PodGang pods (beyond minAvailable)

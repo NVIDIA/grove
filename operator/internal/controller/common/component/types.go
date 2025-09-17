@@ -26,7 +26,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-// Constants for constants operations that an Operator can perform.
+// Constants for operations that an Operator can perform.
 const (
 	// OperationGetExistingResourceNames represents an operation to get existing resource names.
 	OperationGetExistingResourceNames = "GetExistingResourceNames"
@@ -45,9 +45,9 @@ type GroveCustomResourceType interface {
 type Operator[T GroveCustomResourceType] interface {
 	// GetExistingResourceNames returns the names of all the existing resources that this Operator manages.
 	GetExistingResourceNames(ctx context.Context, logger logr.Logger, objMeta metav1.ObjectMeta) ([]string, error)
-	// Sync synchronizes all resources that this Operator manages. If a components does not exist then it will
+	// Sync synchronizes all resources that this Operator manages. If a component does not exist then it will
 	// create it. If there are changes in the owning PodCliqueSet resource that transpires changes to one or more resources
-	// managed by this Operator then those components(s) will be either be updated or a deletion is triggered.
+	// managed by this Operator then those resource(s) will be either be updated or a deletion is triggered.
 	Sync(ctx context.Context, logger logr.Logger, obj *T) error
 	// Delete triggers the deletion of all resources that this Operator manages.
 	Delete(ctx context.Context, logger logr.Logger, objMeta metav1.ObjectMeta) error

@@ -25,7 +25,7 @@ import (
 	"github.com/NVIDIA/grove/operator/api/common/constants"
 	grovecorev1alpha1 "github.com/NVIDIA/grove/operator/api/core/v1alpha1"
 	"github.com/NVIDIA/grove/operator/internal/controller/common/component"
-	utils2 "github.com/NVIDIA/grove/operator/internal/controller/common/component/utils"
+	componentutils "github.com/NVIDIA/grove/operator/internal/controller/common/component/utils"
 	groveerr "github.com/NVIDIA/grove/operator/internal/errors"
 	"github.com/NVIDIA/grove/operator/internal/expect"
 	"github.com/NVIDIA/grove/operator/internal/utils"
@@ -132,7 +132,7 @@ func (r _resource) Sync(ctx context.Context, logger logr.Logger, pclq *grovecore
 
 func (r _resource) buildResource(pcs *grovecorev1alpha1.PodCliqueSet, pclq *grovecorev1alpha1.PodClique, podGangName string, pod *corev1.Pod, podIndex int) error {
 	// Extract PCS replica index from PodClique name for now (will be replaced with direct parameter)
-	pcsName := utils2.GetPodCliqueSetName(pclq.ObjectMeta)
+	pcsName := componentutils.GetPodCliqueSetName(pclq.ObjectMeta)
 	pcsReplicaIndex, err := utils.GetPodCliqueSetReplicaIndexFromPodCliqueFQN(pcsName, pclq.Name)
 	if err != nil {
 		return groveerr.WrapError(err,
@@ -244,8 +244,8 @@ func addEnvironmentVariables(pod *corev1.Pod, pclq *grovecorev1alpha1.PodClique,
 			Value: strconv.Itoa(podIndex),
 		},
 	}
-	utils2.AddEnvVarsToContainers(pod.Spec.Containers, groveEnvVars)
-	utils2.AddEnvVarsToContainers(pod.Spec.InitContainers, groveEnvVars)
+	componentutils.AddEnvVarsToContainers(pod.Spec.Containers, groveEnvVars)
+	componentutils.AddEnvVarsToContainers(pod.Spec.InitContainers, groveEnvVars)
 }
 
 // configurePodHostname sets the pod hostname and subdomain for service discovery

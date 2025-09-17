@@ -27,7 +27,7 @@ import (
 	"github.com/NVIDIA/grove/operator/internal/constants"
 	ctrlcommon "github.com/NVIDIA/grove/operator/internal/controller/common"
 	"github.com/NVIDIA/grove/operator/internal/controller/common/component"
-	"github.com/NVIDIA/grove/operator/internal/controller/common/component/utils"
+	componentutils "github.com/NVIDIA/grove/operator/internal/controller/common/component/utils"
 	ctrlutils "github.com/NVIDIA/grove/operator/internal/controller/utils"
 
 	"github.com/go-logr/logr"
@@ -66,7 +66,7 @@ func (r *Reconciler) ensureFinalizer(ctx context.Context, logger logr.Logger, pc
 
 func (r *Reconciler) processRollingUpdate(ctx context.Context, logger logr.Logger, pcsg *grovecorev1alpha1.PodCliqueScalingGroup) ctrlcommon.ReconcileStepResult {
 	pcsgObjectKey := client.ObjectKeyFromObject(pcsg)
-	pcs, err := utils.GetPodCliqueSet(ctx, r.client, pcsg.ObjectMeta)
+	pcs, err := componentutils.GetPodCliqueSet(ctx, r.client, pcsg.ObjectMeta)
 	if err != nil {
 		return ctrlcommon.ReconcileWithErrors(fmt.Sprintf("could not get owner PodCliqueSet for PodCliqueScalingGroup: %v", pcsgObjectKey), err)
 	}

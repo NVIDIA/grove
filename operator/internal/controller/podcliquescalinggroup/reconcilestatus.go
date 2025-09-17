@@ -24,7 +24,7 @@ import (
 	"github.com/NVIDIA/grove/operator/api/common/constants"
 	grovecorev1alpha1 "github.com/NVIDIA/grove/operator/api/core/v1alpha1"
 	ctrlcommon "github.com/NVIDIA/grove/operator/internal/controller/common"
-	"github.com/NVIDIA/grove/operator/internal/controller/common/component/utils"
+	componentutils "github.com/NVIDIA/grove/operator/internal/controller/common/component/utils"
 	ctrlutils "github.com/NVIDIA/grove/operator/internal/controller/utils"
 	k8sutils "github.com/NVIDIA/grove/operator/internal/utils/kubernetes"
 
@@ -49,7 +49,7 @@ func (r *Reconciler) reconcileStatus(ctx context.Context, logger logr.Logger, pc
 
 	patchObj := client.MergeFrom(pcsg.DeepCopy())
 
-	pcs, err := utils.GetPodCliqueSet(ctx, r.client, pcsg.ObjectMeta)
+	pcs, err := componentutils.GetPodCliqueSet(ctx, r.client, pcsg.ObjectMeta)
 	if err != nil {
 		logger.Error(err, "failed to get owner PodCliqueSet")
 		return ctrlcommon.ReconcileWithErrors("failed to get owner PodCliqueSet", err)
@@ -150,7 +150,7 @@ func mutateMinAvailableBreachedCondition(logger logr.Logger, pcsg *grovecorev1al
 // If we set MinAvailableBreached condition to true, then it can result in pre-mature gang termination when the PodClique Pods are still starting.
 // If there are sufficient scheduled replicas (i.e. scheduledReplicas >= minAvailable), then we can compute the MinAvailableBreached condition based on the number of ready replicas.
 func computeMinAvailableBreachedCondition(logger logr.Logger, pcsg *grovecorev1alpha1.PodCliqueScalingGroup, pclqsPerPCSGReplica map[string][]grovecorev1alpha1.PodClique) metav1.Condition {
-	if utils.IsPCSGUpdateInProgress(pcsg) {
+	if componentutils.IsPCSGUpdateInProgress(pcsg) {
 		return metav1.Condition{
 			Type:    constants.ConditionTypeMinAvailableBreached,
 			Status:  metav1.ConditionUnknown,
@@ -209,7 +209,7 @@ func (r *Reconciler) getPodCliquesPerPCSGReplica(ctx context.Context, pcsName st
 			apicommon.LabelComponentKey:          apicommon.LabelComponentNamePodCliqueScalingGroupPodClique,
 		},
 	)
-	pclqs, err := utils.GetPCLQsByOwner(ctx,
+	pclqs, err := componentutils.GetPCLQsByOwner(ctx,
 		r.client,
 		constants.KindPodCliqueScalingGroup,
 		pcsgObjKey,
@@ -218,7 +218,7 @@ func (r *Reconciler) getPodCliquesPerPCSGReplica(ctx context.Context, pcsName st
 	if err != nil {
 		return nil, err
 	}
-	pclqsPerPCSGReplica := utils.GroupPCLQsByPCSGReplicaIndex(pclqs)
+	pclqsPerPCSGReplica := componentutils.GroupPCLQsByPCSGReplicaIndex(pclqs)
 	return pclqsPerPCSGReplica, nil
 }
 
@@ -254,12 +254,12 @@ func mutateSelector(pcs *grovecorev1alpha1.PodCliqueSet, pcsg *grovecorev1alpha1
 }
 
 func mutateCurrentPodCliqueSetGenerationHash(logger logr.Logger, pcs *grovecorev1alpha1.PodCliqueSet, pcsg *grovecorev1alpha1.PodCliqueScalingGroup, existingPCLQs []grovecorev1alpha1.PodClique) {
-	pclqFQNsPendingUpdate := utils.GetPCLQsInPCSGPendingUpdate(pcs, pcsg, existingPCLQs)
+	pclqFQNsPendingUpdate := componentutils.GetPCLQsInPCSGPendingUpdate(pcs, pcsg, existingPCLQs)
 	if len(pclqFQNsPendingUpdate) > 0 {
 		logger.Info("Found PodCliques associated to PodCliqueScalingGroup pending update", "pclqFQNsPendingUpdate", pclqFQNsPendingUpdate)
 		return
 	}
-	if utils.IsPCSGUpdateInProgress(pcsg) {
+	if componentutils.IsPCSGUpdateInProgress(pcsg) {
 		logger.Info("PodCliqueScalingGroup is currently updating, cannot set PodCliqueSet CurrentGenerationHash yet")
 		return
 	}

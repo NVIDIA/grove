@@ -27,7 +27,7 @@ import (
 	grovecorev1alpha1 "github.com/NVIDIA/grove/operator/api/core/v1alpha1"
 	"github.com/NVIDIA/grove/operator/internal/constants"
 	"github.com/NVIDIA/grove/operator/internal/controller/common/component"
-	utils2 "github.com/NVIDIA/grove/operator/internal/controller/common/component/utils"
+	componentutils "github.com/NVIDIA/grove/operator/internal/controller/common/component/utils"
 	groveerr "github.com/NVIDIA/grove/operator/internal/errors"
 	"github.com/NVIDIA/grove/operator/internal/utils"
 	k8sutils "github.com/NVIDIA/grove/operator/internal/utils/kubernetes"
@@ -105,7 +105,7 @@ func (r _resource) Sync(ctx context.Context, logger logr.Logger, pcs *grovecorev
 }
 
 func (r _resource) triggerDeletionOfExcessPCLQs(ctx context.Context, logger logr.Logger, pcs *grovecorev1alpha1.PodCliqueSet, existingPCLQFQNs []string) error {
-	expectedPCLQFQNs := utils2.GetPodCliqueFQNsForPCSNotInPCSG(pcs)
+	expectedPCLQFQNs := componentutils.GetPodCliqueFQNsForPCSNotInPCSG(pcs)
 	// Check if the number of existing PodCliques is greater than expected, if so, we need to delete the extra ones.
 	diff := len(existingPCLQFQNs) - len(expectedPCLQFQNs)
 	if diff > 0 {
@@ -123,7 +123,7 @@ func (r _resource) triggerDeletionOfExcessPCLQs(ctx context.Context, logger logr
 }
 
 func (r _resource) createOrUpdatePCLQs(ctx context.Context, logger logr.Logger, pcs *grovecorev1alpha1.PodCliqueSet, existingPCLQFQNs []string) error {
-	expectedPCLQNames, _ := utils2.GetExpectedPCLQNamesGroupByOwner(pcs)
+	expectedPCLQNames, _ := componentutils.GetExpectedPCLQNamesGroupByOwner(pcs)
 	tasks := make([]utils.Task, 0, len(expectedPCLQNames))
 
 	for pcsReplica := range pcs.Spec.Replicas {
@@ -337,13 +337,13 @@ func getInOrderStartupDependencies(pcs *grovecorev1alpha1.PodCliqueSet, pcsRepli
 		return nil
 	}
 	previousCliqueName := pcs.Spec.Template.Cliques[foundAtIndex-1].Name
-	return utils2.GenerateDependencyNamesForBasePodGang(pcs, pcsReplicaIndex, previousCliqueName)
+	return componentutils.GenerateDependencyNamesForBasePodGang(pcs, pcsReplicaIndex, previousCliqueName)
 }
 
 func getExplicitStartupDependencies(pcs *grovecorev1alpha1.PodCliqueSet, pcsReplicaIndex int, pclq *grovecorev1alpha1.PodClique) []string {
 	dependencies := make([]string, 0, len(pclq.Spec.StartsAfter))
 	for _, dependency := range pclq.Spec.StartsAfter {
-		dependencies = append(dependencies, utils2.GenerateDependencyNamesForBasePodGang(pcs, pcsReplicaIndex, dependency)...)
+		dependencies = append(dependencies, componentutils.GenerateDependencyNamesForBasePodGang(pcs, pcsReplicaIndex, dependency)...)
 	}
 	return dependencies
 }
@@ -363,7 +363,7 @@ func getLabels(pcs *grovecorev1alpha1.PodCliqueSet, pcsReplica int, pclqObjectKe
 		apicommon.LabelComponentKey:             apicommon.LabelComponentNamePodCliqueSetPodClique,
 		apicommon.LabelPodCliqueSetReplicaIndex: strconv.Itoa(pcsReplica),
 		apicommon.LabelPodGang:                  podGangName,
-		apicommon.LabelPodTemplateHash:          utils2.ComputePCLQPodTemplateHash(pclqTemplateSpec, pcs.Spec.Template.PriorityClassName),
+		apicommon.LabelPodTemplateHash:          componentutils.ComputePCLQPodTemplateHash(pclqTemplateSpec, pcs.Spec.Template.PriorityClassName),
 	}
 	return lo.Assign(
 		pclqTemplateSpec.Labels,

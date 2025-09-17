@@ -26,7 +26,7 @@ import (
 	"github.com/NVIDIA/grove/operator/api/common"
 	grovecorev1alpha1 "github.com/NVIDIA/grove/operator/api/core/v1alpha1"
 	"github.com/NVIDIA/grove/operator/internal/controller/common/component"
-	utils2 "github.com/NVIDIA/grove/operator/internal/controller/common/component/utils"
+	componentutils "github.com/NVIDIA/grove/operator/internal/controller/common/component/utils"
 	groveerr "github.com/NVIDIA/grove/operator/internal/errors"
 	"github.com/NVIDIA/grove/operator/internal/expect"
 	"github.com/NVIDIA/grove/operator/internal/index"
@@ -51,7 +51,7 @@ func (r _resource) prepareSyncFlow(ctx context.Context, logger logr.Logger, pclq
 	)
 
 	// Get associated PodCliqueSet for this PodClique.
-	sc.pcs, err = utils2.GetPodCliqueSet(ctx, r.client, pclq.ObjectMeta)
+	sc.pcs, err = componentutils.GetPodCliqueSet(ctx, r.client, pclq.ObjectMeta)
 	if err != nil {
 		return nil, groveerr.WrapError(err,
 			errCodeGetPodCliqueSet,
@@ -60,7 +60,7 @@ func (r _resource) prepareSyncFlow(ctx context.Context, logger logr.Logger, pclq
 		)
 	}
 
-	sc.expectedPodTemplateHash, err = utils2.GetExpectedPCLQPodTemplateHash(sc.pcs, pclq.ObjectMeta)
+	sc.expectedPodTemplateHash, err = componentutils.GetExpectedPCLQPodTemplateHash(sc.pcs, pclq.ObjectMeta)
 	if err != nil {
 		return nil, groveerr.WrapError(err,
 			errCodeGetPodCliqueTemplate,
@@ -82,7 +82,7 @@ func (r _resource) prepareSyncFlow(ctx context.Context, logger logr.Logger, pclq
 	}
 
 	// Get the associated PodGang resource.
-	existingPodGang, err := utils2.GetPodGang(ctx, r.client, sc.associatedPodGangName, pclq.Namespace)
+	existingPodGang, err := componentutils.GetPodGang(ctx, r.client, sc.associatedPodGangName, pclq.Namespace)
 	if err = lo.Ternary(apierrors.IsNotFound(err), nil, err); err != nil {
 		return nil, err
 	}
@@ -91,7 +91,7 @@ func (r _resource) prepareSyncFlow(ctx context.Context, logger logr.Logger, pclq
 	sc.podNamesUpdatedInPCLQPodGangs = r.getPodNamesUpdatedInAssociatedPodGang(existingPodGang, pclq.Name)
 
 	// Get all existing pods for this PCLQ.
-	sc.existingPCLQPods, err = utils2.GetPCLQPods(ctx, r.client, sc.pcs.Name, pclq)
+	sc.existingPCLQPods, err = componentutils.GetPCLQPods(ctx, r.client, sc.pcs.Name, pclq)
 	if err != nil {
 		logger.Error(err, "Failed to list pods that belong to PodClique")
 		return nil, groveerr.WrapError(err,
@@ -151,7 +151,7 @@ func (r _resource) runSyncFlow(logger logr.Logger, sc *syncContext) syncFlowResu
 		}
 	}
 
-	if utils2.IsPCLQUpdateInProgress(sc.pclq) {
+	if componentutils.IsPCLQUpdateInProgress(sc.pclq) {
 		if err := r.processPendingUpdates(logger, sc); err != nil {
 			result.recordError(err)
 		}
@@ -302,7 +302,7 @@ func (r _resource) checkAndRemovePodSchedulingGates(sc *syncContext, logger logr
 // their minimum required number of ready pods (PodClique.Status.ReadyReplicas >= PodGroup.MinReplicas).
 func (r _resource) isBasePodGangReady(ctx context.Context, logger logr.Logger, namespace, basePodGangName string) (bool, error) {
 	// Get the base PodGang - treat all errors (including NotFound) as requeue-able
-	basePodGang, err := utils2.GetPodGang(ctx, r.client, basePodGangName, namespace)
+	basePodGang, err := componentutils.GetPodGang(ctx, r.client, basePodGangName, namespace)
 	if err != nil {
 		return false, groveerr.WrapError(err,
 			errCodeGetPodGang,

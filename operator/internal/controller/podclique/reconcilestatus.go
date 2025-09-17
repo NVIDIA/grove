@@ -19,12 +19,11 @@ package podclique
 import (
 	"context"
 	"fmt"
-
 	apicommon "github.com/NVIDIA/grove/operator/api/common"
 	"github.com/NVIDIA/grove/operator/api/common/constants"
 	grovecorev1alpha1 "github.com/NVIDIA/grove/operator/api/core/v1alpha1"
 	ctrlcommon "github.com/NVIDIA/grove/operator/internal/controller/common"
-	"github.com/NVIDIA/grove/operator/internal/controller/common/component/utils"
+	componentutils "github.com/NVIDIA/grove/operator/internal/controller/common/component/utils"
 	k8sutils "github.com/NVIDIA/grove/operator/internal/utils/kubernetes"
 
 	"github.com/go-logr/logr"
@@ -37,17 +36,17 @@ import (
 )
 
 func (r *Reconciler) reconcileStatus(ctx context.Context, logger logr.Logger, pclq *grovecorev1alpha1.PodClique) ctrlcommon.ReconcileStepResult {
-	pcsName := utils.GetPodCliqueSetName(pclq.ObjectMeta)
+	pcsName := componentutils.GetPodCliqueSetName(pclq.ObjectMeta)
 	pclqObjectKey := client.ObjectKeyFromObject(pclq)
 	patch := client.MergeFrom(pclq.DeepCopy())
 
-	pcs, err := utils.GetPodCliqueSet(ctx, r.client, pclq.ObjectMeta)
+	pcs, err := componentutils.GetPodCliqueSet(ctx, r.client, pclq.ObjectMeta)
 	if err != nil {
 		logger.Error(err, "could not get PodCliqueSet for PodClique", "pclqObjectKey", pclqObjectKey)
 		return ctrlcommon.ReconcileWithErrors("could not get PodCliqueSet for PodClique", err)
 	}
 
-	existingPods, err := utils.GetPCLQPods(ctx, r.client, pcsName, pclq)
+	existingPods, err := componentutils.GetPCLQPods(ctx, r.client, pcsName, pclq)
 	if err != nil {
 		logger.Error(err, "failed to list pods for PodClique")
 		return ctrlcommon.ReconcileWithErrors(fmt.Sprintf("failed to list pods for PodClique: %q", pclqObjectKey), err)
@@ -88,12 +87,12 @@ func (r *Reconciler) reconcileStatus(ctx context.Context, logger logr.Logger, pc
 }
 
 func mutateCurrentHashes(logger logr.Logger, pcs *grovecorev1alpha1.PodCliqueSet, pclq *grovecorev1alpha1.PodClique) error {
-	if utils.IsPCLQUpdateInProgress(pclq) || pclq.Status.UpdatedReplicas != pclq.Status.Replicas {
+	if componentutils.IsPCLQUpdateInProgress(pclq) || pclq.Status.UpdatedReplicas != pclq.Status.Replicas {
 		logger.Info("PodClique is currently updating, cannot set PodCliqueSet CurrentGenerationHash yet")
 		return nil
 	}
 	if pclq.Status.RollingUpdateProgress == nil {
-		expectedPodTemplateHash, err := utils.GetExpectedPCLQPodTemplateHash(pcs, pclq.ObjectMeta)
+		expectedPodTemplateHash, err := componentutils.GetExpectedPCLQPodTemplateHash(pcs, pclq.ObjectMeta)
 		if err != nil {
 			return err
 		}
@@ -101,7 +100,7 @@ func mutateCurrentHashes(logger logr.Logger, pcs *grovecorev1alpha1.PodCliqueSet
 			pclq.Status.CurrentPodTemplateHash = ptr.To(expectedPodTemplateHash)
 			pclq.Status.CurrentPodCliqueSetGenerationHash = pcs.Status.CurrentGenerationHash
 		}
-	} else if utils.IsLastPCLQUpdateCompleted(pclq) {
+	} else if componentutils.IsLastPCLQUpdateCompleted(pclq) {
 		logger.Info("PodClique update has completed, setting CurrentPodCliqueSetGenerationHash")
 		pclq.Status.CurrentPodTemplateHash = ptr.To(pclq.Status.RollingUpdateProgress.PodTemplateHash)
 		pclq.Status.CurrentPodCliqueSetGenerationHash = ptr.To(pclq.Status.RollingUpdateProgress.PodCliqueSetGenerationHash)
@@ -122,7 +121,7 @@ func mutateUpdatedReplica(pclq *grovecorev1alpha1.PodClique, existingPods []*cor
 	var expectedPodTemplateHash string
 	// If the PCLQ update is in progress then take the expected PodTemplateHash from the PodClique.Status.RollingUpdateProgress.PodCliqueSetGenerationHash field
 	// else take it from the PodClique.Status.CurrentPodTemplateHash field
-	if utils.IsPCLQUpdateInProgress(pclq) {
+	if componentutils.IsPCLQUpdateInProgress(pclq) {
 		expectedPodTemplateHash = pclq.Status.RollingUpdateProgress.PodTemplateHash
 	} else if pclq.Status.CurrentPodTemplateHash != nil {
 		// CurrentPodTemplateHash will be set if RollingUpdateProgress is nil or if the last update has completed.
@@ -168,7 +167,7 @@ func mutateMinAvailableBreachedCondition(pclq *grovecorev1alpha1.PodClique, numN
 }
 
 func computeMinAvailableBreachedCondition(pclq *grovecorev1alpha1.PodClique, numPodsHavingAtleastOneContainerWithNonZeroExitCode, numPodsStartedButNotReady int) metav1.Condition {
-	if utils.IsPCLQUpdateInProgress(pclq) {
+	if componentutils.IsPCLQUpdateInProgress(pclq) {
 		return metav1.Condition{
 			Type:    constants.ConditionTypeMinAvailableBreached,
 			Status:  metav1.ConditionUnknown,

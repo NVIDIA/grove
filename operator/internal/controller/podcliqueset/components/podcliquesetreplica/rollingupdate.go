@@ -26,7 +26,7 @@ import (
 	"github.com/NVIDIA/grove/operator/api/common/constants"
 	grovecorev1alpha1 "github.com/NVIDIA/grove/operator/api/core/v1alpha1"
 	"github.com/NVIDIA/grove/operator/internal/controller/common/component"
-	"github.com/NVIDIA/grove/operator/internal/controller/common/component/utils"
+	componentutils "github.com/NVIDIA/grove/operator/internal/controller/common/component/utils"
 	groveerr "github.com/NVIDIA/grove/operator/internal/errors"
 
 	"github.com/go-logr/logr"
@@ -96,7 +96,7 @@ func (r _resource) computePendingUpdateWork(ctx context.Context, pcs *grovecorev
 
 func (r _resource) getPCSReplicaInfos(ctx context.Context, pcs *grovecorev1alpha1.PodCliqueSet, pcsIndicesToTerminate []int) ([]pcsReplicaInfo, error) {
 	pcsObjectKey := client.ObjectKeyFromObject(pcs)
-	pclqsByPCSIndex, err := utils.GetPCLQsByOwnerReplicaIndex(ctx, r.client, constants.KindPodCliqueSet, client.ObjectKeyFromObject(pcs), apicommon.GetDefaultLabelsForPodCliqueSetManagedResources(pcs.Name))
+	pclqsByPCSIndex, err := componentutils.GetPCLQsByOwnerReplicaIndex(ctx, r.client, constants.KindPodCliqueSet, client.ObjectKeyFromObject(pcs), apicommon.GetDefaultLabelsForPodCliqueSetManagedResources(pcs.Name))
 	if err != nil {
 		return nil, groveerr.WrapError(err,
 			errCodeListPCLQs,
@@ -104,7 +104,7 @@ func (r _resource) getPCSReplicaInfos(ctx context.Context, pcs *grovecorev1alpha
 			fmt.Sprintf("could not list PCLQs for PCS: %v", pcsObjectKey),
 		)
 	}
-	pcsgsByPCSIndex, err := utils.GetPCSGsByPCSReplicaIndex(ctx, r.client, client.ObjectKeyFromObject(pcs))
+	pcsgsByPCSIndex, err := componentutils.GetPCSGsByPCSReplicaIndex(ctx, r.client, client.ObjectKeyFromObject(pcs))
 	if err != nil {
 		return nil, groveerr.WrapError(err,
 			errCodeListPCSGs,
@@ -132,7 +132,7 @@ func (r _resource) updatePCSWithReplicaUpdateProgress(ctx context.Context, logge
 	updatedCliqueFQNs := lo.Uniq(append(pcs.Status.RollingUpdateProgress.UpdatedPodCliques, currentReplicaUpdateProgress.updatedPCLQFQNs...))
 	// There is a possibility that the replica that is currently getting updated has been deleted due to scale-in.
 	// We need to clean up the already recorded pcsg.Status.RollingUpdateProgress.UpdatedPodCliques.
-	expectedPCLQFQNs := utils.GetPodCliqueFQNsForPCSNotInPCSG(pcs)
+	expectedPCLQFQNs := componentutils.GetPodCliqueFQNsForPCSNotInPCSG(pcs)
 	updatedCliqueFQNs = slices.DeleteFunc(updatedCliqueFQNs, func(pclqFQN string) bool {
 		return !slices.Contains(expectedPCLQFQNs, pclqFQN)
 	})
@@ -143,7 +143,7 @@ func (r _resource) updatePCSWithReplicaUpdateProgress(ctx context.Context, logge
 	updatedPCSGFQNs := lo.Uniq(append(pcs.Status.RollingUpdateProgress.UpdatedPodCliqueScalingGroups, currentReplicaUpdateProgress.updatedPCSGFQNs...))
 	// There is a possibility that the replica that is currently getting updated has been deleted due to scale-in.
 	// We need to clean up the already recorded pcsg.Status.RollingUpdateProgress.UpdatedPodCliques.
-	expectedPCSGFQNs := utils.GetExpectedPCSGFQNsForPCS(pcs)
+	expectedPCSGFQNs := componentutils.GetExpectedPCSGFQNsForPCS(pcs)
 	updatedPCSGFQNs = slices.DeleteFunc(updatedPCSGFQNs, func(pcsgFQN string) bool {
 		return !slices.Contains(expectedPCSGFQNs, pcsgFQN)
 	})
@@ -249,11 +249,11 @@ func (pri *pcsReplicaInfo) computeUpdateProgress(pcs *grovecorev1alpha1.PodCliqu
 		}
 	}
 	for _, pcsg := range pri.pcsgs {
-		if utils.IsPCSGUpdateComplete(&pcsg, *pcs.Status.CurrentGenerationHash) {
+		if componentutils.IsPCSGUpdateComplete(&pcsg, *pcs.Status.CurrentGenerationHash) {
 			progress.updatedPCSGFQNs = append(progress.updatedPCSGFQNs, pcsg.Name)
 		}
 	}
-	progress.done = len(progress.updatedPCLQFQNs) == len(utils.GetPodCliqueFQNsForPCSReplicaNotInPCSG(pcs, pri.replicaIndex)) &&
+	progress.done = len(progress.updatedPCLQFQNs) == len(componentutils.GetPodCliqueFQNsForPCSReplicaNotInPCSG(pcs, pri.replicaIndex)) &&
 		len(progress.updatedPCSGFQNs) == len(pcs.Spec.Template.PodCliqueScalingGroupConfigs)
 	pri.updateProgress = progress
 }

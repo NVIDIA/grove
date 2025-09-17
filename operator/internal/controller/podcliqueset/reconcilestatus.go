@@ -23,7 +23,7 @@ import (
 
 	grovecorev1alpha1 "github.com/NVIDIA/grove/operator/api/core/v1alpha1"
 	ctrlcommon "github.com/NVIDIA/grove/operator/internal/controller/common"
-	"github.com/NVIDIA/grove/operator/internal/controller/common/component/utils"
+	componentutils "github.com/NVIDIA/grove/operator/internal/controller/common/component/utils"
 	k8sutils "github.com/NVIDIA/grove/operator/internal/utils/kubernetes"
 
 	"github.com/go-logr/logr"
@@ -67,11 +67,11 @@ func (r *Reconciler) computeAvailableAndUpdatedReplicas(ctx context.Context, log
 		pcsObjectKey      = client.ObjectKeyFromObject(pcs)
 	)
 
-	expectedPCSGFQNsPerPCSReplica := utils.GetExpectedPCSGFQNsPerPCSReplica(pcs)
-	expectedStandAlonePCLQFQNsPerPCSReplica := utils.GetExpectedStandAlonePCLQFQNsPerPCSReplica(pcs)
+	expectedPCSGFQNsPerPCSReplica := componentutils.GetExpectedPCSGFQNsPerPCSReplica(pcs)
+	expectedStandAlonePCLQFQNsPerPCSReplica := componentutils.GetExpectedStandAlonePCLQFQNsPerPCSReplica(pcs)
 
 	// Fetch all PCSGs for this PCS
-	pcsgs, err := utils.GetPCSGsForPCS(ctx, r.client, pcsObjectKey)
+	pcsgs, err := componentutils.GetPCSGsForPCS(ctx, r.client, pcsObjectKey)
 	if err != nil {
 		return availableReplicas, updatedReplicas, err
 	}
@@ -82,7 +82,7 @@ func (r *Reconciler) computeAvailableAndUpdatedReplicas(ctx context.Context, log
 	})
 
 	// Fetch all standalone PodCliques for this PCS
-	standalonePCLQs, err := utils.GetPodCliquesWithParentPCS(ctx, r.client, pcsObjectKey)
+	standalonePCLQs, err := componentutils.GetPodCliquesWithParentPCS(ctx, r.client, pcsObjectKey)
 	if err != nil {
 		return availableReplicas, updatedReplicas, err
 	}
@@ -93,8 +93,8 @@ func (r *Reconciler) computeAvailableAndUpdatedReplicas(ctx context.Context, log
 	})
 
 	// Group both resources by PCS replica index
-	standalonePCLQsByReplica := utils.GroupPCLQsByPCSReplicaIndex(standalonePCLQs)
-	pcsgsByReplica := utils.GroupPCSGsByPCSReplicaIndex(pcsgs)
+	standalonePCLQsByReplica := componentutils.GroupPCLQsByPCSReplicaIndex(standalonePCLQs)
+	pcsgsByReplica := componentutils.GroupPCSGsByPCSReplicaIndex(pcsgs)
 
 	for replicaIndex := 0; replicaIndex < int(pcs.Spec.Replicas); replicaIndex++ {
 		replicaIndexStr := strconv.Itoa(replicaIndex)
@@ -149,7 +149,7 @@ func (r *Reconciler) computePCSGsStatus(pcsGenerationHash *string, expectedPCSGs
 		})
 
 	isUpdated = isAvailable && lo.EveryBy(nonTerminatedPCSGs, func(pcsg grovecorev1alpha1.PodCliqueScalingGroup) bool {
-		return pcsGenerationHash != nil && utils.IsPCSGUpdateComplete(&pcsg, *pcsGenerationHash)
+		return pcsGenerationHash != nil && componentutils.IsPCSGUpdateComplete(&pcsg, *pcsGenerationHash)
 	})
 
 	return
