@@ -221,10 +221,10 @@ func TestWaitForReadyWithClient(t *testing.T) {
 			podCliqueDependencies: map[string]int{
 				"single-clique": 1,
 			},
-			namespace: "test-namespace",
-			podGang:   "test-podgang",
+			namespace: "minimal-namespace",
+			podGang:   "minimal-podgang",
 			initialPods: []*corev1.Pod{
-				createTestPod("single-clique-pod-1", "test-namespace", "test-podgang", true),
+				createTestPod("single-clique-pod-1", "minimal-namespace", "minimal-podgang", true),
 			},
 			expectSuccess: true,
 			expectTimeout: false,
@@ -234,11 +234,11 @@ func TestWaitForReadyWithClient(t *testing.T) {
 			podCliqueDependencies: map[string]int{
 				"clique-a": 3,
 			},
-			namespace: "test-namespace",
-			podGang:   "test-podgang",
+			namespace: "timeout-namespace",
+			podGang:   "timeout-podgang",
 			initialPods: []*corev1.Pod{
-				createTestPod("clique-a-pod-1", "test-namespace", "test-podgang", true),
-				createTestPod("clique-a-pod-2", "test-namespace", "test-podgang", false), // Not ready
+				createTestPod("clique-a-pod-1", "timeout-namespace", "timeout-podgang", true),
+				createTestPod("clique-a-pod-2", "timeout-namespace", "timeout-podgang", false), // Not ready
 			},
 			expectSuccess: false,
 			expectTimeout: true,
@@ -314,6 +314,12 @@ func TestWaitForReadyWithClientErrors(t *testing.T) {
 			name:      "valid configuration should timeout gracefully",
 			namespace: "valid-namespace",
 			podGang:   "valid-podgang",
+			expectErr: false,
+		},
+		{
+			name:      "different namespace should also timeout gracefully",
+			namespace: "another-namespace",
+			podGang:   "another-podgang",
 			expectErr: false,
 		},
 	}
@@ -492,6 +498,19 @@ func TestWaitForReadyWithClientAdvancedScenarios(t *testing.T) {
 			},
 			simulatePodsBecomingReady: false,
 			expectSuccess:             true, // 2 out of 3 pods are ready, need 2
+		},
+		{
+			name: "different namespace with ready pods",
+			podCliqueDependencies: map[string]int{
+				"custom-clique": 1,
+			},
+			namespace: "custom-namespace",
+			podGang:   "custom-podgang",
+			initialPods: []*corev1.Pod{
+				createTestPod("custom-clique-pod-1", "custom-namespace", "custom-podgang", true),
+			},
+			simulatePodsBecomingReady: false,
+			expectSuccess:             true,
 		},
 	}
 
