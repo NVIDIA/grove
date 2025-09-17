@@ -27,7 +27,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-// GetPodGangSelectorLabels creates the label selector to list all the PodGangs for a PodCliqueSet.
+// GetPodGangSelectorLabels creates label selectors for listing all PodGangs owned by a PodCliqueSet.
+// Returns a map of labels that can be used with client.MatchingLabels.
 func GetPodGangSelectorLabels(pcsObjMeta metav1.ObjectMeta) map[string]string {
 	return lo.Assign(
 		apicommon.GetDefaultLabelsForPodCliqueSetManagedResources(pcsObjMeta.Name),
@@ -36,7 +37,7 @@ func GetPodGangSelectorLabels(pcsObjMeta metav1.ObjectMeta) map[string]string {
 		})
 }
 
-// GetPodGang fetches a PodGang by name and namespace.
+// GetPodGang retrieves a PodGang by name and namespace using the Kubernetes client.
 func GetPodGang(ctx context.Context, cl client.Client, podGangName, namespace string) (*groveschedulerv1alpha1.PodGang, error) {
 	podGang := &groveschedulerv1alpha1.PodGang{}
 	podGangObjectKey := client.ObjectKey{Namespace: namespace, Name: podGangName}
