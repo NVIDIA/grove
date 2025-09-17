@@ -94,9 +94,9 @@ func TestAddServiceAccountTokenSecretVolume(t *testing.T) {
 			assert.Equal(t, serviceAccountTokenSecretVolumeName, addedVolume.Name)
 
 			// Verify volume source is configured correctly
-			require.NotNil(t, addedVolume.VolumeSource.Secret, "Volume should have Secret source")
-			assert.Equal(t, tt.expectedSecretName, addedVolume.VolumeSource.Secret.SecretName)
-			assert.Equal(t, int32(420), *addedVolume.VolumeSource.Secret.DefaultMode)
+			require.NotNil(t, addedVolume.Secret, "Volume should have Secret source")
+			assert.Equal(t, tt.expectedSecretName, addedVolume.Secret.SecretName)
+			assert.Equal(t, int32(420), *addedVolume.Secret.DefaultMode)
 		})
 	}
 }
@@ -160,9 +160,9 @@ func TestAddPodInfoVolume(t *testing.T) {
 			assert.Equal(t, podInfoVolumeName, addedVolume.Name)
 
 			// Verify downward API configuration
-			require.NotNil(t, addedVolume.VolumeSource.DownwardAPI, "Volume should have DownwardAPI source")
+			require.NotNil(t, addedVolume.DownwardAPI, "Volume should have DownwardAPI source")
 
-			downwardAPI := addedVolume.VolumeSource.DownwardAPI
+			downwardAPI := addedVolume.DownwardAPI
 			require.Len(t, downwardAPI.Items, 2, "Should have 2 downward API items")
 
 			// Verify namespace file configuration
@@ -228,14 +228,14 @@ func TestGetInitContainerImage(t *testing.T) {
 				if originalValue != "" {
 					os.Setenv(envVarInitContainerImage, originalValue)
 				} else {
-					os.Unsetenv(envVarInitContainerImage)
+					_ = os.Unsetenv(envVarInitContainerImage)
 				}
 			}()
 
 			if tt.setEnv {
 				os.Setenv(envVarInitContainerImage, tt.envValue)
 			} else {
-				os.Unsetenv(envVarInitContainerImage)
+				_ = os.Unsetenv(envVarInitContainerImage)
 			}
 
 			// Test the function
@@ -482,14 +482,14 @@ func TestConfigurePodInitContainer(t *testing.T) {
 				if originalValue != "" {
 					os.Setenv(envVarInitContainerImage, originalValue)
 				} else {
-					os.Unsetenv(envVarInitContainerImage)
+					_ = os.Unsetenv(envVarInitContainerImage)
 				}
 			}()
 
 			if tt.setEnvVar {
 				os.Setenv(envVarInitContainerImage, tt.envValue)
 			} else {
-				os.Unsetenv(envVarInitContainerImage)
+				_ = os.Unsetenv(envVarInitContainerImage)
 			}
 
 			pod := &corev1.Pod{

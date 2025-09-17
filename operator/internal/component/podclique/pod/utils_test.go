@@ -363,7 +363,7 @@ func TestSyncFlowResult(t *testing.T) {
 		{
 			// New result should be empty
 			name:  "new result",
-			setup: func(sfr *syncFlowResult) {},
+			setup: func(_ *syncFlowResult) {},
 			testFunc: func(t *testing.T, sfr *syncFlowResult) {
 				assert.False(t, sfr.hasErrors())
 				assert.False(t, sfr.hasPendingScheduleGatedPods())
@@ -499,4 +499,59 @@ func TestUpdateWork(t *testing.T) {
 		nextPod = emptyWork.getNextPodToUpdate()
 		assert.Nil(t, nextPod)
 	})
+}
+
+// TestGetPodCliqueExpectationsStoreKey_ErrorCases tests error scenarios
+func TestGetPodCliqueExpectationsStoreKey_ErrorCases(t *testing.T) {
+	tests := []struct {
+		name        string
+		operation   string
+		pclqMeta    metav1.ObjectMeta
+		expectError bool
+	}{
+		{
+			// Should handle valid metadata
+			name:      "valid metadata",
+			operation: "test-operation",
+			pclqMeta: metav1.ObjectMeta{
+				Name:      "valid-pclq",
+				Namespace: "default",
+			},
+			expectError: false,
+		},
+		{
+			// Should handle empty namespace
+			name:      "empty namespace",
+			operation: "test-operation",
+			pclqMeta: metav1.ObjectMeta{
+				Name:      "test-pclq",
+				Namespace: "",
+			},
+			expectError: false, // The function doesn't validate namespace
+		},
+		{
+			// Should handle empty name
+			name:      "empty name",
+			operation: "test-operation",
+			pclqMeta: metav1.ObjectMeta{
+				Name:      "",
+				Namespace: "default",
+			},
+			expectError: false, // The function doesn't validate name
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			key, err := getPodCliqueExpectationsStoreKey(logr.Discard(), tt.operation, tt.pclqMeta)
+
+			if tt.expectError {
+				assert.Error(t, err, "Should return error for %s", tt.name)
+				assert.Empty(t, key)
+			} else {
+				assert.NoError(t, err, "Should not return error for %s", tt.name)
+				assert.NotEmpty(t, key, "Should return non-empty key for %s", tt.name)
+			}
+		})
+	}
 }

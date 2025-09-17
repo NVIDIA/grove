@@ -234,14 +234,14 @@ func TestBuildResource(t *testing.T) {
 				if originalValue != "" {
 					os.Setenv(envVarInitContainerImage, originalValue)
 				} else {
-					os.Unsetenv(envVarInitContainerImage)
+					_ = os.Unsetenv(envVarInitContainerImage)
 				}
 			}()
 
 			if tt.setInitEnvVar {
 				os.Setenv(envVarInitContainerImage, tt.initEnvValue)
 			} else {
-				os.Unsetenv(envVarInitContainerImage)
+				_ = os.Unsetenv(envVarInitContainerImage)
 			}
 
 			// Create resource instance

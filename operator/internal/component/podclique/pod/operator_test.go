@@ -18,6 +18,7 @@ package pod
 
 import (
 	"context"
+	"fmt"
 	"testing"
 
 	apicommon "github.com/NVIDIA/grove/operator/api/common"
@@ -28,6 +29,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/tools/record"
@@ -574,4 +576,172 @@ func TestConfigurePodHostname(t *testing.T) {
 			assert.Equal(t, tt.expectedSubdomain, pod.Spec.Subdomain)
 		})
 	}
+}
+
+// TestGetExistingResourceNames_ErrorScenarios tests error paths
+func TestGetExistingResourceNames_ErrorScenarios(t *testing.T) {
+	tests := []struct {
+		name        string
+		setupClient func() client.Client
+		pclqMeta    metav1.ObjectMeta
+		expectError bool
+	}{
+		{
+			// Should handle client list errors
+			name: "client list error",
+			setupClient: func() client.Client {
+				return &errorClientOperator{
+					Client:     fake.NewClientBuilder().WithScheme(runtime.NewScheme()).Build(),
+					failOnList: true,
+				}
+			},
+			pclqMeta: metav1.ObjectMeta{
+				Name:      "test-pclq",
+				Namespace: "default",
+			},
+			expectError: true,
+		},
+		{
+			// Should handle successful list with no pods
+			name: "successful list no pods",
+			setupClient: func() client.Client {
+				scheme := runtime.NewScheme()
+				_ = corev1.AddToScheme(scheme)
+				return fake.NewClientBuilder().WithScheme(scheme).Build()
+			},
+			pclqMeta: metav1.ObjectMeta{
+				Name:      "test-pclq",
+				Namespace: "default",
+			},
+			expectError: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			fakeClient := tt.setupClient()
+
+			resource := &_resource{
+				client: fakeClient,
+			}
+
+			names, err := resource.GetExistingResourceNames(context.Background(), logr.Discard(), tt.pclqMeta)
+
+			if tt.expectError {
+				assert.Error(t, err, "Should return error for %s", tt.name)
+				assert.Empty(t, names)
+			} else {
+				assert.NoError(t, err, "Should not return error for %s", tt.name)
+			}
+		})
+	}
+}
+
+// TestDelete_ErrorScenarios tests error paths in Delete method
+func TestDelete_ErrorScenarios(t *testing.T) {
+	tests := []struct {
+		name        string
+		setupClient func() client.Client
+		pclqMeta    metav1.ObjectMeta
+		expectError bool
+	}{
+		{
+			// Should handle list errors
+			name: "list error",
+			setupClient: func() client.Client {
+				return &errorClientOperator{
+					Client:     fake.NewClientBuilder().WithScheme(runtime.NewScheme()).Build(),
+					failOnList: true,
+				}
+			},
+			pclqMeta: metav1.ObjectMeta{
+				Name:      "test-pclq",
+				Namespace: "default",
+			},
+			expectError: true,
+		},
+		{
+			// Should handle successful deletion
+			name: "successful deletion",
+			setupClient: func() client.Client {
+				scheme := runtime.NewScheme()
+				_ = corev1.AddToScheme(scheme)
+
+				pod := &corev1.Pod{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "test-pod",
+						Namespace: "default",
+						Labels: map[string]string{
+							apicommon.LabelPodClique: "test-pclq",
+						},
+						OwnerReferences: []metav1.OwnerReference{
+							{
+								APIVersion: "core.grove.nvidia.com/v1alpha1",
+								Kind:       "PodClique",
+								Name:       "test-pclq",
+								UID:        "test-uid",
+							},
+						},
+					},
+				}
+
+				return fake.NewClientBuilder().WithScheme(scheme).WithObjects(pod).Build()
+			},
+			pclqMeta: metav1.ObjectMeta{
+				Name:      "test-pclq",
+				Namespace: "default",
+				UID:       "test-uid",
+			},
+			expectError: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			fakeClient := tt.setupClient()
+			expectationsStore := expect.NewExpectationsStore()
+
+			resource := &_resource{
+				client:            fakeClient,
+				expectationsStore: expectationsStore,
+			}
+
+			err := resource.Delete(context.Background(), logr.Discard(), tt.pclqMeta)
+
+			if tt.expectError {
+				assert.Error(t, err, "Should return error for %s", tt.name)
+			} else {
+				assert.NoError(t, err, "Should not return error for %s", tt.name)
+			}
+		})
+	}
+}
+
+// errorClientOperator is a fake client that can be configured to return errors
+type errorClientOperator struct {
+	client.Client
+	failOnList   bool
+	failOnDelete bool
+	failOnCreate bool
+}
+
+func (c *errorClientOperator) List(ctx context.Context, list client.ObjectList, opts ...client.ListOption) error {
+	if c.failOnList {
+		return apierrors.NewInternalError(fmt.Errorf("simulated list error"))
+	}
+	return c.Client.List(ctx, list, opts...)
+}
+
+func (c *errorClientOperator) Delete(ctx context.Context, obj client.Object, opts ...client.DeleteOption) error {
+	if c.failOnDelete {
+		return apierrors.NewInternalError(fmt.Errorf("simulated delete error"))
+	}
+	return c.Client.Delete(ctx, obj, opts...)
+}
+
+func (c *errorClientOperator) Create(ctx context.Context, obj client.Object, opts ...client.CreateOption) error {
+	if c.failOnCreate {
+		return apierrors.NewInternalError(fmt.Errorf("simulated create error"))
+	}
+	return c.Client.Create(ctx, obj, opts...)
 }
