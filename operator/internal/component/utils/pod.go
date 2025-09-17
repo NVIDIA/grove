@@ -29,9 +29,12 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-// GetPCLQPods lists all Pods that belong to a PodClique
+// GetPCLQPods returns all Pods that belong to a PodClique.
+// It filters pods by matching labels and verifies ownership via controller references.
 func GetPCLQPods(ctx context.Context, cl client.Client, pcsName string, pclq *grovecorev1alpha1.PodClique) ([]*corev1.Pod, error) {
 	podList := &corev1.PodList{}
+
+	// List pods in the PodClique's namespace with matching labels
 	if err := cl.List(ctx,
 		podList,
 		client.InNamespace(pclq.Namespace),
@@ -45,6 +48,8 @@ func GetPCLQPods(ctx context.Context, cl client.Client, pcsName string, pclq *gr
 		)); err != nil {
 		return nil, err
 	}
+
+	// Filter pods that are actually owned by this PodClique
 	ownedPods := make([]*corev1.Pod, 0, len(podList.Items))
 	for _, pod := range podList.Items {
 		if metav1.IsControlledBy(&pod, pclq) {
@@ -54,14 +59,16 @@ func GetPCLQPods(ctx context.Context, cl client.Client, pcsName string, pclq *gr
 	return ownedPods, nil
 }
 
-// AddEnvVarsToContainers adds the given environment variables to the Pod containers.
+// AddEnvVarsToContainers appends environment variables to all containers in the slice.
+// This modifies the containers in-place by appending to their existing Env field.
 func AddEnvVarsToContainers(containers []corev1.Container, envVars []corev1.EnvVar) {
 	for i := range containers {
 		containers[i].Env = append(containers[i].Env, envVars...)
 	}
 }
 
-// PodsToObjectNames converts a slice of Pods to a slice of string representations in "namespace/name" format.
+// PodsToObjectNames converts a slice of Pods to string names in "namespace/name" format.
+// This is useful for logging and debugging purposes.
 func PodsToObjectNames(pods []*corev1.Pod) []string {
 	return lo.Map(pods, func(pod *corev1.Pod, _ int) string {
 		return cache.NamespacedNameAsObjectName(client.ObjectKeyFromObject(pod)).String()
