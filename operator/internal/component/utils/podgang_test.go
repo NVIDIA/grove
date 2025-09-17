@@ -21,7 +21,6 @@ import (
 	"testing"
 
 	apicommon "github.com/NVIDIA/grove/operator/api/common"
-	_ "github.com/NVIDIA/grove/operator/test/utils"
 
 	groveschedulerv1alpha1 "github.com/NVIDIA/grove/scheduler/api/core/v1alpha1"
 	"github.com/stretchr/testify/assert"
@@ -31,6 +30,8 @@ import (
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
+
+	_ "github.com/NVIDIA/grove/operator/test/utils"
 )
 
 // TestGetPodGangSelectorLabels validates generation of selector labels for PodGang objects.
