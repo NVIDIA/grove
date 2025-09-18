@@ -14,6 +14,8 @@
 // limitations under the License.
 // */
 
+// Package podclique provides synchronization logic for PodClique resources in PodCliqueScalingGroup.
+// This file contains the core sync operations including context preparation and resource management.
 package podclique
 
 import (
@@ -38,17 +40,21 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
+// syncContext holds all the necessary data for synchronizing PodClique resources.
+// It contains both current state and expected state information needed during sync operations.
 type syncContext struct {
-	ctx                            context.Context
-	pcs                            *grovecorev1alpha1.PodCliqueSet
-	pcsg                           *grovecorev1alpha1.PodCliqueScalingGroup
-	existingPCLQs                  []grovecorev1alpha1.PodClique
-	pcsgIndicesToTerminate         []string
-	pcsgIndicesToRequeue           []string
-	expectedPCLQFQNsPerPCSGReplica map[int][]string
-	expectedPCLQPodTemplateHashMap map[string]string
+	ctx                            context.Context                          // Request context
+	pcs                            *grovecorev1alpha1.PodCliqueSet          // Parent PodCliqueSet
+	pcsg                           *grovecorev1alpha1.PodCliqueScalingGroup // Target PodCliqueScalingGroup
+	existingPCLQs                  []grovecorev1alpha1.PodClique            // Currently existing PodClique resources
+	pcsgIndicesToTerminate         []string                                 // PCSG replica indices ready for termination
+	pcsgIndicesToRequeue           []string                                 // PCSG replica indices waiting for termination delay
+	expectedPCLQFQNsPerPCSGReplica map[int][]string                         // Expected PodClique names per replica index
+	expectedPCLQPodTemplateHashMap map[string]string                        // Expected pod template hashes for each PodClique
 }
 
+// prepareSyncContext builds the synchronization context with current and expected state information.
+// It fetches the parent PodCliqueSet, computes expected resources, and identifies problematic replicas.
 func (r _resource) prepareSyncContext(ctx context.Context, logger logr.Logger, pcsg *grovecorev1alpha1.PodCliqueScalingGroup) (*syncContext, error) {
 	var (
 		syncCtx = &syncContext{
@@ -58,7 +64,7 @@ func (r _resource) prepareSyncContext(ctx context.Context, logger logr.Logger, p
 		err error
 	)
 
-	// get the PodCliqueSet
+	// Fetch the parent PodCliqueSet that owns this PodCliqueScalingGroup
 	syncCtx.pcs, err = componentutils.GetPodCliqueSet(ctx, r.client, pcsg.ObjectMeta)
 	if err != nil {
 		return nil, groveerr.WrapError(err,
@@ -68,17 +74,21 @@ func (r _resource) prepareSyncContext(ctx context.Context, logger logr.Logger, p
 		)
 	}
 
-	// compute the expected state and get existing state.
+	// Compute expected state and fetch current state
 	syncCtx.expectedPCLQFQNsPerPCSGReplica = getExpectedPodCliqueFQNsByPCSGReplica(pcsg)
 	syncCtx.existingPCLQs, err = r.getExistingPCLQs(ctx, pcsg)
 	if err != nil {
 		return nil, err
 	}
 
-	// compute the PCSG indices that have their MinAvailableBreached condition set to true. Segregated these into two
-	// pcsgIndicesToTerminate will have the indices for which the TerminationDelay has expired.
-	// pcsgIndicesToRequeue will have the indices for which the TerminationDelay has not yet expired.
-	syncCtx.pcsgIndicesToTerminate, syncCtx.pcsgIndicesToRequeue = getMinAvailableBreachedPCSGIndices(logger, syncCtx.existingPCLQs, syncCtx.pcs.Spec.Template.TerminationDelay.Duration)
+	// Identify PCSG replica indices with MinAvailable breached and segregate by termination readiness
+	// pcsgIndicesToTerminate: replicas past their termination delay
+	// pcsgIndicesToRequeue: replicas still within their termination delay
+	var terminationDelay time.Duration
+	if syncCtx.pcs.Spec.Template.TerminationDelay != nil {
+		terminationDelay = syncCtx.pcs.Spec.Template.TerminationDelay.Duration
+	}
+	syncCtx.pcsgIndicesToTerminate, syncCtx.pcsgIndicesToRequeue = getMinAvailableBreachedPCSGIndices(logger, syncCtx.existingPCLQs, terminationDelay)
 
 	// pre-compute expected PodTemplateHash for each PCLQ
 	syncCtx.expectedPCLQPodTemplateHashMap = getExpectedPCLQPodTemplateHashMap(syncCtx.pcs, pcsg)
@@ -86,6 +96,8 @@ func (r _resource) prepareSyncContext(ctx context.Context, logger logr.Logger, p
 	return syncCtx, nil
 }
 
+// runSyncFlow executes the main synchronization logic for PodClique resources.
+// It handles scaling, updates, and termination operations in the correct order.
 func (r _resource) runSyncFlow(logger logr.Logger, sc *syncContext) error {
 	// If there are excess PodCliques than expected, delete the ones that are no longer expected but existing.
 	// This can happen when PCSG replicas have been scaled-in.
@@ -100,6 +112,7 @@ func (r _resource) runSyncFlow(logger logr.Logger, sc *syncContext) error {
 	// Only if the rolling update is not in progress, check for a possibility of gang termination and execute it only if
 	// the pcsg.spec.minAvailable is not breached.
 	if !componentutils.IsPCSGUpdateInProgress(sc.pcsg) {
+		// Normal mode: process gang termination for unhealthy replicas
 		if err := r.processMinAvailableBreachedPCSGReplicas(logger, sc); err != nil {
 			if errors.Is(err, errPCCGMinAvailableBreached) {
 				logger.Info("Skipping further reconciliation as MinAvailable for the PCSG has been breached. This can potentially trigger PCS replica deletion.")
@@ -108,6 +121,7 @@ func (r _resource) runSyncFlow(logger logr.Logger, sc *syncContext) error {
 			return err
 		}
 	} else {
+		// Update mode: process rolling updates
 		if err := r.processPendingUpdates(logger, sc); err != nil {
 			return err
 		}
@@ -124,6 +138,8 @@ func (r _resource) runSyncFlow(logger logr.Logger, sc *syncContext) error {
 	return nil
 }
 
+// triggerDeletionOfExcessPCSGReplicas handles scale-down operations by deleting excess PodClique replicas.
+// It identifies replicas beyond the target count and triggers their deletion.
 func (r _resource) triggerDeletionOfExcessPCSGReplicas(logger logr.Logger, sc *syncContext) error {
 	existingPCSGReplicas := getExistingNonTerminatingPCSGReplicas(sc.existingPCLQs)
 	// Check if the number of existing PodCliques is greater than expected, if so, we need to delete the extra ones.
@@ -142,6 +158,8 @@ func (r _resource) triggerDeletionOfExcessPCSGReplicas(logger logr.Logger, sc *s
 	return nil
 }
 
+// getExistingNonTerminatingPCSGReplicas counts the number of active PCSG replicas.
+// It excludes replicas that are currently terminating from the count.
 func getExistingNonTerminatingPCSGReplicas(existingPCLQs []grovecorev1alpha1.PodClique) int {
 	existingIndices := make([]string, 0, len(existingPCLQs))
 	for _, pclq := range existingPCLQs {
@@ -157,6 +175,8 @@ func getExistingNonTerminatingPCSGReplicas(existingPCLQs []grovecorev1alpha1.Pod
 	return len(lo.Uniq(existingIndices))
 }
 
+// computePCSGReplicasToDelete calculates which replica indices should be deleted during scale-down.
+// It returns the highest-numbered replica indices that exceed the expected count.
 func computePCSGReplicasToDelete(existingReplicas, expectedReplicas int) []string {
 	indices := make([]string, 0, existingReplicas-expectedReplicas)
 	for i := expectedReplicas; i < existingReplicas; i++ {
@@ -165,6 +185,8 @@ func computePCSGReplicasToDelete(existingReplicas, expectedReplicas int) []strin
 	return indices
 }
 
+// createExpectedPCLQs creates any missing PodClique resources to match the expected state.
+// It creates tasks to build PodCliques that should exist but are currently missing.
 func (r _resource) createExpectedPCLQs(logger logr.Logger, sc *syncContext) error {
 	var tasks []utils.Task
 	existingPCLQFQNs := lo.Map(sc.existingPCLQs, func(pclq grovecorev1alpha1.PodClique, _ int) string { return pclq.Name })
@@ -196,6 +218,8 @@ func (r _resource) createExpectedPCLQs(logger logr.Logger, sc *syncContext) erro
 	return nil
 }
 
+// processMinAvailableBreachedPCSGReplicas handles gang termination of unhealthy replicas.
+// It ensures the PCSG's minAvailable constraint is respected before terminating replicas.
 func (r _resource) processMinAvailableBreachedPCSGReplicas(logger logr.Logger, sc *syncContext) error {
 	// If pcsg.spec.minAvailable is breached, then delegate the responsibility to the PodCliqueSet reconciler which after
 	// termination delay terminate the PodCliqueSet replica. No further processing is required to be done here.
@@ -207,7 +231,13 @@ func (r _resource) processMinAvailableBreachedPCSGReplicas(logger logr.Logger, s
 	// its minAvailable breached for a duration > terminationDelay then gang terminate such PCSG replicas.
 	if len(sc.pcsgIndicesToTerminate) > 0 {
 		logger.Info("Identified PodCliqueScalingGroup indices for gang termination", "indices", sc.pcsgIndicesToTerminate)
-		reason := fmt.Sprintf("Delete PodCliques %v for PodCliqueScalingGroup %v which have breached MinAvailable longer than TerminationDelay: %s", sc.pcsgIndicesToTerminate, client.ObjectKeyFromObject(sc.pcsg), sc.pcs.Spec.Template.TerminationDelay.Duration)
+		var terminationDelayStr string
+		if sc.pcs.Spec.Template.TerminationDelay != nil {
+			terminationDelayStr = sc.pcs.Spec.Template.TerminationDelay.Duration.String()
+		} else {
+			terminationDelayStr = "0s"
+		}
+		reason := fmt.Sprintf("Delete PodCliques %v for PodCliqueScalingGroup %v which have breached MinAvailable longer than TerminationDelay: %s", sc.pcsgIndicesToTerminate, client.ObjectKeyFromObject(sc.pcsg), terminationDelayStr)
 		pclqGangTerminationTasks := r.createDeleteTasks(logger, sc.pcs, sc.pcsg.Name, sc.pcsgIndicesToTerminate, reason)
 		if err := r.triggerDeletionOfPodCliques(sc.ctx, logger, client.ObjectKeyFromObject(sc.pcsg), pclqGangTerminationTasks); err != nil {
 			return err
@@ -220,6 +250,8 @@ func (r _resource) processMinAvailableBreachedPCSGReplicas(logger logr.Logger, s
 	return nil
 }
 
+// getMinAvailableBreachedPCSGIndices identifies PCSG replicas with MinAvailable violations.
+// It separates replicas into those ready for termination and those still within the grace period.
 func getMinAvailableBreachedPCSGIndices(logger logr.Logger, existingPCLQs []grovecorev1alpha1.PodClique, terminationDelay time.Duration) (pcsgIndicesToTerminate []string, pcsgIndicesToRequeue []string) {
 	now := time.Now()
 	// group existing PCLQs by PCSG replica index. These are PCLQs that belong to one replica of PCSG.
@@ -239,9 +271,8 @@ func getMinAvailableBreachedPCSGIndices(logger logr.Logger, existingPCLQs []grov
 	return
 }
 
-// getExpectedPodCliqueFQNsByPCSGReplica computes expected PCLQ names per expected PCSG replica.
-// It returns a map with the key being the PCSG replica index and the value is the expected PCLQ FQNs for that replica. In addition
-// it also returns the total number of expected PCLQs.
+// getExpectedPodCliqueFQNsByPCSGReplica computes the expected PodClique names for each PCSG replica.
+// It returns a map where keys are replica indices and values are lists of expected PodClique names.
 func getExpectedPodCliqueFQNsByPCSGReplica(pcsg *grovecorev1alpha1.PodCliqueScalingGroup) map[int][]string {
 	var (
 		expectedPCLQFQNs = make(map[int][]string)
@@ -258,6 +289,8 @@ func getExpectedPodCliqueFQNsByPCSGReplica(pcsg *grovecorev1alpha1.PodCliqueScal
 	return expectedPCLQFQNs
 }
 
+// getExistingPCLQs retrieves all PodClique resources currently owned by the PodCliqueScalingGroup.
+// It uses label selectors to find PodCliques managed by this PCSG.
 func (r _resource) getExistingPCLQs(ctx context.Context, pcsg *grovecorev1alpha1.PodCliqueScalingGroup) ([]grovecorev1alpha1.PodClique, error) {
 	existingPCLQs, err := componentutils.GetPCLQsByOwner(ctx, r.client, constants.KindPodCliqueScalingGroup, client.ObjectKeyFromObject(pcsg), getPodCliqueSelectorLabels(pcsg.ObjectMeta))
 	if err != nil {
@@ -270,6 +303,8 @@ func (r _resource) getExistingPCLQs(ctx context.Context, pcsg *grovecorev1alpha1
 	return existingPCLQs, nil
 }
 
+// getExpectedPCLQPodTemplateHashMap computes expected pod template hashes for all PodCliques in the PCSG.
+// These hashes are used to detect when rolling updates are needed.
 func getExpectedPCLQPodTemplateHashMap(pcs *grovecorev1alpha1.PodCliqueSet, pcsg *grovecorev1alpha1.PodCliqueScalingGroup) map[string]string {
 	pclqFQNToHash := make(map[string]string)
 	pcsgPCLQNames := pcsg.Spec.CliqueNames
