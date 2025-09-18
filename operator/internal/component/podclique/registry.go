@@ -14,6 +14,8 @@
 // limitations under the License.
 // */
 
+// Package podclique provides component operator registration for PodClique resources.
+// It manages the lifecycle of pods within PodCliques by registering the appropriate operators.
 package podclique
 
 import (
@@ -27,8 +29,14 @@ import (
 )
 
 // CreateOperatorRegistry initializes the operator registry for the PodClique reconciler.
+// It creates a new registry and registers the pod operator to handle pod lifecycle management
+// within PodCliques, including creation, deletion, and scheduling gate management.
 func CreateOperatorRegistry(mgr manager.Manager, eventRecorder record.EventRecorder, expectationsStore *expect.ExpectationsStore) component.OperatorRegistry[v1alpha1.PodClique] {
+	// Create a new operator registry for PodClique resources
 	reg := component.NewOperatorRegistry[v1alpha1.PodClique]()
+
+	// Register the pod operator to handle pod operations for PodCliques
 	reg.Register(component.KindPod, pod.New(mgr.GetClient(), mgr.GetScheme(), eventRecorder, expectationsStore))
+
 	return reg
 }

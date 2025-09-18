@@ -14,6 +14,9 @@
 // limitations under the License.
 // */
 
+// Package pod provides pod lifecycle management for PodClique resources.
+// It handles pod creation, deletion, synchronization, and scheduling gate management
+// to ensure pods within a PodClique meet the desired state and startup ordering requirements.
 package pod
 
 import (
@@ -41,7 +44,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )
 
-// constants for error codes
+// Error codes for pod operations
 const (
 	errCodeGetPod                              grovecorev1alpha1.ErrorCode = "ERR_GET_POD"
 	errCodeDeletePod                           grovecorev1alpha1.ErrorCode = "ERR_DELETE_POD"
@@ -65,17 +68,23 @@ const (
 )
 
 const (
+	// podGangSchedulingGate is the scheduling gate applied to pods awaiting PodGang readiness
 	podGangSchedulingGate = "grove.io/podgang-pending-creation"
 )
 
+// _resource implements the component operator for pod management within PodCliques.
+// It provides the necessary dependencies for creating, deleting, and synchronizing pods
+// according to PodClique specifications and PodGang scheduling requirements.
 type _resource struct {
-	client            client.Client
-	scheme            *runtime.Scheme
-	eventRecorder     record.EventRecorder
-	expectationsStore *expect.ExpectationsStore
+	client            client.Client             // Kubernetes client for API operations
+	scheme            *runtime.Scheme           // Runtime scheme for object conversions
+	eventRecorder     record.EventRecorder      // Event recorder for pod lifecycle events
+	expectationsStore *expect.ExpectationsStore // Store for tracking create/delete expectations
 }
 
 // New creates an instance of Pod component operator.
+// It initializes the operator with the necessary dependencies for managing pod lifecycle
+// operations within PodCliques, including creation, deletion, and synchronization.
 func New(client client.Client, scheme *runtime.Scheme, eventRecorder record.EventRecorder, expectationsStore *expect.ExpectationsStore) component.Operator[grovecorev1alpha1.PodClique] {
 	return &_resource{
 		client:            client,
@@ -112,15 +121,23 @@ func (r _resource) GetExistingResourceNames(ctx context.Context, _ logr.Logger, 
 	return podNames, nil
 }
 
+// Sync reconciles the current state of pods with the desired state specified in the PodClique.
+// It orchestrates pod creation, deletion, updates, and scheduling gate management to ensure
+// the PodClique maintains the correct number of pods in the appropriate states.
 func (r _resource) Sync(ctx context.Context, logger logr.Logger, pclq *grovecorev1alpha1.PodClique) error {
+	// Prepare synchronization context with all necessary state and dependencies
 	sc, err := r.prepareSyncFlow(ctx, logger, pclq)
 	if err != nil {
 		return err
 	}
+
+	// Execute the main synchronization logic
 	result := r.runSyncFlow(logger, sc)
 	if result.hasErrors() {
 		return result.getAggregatedError()
 	}
+
+	// Check if pods are still waiting for scheduling gates to be removed
 	if result.hasPendingScheduleGatedPods() {
 		return groveerr.New(groveerr.ErrCodeRequeueAfter,
 			component.OperationSync,
@@ -130,6 +147,9 @@ func (r _resource) Sync(ctx context.Context, logger logr.Logger, pclq *grovecore
 	return nil
 }
 
+// buildResource constructs a pod resource from the PodClique specification.
+// It sets up all necessary metadata, labels, environment variables, and configuration
+// required for the pod to function properly within the PodClique ecosystem.
 func (r _resource) buildResource(pcs *grovecorev1alpha1.PodCliqueSet, pclq *grovecorev1alpha1.PodClique, podGangName string, pod *corev1.Pod, podIndex int) error {
 	// Extract PCS replica index from PodClique name for now (will be replaced with direct parameter)
 	pcsName := componentutils.GetPodCliqueSetName(pclq.ObjectMeta)
@@ -142,6 +162,7 @@ func (r _resource) buildResource(pcs *grovecorev1alpha1.PodCliqueSet, pclq *grov
 		)
 	}
 
+	// Set up pod metadata with appropriate labels and annotations
 	labels := getLabels(pclq.ObjectMeta, pcsName, podGangName, pcsReplicaIndex)
 	pod.ObjectMeta = metav1.ObjectMeta{
 		GenerateName: fmt.Sprintf("%s-", pclq.Name),
@@ -149,6 +170,8 @@ func (r _resource) buildResource(pcs *grovecorev1alpha1.PodCliqueSet, pclq *grov
 		Labels:       labels,
 		Annotations:  pclq.Annotations,
 	}
+
+	// Set controller reference to ensure proper ownership chain
 	if err = controllerutil.SetControllerReference(pclq, pod, r.scheme); err != nil {
 		return groveerr.WrapError(err,
 			errCodeSetControllerReference,
@@ -156,12 +179,17 @@ func (r _resource) buildResource(pcs *grovecorev1alpha1.PodCliqueSet, pclq *grov
 			fmt.Sprintf("error setting controller reference of PodClique: %v on Pod", client.ObjectKeyFromObject(pclq)),
 		)
 	}
+
+	// Copy pod specification and add scheduling gate for PodGang coordination
 	pod.Spec = *pclq.Spec.PodSpec.DeepCopy()
 	pod.Spec.SchedulingGates = []corev1.PodSchedulingGate{{Name: podGangSchedulingGate}}
+
 	// Add GROVE specific Pod environment variables
 	addEnvironmentVariables(pod, pclq, pcsName, pcsReplicaIndex, podIndex)
+
 	// Configure hostname and subdomain for service discovery
 	configurePodHostname(pcsName, pcsReplicaIndex, pclq.Name, pod, podIndex)
+
 	// If there is a need to enforce a Startup-Order then configure the init container and add it to the Pod Spec.
 	if len(pclq.Spec.StartsAfter) != 0 {
 		return configurePodInitContainer(pcs, pclq, pod)
@@ -169,8 +197,13 @@ func (r _resource) buildResource(pcs *grovecorev1alpha1.PodCliqueSet, pclq *grov
 	return nil
 }
 
+// Delete removes all pods associated with the given PodClique.
+// It performs a bulk deletion of pods matching the PodClique's labels and cleans up
+// the expectations store to ensure consistent state tracking.
 func (r _resource) Delete(ctx context.Context, logger logr.Logger, pclqObjectMeta metav1.ObjectMeta) error {
 	logger.Info("Triggering delete of all pods for the PodClique")
+
+	// Delete all pods matching the PodClique's selector labels
 	if err := r.client.DeleteAllOf(ctx,
 		&corev1.Pod{},
 		client.InNamespace(pclqObjectMeta.Namespace),
@@ -181,6 +214,8 @@ func (r _resource) Delete(ctx context.Context, logger logr.Logger, pclqObjectMet
 			fmt.Sprintf("failed to delete all pods for PodClique %v", k8sutils.GetObjectKeyFromObjectMeta(pclqObjectMeta)),
 		)
 	}
+
+	// Clean up expectations store for this PodClique
 	pclqExpStoreKey, err := getPodCliqueExpectationsStoreKey(logger, component.OperationDelete, pclqObjectMeta)
 	if err != nil {
 		return err
@@ -191,10 +226,13 @@ func (r _resource) Delete(ctx context.Context, logger logr.Logger, pclqObjectMet
 			component.OperationDelete,
 			fmt.Sprintf("failed to delete expectations store for PodClique %v", pclqObjectMeta.Name))
 	}
+
 	logger.Info("Successfully deleted all pods for the PodClique")
 	return nil
 }
 
+// getSelectorLabelsForPods returns the labels used to select pods belonging to a PodClique.
+// These labels are used for listing and bulk operations on pods managed by the PodClique.
 func getSelectorLabelsForPods(pclqObjectMeta metav1.ObjectMeta) map[string]string {
 	pcsName := k8sutils.GetFirstOwnerName(pclqObjectMeta)
 	return lo.Assign(
@@ -205,6 +243,9 @@ func getSelectorLabelsForPods(pclqObjectMeta metav1.ObjectMeta) map[string]strin
 	)
 }
 
+// getLabels constructs the complete set of labels for a pod within a PodClique.
+// It combines default Grove labels, PodClique-specific labels, and any custom labels
+// from the PodClique template.
 func getLabels(pclqObjectMeta metav1.ObjectMeta, pcsName, podGangName string, pcsReplicaIndex int) map[string]string {
 	labels := map[string]string{
 		apicommon.LabelPodClique:                pclqObjectMeta.Name,
@@ -219,7 +260,10 @@ func getLabels(pclqObjectMeta metav1.ObjectMeta, pcsName, podGangName string, pc
 }
 
 // addEnvironmentVariables adds Grove-specific environment variables to all containers and init-containers.
+// These variables provide runtime context about the pod's position within the PodClique hierarchy
+// and enable service discovery and coordination between pods.
 func addEnvironmentVariables(pod *corev1.Pod, pclq *grovecorev1alpha1.PodClique, pcsName string, pcsReplicaIndex, podIndex int) {
+	// Construct Grove environment variables with pod context
 	groveEnvVars := []corev1.EnvVar{
 		{
 			Name:  constants.EnvVarPodCliqueSetName,
@@ -244,16 +288,20 @@ func addEnvironmentVariables(pod *corev1.Pod, pclq *grovecorev1alpha1.PodClique,
 			Value: strconv.Itoa(podIndex),
 		},
 	}
+
+	// Add environment variables to all containers and init containers
 	componentutils.AddEnvVarsToContainers(pod.Spec.Containers, groveEnvVars)
 	componentutils.AddEnvVarsToContainers(pod.Spec.InitContainers, groveEnvVars)
 }
 
-// configurePodHostname sets the pod hostname and subdomain for service discovery
+// configurePodHostname sets the pod hostname and subdomain for service discovery.
+// This enables pods to be addressable via DNS within the PodClique's headless service,
+// facilitating inter-pod communication and coordination.
 func configurePodHostname(pcsName string, pcsReplicaIndex int, pclqName string, pod *corev1.Pod, podIndex int) {
 	// Set hostname for service discovery (e.g., "my-pclq-0")
 	pod.Spec.Hostname = fmt.Sprintf("%s-%d", pclqName, podIndex)
 
-	// Set subdomain to headless service name (reusing existing logic)
+	// Set subdomain to headless service name to enable DNS resolution
 	pod.Spec.Subdomain = apicommon.GenerateHeadlessServiceName(
 		apicommon.ResourceNameReplica{Name: pcsName, Replica: pcsReplicaIndex})
 }
