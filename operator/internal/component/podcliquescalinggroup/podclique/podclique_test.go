@@ -1138,7 +1138,7 @@ func TestTriggerDeletionOfPodCliques(t *testing.T) {
 			deletionTasks: []utils.Task{
 				{
 					Name: "delete-pclq-1",
-					Fn: func(ctx context.Context) error {
+					Fn: func(_ context.Context) error {
 						// Simulate successful deletion
 						return nil
 					},
@@ -1156,13 +1156,13 @@ func TestTriggerDeletionOfPodCliques(t *testing.T) {
 			deletionTasks: []utils.Task{
 				{
 					Name: "delete-pclq-1",
-					Fn: func(ctx context.Context) error {
+					Fn: func(_ context.Context) error {
 						return nil
 					},
 				},
 				{
 					Name: "delete-pclq-2",
-					Fn: func(ctx context.Context) error {
+					Fn: func(_ context.Context) error {
 						return nil
 					},
 				},
@@ -1179,7 +1179,7 @@ func TestTriggerDeletionOfPodCliques(t *testing.T) {
 			deletionTasks: []utils.Task{
 				{
 					Name: "delete-pclq-1",
-					Fn: func(ctx context.Context) error {
+					Fn: func(_ context.Context) error {
 						return errors.New("deletion failed")
 					},
 				},
@@ -1196,13 +1196,13 @@ func TestTriggerDeletionOfPodCliques(t *testing.T) {
 			deletionTasks: []utils.Task{
 				{
 					Name: "delete-pclq-success",
-					Fn: func(ctx context.Context) error {
+					Fn: func(_ context.Context) error {
 						return nil
 					},
 				},
 				{
 					Name: "delete-pclq-failure",
-					Fn: func(ctx context.Context) error {
+					Fn: func(_ context.Context) error {
 						return errors.New("deletion failed")
 					},
 				},

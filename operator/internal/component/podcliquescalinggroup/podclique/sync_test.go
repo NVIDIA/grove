@@ -575,7 +575,7 @@ func TestGetExistingPCLQs(t *testing.T) {
 			// Single owned PodClique should be returned
 			name: "single owned podclique",
 			existingPodCliques: []grovecorev1alpha1.PodClique{
-				createTestPodCliqueForPCSG("test-pcsg-0-worker", "0", "test-pcsg", false),
+				createTestPodCliqueForPCSG("test-pcsg-0-worker", "0"),
 			},
 			pcsg: &grovecorev1alpha1.PodCliqueScalingGroup{
 				ObjectMeta: metav1.ObjectMeta{
@@ -594,9 +594,9 @@ func TestGetExistingPCLQs(t *testing.T) {
 			// Multiple owned PodCliques should all be returned
 			name: "multiple owned podcliques",
 			existingPodCliques: []grovecorev1alpha1.PodClique{
-				createTestPodCliqueForPCSG("test-pcsg-0-worker", "0", "test-pcsg", false),
-				createTestPodCliqueForPCSG("test-pcsg-0-master", "0", "test-pcsg", false),
-				createTestPodCliqueForPCSG("test-pcsg-1-worker", "1", "test-pcsg", false),
+				createTestPodCliqueForPCSG("test-pcsg-0-worker", "0"),
+				createTestPodCliqueForPCSG("test-pcsg-0-master", "0"),
+				createTestPodCliqueForPCSG("test-pcsg-1-worker", "1"),
 			},
 			pcsg: &grovecorev1alpha1.PodCliqueScalingGroup{
 				ObjectMeta: metav1.ObjectMeta{
@@ -615,7 +615,7 @@ func TestGetExistingPCLQs(t *testing.T) {
 			// Unowned PodCliques should be filtered out
 			name: "filters out unowned podcliques",
 			existingPodCliques: []grovecorev1alpha1.PodClique{
-				createTestPodCliqueForPCSG("test-pcsg-0-worker", "0", "test-pcsg", false),
+				createTestPodCliqueForPCSG("test-pcsg-0-worker", "0"),
 				createTestPodCliqueWithReplicaIndex("other-pcsg-0-worker", "0", false), // Not owned - different PCSG
 			},
 			pcsg: &grovecorev1alpha1.PodCliqueScalingGroup{
@@ -806,7 +806,9 @@ func createUnhealthyPodClique(name, replicaIndex string, breachTime time.Time) g
 }
 
 // createTestPodCliqueForPCSG creates a test PodClique with proper labels for PCSG ownership testing
-func createTestPodCliqueForPCSG(name, replicaIndex, pcsgName string, terminating bool) grovecorev1alpha1.PodClique {
+func createTestPodCliqueForPCSG(name, replicaIndex string) grovecorev1alpha1.PodClique {
+	// Use constant for test consistency
+	pcsgName := "test-pcsg"
 	pclq := grovecorev1alpha1.PodClique{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      name,
@@ -831,13 +833,6 @@ func createTestPodCliqueForPCSG(name, replicaIndex, pcsgName string, terminating
 		Spec: grovecorev1alpha1.PodCliqueSpec{
 			MinAvailable: ptr.To(int32(1)),
 		},
-	}
-
-	if terminating {
-		// Add deletion timestamp and finalizer to simulate terminating state
-		now := metav1.Now()
-		pclq.DeletionTimestamp = &now
-		pclq.Finalizers = []string{"test-finalizer"}
 	}
 
 	return pclq
