@@ -1,4 +1,7 @@
-> [!NOTE]
+[![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
+[![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/NVIDIA/grove) 
+
+[!NOTE]
 >
 > :construction_worker: `This project site is currently under active construction, keep watching for announcements as we approach alpha launch!`
 
@@ -42,7 +45,7 @@ The Grove API consists of a user API and a scheduling API. While the user API (`
 
 ## Example Use Cases
 
-- **Multi-Node, Disaggregated Inference for large models** ***(DeepSeek-R1, Llama-4-Maverick)*** : [Visualization](docs/assets/multinode-disaggregated.excalidraw.png)
+- **Multi-Node, Disaggregated Inference for large models** ***(DeepSeek-R1, Kimi-K2, Llama-4-Maverick)*** : [Visualization](docs/assets/multinode-disaggregated.excalidraw.png)
 - **Single-Node, Disaggregated Inference** : [Visualization](docs/assets/singlenode-disaggregated.excalidraw.png)
 - **Agentic Pipeline of Models** : [Visualization](docs/assets/agentic-pipeline.excalidraw.png)
 - **Standard Aggregated Single Node or Single GPU Inference** : [Visualization](docs/assets/singlenode-aggregated.excalidraw.png)
