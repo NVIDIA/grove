@@ -26,7 +26,7 @@ import (
 
 	apicommon "github.com/NVIDIA/grove/operator/api/common"
 	grovecorev1alpha1 "github.com/NVIDIA/grove/operator/api/core/v1alpha1"
-	"github.com/NVIDIA/grove/operator/internal/common"
+	"github.com/NVIDIA/grove/operator/internal/constants"
 	groveerr "github.com/NVIDIA/grove/operator/internal/errors"
 
 	"github.com/go-logr/logr"
@@ -63,14 +63,14 @@ type ParentPodCliqueDependencies struct {
 
 // NewPodCliqueState creates and initializes all parent PodCliques with an unready state.
 func NewPodCliqueState(podCliqueDependencies map[string]int, log logr.Logger) (*ParentPodCliqueDependencies, error) {
-	podNamespaceFilePath := filepath.Join(common.VolumeMountPathPodInfo, common.PodNamespaceFileName)
+	podNamespaceFilePath := filepath.Join(constants.VolumeMountPathPodInfo, constants.PodNamespaceFileName)
 	podNamespace, err := os.ReadFile(podNamespaceFilePath)
 	if err != nil {
 		log.Error(err, "Failed to read the pod namespace from the file", "filepath", podNamespaceFilePath)
 		return nil, err
 	}
 
-	podGangNameFilePath := filepath.Join(common.VolumeMountPathPodInfo, common.PodGangNameFileName)
+	podGangNameFilePath := filepath.Join(constants.VolumeMountPathPodInfo, constants.PodGangNameFileName)
 	podGangName, err := os.ReadFile(podGangNameFilePath)
 	if err != nil {
 		log.Error(err, "Failed to read the PodGang name from the file", "filepath", podGangNameFilePath)

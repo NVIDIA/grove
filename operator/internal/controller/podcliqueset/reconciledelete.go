@@ -33,7 +33,6 @@ import (
 
 func (r *Reconciler) triggerDeletionFlow(ctx context.Context, logger logr.Logger, pcs *v1alpha1.PodCliqueSet) ctrlcommon.ReconcileStepResult {
 	deleteStepFns := []ctrlcommon.ReconcileStepFn[v1alpha1.PodCliqueSet]{
-		r.recordDeletionStart,
 		r.deletePodCliqueSetResources,
 		r.verifyNoResourcesAwaitsCleanup,
 		r.removeFinalizer,
@@ -45,15 +44,6 @@ func (r *Reconciler) triggerDeletionFlow(ctx context.Context, logger logr.Logger
 	}
 	logger.Info("PodCliqueSet deleted successfully")
 	return ctrlcommon.DoNotRequeue()
-}
-
-func (r *Reconciler) recordDeletionStart(ctx context.Context, logger logr.Logger, pcs *v1alpha1.PodCliqueSet) ctrlcommon.ReconcileStepResult {
-	if err := r.reconcileStatusRecorder.RecordStart(ctx, pcs, v1alpha1.LastOperationTypeDelete); err != nil {
-		errMsg := "failed to record deletion start operation"
-		logger.Error(err, errMsg, "PodCliqueSet", pcs)
-		return ctrlcommon.ReconcileWithErrors(errMsg, err)
-	}
-	return ctrlcommon.ContinueReconcile()
 }
 
 func (r *Reconciler) deletePodCliqueSetResources(ctx context.Context, logger logr.Logger, pcs *v1alpha1.PodCliqueSet) ctrlcommon.ReconcileStepResult {
@@ -93,7 +83,7 @@ func (r *Reconciler) removeFinalizer(ctx context.Context, logger logr.Logger, pc
 }
 
 func (r *Reconciler) recordIncompleteDeletion(ctx context.Context, logger logr.Logger, pcs *v1alpha1.PodCliqueSet, errResult *ctrlcommon.ReconcileStepResult) ctrlcommon.ReconcileStepResult {
-	if err := r.reconcileStatusRecorder.RecordCompletion(ctx, pcs, v1alpha1.LastOperationTypeDelete, errResult); err != nil {
+	if err := r.reconcileStatusRecorder.RecordErrors(ctx, pcs, errResult); err != nil {
 		logger.Error(err, "failed to record deletion completion operation", "PodCliqueSet", pcs)
 		// combine all errors
 		allErrs := append(errResult.GetErrors(), err)

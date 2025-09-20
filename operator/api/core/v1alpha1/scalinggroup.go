@@ -91,8 +91,6 @@ type PodCliqueScalingGroupStatus struct {
 	Selector *string `json:"selector,omitempty"`
 	// ObservedGeneration is the most recent generation observed by the controller.
 	ObservedGeneration *int64 `json:"observedGeneration,omitempty"`
-	// LastOperation captures the last operation done by the respective reconciler on the PodClique.
-	LastOperation *LastOperation `json:"lastOperation,omitempty"`
 	// LastErrors captures the last errors observed by the controller when reconciling the PodClique.
 	LastErrors []LastError `json:"lastErrors,omitempty"`
 	// Conditions represents the latest available observations of the PodCliqueScalingGroup by its controller.
@@ -133,9 +131,4 @@ type PodCliqueScalingGroupReplicaRollingUpdateProgress struct {
 // SetLastErrors sets the last errors observed by the controller when reconciling the PodCliqueScalingGroup.
 func (pcsg *PodCliqueScalingGroup) SetLastErrors(lastErrs ...LastError) {
 	pcsg.Status.LastErrors = lastErrs
-}
-
-// SetLastOperation sets the last operation done by the respective reconciler on the PodCliqueScalingGroup.
-func (pcsg *PodCliqueScalingGroup) SetLastOperation(lastOp *LastOperation) {
-	pcsg.Status.LastOperation = lastOp
 }

@@ -22,9 +22,9 @@ import (
 	"github.com/NVIDIA/grove/operator/api/common/constants"
 	groveconfigv1alpha1 "github.com/NVIDIA/grove/operator/api/config/v1alpha1"
 	grovecorev1alpha1 "github.com/NVIDIA/grove/operator/api/core/v1alpha1"
-	"github.com/NVIDIA/grove/operator/internal/component"
-	pcsgcomponent "github.com/NVIDIA/grove/operator/internal/component/podcliquescalinggroup"
 	ctrlcommon "github.com/NVIDIA/grove/operator/internal/controller/common"
+	"github.com/NVIDIA/grove/operator/internal/controller/common/component"
+	pcsgcomponent "github.com/NVIDIA/grove/operator/internal/controller/podcliquescalinggroup/components"
 	ctrlutils "github.com/NVIDIA/grove/operator/internal/controller/utils"
 
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -37,17 +37,18 @@ import (
 type Reconciler struct {
 	config                  groveconfigv1alpha1.PodCliqueScalingGroupControllerConfiguration
 	client                  client.Client
-	reconcileStatusRecorder ctrlcommon.ReconcileStatusRecorder
+	reconcileStatusRecorder ctrlcommon.ReconcileErrorRecorder
 	operatorRegistry        component.OperatorRegistry[grovecorev1alpha1.PodCliqueScalingGroup]
 }
 
 // NewReconciler creates a new instance of the PodClique Reconciler.
 func NewReconciler(mgr ctrl.Manager, controllerCfg groveconfigv1alpha1.PodCliqueScalingGroupControllerConfiguration) *Reconciler {
 	eventRecorder := mgr.GetEventRecorderFor(controllerName)
+	client := mgr.GetClient()
 	return &Reconciler{
 		config:                  controllerCfg,
-		client:                  mgr.GetClient(),
-		reconcileStatusRecorder: ctrlcommon.NewReconcileStatusRecorder(mgr.GetClient(), eventRecorder),
+		client:                  client,
+		reconcileStatusRecorder: ctrlcommon.NewReconcileErrorRecorder(client),
 		operatorRegistry:        pcsgcomponent.CreateOperatorRegistry(mgr, eventRecorder),
 	}
 }

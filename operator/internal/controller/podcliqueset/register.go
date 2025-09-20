@@ -22,7 +22,7 @@ import (
 
 	"github.com/NVIDIA/grove/operator/api/common/constants"
 	grovecorev1alpha1 "github.com/NVIDIA/grove/operator/api/core/v1alpha1"
-	componentutils "github.com/NVIDIA/grove/operator/internal/component/utils"
+	componentutils "github.com/NVIDIA/grove/operator/internal/controller/common/component/utils"
 	grovectrlutils "github.com/NVIDIA/grove/operator/internal/controller/utils"
 	"github.com/NVIDIA/grove/operator/internal/utils"
 

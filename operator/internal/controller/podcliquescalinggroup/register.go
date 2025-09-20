@@ -42,7 +42,7 @@ const (
 
 // RegisterWithManager registers the PodCliqueScalingGroup Reconciler with the manager.
 // This reconciler will only be called when the PodCliqueScalingGroup resource is updated. The resource can either be
-// updated by an HPA or an equivalent external component.
+// updated by an HPA or an equivalent external components.
 func (r *Reconciler) RegisterWithManager(mgr manager.Manager) error {
 	return builder.ControllerManagedBy(mgr).
 		Named(controllerName).

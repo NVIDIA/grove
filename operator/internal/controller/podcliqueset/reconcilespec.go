@@ -20,10 +20,11 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/NVIDIA/grove/operator/api/common/constants"
+	apiconstants "github.com/NVIDIA/grove/operator/api/common/constants"
 	grovecorev1alpha1 "github.com/NVIDIA/grove/operator/api/core/v1alpha1"
-	"github.com/NVIDIA/grove/operator/internal/component"
+	"github.com/NVIDIA/grove/operator/internal/constants"
 	ctrlcommon "github.com/NVIDIA/grove/operator/internal/controller/common"
+	"github.com/NVIDIA/grove/operator/internal/controller/common/component"
 	ctrlutils "github.com/NVIDIA/grove/operator/internal/controller/utils"
 	k8sutils "github.com/NVIDIA/grove/operator/internal/utils/kubernetes"
 
@@ -40,10 +41,8 @@ func (r *Reconciler) reconcileSpec(ctx context.Context, logger logr.Logger, pcs 
 	rLog := logger.WithValues("operation", "spec-reconcile")
 	reconcileStepFns := []ctrlcommon.ReconcileStepFn[grovecorev1alpha1.PodCliqueSet]{
 		r.ensureFinalizer,
-		r.recordReconcileStart,
 		r.processGenerationHashChange,
 		r.syncPodCliqueSetResources,
-		r.recordReconcileSuccess,
 		r.updateObservedGeneration,
 	}
 
@@ -57,19 +56,11 @@ func (r *Reconciler) reconcileSpec(ctx context.Context, logger logr.Logger, pcs 
 }
 
 func (r *Reconciler) ensureFinalizer(ctx context.Context, logger logr.Logger, pcs *grovecorev1alpha1.PodCliqueSet) ctrlcommon.ReconcileStepResult {
-	if !controllerutil.ContainsFinalizer(pcs, constants.FinalizerPodCliqueSet) {
-		logger.Info("Adding finalizer", "finalizerName", constants.FinalizerPodCliqueSet)
-		if err := ctrlutils.AddAndPatchFinalizer(ctx, r.client, pcs, constants.FinalizerPodCliqueSet); err != nil {
-			return ctrlcommon.ReconcileWithErrors("error adding finalizer", fmt.Errorf("failed to add finalizer: %s to PodCliqueSet: %v: %w", constants.FinalizerPodCliqueSet, client.ObjectKeyFromObject(pcs), err))
+	if !controllerutil.ContainsFinalizer(pcs, apiconstants.FinalizerPodCliqueSet) {
+		logger.Info("Adding finalizer", "finalizerName", apiconstants.FinalizerPodCliqueSet)
+		if err := ctrlutils.AddAndPatchFinalizer(ctx, r.client, pcs, apiconstants.FinalizerPodCliqueSet); err != nil {
+			return ctrlcommon.ReconcileWithErrors("error adding finalizer", fmt.Errorf("failed to add finalizer: %s to PodCliqueSet: %v: %w", apiconstants.FinalizerPodCliqueSet, client.ObjectKeyFromObject(pcs), err))
 		}
-	}
-	return ctrlcommon.ContinueReconcile()
-}
-
-func (r *Reconciler) recordReconcileStart(ctx context.Context, logger logr.Logger, pcs *grovecorev1alpha1.PodCliqueSet) ctrlcommon.ReconcileStepResult {
-	if err := r.reconcileStatusRecorder.RecordStart(ctx, pcs, grovecorev1alpha1.LastOperationTypeReconcile); err != nil {
-		logger.Error(err, "failed to record reconcile start operation")
-		return ctrlcommon.ReconcileWithErrors("error recoding reconcile start", err)
 	}
 	return ctrlcommon.ContinueReconcile()
 }
@@ -82,7 +73,7 @@ func (r *Reconciler) processGenerationHashChange(ctx context.Context, logger log
 
 	// if the generationHash is not reflected correctly yet, requeue. Allow the informer cache to catch-up.
 	if !r.isGenerationHashExpectationSatisfied(pcsObjectName, pcs.Status.CurrentGenerationHash) {
-		return ctrlcommon.ReconcileAfter(ctrlcommon.ComponentSyncRetryInterval, fmt.Sprintf("CurrentGenerationHash is not up-to-date for PodCliqueSet: %v", pcsObjectKey))
+		return ctrlcommon.ReconcileAfter(constants.ComponentSyncRetryInterval, fmt.Sprintf("CurrentGenerationHash is not up-to-date for PodCliqueSet: %v", pcsObjectKey))
 	} else {
 		r.pcsGenerationHashExpectations.Delete(pcsObjectName)
 	}
@@ -159,28 +150,20 @@ func (r *Reconciler) syncPodCliqueSetResources(ctx context.Context, logger logr.
 		logger.Info("Syncing PodCliqueSet resource", "kind", kind)
 		if err = operator.Sync(ctx, logger, pcs); err != nil {
 			if ctrlutils.ShouldContinueReconcileAndRequeue(err) {
-				logger.Info("component has registered a request to requeue post completion of all component syncs", "kind", kind, "message", err.Error())
+				logger.Info("components has registered a request to requeue post completion of all components syncs", "kind", kind, "message", err.Error())
 				continueReconcileAndRequeueKinds = append(continueReconcileAndRequeueKinds, kind)
 				continue
 			}
 			if shouldRequeue := ctrlutils.ShouldRequeueAfter(err); shouldRequeue {
-				logger.Info("retrying sync due to component", "kind", kind, "syncRetryInterval", ctrlcommon.ComponentSyncRetryInterval, "message", err.Error())
-				return ctrlcommon.ReconcileAfter(ctrlcommon.ComponentSyncRetryInterval, err.Error())
+				logger.Info("retrying sync due to components", "kind", kind, "syncRetryInterval", constants.ComponentSyncRetryInterval, "message", err.Error())
+				return ctrlcommon.ReconcileAfter(constants.ComponentSyncRetryInterval, err.Error())
 			}
 			logger.Error(err, "failed to sync PodCliqueSet resources", "kind", kind)
 			return ctrlcommon.ReconcileWithErrors("error syncing managed resources", fmt.Errorf("failed to sync %s: %w", kind, err))
 		}
 	}
 	if len(continueReconcileAndRequeueKinds) > 0 {
-		return ctrlcommon.ReconcileAfter(ctrlcommon.ComponentSyncRetryInterval, fmt.Sprintf("requeueing sync due to component(s) %v after %s", continueReconcileAndRequeueKinds, ctrlcommon.ComponentSyncRetryInterval))
-	}
-	return ctrlcommon.ContinueReconcile()
-}
-
-func (r *Reconciler) recordReconcileSuccess(ctx context.Context, logger logr.Logger, pcs *grovecorev1alpha1.PodCliqueSet) ctrlcommon.ReconcileStepResult {
-	if err := r.reconcileStatusRecorder.RecordCompletion(ctx, pcs, grovecorev1alpha1.LastOperationTypeReconcile, nil); err != nil {
-		logger.Error(err, "failed to record reconcile success operation")
-		return ctrlcommon.ReconcileWithErrors("error recording reconcile success", err)
+		return ctrlcommon.ReconcileAfter(constants.ComponentSyncRetryInterval, fmt.Sprintf("requeueing sync due to components(s) %v after %s", continueReconcileAndRequeueKinds, constants.ComponentSyncRetryInterval))
 	}
 	return ctrlcommon.ContinueReconcile()
 }
@@ -197,7 +180,7 @@ func (r *Reconciler) updateObservedGeneration(ctx context.Context, logger logr.L
 }
 
 func (r *Reconciler) recordIncompleteReconcile(ctx context.Context, logger logr.Logger, pcs *grovecorev1alpha1.PodCliqueSet, errResult *ctrlcommon.ReconcileStepResult) ctrlcommon.ReconcileStepResult {
-	if err := r.reconcileStatusRecorder.RecordCompletion(ctx, pcs, grovecorev1alpha1.LastOperationTypeReconcile, errResult); err != nil {
+	if err := r.reconcileStatusRecorder.RecordErrors(ctx, pcs, errResult); err != nil {
 		logger.Error(err, "failed to record incomplete reconcile operation")
 		// combine all errors
 		allErrs := append(errResult.GetErrors(), err)

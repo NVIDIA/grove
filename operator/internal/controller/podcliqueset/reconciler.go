@@ -23,9 +23,9 @@ import (
 	"github.com/NVIDIA/grove/operator/api/common/constants"
 	configv1alpha1 "github.com/NVIDIA/grove/operator/api/config/v1alpha1"
 	grovecorev1alpha1 "github.com/NVIDIA/grove/operator/api/core/v1alpha1"
-	"github.com/NVIDIA/grove/operator/internal/component"
-	pcscomponent "github.com/NVIDIA/grove/operator/internal/component/podcliqueset"
 	ctrlcommon "github.com/NVIDIA/grove/operator/internal/controller/common"
+	"github.com/NVIDIA/grove/operator/internal/controller/common/component"
+	pcscomponent "github.com/NVIDIA/grove/operator/internal/controller/podcliqueset/components"
 	ctrlutils "github.com/NVIDIA/grove/operator/internal/controller/utils"
 
 	"github.com/go-logr/logr"
@@ -39,7 +39,7 @@ import (
 type Reconciler struct {
 	config                        configv1alpha1.PodCliqueSetControllerConfiguration
 	client                        ctrlclient.Client
-	reconcileStatusRecorder       ctrlcommon.ReconcileStatusRecorder
+	reconcileStatusRecorder       ctrlcommon.ReconcileErrorRecorder
 	operatorRegistry              component.OperatorRegistry[grovecorev1alpha1.PodCliqueSet]
 	pcsGenerationHashExpectations sync.Map
 }
@@ -47,10 +47,11 @@ type Reconciler struct {
 // NewReconciler creates a new reconciler for PodCliqueSet.
 func NewReconciler(mgr ctrl.Manager, controllerCfg configv1alpha1.PodCliqueSetControllerConfiguration) *Reconciler {
 	eventRecorder := mgr.GetEventRecorderFor(controllerName)
+	client := mgr.GetClient()
 	return &Reconciler{
 		config:                        controllerCfg,
-		client:                        mgr.GetClient(),
-		reconcileStatusRecorder:       ctrlcommon.NewReconcileStatusRecorder(mgr.GetClient(), eventRecorder),
+		client:                        client,
+		reconcileStatusRecorder:       ctrlcommon.NewReconcileErrorRecorder(client),
 		operatorRegistry:              pcscomponent.CreateOperatorRegistry(mgr, eventRecorder),
 		pcsGenerationHashExpectations: sync.Map{},
 	}

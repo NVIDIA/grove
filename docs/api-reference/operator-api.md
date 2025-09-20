@@ -102,25 +102,6 @@ _Appears in:_
 | `observedAt` _[Time](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.33/#time-v1-meta)_ | ObservedAt is the time at which the error was observed. |  |  |
 
 
-#### LastOperation
-
-
-
-LastOperation captures the last operation done by the respective reconciler on the PodCliqueSet.
-
-
-
-_Appears in:_
-- [PodCliqueScalingGroupStatus](#podcliquescalinggroupstatus)
-- [PodCliqueSetStatus](#podcliquesetstatus)
-- [PodCliqueStatus](#podcliquestatus)
-
-| Field | Description | Default | Validation |
-| --- | --- | --- | --- |
-| `type` _[LastOperationType](#lastoperationtype)_ | Type is the type of the last operation. |  |  |
-| `state` _[LastOperationState](#lastoperationstate)_ | State is the state of the last operation. |  |  |
-| `description` _string_ | Description is a human-readable description of the last operation. |  |  |
-| `lastUpdateTime` _[Time](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.33/#time-v1-meta)_ | LastUpdateTime is the time at which the last operation was updated. |  |  |
 
 
 #### LastOperationState
@@ -330,7 +311,6 @@ _Appears in:_
 | `updatedReplicas` _integer_ | UpdatedReplicas is the number of PodCliqueScalingGroup replicas that correspond with the latest PodCliqueSetGenerationHash. | 0 |  |
 | `selector` _string_ | Selector is the selector used to identify the pods that belong to this scaling group. |  |  |
 | `observedGeneration` _integer_ | ObservedGeneration is the most recent generation observed by the controller. |  |  |
-| `lastOperation` _[LastOperation](#lastoperation)_ | LastOperation captures the last operation done by the respective reconciler on the PodClique. |  |  |
 | `lastErrors` _[LastError](#lasterror) array_ | LastErrors captures the last errors observed by the controller when reconciling the PodClique. |  |  |
 | `conditions` _[Condition](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.33/#condition-v1-meta) array_ | Conditions represents the latest available observations of the PodCliqueScalingGroup by its controller. |  |  |
 | `currentPodCliqueSetGenerationHash` _string_ | CurrentPodCliqueSetGenerationHash establishes a correlation to PodCliqueSet generation hash indicating<br />that the spec of the PodCliqueSet at this generation is fully realized in the PodCliqueScalingGroup. |  |  |
@@ -425,7 +405,6 @@ _Appears in:_
 | Field | Description | Default | Validation |
 | --- | --- | --- | --- |
 | `observedGeneration` _integer_ | ObservedGeneration is the most recent generation observed by the controller. |  |  |
-| `lastOperation` _[LastOperation](#lastoperation)_ | LastOperation captures the last operation done by the respective reconciler on the PodCliqueSet. |  |  |
 | `lastErrors` _[LastError](#lasterror) array_ | LastErrors captures the last errors observed by the controller when reconciling the PodCliqueSet. |  |  |
 | `replicas` _integer_ | Replicas is the total number of PodCliqueSet replicas created. |  |  |
 | `updatedReplicas` _integer_ | UpdatedReplicas is the number of replicas that have been updated to the desired revision of the PodCliqueSet. | 0 |  |
@@ -499,7 +478,6 @@ _Appears in:_
 | Field | Description | Default | Validation |
 | --- | --- | --- | --- |
 | `observedGeneration` _integer_ | ObservedGeneration is the most recent generation observed by the controller. |  |  |
-| `lastOperation` _[LastOperation](#lastoperation)_ | LastOperation captures the last operation done by the respective reconciler on the PodClique. |  |  |
 | `lastErrors` _[LastError](#lasterror) array_ | LastErrors captures the last errors observed by the controller when reconciling the PodClique. |  |  |
 | `replicas` _integer_ | Replicas is the total number of non-terminated Pods targeted by this PodClique. |  |  |
 | `readyReplicas` _integer_ | ReadyReplicas is the number of ready Pods targeted by this PodClique. | 0 |  |
