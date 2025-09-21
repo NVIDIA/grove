@@ -28,7 +28,7 @@ import (
 )
 
 const (
-	defaultTerminationDelay = 30 * time.Second
+	defaultTerminationDelay = 4 * time.Hour
 )
 
 // defaultPodCliqueSet adds defaults to a PodCliqueSet.

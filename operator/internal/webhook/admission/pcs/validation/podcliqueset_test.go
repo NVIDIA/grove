@@ -37,7 +37,7 @@ import (
 func createDummyPodCliqueSet(name string) *grovecorev1alpha1.PodCliqueSet {
 	return testutils.NewPodCliqueSetBuilder(name, "default", uuid.NewUUID()).
 		WithReplicas(1).
-		WithTerminationDelay(30 * time.Second).
+		WithTerminationDelay(4 * time.Hour).
 		WithCliqueStartupType(ptr.To(grovecorev1alpha1.CliqueStartupTypeAnyOrder)).
 		WithPodCliqueTemplateSpec(
 			testutils.NewPodCliqueTemplateSpecBuilder("test").
@@ -134,7 +134,7 @@ func TestResourceNamingValidation(t *testing.T) {
 		t.Run(tc.description, func(t *testing.T) {
 			pcsBuilder := testutils.NewPodCliqueSetBuilder(tc.pcsName, "default", uuid.NewUUID()).
 				WithReplicas(1).
-				WithTerminationDelay(30 * time.Second).
+				WithTerminationDelay(4 * time.Hour).
 				WithCliqueStartupType(ptr.To(grovecorev1alpha1.CliqueStartupTypeAnyOrder))
 
 			// Add PodClique templates

@@ -55,7 +55,7 @@ func TestDefaultPodCliqueSet(t *testing.T) {
 				HeadlessServiceConfig: &grovecorev1alpha1.HeadlessServiceConfig{
 					PublishNotReadyAddresses: true,
 				},
-				TerminationDelay: &metav1.Duration{Duration: time.Second * 30},
+				TerminationDelay: &metav1.Duration{Duration: 4 * time.Hour},
 			},
 		},
 	}
