@@ -154,6 +154,7 @@ type PodCliqueSetTemplateSpec struct {
 	// If a PodGang remains a candidate past TerminationDelay then it will be terminated. This allows additional time
 	// to the kube-scheduler to re-schedule sufficient pods in the PodGang that will result in having the total number of
 	// running pods go above the threshold.
+	// Defaults to 4 hours.
 	// +optional
 	TerminationDelay *metav1.Duration `json:"terminationDelay,omitempty"`
 	// PodCliqueScalingGroupConfigs is a list of scaling groups for the PodCliqueSet.
