@@ -462,9 +462,6 @@ func (v *pcsValidator) validatePodSpec(spec corev1.PodSpec, fldPath *field.Path)
 			allErrs = append(allErrs, field.Invalid(specFldPath.Child("nodeName"), spec.NodeName, "must not be set"))
 		}
 	}
-	if spec.NodeSelector != nil {
-		allErrs = append(allErrs, field.Invalid(specFldPath.Child("nodeSelector"), spec.NodeSelector, "must not be set"))
-	}
 
 	return warnings, allErrs
 }
