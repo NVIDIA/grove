@@ -71,7 +71,16 @@ func (c *CLIOptions) GetPodCliqueDependencies() (map[string]int, error) {
 			return nil, groveerr.WrapError(err, errCodeInvalidInput, operationParseFlag, "failed to convert replicas to int")
 		}
 
-		podCliqueDependencies[strings.TrimSpace(nameAndMinAvailable[0])] = replicas
+		if replicas <= 0 {
+			return nil, groveerr.New(errCodeInvalidInput, operationParseFlag, fmt.Sprintf("replica count must be positive, got %d", replicas))
+		}
+
+		podCliqueName := strings.TrimSpace(nameAndMinAvailable[0])
+		if podCliqueName == "" {
+			return nil, groveerr.New(errCodeInvalidInput, operationParseFlag, "podclique name cannot be empty")
+		}
+
+		podCliqueDependencies[podCliqueName] = replicas
 	}
 
 	return podCliqueDependencies, nil

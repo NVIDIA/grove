@@ -132,13 +132,13 @@ func TestParentPodCliqueDependencies_CheckAllParentsReady(t *testing.T) {
 			expected: false,
 		},
 		{
-			// Zero requirements should be met with empty pods
-			name: "zero_requirements",
+			// Single pod requirement should be met with one ready pod
+			name: "single_pod_requirement",
 			pclqFQNToMinAvailable: map[string]int{
-				"podclique-a": 0,
+				"podclique-a": 1,
 			},
 			currentPCLQReadyPods: map[string]sets.Set[string]{
-				"podclique-a": sets.New[string](),
+				"podclique-a": sets.New("pod-a-1"),
 			},
 			expected: true,
 		},

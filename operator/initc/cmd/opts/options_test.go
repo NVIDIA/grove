@@ -82,13 +82,12 @@ func TestGetPodCliqueDependencies(t *testing.T) {
 			expectError: false,
 		},
 		{
-			// Zero replicas should be valid
-			name:       "zero_replicas",
-			podCliques: []string{"podclique-zero:0"},
-			expected: map[string]int{
-				"podclique-zero": 0,
-			},
-			expectError: false,
+			// Zero replicas should cause error
+			name:          "zero_replicas",
+			podCliques:    []string{"podclique-zero:0"},
+			expected:      nil,
+			expectError:   true,
+			errorContains: "replica count must be positive, got 0",
 		},
 		{
 			// Missing colon separator should cause error
@@ -115,13 +114,12 @@ func TestGetPodCliqueDependencies(t *testing.T) {
 			errorContains: "failed to convert replicas to int",
 		},
 		{
-			// Negative replica count should be parsed (validation might happen elsewhere)
-			name:       "negative_replicas",
-			podCliques: []string{"podclique-negative:-1"},
-			expected: map[string]int{
-				"podclique-negative": -1,
-			},
-			expectError: false,
+			// Negative replica count should cause error
+			name:          "negative_replicas",
+			podCliques:    []string{"podclique-negative:-1"},
+			expected:      nil,
+			expectError:   true,
+			errorContains: "replica count must be positive, got -1",
 		},
 		{
 			// Mixed valid and invalid entries - should fail on first invalid
@@ -132,13 +130,20 @@ func TestGetPodCliqueDependencies(t *testing.T) {
 			errorContains: "expected two values per podclique, found 1",
 		},
 		{
-			// Empty podclique name should be valid (but name will be empty string)
-			name:       "empty_podclique_name",
-			podCliques: []string{":5"},
-			expected: map[string]int{
-				"": 5,
-			},
-			expectError: false,
+			// Empty podclique name should cause error
+			name:          "empty_podclique_name",
+			podCliques:    []string{":5"},
+			expected:      nil,
+			expectError:   true,
+			errorContains: "podclique name cannot be empty",
+		},
+		{
+			// Whitespace-only podclique name should cause error
+			name:          "whitespace_only_podclique_name",
+			podCliques:    []string{"  :3"},
+			expected:      nil,
+			expectError:   true,
+			errorContains: "podclique name cannot be empty",
 		},
 	}
 
