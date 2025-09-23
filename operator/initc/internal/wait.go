@@ -63,35 +63,48 @@ type ParentPodCliqueDependencies struct {
 
 // NewPodCliqueState creates and initializes all parent PodCliques with an unready state.
 func NewPodCliqueState(podCliqueDependencies map[string]int, log logr.Logger) (*ParentPodCliqueDependencies, error) {
+	namespace, podGang, err := readPodInfo()
+	if err != nil {
+		log.Error(err, "Failed to read pod information from files")
+		return nil, err
+	}
+
+	return newPodCliqueStateWithInfo(podCliqueDependencies, namespace, podGang), nil
+}
+
+// readPodInfo reads namespace and podgang information from mounted files.
+func readPodInfo() (string, string, error) {
 	podNamespaceFilePath := filepath.Join(constants.VolumeMountPathPodInfo, constants.PodNamespaceFileName)
 	podNamespace, err := os.ReadFile(podNamespaceFilePath)
 	if err != nil {
-		log.Error(err, "Failed to read the pod namespace from the file", "filepath", podNamespaceFilePath)
-		return nil, err
+		return "", "", err
 	}
 
 	podGangNameFilePath := filepath.Join(constants.VolumeMountPathPodInfo, constants.PodGangNameFileName)
 	podGangName, err := os.ReadFile(podGangNameFilePath)
 	if err != nil {
-		log.Error(err, "Failed to read the PodGang name from the file", "filepath", podGangNameFilePath)
-		return nil, err
+		return "", "", err
 	}
 
+	return string(podNamespace), string(podGangName), nil
+}
+
+// newPodCliqueStateWithInfo creates a ParentPodCliqueDependencies with provided info.
+// This function is more testable as it doesn't depend on file system operations.
+func newPodCliqueStateWithInfo(podCliqueDependencies map[string]int, namespace, podGang string) *ParentPodCliqueDependencies {
 	// Initialize tracking for each parent PodClique's ready pods
 	currentlyReadyPods := make(map[string]sets.Set[string])
 	for parentPodCliqueName := range podCliqueDependencies {
 		currentlyReadyPods[parentPodCliqueName] = sets.New[string]()
 	}
 
-	state := &ParentPodCliqueDependencies{
-		namespace:             string(podNamespace),
-		podGang:               string(podGangName),
+	return &ParentPodCliqueDependencies{
+		namespace:             namespace,
+		podGang:               podGang,
 		pclqFQNToMinAvailable: podCliqueDependencies,
 		currentPCLQReadyPods:  currentlyReadyPods,
 		allReadyCh:            make(chan struct{}, len(podCliqueDependencies)),
 	}
-
-	return state, nil
 }
 
 // WaitForReady waits for all upstream start-up dependencies to be ready.
