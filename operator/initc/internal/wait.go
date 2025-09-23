@@ -53,12 +53,12 @@ const (
 
 // ParentPodCliqueDependencies contains the last known (readiness) state of all parent PodCliques.
 type ParentPodCliqueDependencies struct {
-	mutex                 sync.Mutex
-	namespace             string
-	podGang               string
-	pclqFQNToMinAvailable map[string]int
-	currentPCLQReadyPods  map[string]sets.Set[string]
-	allReadyCh            chan struct{}
+	mutex                 sync.Mutex                  // Protects concurrent access to state
+	namespace             string                      // Kubernetes namespace to watch for pods
+	podGang               string                      // PodGang name used for pod label selection
+	pclqFQNToMinAvailable map[string]int              // Required minimum available pods per PodClique
+	currentPCLQReadyPods  map[string]sets.Set[string] // Currently ready pods per PodClique
+	allReadyCh            chan struct{}               // Signals when all dependencies are satisfied
 }
 
 // NewPodCliqueState creates and initializes all parent PodCliques with an unready state.
@@ -77,8 +77,8 @@ func NewPodCliqueState(podCliqueDependencies map[string]int, log logr.Logger) (*
 		return nil, err
 	}
 
+	// Initialize tracking for each parent PodClique's ready pods
 	currentlyReadyPods := make(map[string]sets.Set[string])
-	// Initialize the keys to indicate these are the parent PodCliques.
 	for parentPodCliqueName := range podCliqueDependencies {
 		currentlyReadyPods[parentPodCliqueName] = sets.New[string]()
 	}
@@ -120,6 +120,7 @@ func (c *ParentPodCliqueDependencies) WaitForReady(ctx context.Context, log logr
 	eventHandlerContext, cancel := context.WithCancel(ctx)
 	defer cancel() // Cancel the context used by the informers if the wait is successful, or an err occurs.
 
+	// Create informer factory to watch pods matching the PodGang label
 	factory := informers.NewSharedInformerFactoryWithOptions(
 		client,
 		time.Second,
@@ -149,6 +150,7 @@ func (c *ParentPodCliqueDependencies) WaitForReady(ctx context.Context, log logr
 	}
 }
 
+// createClient creates a Kubernetes client using in-cluster configuration.
 func createClient() (*kubernetes.Clientset, error) {
 	restConfig, err := rest.InClusterConfig()
 	if err != nil {
@@ -171,6 +173,7 @@ func createClient() (*kubernetes.Clientset, error) {
 	return client, nil
 }
 
+// registerEventHandler sets up pod event handlers to track readiness state changes.
 func (c *ParentPodCliqueDependencies) registerEventHandler(factory informers.SharedInformerFactory, log logr.Logger) error {
 	typedInformer := factory.Core().V1().Pods().Informer()
 	_, err := typedInformer.AddEventHandlerWithOptions(cache.ResourceEventHandlerFuncs{
@@ -220,12 +223,14 @@ func (c *ParentPodCliqueDependencies) registerEventHandler(factory informers.Sha
 	return err
 }
 
+// refreshReadyPodsOfPodClique updates the ready pod count for the PodClique that owns the given pod.
 func (c *ParentPodCliqueDependencies) refreshReadyPodsOfPodClique(pod *corev1.Pod, deletionEvent bool) {
+	// Find which parent PodClique this pod belongs to by name prefix matching
 	podCliqueName, ok := lo.Find(lo.Keys(c.pclqFQNToMinAvailable), func(podCliqueFQN string) bool {
 		return strings.HasPrefix(pod.Name, podCliqueFQN)
 	})
 	if !ok {
-		return // If not found, the Pod is not related to any parent PodClique.
+		return // Pod doesn't belong to any tracked parent PodClique
 	}
 
 	if deletionEvent {
@@ -233,6 +238,7 @@ func (c *ParentPodCliqueDependencies) refreshReadyPodsOfPodClique(pod *corev1.Po
 		return
 	}
 
+	// Check if pod is in Ready state
 	readyCondition, ok := lo.Find(pod.Status.Conditions, func(podCondition corev1.PodCondition) bool {
 		return podCondition.Type == corev1.PodReady
 	})
@@ -245,15 +251,17 @@ func (c *ParentPodCliqueDependencies) refreshReadyPodsOfPodClique(pod *corev1.Po
 	}
 }
 
+// checkAllParentsReady returns true when all parent PodCliques have met their minimum ready pod requirements.
 func (c *ParentPodCliqueDependencies) checkAllParentsReady() bool {
 	for cliqueName, readyPods := range c.currentPCLQReadyPods {
 		if len(readyPods) < c.pclqFQNToMinAvailable[cliqueName] {
-			return false // If any single parent is not ready, wait.
+			return false
 		}
 	}
 	return true
 }
 
+// getLabelSelectorForPods returns the label selector to filter pods belonging to the specified PodGang.
 func getLabelSelectorForPods(podGangName string) map[string]string {
 	return map[string]string{
 		apicommon.LabelPodGang: podGangName,
