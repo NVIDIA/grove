@@ -30,6 +30,12 @@ const (
 	FinalizerPodCliqueScalingGroup = "grove.io/podcliquescalinggroup.grove.io"
 )
 
+const (
+	// AnnotationDisableManagedResourceProtection is an annotation set by an operator on a PodCliqueSet to explicitly
+	// disable protection of managed resources for a PodCliqueSet.
+	AnnotationDisableManagedResourceProtection = "grove.io/disable-managed-resource-protection"
+)
+
 // Constants for Grove environment variables
 const (
 	// EnvVarPodCliqueSetName is the environment variable name for PodCliqueSet name

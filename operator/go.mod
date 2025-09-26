@@ -6,7 +6,7 @@ require (
 	github.com/NVIDIA/grove/operator/api v0.0.0
 	github.com/NVIDIA/grove/scheduler/api v0.0.0
 	github.com/go-logr/logr v1.4.3
-	github.com/open-policy-agent/cert-controller v0.13.0
+	github.com/open-policy-agent/cert-controller v0.14.0
 	github.com/samber/lo v1.51.0
 	github.com/spf13/pflag v1.0.7
 	github.com/stretchr/testify v1.10.0
