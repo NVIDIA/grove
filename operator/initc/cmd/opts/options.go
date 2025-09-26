@@ -39,8 +39,7 @@ const (
 
 // CLIOptions defines the configuration that is passed to the init container.
 type CLIOptions struct {
-	// podCliques passed with their minAvailable replicas
-	podCliques []string
+	podCliques []string // PodClique names with their minAvailable replicas in format "name:count"
 }
 
 // RegisterFlags registers all the flags that are defined for the init container.
@@ -55,6 +54,7 @@ func (c *CLIOptions) RegisterFlags(fs *pflag.FlagSet) {
 func (c *CLIOptions) GetPodCliqueDependencies() (map[string]int, error) {
 	podCliqueDependencies := make(map[string]int)
 
+	// Parse each "name:count" pair into the dependencies map
 	for _, pair := range c.podCliques {
 		pair = strings.TrimSpace(pair)
 		if pair == "" {
@@ -66,12 +66,21 @@ func (c *CLIOptions) GetPodCliqueDependencies() (map[string]int, error) {
 			return nil, groveerr.New(errCodeInvalidInput, operationParseFlag, fmt.Sprintf("expected two values per podclique, found %d", len(nameAndMinAvailable)))
 		}
 
-		replicas, err := strconv.Atoi(nameAndMinAvailable[1])
+		replicas, err := strconv.Atoi(strings.TrimSpace(nameAndMinAvailable[1]))
 		if err != nil {
 			return nil, groveerr.WrapError(err, errCodeInvalidInput, operationParseFlag, "failed to convert replicas to int")
 		}
 
-		podCliqueDependencies[strings.TrimSpace(nameAndMinAvailable[0])] = replicas
+		if replicas <= 0 {
+			return nil, groveerr.New(errCodeInvalidInput, operationParseFlag, fmt.Sprintf("replica count must be positive, got %d", replicas))
+		}
+
+		podCliqueName := strings.TrimSpace(nameAndMinAvailable[0])
+		if podCliqueName == "" {
+			return nil, groveerr.New(errCodeInvalidInput, operationParseFlag, "podclique name cannot be empty")
+		}
+
+		podCliqueDependencies[podCliqueName] = replicas
 	}
 
 	return podCliqueDependencies, nil
