@@ -82,6 +82,16 @@ func TestGetPodCliqueDependencies(t *testing.T) {
 			expectError: false,
 		},
 		{
+			// Valid input with extra whitespace around the colon should be trimmed
+			name:       "input_with_whitespace_around_colon",
+			podCliques: []string{"  podclique-a :   2  ", "podclique-b:  4"},
+			expected: map[string]int{
+				"podclique-a": 2,
+				"podclique-b": 4,
+			},
+			expectError: false,
+		},
+		{
 			// Zero replicas should cause error
 			name:          "zero_replicas",
 			podCliques:    []string{"podclique-zero:0"},
@@ -120,6 +130,14 @@ func TestGetPodCliqueDependencies(t *testing.T) {
 			expected:      nil,
 			expectError:   true,
 			errorContains: "replica count must be positive, got -1",
+		},
+		{
+			// Empty replica count should cause error
+			name:          "empty_replicas",
+			podCliques:    []string{"podclique-empty-replicas:"},
+			expected:      nil,
+			expectError:   true,
+			errorContains: "failed to convert replicas to int",
 		},
 		{
 			// Mixed valid and invalid entries - should fail on first invalid

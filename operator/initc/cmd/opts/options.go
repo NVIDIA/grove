@@ -66,7 +66,7 @@ func (c *CLIOptions) GetPodCliqueDependencies() (map[string]int, error) {
 			return nil, groveerr.New(errCodeInvalidInput, operationParseFlag, fmt.Sprintf("expected two values per podclique, found %d", len(nameAndMinAvailable)))
 		}
 
-		replicas, err := strconv.Atoi(nameAndMinAvailable[1])
+		replicas, err := strconv.Atoi(strings.TrimSpace(nameAndMinAvailable[1]))
 		if err != nil {
 			return nil, groveerr.WrapError(err, errCodeInvalidInput, operationParseFlag, "failed to convert replicas to int")
 		}

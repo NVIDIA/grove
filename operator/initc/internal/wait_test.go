@@ -72,8 +72,8 @@ func TestGetLabelSelectorForPods(t *testing.T) {
 	}
 }
 
-// TestParentPodCliqueDependencies_CheckAllParentsReady tests the readiness checking logic.
-func TestParentPodCliqueDependencies_CheckAllParentsReady(t *testing.T) {
+// TestCheckAllParentsReady tests the readiness checking logic.
+func TestCheckAllParentsReady(t *testing.T) {
 	tests := []struct {
 		// Test case name for identifying failures
 		name string
@@ -165,8 +165,8 @@ func TestParentPodCliqueDependencies_CheckAllParentsReady(t *testing.T) {
 	}
 }
 
-// TestParentPodCliqueDependencies_RefreshReadyPodsOfPodClique tests pod readiness tracking.
-func TestParentPodCliqueDependencies_RefreshReadyPodsOfPodClique(t *testing.T) {
+// TestRefreshReadyPodsOfPodClique tests pod readiness tracking.
+func TestRefreshReadyPodsOfPodClique(t *testing.T) {
 	tests := []struct {
 		// Test case name for identifying failures
 		name string
