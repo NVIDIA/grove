@@ -112,6 +112,7 @@ func (r _resource) processPendingUpdates(logger logr.Logger, sc *syncContext) er
 	return r.markRollingUpdateEnd(sc.ctx, logger, sc.pcsg)
 }
 
+// updatePCSGStatusWithNextReplicaToUpdate marks the next replica index as selected for rolling update in the PCSG status
 func (r _resource) updatePCSGStatusWithNextReplicaToUpdate(ctx context.Context, logger logr.Logger, pcsg *grovecorev1alpha1.PodCliqueScalingGroup, nextReplicaIndexToUpdate int) error {
 	patch := client.MergeFrom(pcsg.DeepCopy())
 
@@ -134,6 +135,7 @@ func (r _resource) updatePCSGStatusWithNextReplicaToUpdate(ctx context.Context, 
 	return nil
 }
 
+// markRollingUpdateEnd finalizes the rolling update by setting the end timestamp and clearing update progress
 func (r _resource) markRollingUpdateEnd(ctx context.Context, logger logr.Logger, pcsg *grovecorev1alpha1.PodCliqueScalingGroup) error {
 	patch := client.MergeFrom(pcsg.DeepCopy())
 
@@ -152,6 +154,7 @@ func (r _resource) markRollingUpdateEnd(ctx context.Context, logger logr.Logger,
 	return nil
 }
 
+// computePendingUpdateWork analyzes existing replicas and categorizes them by update status and availability state
 func computePendingUpdateWork(sc *syncContext) (*updateWork, error) {
 	work := &updateWork{}
 	existingPCLQsByReplicaIndex := componentutils.GroupPCLQsByPCSGReplicaIndex(sc.existingPCLQs)
@@ -186,6 +189,7 @@ func computePendingUpdateWork(sc *syncContext) (*updateWork, error) {
 	return work, nil
 }
 
+// deleteOldPendingAndUnavailableReplicas removes PCSG replicas that are pending or unavailable with old configurations
 func (r _resource) deleteOldPendingAndUnavailableReplicas(logger logr.Logger, sc *syncContext, work *updateWork) error {
 	replicaIndicesToDelete := lo.Map(append(work.oldPendingReplicaIndices, work.oldUnavailableReplicaIndices...), func(index int, _ int) string {
 		return strconv.Itoa(index)
@@ -195,10 +199,12 @@ func (r _resource) deleteOldPendingAndUnavailableReplicas(logger logr.Logger, sc
 	return r.triggerDeletionOfPodCliques(sc.ctx, logger, client.ObjectKeyFromObject(sc.pcsg), deleteTasks)
 }
 
+// isAnyReadyReplicaSelectedForUpdate checks if there is currently a ready replica selected for rolling update
 func isAnyReadyReplicaSelectedForUpdate(pcsg *grovecorev1alpha1.PodCliqueScalingGroup) bool {
 	return pcsg.Status.RollingUpdateProgress.ReadyReplicaIndicesSelectedToUpdate != nil
 }
 
+// isCurrentReplicaUpdateComplete verifies if the currently updating replica has completed its rolling update
 func isCurrentReplicaUpdateComplete(sc *syncContext) bool {
 	currentlyUpdatingReplicaIndex := int(sc.pcsg.Status.RollingUpdateProgress.ReadyReplicaIndicesSelectedToUpdate.Current)
 	existingPCLQsByReplicaIndex := componentutils.GroupPCLQsByPCSGReplicaIndex(sc.existingPCLQs)
@@ -215,6 +221,7 @@ func isCurrentReplicaUpdateComplete(sc *syncContext) bool {
 	})
 }
 
+// isReplicaUpdated checks if all PodCliques in a PCSG replica have the expected pod template hash
 func isReplicaUpdated(expectedPCLQPodTemplateHashes map[string]string, pcsgReplicaPCLQs []grovecorev1alpha1.PodClique) (bool, error) {
 	for _, pclq := range pcsgReplicaPCLQs {
 		podTemplateHash, ok := pclq.Labels[apicommon.LabelPodTemplateHash]
@@ -228,6 +235,7 @@ func isReplicaUpdated(expectedPCLQPodTemplateHashes map[string]string, pcsgRepli
 	return true, nil
 }
 
+// isReplicaDeletedOrMarkedForDeletion determines if a PCSG replica is deleted or all its PodCliques are terminating
 func isReplicaDeletedOrMarkedForDeletion(pcsg *grovecorev1alpha1.PodCliqueScalingGroup, pcsgReplicaPCLQs []grovecorev1alpha1.PodClique, _ int) bool {
 	if pcsg.Status.RollingUpdateProgress.ReadyReplicaIndicesSelectedToUpdate == nil {
 		return false
@@ -240,6 +248,7 @@ func isReplicaDeletedOrMarkedForDeletion(pcsg *grovecorev1alpha1.PodCliqueScalin
 	})
 }
 
+// getReplicaState determines the overall state of a PCSG replica based on its constituent PodCliques
 func getReplicaState(pcsgReplicaPCLQs []grovecorev1alpha1.PodClique) replicaState {
 	for _, pclq := range pcsgReplicaPCLQs {
 		if pclq.Status.ScheduledReplicas < *pclq.Spec.MinAvailable {

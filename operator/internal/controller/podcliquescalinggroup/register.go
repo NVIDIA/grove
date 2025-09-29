@@ -66,6 +66,7 @@ func (r *Reconciler) RegisterWithManager(mgr manager.Manager) error {
 		Complete(r)
 }
 
+// podCliqueScalingGroupUpdatePredicate filters PodCliqueScalingGroup events to only process Grove-managed resources owned by PodCliqueSet
 func podCliqueScalingGroupUpdatePredicate() predicate.Predicate {
 	return predicate.Funcs{
 		CreateFunc: func(createEvent event.CreateEvent) bool {
@@ -81,6 +82,7 @@ func podCliqueScalingGroupUpdatePredicate() predicate.Predicate {
 	}
 }
 
+// mapPCSToPCSG maps PodCliqueSet rolling update events to PodCliqueScalingGroup reconcile requests for the currently updating replica
 func mapPCSToPCSG() handler.MapFunc {
 	return func(_ context.Context, obj client.Object) []reconcile.Request {
 		pcs, ok := obj.(*grovecorev1alpha1.PodCliqueSet)
@@ -109,6 +111,7 @@ func mapPCSToPCSG() handler.MapFunc {
 	}
 }
 
+// podCliqueSetPredicate filters PodCliqueSet events to only process rolling update status changes
 func podCliqueSetPredicate() predicate.Predicate {
 	return predicate.Funcs{
 		CreateFunc: func(_ event.CreateEvent) bool { return false },
@@ -120,6 +123,7 @@ func podCliqueSetPredicate() predicate.Predicate {
 	}
 }
 
+// shouldEnqueueOnPCSUpdate determines if a PodCliqueSet update event should trigger PodCliqueScalingGroup reconciliation based on rolling update progress changes
 func shouldEnqueueOnPCSUpdate(event event.UpdateEvent) bool {
 	oldPCS, okOld := event.ObjectOld.(*grovecorev1alpha1.PodCliqueSet)
 	newPCS, okNew := event.ObjectNew.(*grovecorev1alpha1.PodCliqueSet)
@@ -138,6 +142,7 @@ func shouldEnqueueOnPCSUpdate(event event.UpdateEvent) bool {
 	return false
 }
 
+// mapPCLQToPCSG maps PodClique events to their owning PodCliqueScalingGroup reconcile requests
 func mapPCLQToPCSG() handler.MapFunc {
 	return func(_ context.Context, obj client.Object) []reconcile.Request {
 		pclq, ok := obj.(*grovecorev1alpha1.PodClique)
@@ -152,6 +157,7 @@ func mapPCLQToPCSG() handler.MapFunc {
 	}
 }
 
+// podCliquePredicate filters PodClique events to only process those managed by PodCliqueScalingGroup
 func podCliquePredicate() predicate.Predicate {
 	return predicate.Funcs{
 		CreateFunc: func(_ event.CreateEvent) bool { return false },

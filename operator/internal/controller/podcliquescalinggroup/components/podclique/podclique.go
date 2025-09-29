@@ -72,7 +72,7 @@ type _resource struct {
 	eventRecorder record.EventRecorder
 }
 
-// New creates an instance of PodClique components operator.
+// New creates a new PodClique operator for managing PodClique resources within PodCliqueScalingGroups
 func New(client client.Client, scheme *runtime.Scheme, eventRecorder record.EventRecorder) component.Operator[grovecorev1alpha1.PodCliqueScalingGroup] {
 	return &_resource{
 		client:        client,
@@ -82,6 +82,7 @@ func New(client client.Client, scheme *runtime.Scheme, eventRecorder record.Even
 }
 
 // GetExistingResourceNames returns the names of all the existing resources that the PodClique Operator manages.
+// GetExistingResourceNames returns the names of all existing PodCliques managed by the specified PodCliqueScalingGroup
 func (r _resource) GetExistingResourceNames(ctx context.Context, logger logr.Logger, pcsgObjMeta metav1.ObjectMeta) ([]string, error) {
 	logger.Info("Looking for existing PodCliques managed by PodCliqueScalingGroup")
 	pclqPartialObjMetaList, err := k8sutils.ListExistingPartialObjectMetadata(ctx,
@@ -100,6 +101,7 @@ func (r _resource) GetExistingResourceNames(ctx context.Context, logger logr.Log
 }
 
 // Sync synchronizes all resources that the PodClique Operator manages.
+// Sync ensures that the desired PodCliques exist for the PodCliqueScalingGroup with proper scaling and dependencies
 func (r _resource) Sync(ctx context.Context, logger logr.Logger, pcsg *grovecorev1alpha1.PodCliqueScalingGroup) error {
 	syncCtx, err := r.prepareSyncContext(ctx, logger, pcsg)
 	if err != nil {
@@ -114,6 +116,7 @@ func (r _resource) Sync(ctx context.Context, logger logr.Logger, pcsg *grovecore
 }
 
 // Delete deletes all resources that the PodClique Operator manages.
+// Delete removes all PodCliques managed by the specified PodCliqueScalingGroup
 func (r _resource) Delete(ctx context.Context, logger logr.Logger, pcsgObjectMeta metav1.ObjectMeta) error {
 	logger.Info("Triggering deletion of PodCliques managed by PodCliqueScalingGroup")
 	existingPCLQNames, err := r.GetExistingResourceNames(ctx, logger, pcsgObjectMeta)
@@ -155,6 +158,7 @@ func (r _resource) Delete(ctx context.Context, logger logr.Logger, pcsgObjectMet
 	return nil
 }
 
+// triggerDeletionOfPodCliques executes concurrent deletion tasks for PodCliques and handles any resulting errors
 func (r _resource) triggerDeletionOfPodCliques(ctx context.Context, logger logr.Logger, pcsgObjectKey client.ObjectKey, deletionTasks []utils.Task) error {
 	if len(deletionTasks) == 0 {
 		return nil
@@ -170,6 +174,7 @@ func (r _resource) triggerDeletionOfPodCliques(ctx context.Context, logger logr.
 	return nil
 }
 
+// createDeleteTasks creates deletion tasks for PodCliques belonging to specific PCSG replica indices
 func (r _resource) createDeleteTasks(logger logr.Logger, pcs *grovecorev1alpha1.PodCliqueSet, pcsgName string, pcsgReplicasToDelete []string, reason string) []utils.Task {
 	deletionTasks := make([]utils.Task, 0, len(pcsgReplicasToDelete))
 	for _, pcsgReplicaIndex := range pcsgReplicasToDelete {
@@ -194,6 +199,7 @@ func (r _resource) createDeleteTasks(logger logr.Logger, pcs *grovecorev1alpha1.
 	return deletionTasks
 }
 
+// getLabelsToDeletePCSGReplicaIndexPCLQs creates label selectors for identifying PodCliques to delete for a specific PCSG replica
 func getLabelsToDeletePCSGReplicaIndexPCLQs(pcsName, pcsgName, pcsgReplicaIndex string) map[string]string {
 	return lo.Assign(
 		apicommon.GetDefaultLabelsForPodCliqueSetManagedResources(pcsName),
@@ -205,6 +211,7 @@ func getLabelsToDeletePCSGReplicaIndexPCLQs(pcsName, pcsgName, pcsgReplicaIndex 
 	)
 }
 
+// getPCSGTemplateNumPods calculates the total number of pods across all PodCliques in the PodCliqueScalingGroup template
 func (r _resource) getPCSGTemplateNumPods(pcs *grovecorev1alpha1.PodCliqueSet, pcsg *grovecorev1alpha1.PodCliqueScalingGroup) int {
 	var pcsgTemplateNumPods int
 	pcMap := make(map[string]*grovecorev1alpha1.PodCliqueTemplateSpec, len(pcs.Spec.Template.Cliques))
@@ -221,6 +228,7 @@ func (r _resource) getPCSGTemplateNumPods(pcs *grovecorev1alpha1.PodCliqueSet, p
 	return pcsgTemplateNumPods
 }
 
+// doCreate creates or updates a PodClique resource with proper configuration from PCS and PCSG templates
 func (r _resource) doCreate(ctx context.Context, logger logr.Logger, pcs *grovecorev1alpha1.PodCliqueSet, pcsg *grovecorev1alpha1.PodCliqueScalingGroup, pcsgReplicaIndex int, pclqObjectKey client.ObjectKey) error {
 	logger.Info("Running CreateOrUpdate PodClique", "pclqObjectKey", pclqObjectKey)
 	pclq := emptyPodClique(pclqObjectKey)
@@ -245,6 +253,7 @@ func (r _resource) doCreate(ctx context.Context, logger logr.Logger, pcs *grovec
 	return nil
 }
 
+// buildResource constructs a PodClique resource from templates, setting up metadata, labels, dependencies and environment variables
 func (r _resource) buildResource(logger logr.Logger, pcs *grovecorev1alpha1.PodCliqueSet, pcsg *grovecorev1alpha1.PodCliqueScalingGroup, pcsgReplicaIndex int, pclq *grovecorev1alpha1.PodClique) error {
 	var err error
 	pclqObjectKey, pcsObjectKey := client.ObjectKeyFromObject(pclq), client.ObjectKeyFromObject(pcs)
@@ -290,6 +299,7 @@ func (r _resource) buildResource(logger logr.Logger, pcs *grovecorev1alpha1.PodC
 	return nil
 }
 
+// addEnvironmentVariablesToPodContainerSpecs injects PCSG-specific environment variables into all containers in the PodClique
 func (r _resource) addEnvironmentVariablesToPodContainerSpecs(pclq *grovecorev1alpha1.PodClique, pcsgTemplateNumPods int) {
 	pcsgEnvVars := []corev1.EnvVar{
 		{
@@ -318,6 +328,7 @@ func (r _resource) addEnvironmentVariablesToPodContainerSpecs(pclq *grovecorev1a
 	componentutils.AddEnvVarsToContainers(pclqObjPodSpec.InitContainers, pcsgEnvVars)
 }
 
+// getPCSReplicaFromPCSG extracts the PodCliqueSet replica index from PodCliqueScalingGroup labels
 func getPCSReplicaFromPCSG(pcsg *grovecorev1alpha1.PodCliqueScalingGroup) (int, error) {
 	pcsReplicaIndex, ok := pcsg.GetLabels()[apicommon.LabelPodCliqueSetReplicaIndex]
 	if !ok {
@@ -334,6 +345,7 @@ func getPCSReplicaFromPCSG(pcsg *grovecorev1alpha1.PodCliqueScalingGroup) (int, 
 	return pcsReplica, nil
 }
 
+// identifyFullyQualifiedStartupDependencyNames resolves startup dependencies based on PCS startup type configuration
 func identifyFullyQualifiedStartupDependencyNames(pcs *grovecorev1alpha1.PodCliqueSet, pcsReplicaIndex int, pcsg *grovecorev1alpha1.PodCliqueScalingGroup, pcsgReplicaIndex int, pclq *grovecorev1alpha1.PodClique, foundAtIndex int) ([]string, error) {
 	cliqueStartupType := pcs.Spec.Template.StartupType
 	if cliqueStartupType == nil {
@@ -351,6 +363,7 @@ func identifyFullyQualifiedStartupDependencyNames(pcs *grovecorev1alpha1.PodCliq
 	}
 }
 
+// getInOrderStartupDependencies generates dependencies for in-order startup by including all preceding PodCliques in the same replica
 func getInOrderStartupDependencies(pcs *grovecorev1alpha1.PodCliqueSet, pcsReplicaIndex int, pcsg *grovecorev1alpha1.PodCliqueScalingGroup, pcsgReplicaIndex, foundAtIndex int) []string {
 	if foundAtIndex == 0 {
 		return nil
@@ -373,6 +386,7 @@ func getInOrderStartupDependencies(pcs *grovecorev1alpha1.PodCliqueSet, pcsRepli
 	}
 }
 
+// getExplicitStartupDependencies generates fully qualified names for explicitly defined startup dependencies
 func getExplicitStartupDependencies(pcs *grovecorev1alpha1.PodCliqueSet, pcsReplicaIndex int, pcsg *grovecorev1alpha1.PodCliqueScalingGroup, pcsgReplicaIndex int, pclq *grovecorev1alpha1.PodClique) []string {
 	parentCliqueNames := make([]string, 0, len(pclq.Spec.StartsAfter))
 	// Current pcsgReplicaIndex belongs to the base PodGang
@@ -393,6 +407,7 @@ func getExplicitStartupDependencies(pcs *grovecorev1alpha1.PodCliqueSet, pcsRepl
 	return parentCliqueNames
 }
 
+// getPodCliqueSelectorLabels creates label selector map for identifying PodCliques belonging to a PodCliqueScalingGroup
 func getPodCliqueSelectorLabels(pcsgObjectMeta metav1.ObjectMeta) map[string]string {
 	pcsName := componentutils.GetPodCliqueSetName(pcsgObjectMeta)
 	return lo.Assign(
@@ -404,6 +419,7 @@ func getPodCliqueSelectorLabels(pcsgObjectMeta metav1.ObjectMeta) map[string]str
 	)
 }
 
+// getLabels constructs the complete set of labels for a PodClique including Grove-specific, component, and template labels
 func getLabels(pcs *grovecorev1alpha1.PodCliqueSet, pcsReplicaIndex int, pcsg *grovecorev1alpha1.PodCliqueScalingGroup, pcsgReplicaIndex int, pclqObjectKey client.ObjectKey, pclqTemplateSpec *grovecorev1alpha1.PodCliqueTemplateSpec, podGangName string) map[string]string {
 	pclqComponentLabels := map[string]string{
 		apicommon.LabelAppNameKey:                        pclqObjectKey.Name,
@@ -431,6 +447,7 @@ func getLabels(pcs *grovecorev1alpha1.PodCliqueSet, pcsReplicaIndex int, pcsg *g
 	)
 }
 
+// emptyPodClique creates a new empty PodClique resource with basic metadata
 func emptyPodClique(objKey client.ObjectKey) *grovecorev1alpha1.PodClique {
 	return &grovecorev1alpha1.PodClique{
 		ObjectMeta: metav1.ObjectMeta{

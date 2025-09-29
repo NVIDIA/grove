@@ -132,7 +132,7 @@ func (r _resource) getPodNamesUpdatedInAssociatedPodGang(existingPodGang *groves
 	})
 }
 
-// runSyncFlow runs the synchronization flow for this components.
+// runSyncFlow executes the main synchronization logic including pod creation, deletion, updates, and scheduling gate management
 func (r _resource) runSyncFlow(logger logr.Logger, sc *syncContext) syncFlowResult {
 	result := syncFlowResult{}
 	diff := r.syncExpectationsAndComputeDifference(logger, sc)
@@ -165,7 +165,7 @@ func (r _resource) runSyncFlow(logger logr.Logger, sc *syncContext) syncFlowResu
 	return result
 }
 
-// syncExpectationsAndComputeDifference synchronizes expectations that are captured against the owning PodClique resource.
+// syncExpectationsAndComputeDifference reconciles create/delete expectations with actual pod state and computes the replica difference
 // It takes in the existing pods and adjusts the captured create/delete expectations in the ExpectationStore. Post synchronization
 // it computes the difference of pods using => as-is-pods + pods-expecting-creation - desired-pods - pods-expecting-deletion
 func (r _resource) syncExpectationsAndComputeDifference(logger logr.Logger, sc *syncContext) int {
@@ -185,6 +185,7 @@ func (r _resource) syncExpectationsAndComputeDifference(logger logr.Logger, sc *
 	return diff
 }
 
+// getTerminatingAndNonTerminatingPodUIDs categorizes pod UIDs based on termination status
 func getTerminatingAndNonTerminatingPodUIDs(existingPCLQPods []*corev1.Pod) (terminatingUIDs, nonTerminatingUIDs []types.UID) {
 	nonTerminatingUIDs = make([]types.UID, 0, len(existingPCLQPods))
 	terminatingUIDs = make([]types.UID, 0, len(existingPCLQPods))
@@ -226,6 +227,7 @@ func (r _resource) deleteExcessPods(sc *syncContext, logger logr.Logger, diff in
 	return nil
 }
 
+// selectExcessPodsToDelete identifies excess pods for deletion using DeletionSorter for prioritization
 func selectExcessPodsToDelete(sc *syncContext, logger logr.Logger) []*corev1.Pod {
 	var candidatePodsToDelete []*corev1.Pod
 	if diff := len(sc.existingPCLQPods) - int(sc.pclq.Spec.Replicas); diff > 0 {
@@ -236,6 +238,7 @@ func selectExcessPodsToDelete(sc *syncContext, logger logr.Logger) []*corev1.Pod
 	return candidatePodsToDelete
 }
 
+// checkAndRemovePodSchedulingGates removes scheduling gates from pods when their dependencies are satisfied
 func (r _resource) checkAndRemovePodSchedulingGates(sc *syncContext, logger logr.Logger) ([]string, error) {
 	tasks := make([]utils.Task, 0, len(sc.existingPCLQPods))
 	skippedScheduleGatedPods := make([]string, 0, len(sc.existingPCLQPods))
@@ -383,12 +386,14 @@ func (r _resource) shouldSkipPodSchedulingGateRemoval(logger logr.Logger, pod *c
 	return true
 }
 
+// hasPodGangSchedulingGate checks if a pod has the PodGang scheduling gate
 func hasPodGangSchedulingGate(pod *corev1.Pod) bool {
 	return slices.ContainsFunc(pod.Spec.SchedulingGates, func(schedulingGate corev1.PodSchedulingGate) bool {
 		return podGangSchedulingGate == schedulingGate.Name
 	})
 }
 
+// createPods creates the specified number of new pods for the PodClique with proper indexing and concurrency control
 func (r _resource) createPods(ctx context.Context, logger logr.Logger, sc *syncContext, numPods int) (int, error) {
 	// Pre-calculate all needed indices to avoid race conditions
 	availableIndices, err := index.GetAvailableIndices(logger, sc.existingPCLQPods, numPods)
@@ -438,22 +443,27 @@ type syncFlowResult struct {
 	errs []error
 }
 
+// getAggregatedError combines all errors from the sync flow into a single error
 func (sfr *syncFlowResult) getAggregatedError() error {
 	return errors.Join(sfr.errs...)
 }
 
+// hasPendingScheduleGatedPods returns true if there are pods still waiting for schedule gate removal
 func (sfr *syncFlowResult) hasPendingScheduleGatedPods() bool {
 	return len(sfr.scheduleGatedPods) > 0
 }
 
+// recordError adds an error to the sync flow result
 func (sfr *syncFlowResult) recordError(err error) {
 	sfr.errs = append(sfr.errs, err)
 }
 
+// recordPendingScheduleGatedPods adds pod names that are still schedule gated to the result
 func (sfr *syncFlowResult) recordPendingScheduleGatedPods(podNames []string) {
 	sfr.scheduleGatedPods = append(sfr.scheduleGatedPods, podNames...)
 }
 
+// hasErrors returns true if any errors occurred during the sync flow
 func (sfr *syncFlowResult) hasErrors() bool {
 	return len(sfr.errs) > 0
 }

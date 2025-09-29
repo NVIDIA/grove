@@ -47,6 +47,7 @@ func RemoveAndPatchFinalizer(ctx context.Context, writer client.Writer, obj clie
 	)
 }
 
+// mergeFromWithOptimisticLock returns a client.Patch with the given client.Object as the base object and the optimistic lock option.
 func mergeFromWithOptimisticLock(obj client.Object, opts ...client.MergeFromOption) client.Patch {
 	return client.MergeFromWithOptions(obj, append(opts, client.MergeFromWithOptimisticLock{})...)
 }

@@ -51,6 +51,7 @@ func NewReconcileErrorRecorder(client client.Client) ReconcileErrorRecorder {
 	}
 }
 
+// RecordErrors updates the target object's LastErrors status field with any errors from the reconcile step result
 func (r *recorder) RecordErrors(ctx context.Context, obj ReconciledObject, result *ReconcileStepResult) error {
 	var lastErrors []grovecorev1alpha1.LastError
 	if result != nil && result.HasErrors() {

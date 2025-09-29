@@ -97,6 +97,7 @@ func getWebhooks(authorizerEnabled bool) []cert.WebhookInfo {
 	return webhooks
 }
 
+// getOperatorNamespace reads the operator's namespace from namespace file
 func getOperatorNamespace() (string, error) {
 	data, err := os.ReadFile(constants.OperatorNamespaceFile)
 	if err != nil {

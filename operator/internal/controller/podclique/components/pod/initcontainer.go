@@ -47,12 +47,14 @@ const (
 	volumeMountPathServiceAccount = "/var/run/secrets/kubernetes.io/serviceaccount"
 )
 
+// configurePodInitContainer adds the necessary volumes and init container to the pod for dependency management
 func configurePodInitContainer(pcs *grovecorev1alpha1.PodCliqueSet, pclq *grovecorev1alpha1.PodClique, pod *corev1.Pod) error {
 	addServiceAccountTokenSecretVolume(pcs.Name, pod)
 	addPodInfoVolume(pod)
 	return addInitContainer(pcs, pclq, pod)
 }
 
+// addServiceAccountTokenSecretVolume adds a volume that mounts the service account token secret
 func addServiceAccountTokenSecretVolume(pcsName string, pod *corev1.Pod) {
 	saTokenSecretVol := corev1.Volume{
 		Name: serviceAccountTokenSecretVolumeName,
@@ -66,6 +68,7 @@ func addServiceAccountTokenSecretVolume(pcsName string, pod *corev1.Pod) {
 	pod.Spec.Volumes = append(pod.Spec.Volumes, saTokenSecretVol)
 }
 
+// addPodInfoVolume adds a downwardAPI volume that exposes pod metadata to the init container
 func addPodInfoVolume(pod *corev1.Pod) {
 	podInfoVol := corev1.Volume{
 		Name: podInfoVolumeName,
@@ -91,6 +94,7 @@ func addPodInfoVolume(pod *corev1.Pod) {
 	pod.Spec.Volumes = append(pod.Spec.Volumes, podInfoVol)
 }
 
+// addInitContainer adds the Grove init container to the pod with appropriate image, args, and volume mounts
 func addInitContainer(pcs *grovecorev1alpha1.PodCliqueSet, pclq *grovecorev1alpha1.PodClique, pod *corev1.Pod) error {
 	image, err := getInitContainerImage()
 	if err != nil {
@@ -121,6 +125,7 @@ func addInitContainer(pcs *grovecorev1alpha1.PodCliqueSet, pclq *grovecorev1alph
 	return nil
 }
 
+// getInitContainerImage retrieves the init container image from environment variables
 func getInitContainerImage() (string, error) {
 	initContainerImage, ok := os.LookupEnv(envVarInitContainerImage)
 	if !ok {
@@ -133,6 +138,7 @@ func getInitContainerImage() (string, error) {
 	return initContainerImage, nil
 }
 
+// generateArgsForInitContainer creates command line arguments for the init container based on PodClique dependencies
 func generateArgsForInitContainer(pcs *grovecorev1alpha1.PodCliqueSet, pclq *grovecorev1alpha1.PodClique) ([]string, error) {
 	args := make([]string, 0)
 	for _, parentCliqueFQN := range pclq.Spec.StartsAfter {

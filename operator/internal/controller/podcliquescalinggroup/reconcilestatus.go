@@ -36,6 +36,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
+// reconcileStatus updates the PodCliqueScalingGroup status with current replica counts and conditions
 func (r *Reconciler) reconcileStatus(ctx context.Context, logger logr.Logger, pcsgObjectKey client.ObjectKey) ctrlcommon.ReconcileStepResult {
 	// It is important that we re-fetch the PodCliqueScalingGroup. In case rolling update has been started during the spec reconciliation,
 	// then UpdateInProgress condition will be set. It is essential that this is checked when computing status.
@@ -78,6 +79,7 @@ func (r *Reconciler) reconcileStatus(ctx context.Context, logger logr.Logger, pc
 	return ctrlcommon.ContinueReconcile()
 }
 
+// mutateReplicas updates the PodCliqueScalingGroup status with replica counts based on constituent PodClique states
 func mutateReplicas(logger logr.Logger, currentPCSGenerationHash *string, pcsg *grovecorev1alpha1.PodCliqueScalingGroup, pclqsPerPCSGReplica map[string][]grovecorev1alpha1.PodClique) {
 	pcsg.Status.Replicas = pcsg.Spec.Replicas
 	var scheduledReplicas, availableReplicas, updatedReplicas int32
@@ -131,6 +133,7 @@ func computeReplicaStatus(logger logr.Logger, currentPCSGenerationHash *string, 
 	return
 }
 
+// mutateMinAvailableBreachedCondition updates the MinAvailableBreached condition based on replica availability
 func mutateMinAvailableBreachedCondition(logger logr.Logger, pcsg *grovecorev1alpha1.PodCliqueScalingGroup, pclqsPerPCSGReplica map[string][]grovecorev1alpha1.PodClique) {
 	newCondition := computeMinAvailableBreachedCondition(logger, pcsg, pclqsPerPCSGReplica)
 	if k8sutils.HasConditionChanged(pcsg.Status.Conditions, newCondition) {
@@ -187,6 +190,7 @@ func computeMinAvailableBreachedCondition(logger logr.Logger, pcsg *grovecorev1a
 	}
 }
 
+// computeMinAvailableBreachedReplicas counts PCSG replicas that have at least one PodClique with MinAvailable breached
 func computeMinAvailableBreachedReplicas(logger logr.Logger, pclqsPerPCSGReplica map[string][]grovecorev1alpha1.PodClique) int {
 	var breachedReplicas int
 	for pcsgReplicaIndex, pclqs := range pclqsPerPCSGReplica {
@@ -201,6 +205,7 @@ func computeMinAvailableBreachedReplicas(logger logr.Logger, pclqsPerPCSGReplica
 	return breachedReplicas
 }
 
+// getPodCliquesPerPCSGReplica retrieves and groups PodCliques by their PCSG replica index
 func (r *Reconciler) getPodCliquesPerPCSGReplica(ctx context.Context, pcsName string, pcsgObjKey client.ObjectKey) (map[string][]grovecorev1alpha1.PodClique, error) {
 	selectorLabels := lo.Assign(
 		apicommon.GetDefaultLabelsForPodCliqueSetManagedResources(pcsName),
@@ -222,6 +227,7 @@ func (r *Reconciler) getPodCliquesPerPCSGReplica(ctx context.Context, pcsName st
 	return pclqsPerPCSGReplica, nil
 }
 
+// mutateSelector creates and sets the label selector for autoscaler use when scaling is configured
 func mutateSelector(pcs *grovecorev1alpha1.PodCliqueSet, pcsg *grovecorev1alpha1.PodCliqueScalingGroup) error {
 	pcsReplicaIndex, err := k8sutils.GetPodCliqueSetReplicaIndex(pcsg.ObjectMeta)
 	if err != nil {
@@ -253,6 +259,7 @@ func mutateSelector(pcs *grovecorev1alpha1.PodCliqueSet, pcsg *grovecorev1alpha1
 	return nil
 }
 
+// mutateCurrentPodCliqueSetGenerationHash updates the current generation hash when all PodCliques are updated and no rolling update is in progress
 func mutateCurrentPodCliqueSetGenerationHash(logger logr.Logger, pcs *grovecorev1alpha1.PodCliqueSet, pcsg *grovecorev1alpha1.PodCliqueScalingGroup, existingPCLQs []grovecorev1alpha1.PodClique) {
 	pclqFQNsPendingUpdate := componentutils.GetPCLQsInPCSGPendingUpdate(pcs, pcsg, existingPCLQs)
 	if len(pclqFQNsPendingUpdate) > 0 {
