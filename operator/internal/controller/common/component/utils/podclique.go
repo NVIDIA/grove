@@ -128,6 +128,7 @@ func GetPodCliquesWithParentPCS(ctx context.Context, cl client.Client, pcsObjKey
 	return pclqList.Items, nil
 }
 
+// groupPCLQsByLabel groups PodCliques by the value of the specified label key
 func groupPCLQsByLabel(pclqs []grovecorev1alpha1.PodClique, labelKey string) map[string][]grovecorev1alpha1.PodClique {
 	grouped := make(map[string][]grovecorev1alpha1.PodClique)
 	for _, pclq := range pclqs {

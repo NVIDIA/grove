@@ -31,6 +31,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )
 
+// triggerDeletionFlow handles the deletion of a PodCliqueScalingGroup and its managed resources
 func (r *Reconciler) triggerDeletionFlow(ctx context.Context, logger logr.Logger, pcsg *grovecorev1alpha1.PodCliqueScalingGroup) ctrlcommon.ReconcileStepResult {
 	deleteStepFns := []ctrlcommon.ReconcileStepFn[grovecorev1alpha1.PodCliqueScalingGroup]{
 		r.deletePodCliqueScalingGroupResources,
@@ -46,6 +47,7 @@ func (r *Reconciler) triggerDeletionFlow(ctx context.Context, logger logr.Logger
 	return ctrlcommon.DoNotRequeue()
 }
 
+// deletePodCliqueScalingGroupResources triggers concurrent deletion of all resources managed by the PodCliqueScalingGroup operators
 func (r *Reconciler) deletePodCliqueScalingGroupResources(ctx context.Context, logger logr.Logger, pcsg *grovecorev1alpha1.PodCliqueScalingGroup) ctrlcommon.ReconcileStepResult {
 	operators := r.operatorRegistry.GetAllOperators()
 	deleteTasks := make([]utils.Task, 0, len(operators))
@@ -66,10 +68,12 @@ func (r *Reconciler) deletePodCliqueScalingGroupResources(ctx context.Context, l
 	return ctrlcommon.ContinueReconcile()
 }
 
+// verifyNoResourcesAwaitsCleanup ensures all managed resources have been fully deleted before allowing finalizer removal
 func (r *Reconciler) verifyNoResourcesAwaitsCleanup(ctx context.Context, logger logr.Logger, pcsg *grovecorev1alpha1.PodCliqueScalingGroup) ctrlcommon.ReconcileStepResult {
 	return ctrlutils.VerifyNoResourceAwaitsCleanup(ctx, logger, r.operatorRegistry, pcsg.ObjectMeta)
 }
 
+// removeFinalizer removes the PodCliqueScalingGroup finalizer to allow Kubernetes to complete the deletion
 func (r *Reconciler) removeFinalizer(ctx context.Context, logger logr.Logger, pcsg *grovecorev1alpha1.PodCliqueScalingGroup) ctrlcommon.ReconcileStepResult {
 	if !controllerutil.ContainsFinalizer(pcsg, constants.FinalizerPodCliqueScalingGroup) {
 		logger.Info("Finalizer not found", "PodCliqueScalingGroup", pcsg)
