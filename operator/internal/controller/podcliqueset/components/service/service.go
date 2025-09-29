@@ -47,7 +47,7 @@ type _resource struct {
 	scheme *runtime.Scheme
 }
 
-// New creates an instance of Service components operator.
+// New creates a new Service operator for managing Service resources within PodCliqueSets
 func New(client client.Client, scheme *runtime.Scheme) component.Operator[grovecorev1alpha1.PodCliqueSet] {
 	return &_resource{
 		client: client,

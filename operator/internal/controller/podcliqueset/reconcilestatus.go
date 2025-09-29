@@ -31,6 +31,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
+// reconcileStatus updates the PodCliqueSet status with current replica counts and rolling update progress
 func (r *Reconciler) reconcileStatus(ctx context.Context, logger logr.Logger, pcs *grovecorev1alpha1.PodCliqueSet) ctrlcommon.ReconcileStepResult {
 	// Calculate available replicas using PCSG-inspired approach
 	err := r.mutateReplicas(ctx, logger, pcs)

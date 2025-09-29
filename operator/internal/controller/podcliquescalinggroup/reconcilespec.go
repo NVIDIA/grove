@@ -36,6 +36,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )
 
+// reconcileSpec performs the main reconciliation logic for PodCliqueScalingGroup spec changes
 func (r *Reconciler) reconcileSpec(ctx context.Context, logger logr.Logger, pcsg *grovecorev1alpha1.PodCliqueScalingGroup) ctrlcommon.ReconcileStepResult {
 	reconcileStepFns := []ctrlcommon.ReconcileStepFn[grovecorev1alpha1.PodCliqueScalingGroup]{
 		r.ensureFinalizer,
@@ -53,6 +54,7 @@ func (r *Reconciler) reconcileSpec(ctx context.Context, logger logr.Logger, pcsg
 	return ctrlcommon.ContinueReconcile()
 }
 
+// ensureFinalizer adds the PodCliqueScalingGroup finalizer if it's not already present
 func (r *Reconciler) ensureFinalizer(ctx context.Context, logger logr.Logger, pcsg *grovecorev1alpha1.PodCliqueScalingGroup) ctrlcommon.ReconcileStepResult {
 	if !controllerutil.ContainsFinalizer(pcsg, apiconstants.FinalizerPodCliqueScalingGroup) {
 		logger.Info("Adding finalizer", "finalizerName", apiconstants.FinalizerPodCliqueScalingGroup)
@@ -64,6 +66,7 @@ func (r *Reconciler) ensureFinalizer(ctx context.Context, logger logr.Logger, pc
 	return ctrlcommon.ContinueReconcile()
 }
 
+// processRollingUpdate handles rolling update initialization for PodCliqueScalingGroups when the parent PodCliqueSet is updating
 func (r *Reconciler) processRollingUpdate(ctx context.Context, logger logr.Logger, pcsg *grovecorev1alpha1.PodCliqueScalingGroup) ctrlcommon.ReconcileStepResult {
 	pcsgObjectKey := client.ObjectKeyFromObject(pcsg)
 	pcs, err := componentutils.GetPodCliqueSet(ctx, r.client, pcsg.ObjectMeta)
@@ -103,6 +106,7 @@ func (r *Reconciler) processRollingUpdate(ctx context.Context, logger logr.Logge
 	return ctrlcommon.ContinueReconcile()
 }
 
+// shouldResetOrTriggerRollingUpdate determines if a rolling update should be initiated based on generation hash changes
 func shouldResetOrTriggerRollingUpdate(pcs *grovecorev1alpha1.PodCliqueSet, pcsg *grovecorev1alpha1.PodCliqueScalingGroup) bool {
 	// If processing of rolling update of PCSG for PCS CurrentGenerationHash is either completed or in-progress,
 	// there is no need to reset or trigger another rolling update of this PCSG for the same PCS CurrentGenerationHash.
@@ -112,6 +116,7 @@ func shouldResetOrTriggerRollingUpdate(pcs *grovecorev1alpha1.PodCliqueSet, pcsg
 	return true
 }
 
+// syncPodCliqueScalingGroupResources synchronizes all managed resources using registered operators with retry logic
 func (r *Reconciler) syncPodCliqueScalingGroupResources(ctx context.Context, logger logr.Logger, pcsg *grovecorev1alpha1.PodCliqueScalingGroup) ctrlcommon.ReconcileStepResult {
 	continueReconcileAndRequeueKinds := make([]component.Kind, 0)
 	for _, kind := range getOrderedKindsForSync() {
@@ -140,6 +145,7 @@ func (r *Reconciler) syncPodCliqueScalingGroupResources(ctx context.Context, log
 	return ctrlcommon.ContinueReconcile()
 }
 
+// recordIncompleteReconcile records errors from failed reconciliation steps in the PodCliqueScalingGroup status
 func (r *Reconciler) recordIncompleteReconcile(ctx context.Context, logger logr.Logger, pcsg *grovecorev1alpha1.PodCliqueScalingGroup, errStepResult *ctrlcommon.ReconcileStepResult) ctrlcommon.ReconcileStepResult {
 	if err := r.reconcileStatusRecorder.RecordErrors(ctx, pcsg, errStepResult); err != nil {
 		logger.Error(err, "failed to record incomplete reconcile operation")
@@ -150,6 +156,7 @@ func (r *Reconciler) recordIncompleteReconcile(ctx context.Context, logger logr.
 	return *errStepResult
 }
 
+// updateObservedGeneration updates the PodCliqueScalingGroup status to reflect the current generation being processed
 func (r *Reconciler) updateObservedGeneration(ctx context.Context, logger logr.Logger, pcsg *grovecorev1alpha1.PodCliqueScalingGroup) ctrlcommon.ReconcileStepResult {
 	original := pcsg.DeepCopy()
 	pcsg.Status.ObservedGeneration = &pcsg.Generation
@@ -161,6 +168,7 @@ func (r *Reconciler) updateObservedGeneration(ctx context.Context, logger logr.L
 	return ctrlcommon.ContinueReconcile()
 }
 
+// getOrderedKindsForSync returns the ordered list of resource kinds to synchronize for PodCliqueScalingGroup
 func getOrderedKindsForSync() []component.Kind {
 	return []component.Kind{
 		component.KindPodClique,

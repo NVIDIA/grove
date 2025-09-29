@@ -98,6 +98,7 @@ func (r _resource) createPodDeletionTask(logger logr.Logger, pclq *grovecorev1al
 	}
 }
 
+// createPodDeletionTasks creates multiple deletion tasks for a batch of pods
 func (r _resource) createPodDeletionTasks(logger logr.Logger, pclq *grovecorev1alpha1.PodClique, podsToDelete []*corev1.Pod, pclqExpectationsKey string) []utils.Task {
 	deletionTasks := make([]utils.Task, 0, len(podsToDelete))
 	for _, podToDelete := range podsToDelete {

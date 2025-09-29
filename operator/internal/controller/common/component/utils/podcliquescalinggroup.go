@@ -50,6 +50,7 @@ func GetPCSGsForPCS(ctx context.Context, cl client.Client, pcsObjKey client.Obje
 	return pcsgList.Items, nil
 }
 
+// doGetPCSGsForPCS is a helper function that fetches PodCliqueScalingGroups with optional additional label filtering
 func doGetPCSGsForPCS(ctx context.Context, cl client.Client, pcsObjKey client.ObjectKey, matchingLabels map[string]string) (*grovecorev1alpha1.PodCliqueScalingGroupList, error) {
 	pcsgList := &grovecorev1alpha1.PodCliqueScalingGroupList{}
 	if err := cl.List(ctx,
@@ -86,6 +87,7 @@ func GroupPCSGsByPCSReplicaIndex(pcsgs []grovecorev1alpha1.PodCliqueScalingGroup
 	return groupPCSGsByLabel(pcsgs, apicommon.LabelPodCliqueSetReplicaIndex)
 }
 
+// groupPCSGsByLabel groups PodCliqueScalingGroups by the value of the specified label key
 func groupPCSGsByLabel(pcsgs []grovecorev1alpha1.PodCliqueScalingGroup, label string) map[string][]grovecorev1alpha1.PodCliqueScalingGroup {
 	result := make(map[string][]grovecorev1alpha1.PodCliqueScalingGroup)
 	for _, pcsg := range pcsgs {

@@ -83,6 +83,7 @@ func WaitTillWebhookCertsReady(logger logr.Logger, certsReady chan struct{}) {
 	logger.Info("Certs are ready and injected into webhook configurations")
 }
 
+// getOperatorNamespace reads the operator's namespace from namespace file
 func getOperatorNamespace() (string, error) {
 	data, err := os.ReadFile(operatorNamespaceFile)
 	if err != nil {

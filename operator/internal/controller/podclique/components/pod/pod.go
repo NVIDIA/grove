@@ -75,7 +75,7 @@ type _resource struct {
 	expectationsStore *expect.ExpectationsStore
 }
 
-// New creates an instance of Pod components operator.
+// New creates a new Pod operator for managing Pod resources within PodCliques
 func New(client client.Client, scheme *runtime.Scheme, eventRecorder record.EventRecorder, expectationsStore *expect.ExpectationsStore) component.Operator[grovecorev1alpha1.PodClique] {
 	return &_resource{
 		client:            client,
@@ -112,6 +112,7 @@ func (r _resource) GetExistingResourceNames(ctx context.Context, _ logr.Logger, 
 	return podNames, nil
 }
 
+// Sync ensures that the desired number of Pods exist for the PodClique with the correct configuration
 func (r _resource) Sync(ctx context.Context, logger logr.Logger, pclq *grovecorev1alpha1.PodClique) error {
 	sc, err := r.prepareSyncFlow(ctx, logger, pclq)
 	if err != nil {
@@ -130,6 +131,7 @@ func (r _resource) Sync(ctx context.Context, logger logr.Logger, pclq *grovecore
 	return nil
 }
 
+// buildResource constructs a Pod resource from PodClique specifications, setting up metadata, labels, scheduling gates, and dependencies
 func (r _resource) buildResource(pcs *grovecorev1alpha1.PodCliqueSet, pclq *grovecorev1alpha1.PodClique, podGangName string, pod *corev1.Pod, podIndex int) error {
 	// Extract PCS replica index from PodClique name for now (will be replaced with direct parameter)
 	pcsName := componentutils.GetPodCliqueSetName(pclq.ObjectMeta)
@@ -169,6 +171,7 @@ func (r _resource) buildResource(pcs *grovecorev1alpha1.PodCliqueSet, pclq *grov
 	return nil
 }
 
+// Delete removes all Pods associated with the specified PodClique
 func (r _resource) Delete(ctx context.Context, logger logr.Logger, pclqObjectMeta metav1.ObjectMeta) error {
 	logger.Info("Triggering delete of all pods for the PodClique")
 	if err := r.client.DeleteAllOf(ctx,
@@ -195,6 +198,7 @@ func (r _resource) Delete(ctx context.Context, logger logr.Logger, pclqObjectMet
 	return nil
 }
 
+// getSelectorLabelsForPods creates label selector map for identifying pods belonging to a PodClique
 func getSelectorLabelsForPods(pclqObjectMeta metav1.ObjectMeta) map[string]string {
 	pcsName := k8sutils.GetFirstOwnerName(pclqObjectMeta)
 	return lo.Assign(
@@ -205,6 +209,7 @@ func getSelectorLabelsForPods(pclqObjectMeta metav1.ObjectMeta) map[string]strin
 	)
 }
 
+// getLabels constructs the complete set of labels for a pod including Grove-specific and template labels
 func getLabels(pclqObjectMeta metav1.ObjectMeta, pcsName, podGangName string, pcsReplicaIndex int) map[string]string {
 	labels := map[string]string{
 		apicommon.LabelPodClique:                pclqObjectMeta.Name,
