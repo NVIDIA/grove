@@ -37,7 +37,7 @@ func TestSetupSignalHandler(t *testing.T) {
 	// Context should not be cancelled initially
 	select {
 	case <-ctx.Done():
-		t.Fatal("Context should not be cancelled initially")
+		require.FailNow(t, "Context should not be cancelled initially")
 	default:
 		// Expected behavior
 	}
@@ -62,6 +62,6 @@ func TestSetupSignalHandlerCancellation(t *testing.T) {
 		// Expected behavior - context should be cancelled
 		assert.Equal(t, context.Canceled, ctx.Err(), "Context should be cancelled")
 	case <-time.After(100 * time.Millisecond):
-		t.Fatal("Context should have been cancelled within timeout")
+		require.FailNow(t, "Context should have been cancelled within timeout")
 	}
 }
