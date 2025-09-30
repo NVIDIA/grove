@@ -1,3 +1,19 @@
+// /*
+// Copyright 2025 The Grove Authors.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+// */
+
 package tests
 
 import (
@@ -34,8 +50,13 @@ func init() {
 	// This prevents warning messages like "restartPolicy will be ignored" from appearing in test output.
 	// Comment this out if you want to see the warnings, but they all seem harmless and noisy.
 	klog.InitFlags(nil)
-	flag.Set("logtostderr", "false")
-	flag.Set("alsologtostderr", "false")
+	if err := flag.Set("logtostderr", "false"); err != nil {
+		panic("Failed to set logtostderr flag")
+	}
+
+	if err := flag.Set("alsologtostderr", "false"); err != nil {
+		panic("Failed to set alsologtostderr flag")
+	}
 
 	// increase logger verbosity for debugging
 	logger = utils.NewCILogger(logrus.InfoLevel)
