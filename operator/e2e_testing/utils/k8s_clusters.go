@@ -1,3 +1,19 @@
+// /*
+// Copyright 2025 The Grove Authors.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+// */
+
 package utils
 
 import (
@@ -63,7 +79,6 @@ func DefaultClusterConfig() ClusterConfig {
 
 // SetupCompleteK3DCluster creates a complete k3d cluster with Grove, Kai Scheduler, and NVIDIA GPU Operator
 func SetupCompleteK3DCluster(ctx context.Context, cfg ClusterConfig, logger *logrus.Logger) (*rest.Config, func(), error) {
-
 	restConfig, cleanup, err := SetupK3DCluster(ctx, cfg, logger)
 	if err != nil {
 		return nil, cleanup, err
@@ -76,7 +91,7 @@ func SetupCompleteK3DCluster(ctx context.Context, cfg ClusterConfig, logger *log
 	}
 
 	// Start node monitoring to handle not ready nodes (see StartNodeMonitoring for more details)
-	nodeMonitoringCleanup := StartNodeMonitoring(ctx, cfg.Name, clientset, logger)
+	nodeMonitoringCleanup := StartNodeMonitoring(ctx, clientset, logger)
 
 	// Create enhanced cleanup function that includes node monitoring
 	enhancedCleanup := func() {
@@ -164,25 +179,26 @@ func SetupCompleteK3DCluster(ctx context.Context, cfg ClusterConfig, logger *log
 	// Wait for Grove pods to be ready
 	if err := WaitForPodsInNamespace(ctx, groveConfig.Namespace, groveConfig.RestConfig, 5*time.Minute, groveConfig.Logger); err != nil {
 		cleanup()
-		return nil, nil, fmt.Errorf("Grove pods not ready: %w", err)
+
+		return nil, nil, fmt.Errorf("grove pods not ready: %w", err)
 	}
 
 	// Wait for Kai Scheduler pods to be ready
 	if err := WaitForPodsInNamespace(ctx, kaiConfig.Namespace, kaiConfig.RestConfig, 5*time.Minute, kaiConfig.Logger); err != nil {
 		cleanup()
-		return nil, nil, fmt.Errorf("Kai Scheduler pods not ready: %w", err)
+		return nil, nil, fmt.Errorf("kai scheduler pods not ready: %w", err)
 	}
 
 	// Wait for the Kai CRDs to be available (before creating queues)
 	if err := WaitForKaiCRDs(ctx, kaiConfig); err != nil {
 		cleanup()
-		return nil, nil, fmt.Errorf("Failed to wait for Kai CRDs: %w", err)
+		return nil, nil, fmt.Errorf("failed to wait for Kai CRDs: %w", err)
 	}
 
 	// need to create the default Kai queues
 	if err := CreateDefaultKaiQueues(ctx, kaiConfig); err != nil {
 		cleanup()
-		return nil, nil, fmt.Errorf("Failed to create default Kai queue: %w", err)
+		return nil, nil, fmt.Errorf("failed to create default Kai queue: %w", err)
 	}
 
 	// Nvidia Operator seems to take the longest to be ready, so we wait for it last
@@ -314,11 +330,12 @@ func SetupK3DCluster(ctx context.Context, cfg ClusterConfig, logger *logrus.Logg
 	return restConfig, cleanup, nil
 }
 
+// InstallCoreComponents installs the core components via helm (Grove, Kai Scheduler, and NVIDIA GPU Operator)
 func InstallCoreComponents(groveConfig *HelmInstallConfig, kaiConfig *HelmInstallConfig, nvidiaConfig *HelmInstallConfig, logger *logrus.Logger) error {
 	var wg sync.WaitGroup
 	errChan := make(chan error, 3) // Buffer for up to 3 errors
 
-	// There's occasionally wierd races regarding CRDS, for test stability we retry a few times
+	// There's occasionally weird races regarding CRDS, for test stability we retry a few times
 	const maxRetries = 3
 	const retryDelay = 5 * time.Second
 
@@ -437,8 +454,7 @@ func retryInstallation(installFunc func() error, componentName string, maxRetrie
 // 3. Deletes the not ready node from Kubernetes
 // 4. Finds and restarts the corresponding Docker container (node names match container names exactly)
 // 5. The restarted container will rejoin the cluster as a new node
-func StartNodeMonitoring(ctx context.Context, clusterName string, clientset *kubernetes.Clientset, logger *logrus.Logger) func() {
-
+func StartNodeMonitoring(ctx context.Context, clientset *kubernetes.Clientset, logger *logrus.Logger) func() {
 	logger.Debug("🔍 Starting node monitoring for not ready nodes...")
 
 	// Create a context that can be cancelled to stop the monitoring
@@ -446,7 +462,6 @@ func StartNodeMonitoring(ctx context.Context, clusterName string, clientset *kub
 
 	// Start the monitoring goroutine
 	go func() {
-
 		ticker := time.NewTicker(5 * time.Second)
 		defer ticker.Stop()
 
