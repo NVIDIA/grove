@@ -36,14 +36,15 @@ import (
 
 // SharedClusterManager manages a shared (singleton) k3d cluster for E2E tests
 type SharedClusterManager struct {
-	clientset     *kubernetes.Clientset
-	restConfig    *rest.Config
-	dynamicClient dynamic.Interface
-	cleanup       func()
-	logger        *logrus.Logger
-	isSetup       bool
-	agentNodes    []string
-	registryPort  string
+	clientset        *kubernetes.Clientset
+	restConfig       *rest.Config
+	dynamicClient    dynamic.Interface
+	cleanup          func()
+	logger           *logrus.Logger
+	isSetup          bool
+	agentNodes       []string
+	registryPort     string
+	skaffoldYAMLPath string
 }
 
 var (
@@ -52,10 +53,11 @@ var (
 )
 
 // SharedCluster returns the singleton shared cluster manager
-func SharedCluster(logger *logrus.Logger) *SharedClusterManager {
+func SharedCluster(logger *logrus.Logger, skaffoldYAMLPath string) *SharedClusterManager {
 	once.Do(func() {
 		sharedCluster = &SharedClusterManager{
-			logger: logger,
+			logger:           logger,
+			skaffoldYAMLPath: skaffoldYAMLPath,
 		}
 	})
 	return sharedCluster
@@ -94,7 +96,7 @@ func (scm *SharedClusterManager) Setup(ctx context.Context, testImages []string)
 
 	scm.logger.Info("🚀 Setting up shared k3d cluster for all e2e tests...")
 
-	restConfig, cleanup, err := SetupCompleteK3DCluster(ctx, customCfg, scm.logger)
+	restConfig, cleanup, err := SetupCompleteK3DCluster(ctx, customCfg, scm.skaffoldYAMLPath, scm.logger)
 	if err != nil {
 		return fmt.Errorf("failed to setup shared k3d cluster: %w", err)
 	}
