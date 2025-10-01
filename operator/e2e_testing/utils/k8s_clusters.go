@@ -19,6 +19,7 @@ package utils
 import (
 	"context"
 	"fmt"
+	"path/filepath"
 	"strings"
 	"sync"
 	"time"
@@ -78,7 +79,7 @@ func DefaultClusterConfig() ClusterConfig {
 }
 
 // SetupCompleteK3DCluster creates a complete k3d cluster with Grove, Kai Scheduler, and NVIDIA GPU Operator
-func SetupCompleteK3DCluster(ctx context.Context, cfg ClusterConfig, logger *logrus.Logger) (*rest.Config, func(), error) {
+func SetupCompleteK3DCluster(ctx context.Context, cfg ClusterConfig, skaffoldYAMLPath string, logger *logrus.Logger) (*rest.Config, func(), error) {
 	restConfig, cleanup, err := SetupK3DCluster(ctx, cfg, logger)
 	if err != nil {
 		return nil, cleanup, err
@@ -113,21 +114,6 @@ func SetupCompleteK3DCluster(ctx context.Context, cfg ClusterConfig, logger *log
 			"value":    "agent",
 			"effect":   "NoSchedule",
 		},
-	}
-
-	groveConfig := &HelmInstallConfig{
-		ReleaseName:     "grove",
-		ChartRef:        "oci://ghcr.io/nvidia/grove/grove-charts",
-		ChartVersion:    "v0.1.0-alpha.1",
-		Namespace:       "grove-system",
-		RestConfig:      restConfig,
-		CreateNamespace: true,
-		Wait:            false,
-		Values: map[string]interface{}{
-			"tolerations": tolerations,
-		},
-		HelmLoggerFunc: logger.Debugf,
-		Logger:         logger,
 	}
 
 	kaiConfig := &HelmInstallConfig{
@@ -171,13 +157,13 @@ func SetupCompleteK3DCluster(ctx context.Context, cfg ClusterConfig, logger *log
 	}
 
 	logger.Info("🚀 Installing Grove, Kai Scheduler, and NVIDIA GPU Operator...")
-	if err := InstallCoreComponents(groveConfig, kaiConfig, nvidiaConfig, logger); err != nil {
+	if err := InstallCoreComponents(ctx, restConfig, kaiConfig, nvidiaConfig, skaffoldYAMLPath, cfg.RegistryPort, logger); err != nil {
 		cleanup()
 		return nil, nil, fmt.Errorf("component installation failed: %w", err)
 	}
 
 	// Wait for Grove pods to be ready
-	if err := WaitForPodsInNamespace(ctx, groveConfig.Namespace, groveConfig.RestConfig, 5*time.Minute, groveConfig.Logger); err != nil {
+	if err := WaitForPodsInNamespace(ctx, "grove-system", restConfig, 5*time.Minute, logger); err != nil {
 		cleanup()
 
 		return nil, nil, fmt.Errorf("grove pods not ready: %w", err)
@@ -330,10 +316,13 @@ func SetupK3DCluster(ctx context.Context, cfg ClusterConfig, logger *logrus.Logg
 	return restConfig, cleanup, nil
 }
 
-// InstallCoreComponents installs the core components via helm (Grove, Kai Scheduler, and NVIDIA GPU Operator)
-func InstallCoreComponents(groveConfig *HelmInstallConfig, kaiConfig *HelmInstallConfig, nvidiaConfig *HelmInstallConfig, logger *logrus.Logger) error {
+// InstallCoreComponents installs the core components (Grove via Skaffold, Kai Scheduler and NVIDIA GPU Operator via Helm)
+func InstallCoreComponents(ctx context.Context, restConfig *rest.Config, kaiConfig *HelmInstallConfig, nvidiaConfig *HelmInstallConfig, skaffoldYAMLPath string, registryPort string, logger *logrus.Logger) error {
+	// use wait group to wait for all installations to complete
 	var wg sync.WaitGroup
-	errChan := make(chan error, 3) // Buffer for up to 3 errors
+
+	// error channel to collect errors from goroutines, buffered to 3 errors
+	errChan := make(chan error, 3)
 
 	// There's occasionally weird races regarding CRDS, for test stability we retry a few times
 	const maxRetries = 3
@@ -360,26 +349,45 @@ func InstallCoreComponents(groveConfig *HelmInstallConfig, kaiConfig *HelmInstal
 		}()
 	}
 
-	// Install Grove
-	if groveConfig != nil {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			logger.Debug("🚀 Starting Grove installation...")
+	// Install Grove via Skaffold
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		logger.Debug("🚀 Starting Grove installation via Skaffold...")
 
-			installFunc := func() error {
-				_, err := InstallHelmChart(groveConfig)
-				return err
-			}
-
-			err := retryInstallation(installFunc, "Grove", maxRetries, retryDelay, logger)
+		installFunc := func() error {
+			absoluteSkaffoldYAMLPath, err := filepath.Abs(skaffoldYAMLPath)
 			if err != nil {
-				errChan <- err
-			} else {
-				logger.Debug("✅ Grove installation completed successfully")
+				return fmt.Errorf("failed to get absolute path for skaffold.yaml: %w", err)
 			}
-		}()
-	}
+
+			skaffoldConfig := &SkaffoldInstallConfig{
+				SkaffoldYAMLPath: absoluteSkaffoldYAMLPath,
+				RestConfig:       restConfig,
+				Profiles:         []string{"debug"},
+				PushRepo:         fmt.Sprintf("localhost:%s", registryPort),
+				PullRepo:         fmt.Sprintf("registry:%s", registryPort),
+				Namespace:        "grove-system",
+				Env: map[string]string{
+					"VERSION":  "E2E_TESTS", //version required but it doesn't matter which for e2e tests
+					"LD_FLAGS": "",          // Empty for e2e tests
+				},
+				Logger: logger,
+			}
+			cleanup, err := InstallWithSkaffold(ctx, skaffoldConfig)
+			if cleanup != nil {
+				defer cleanup()
+			}
+			return err
+		}
+
+		err := retryInstallation(installFunc, "Grove", maxRetries, retryDelay, logger)
+		if err != nil {
+			errChan <- err
+		} else {
+			logger.Debug("✅ Grove installation completed successfully")
+		}
+	}()
 
 	// Install NVIDIA GPU Operator
 	if nvidiaConfig != nil {
