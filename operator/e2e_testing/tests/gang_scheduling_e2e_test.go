@@ -70,7 +70,7 @@ func TestMain(m *testing.M) {
 	isRunningFullSuite = true
 
 	// Setup shared cluster once for all tests
-	sharedCluster := utils.SharedCluster(logger)
+	sharedCluster := utils.SharedCluster(logger, "../../skaffold.yaml")
 	if err := sharedCluster.Setup(ctx, testImages); err != nil {
 		logger.Errorf("failed to setup shared cluster: %s", err)
 		os.Exit(1)
@@ -91,7 +91,7 @@ func TestMain(m *testing.M) {
 // The cleanup function removes workloads and optionally tears down the cluster for individual test runs.
 func setupTestCluster(ctx context.Context, t *testing.T, requiredAgents int) (*kubernetes.Clientset, *rest.Config, dynamic.Interface, func(), string) {
 	// Always use shared cluster approach
-	sharedCluster := utils.SharedCluster(logger)
+	sharedCluster := utils.SharedCluster(logger, "../../skaffold.yaml")
 
 	// Setup shared cluster if not already done
 	if !sharedCluster.IsSetup() {
