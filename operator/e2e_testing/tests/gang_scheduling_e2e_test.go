@@ -1,3 +1,5 @@
+//go:build e2e
+
 // /*
 // Copyright 2025 The Grove Authors.
 //
@@ -14,6 +16,14 @@
 // limitations under the License.
 // */
 
+// Package tests contains end-to-end tests for the Grove operator.
+//
+// These tests are disabled by default due to the 'e2e' build tag above.
+// To run these tests, use:
+//
+//	go test -tags=e2e ./e2e_testing/tests/...
+//
+// Without the -tags=e2e flag, these tests will be skipped entirely.
 package tests
 
 import (
