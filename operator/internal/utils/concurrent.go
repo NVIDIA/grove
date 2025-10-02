@@ -106,8 +106,7 @@ func RunConcurrentlyWithBounds(ctx context.Context, logger logr.Logger, tasks []
 	return createRunResult(tasks, tasksInError)
 }
 
-// Functions to create and update RunResult
-// -------------------------------------------------------------------------------------------
+// createRunResult constructs a RunResult by correlating all tasks with those that errored.
 func createRunResult(allTasks []Task, tasksInError []lo.Tuple2[string, error]) RunResult {
 	result := RunResult{
 		SuccessfulTasks: make([]string, 0, len(allTasks)),
@@ -129,12 +128,14 @@ func createRunResult(allTasks []Task, tasksInError []lo.Tuple2[string, error]) R
 	return result
 }
 
+// updateWithBatchRunResult merges the results from a batch run into the aggregated result.
 func updateWithBatchRunResult(aggregatedRunResult *RunResult, batchRunResult RunResult) {
 	aggregatedRunResult.SuccessfulTasks = append(aggregatedRunResult.SuccessfulTasks, batchRunResult.SuccessfulTasks...)
 	aggregatedRunResult.FailedTasks = append(aggregatedRunResult.FailedTasks, batchRunResult.FailedTasks...)
 	aggregatedRunResult.Errors = append(aggregatedRunResult.Errors, batchRunResult.Errors...)
 }
 
+// computeAndUpdateSkippedTasks identifies tasks that were neither successful nor failed and marks them as skipped.
 func computeAndUpdateSkippedTasks(result *RunResult, allTasks []Task) {
 	allTaskNames := lo.Map(allTasks, func(task Task, _ int) string {
 		return task.Name
@@ -145,15 +146,14 @@ func computeAndUpdateSkippedTasks(result *RunResult, allTasks []Task) {
 	result.SkippedTasks = append(result.SkippedTasks, skippedTaskNames...)
 }
 
-// Types and functions/methods to manage concurrent execution of taskConfigs
-// -------------------------------------------------------------------------------------------
-
+// runGroup coordinates concurrent task execution with wait group and error collection.
 type runGroup struct {
 	logger    logr.Logger
 	wg        sync.WaitGroup
 	errTaskCh chan lo.Tuple2[string, error]
 }
 
+// newRunGroup creates a new runGroup with a buffered error channel sized for the number of tasks.
 func newRunGroup(numTasks int, logger logr.Logger) *runGroup {
 	return &runGroup{
 		logger:    logger,
@@ -162,6 +162,7 @@ func newRunGroup(numTasks int, logger logr.Logger) *runGroup {
 	}
 }
 
+// trigger spawns a goroutine to execute the task and recovers from panics.
 func (rg *runGroup) trigger(ctx context.Context, task Task) {
 	rg.wg.Add(1)
 	rg.logger.V(4).Info("triggering concurrent execution of task", "taskName", task.Name)
@@ -181,6 +182,7 @@ func (rg *runGroup) trigger(ctx context.Context, task Task) {
 	}(task)
 }
 
+// waitAndCollectErroneousTasks waits for all tasks to complete and returns those that failed.
 func (rg *runGroup) waitAndCollectErroneousTasks() []lo.Tuple2[string, error] {
 	rg.wg.Wait()
 	close(rg.errTaskCh)
