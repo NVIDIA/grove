@@ -74,6 +74,7 @@ func createLogFormatOpts(format configv1alpha1.LogFormat) (logzap.Opts, error) {
 		encoderConfig.EncodeDuration = zapcore.StringDurationEncoder
 	}
 
+	// configure zap log format
 	switch format {
 	case configv1alpha1.LogFormatText:
 		return logzap.ConsoleEncoder(setCommonEncoderConfigOpts), nil
