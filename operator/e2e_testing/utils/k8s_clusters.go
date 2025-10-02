@@ -50,17 +50,17 @@ type NodeTaint struct {
 
 // ClusterConfig holds configuration for creating a k3d cluster
 type ClusterConfig struct {
-	Name             string
-	Servers          int
-	Agents           int
-	Image            string
-	HostPort         string
-	LoadBalancerPort string
-	AgentNodeLabels  map[string]string
-	AgentNodeTaints  []NodeTaint // Taints to apply to agent nodes
-	WorkerMemory     string      // Memory allocation for worker/agent nodes (e.g., "150m")
-	EnableRegistry   bool        // Enable built-in Docker registry
-	RegistryPort     string      // Port for the Docker registry (e.g., "5001")
+	Name             string            // Name of the k3d cluster
+	Servers          int               // Number of server/non-worker nodes
+	Agents           int               // Number of agent/worker nodes
+	Image            string            // Docker image to use for k3d cluster (e.g., "rancher/k3s:v1.28.8-k3s1")
+	HostPort         string            // Port on host to expose Kubernetes API (e.g., "6550")
+	LoadBalancerPort string            // Load balancer port mapping in format "hostPort:containerPort" (e.g., "8080:80")
+	AgentNodeLabels  map[string]string // Kubernetes labels to apply to all agent nodes
+	AgentNodeTaints  []NodeTaint       // Taints to apply to agent nodes
+	WorkerMemory     string            // Memory allocation for worker/agent nodes (e.g., "150m")
+	EnableRegistry   bool              // Enable built-in Docker registry
+	RegistryPort     string            // Port for the Docker registry (e.g., "5001")
 }
 
 // DefaultClusterConfig returns a sensible default cluster configuration

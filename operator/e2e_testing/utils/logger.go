@@ -22,8 +22,8 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-// NewCILogger creates a new logrus logger with the specified verbosity level
-func NewCILogger(verbosity logrus.Level) *logrus.Logger {
+// NewTestLogger creates a new logrus logger with the specified verbosity level
+func NewTestLogger(verbosity logrus.Level) *logrus.Logger {
 	logger := logrus.New()
 	logger.SetOutput(os.Stdout)
 	logger.SetFormatter(&logrus.TextFormatter{

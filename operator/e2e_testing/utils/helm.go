@@ -102,7 +102,6 @@ func InstallHelmChart(config *HelmInstallConfig) (*release.Release, error) {
 		return nil, err
 	}
 
-	// Create the install client using a helper to keep this function's workflow clean and readable.
 	installClient := newInstallClient(actionConfig, config)
 
 	config.HelmLoggerFunc("Locating and pulling chart %s version %s...", config.ChartRef, config.ChartVersion)
