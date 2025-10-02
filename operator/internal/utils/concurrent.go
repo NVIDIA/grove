@@ -144,13 +144,14 @@ func computeAndUpdateSkippedTasks(result *RunResult, allTasks []Task) {
 	result.SkippedTasks = append(result.SkippedTasks, skippedTaskNames...)
 }
 
+// runGroup coordinates concurrent task execution with wait group and error collection.
 type runGroup struct {
 	logger    logr.Logger
 	wg        sync.WaitGroup
 	errTaskCh chan lo.Tuple2[string, error]
 }
 
-// newRunGroup creates a runGroup for managing concurrent task execution.
+// newRunGroup creates a new runGroup with a buffered error channel sized for the number of tasks.
 func newRunGroup(numTasks int, logger logr.Logger) *runGroup {
 	return &runGroup{
 		logger:    logger,
