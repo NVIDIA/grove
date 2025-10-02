@@ -59,7 +59,7 @@ func init() {
 	}
 
 	// increase logger verbosity for debugging
-	logger = utils.NewCILogger(logrus.InfoLevel)
+	logger = utils.NewTestLogger(logrus.InfoLevel)
 }
 
 // TestMain manages the lifecycle of the shared cluster for all tests
@@ -135,7 +135,7 @@ func Test_GS1_GangSchedulingWithFullReplicas(t *testing.T) {
 	clientset, restConfig, _, cleanup, _ := setupTestCluster(ctx, t, 10)
 	defer cleanup()
 
-	// Get agent nodes for cordoning
+	// Get agent (worker) nodes for cordoning
 	agentNodes, err := getAgentNodes(ctx, clientset)
 	if err != nil {
 		t.Errorf("Failed to get agent nodes: %v", err)
@@ -154,14 +154,8 @@ func Test_GS1_GangSchedulingWithFullReplicas(t *testing.T) {
 	logger.Info("2. Deploy workload WL1, and verify 10 newly created pods")
 	// Deploy workload1.yaml
 	workloadNamespace := "default"
-	workloadConfig := &utils.WorkloadConfig{
-		YAMLFilePath: "../yaml/workload1.yaml",
-		Namespace:    workloadNamespace,
-		RestConfig:   restConfig,
-		Timeout:      1 * time.Minute, // Short timeout since we expect pods to be pending
-	}
 
-	_, err = utils.ApplyYAMLFile(ctx, workloadConfig, logger)
+	_, err = utils.ApplyYAMLFile(ctx, "../yaml/workload1.yaml", workloadNamespace, restConfig, logger)
 	if err != nil {
 		t.Errorf("Failed to apply workload YAML: %v", err)
 	}
@@ -222,8 +216,7 @@ func Test_GS1_GangSchedulingWithFullReplicas(t *testing.T) {
 	}
 
 	// Wait for all pods to be scheduled and ready
-	workloadConfig.Timeout = 10 * time.Minute // Allow more time for workload pods
-	if err := utils.WaitForPods(ctx, workloadConfig, []string{workloadNamespace}, logger); err != nil {
+	if err := utils.WaitForPods(ctx, restConfig, []string{workloadNamespace}, "", 10*time.Minute, logger); err != nil {
 		t.Errorf("Failed to wait for pods to be ready: %v", err)
 	}
 
@@ -245,6 +238,9 @@ func Test_GS1_GangSchedulingWithFullReplicas(t *testing.T) {
 	if runningPods != len(pods.Items) {
 		t.Errorf("Expected all %d pods to be running, but only %d are running", len(pods.Items), runningPods)
 	}
+
+	// Verify that each pod is scheduled on a unique node, agent nodes have 150m memory
+	// and workload pods requests 80m memory, so only 1 should fit per node
 	assertPodsOnDistinctNodes(t, pods.Items)
 
 	logger.Info("🎉 Gang-scheduling With Full Replicas test completed successfully!")
