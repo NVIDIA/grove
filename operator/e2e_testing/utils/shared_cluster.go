@@ -36,15 +36,15 @@ import (
 
 // SharedClusterManager manages a shared (singleton) k3d cluster for E2E tests
 type SharedClusterManager struct {
-	clientset        *kubernetes.Clientset
-	restConfig       *rest.Config
-	dynamicClient    dynamic.Interface
-	cleanup          func()
-	logger           *logrus.Logger
-	isSetup          bool
-	agentNodes       []string
-	registryPort     string
-	skaffoldYAMLPath string
+	clientset                *kubernetes.Clientset
+	restConfig               *rest.Config
+	dynamicClient            dynamic.Interface
+	cleanup                  func()
+	logger                   *logrus.Logger
+	isSetup                  bool
+	agentNodes               []string
+	registryPort             string
+	relativeSkaffoldYAMLPath string
 }
 
 var (
@@ -56,8 +56,8 @@ var (
 func SharedCluster(logger *logrus.Logger, skaffoldYAMLPath string) *SharedClusterManager {
 	once.Do(func() {
 		sharedCluster = &SharedClusterManager{
-			logger:           logger,
-			skaffoldYAMLPath: skaffoldYAMLPath,
+			logger:                   logger,
+			relativeSkaffoldYAMLPath: skaffoldYAMLPath,
 		}
 	})
 	return sharedCluster
@@ -73,8 +73,8 @@ func (scm *SharedClusterManager) Setup(ctx context.Context, testImages []string)
 	customCfg := ClusterConfig{
 		Name:             "shared-e2e-test-cluster",
 		Servers:          3,
-		Agents:           28, // Maximum needed across all tests
-		WorkerMemory:     "150m",
+		Agents:           28,     // Maximum needed across all tests
+		WorkerMemory:     "150m", // 150m memory per agent node to fit one workload pod
 		Image:            "rancher/k3s:v1.33.5-k3s1",
 		HostPort:         "6560", // Use a different port to avoid conflicts
 		LoadBalancerPort: "8090:80",
@@ -96,7 +96,7 @@ func (scm *SharedClusterManager) Setup(ctx context.Context, testImages []string)
 
 	scm.logger.Info("🚀 Setting up shared k3d cluster for all e2e tests...")
 
-	restConfig, cleanup, err := SetupCompleteK3DCluster(ctx, customCfg, scm.skaffoldYAMLPath, scm.logger)
+	restConfig, cleanup, err := SetupCompleteK3DCluster(ctx, customCfg, scm.relativeSkaffoldYAMLPath, scm.logger)
 	if err != nil {
 		return fmt.Errorf("failed to setup shared k3d cluster: %w", err)
 	}

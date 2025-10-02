@@ -51,45 +51,33 @@ type AppliedResource struct {
 	GVR       schema.GroupVersionResource
 }
 
-// WorkloadConfig holds configuration for related to Applying/Checking Kubernetes resources via YAML files
-type WorkloadConfig struct {
-	// YAMLFilePath is the path to the YAML file to apply
-	YAMLFilePath string
-	// Namespace is the namespace to apply the workload to (optional, uses namespace from YAML if not specified)
-	Namespace string
-	// RestConfig is the Kubernetes REST config to use
-	RestConfig *rest.Config
-	// Timeout is the maximum time to wait for pods to be ready (default: 5 minutes)
-	Timeout time.Duration
-	// PodLabelSelector is the label selector to use when waiting for pods (optional)
-	PodLabelSelector string
-}
-
 // ApplyYAMLFile applies a YAML file containing Kubernetes resources
-func ApplyYAMLFile(ctx context.Context, config *WorkloadConfig, logger *logrus.Logger) ([]AppliedResource, error) {
-	logger.Debugf("📄 Applying resources from %s...\n", config.YAMLFilePath)
+// namespace parameter is optional - pass empty string to use namespace from YAML
+func ApplyYAMLFile(ctx context.Context, yamlFilePath string, namespace string, restConfig *rest.Config, logger *logrus.Logger) ([]AppliedResource, error) {
+	logger.Debugf("📄 Applying resources from %s...\n", yamlFilePath)
 
 	// Read the YAML file
-	yamlData, err := os.ReadFile(config.YAMLFilePath)
+	yamlData, err := os.ReadFile(yamlFilePath)
 	if err != nil {
-		return nil, fmt.Errorf("failed to read YAML file %s: %w", config.YAMLFilePath, err)
+		return nil, fmt.Errorf("failed to read YAML file %s: %w", yamlFilePath, err)
 	}
 
-	return applyYAMLData(ctx, yamlData, config.Namespace, config.RestConfig, logger)
+	return applyYAMLData(ctx, yamlData, namespace, restConfig, logger)
 }
 
 // WaitForPods waits for pods to be ready in the specified namespaces
-func WaitForPods(ctx context.Context, config *WorkloadConfig, namespaces []string, logger *logrus.Logger) error {
-	if config.Timeout == 0 {
-		config.Timeout = 5 * time.Minute
+// labelSelector is optional (pass empty string for all pods), timeout of 0 defaults to 5 minutes
+func WaitForPods(ctx context.Context, restConfig *rest.Config, namespaces []string, labelSelector string, timeout time.Duration, logger *logrus.Logger) error {
+	if timeout == 0 {
+		timeout = 5 * time.Minute
 	}
 
-	clientset, err := kubernetes.NewForConfig(config.RestConfig)
+	clientset, err := kubernetes.NewForConfig(restConfig)
 	if err != nil {
 		return fmt.Errorf("failed to create clientset: %w", err)
 	}
 
-	timeoutCtx, cancel := context.WithTimeout(ctx, config.Timeout)
+	timeoutCtx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 
 	// If no namespaces specified, use default
@@ -99,17 +87,12 @@ func WaitForPods(ctx context.Context, config *WorkloadConfig, namespaces []strin
 
 	logger.Debugf("⏳ Waiting for pods to be ready in namespaces: %v", namespaces)
 
-	return wait.PollUntilContextTimeout(timeoutCtx, 5*time.Second, config.Timeout, true, func(ctx context.Context) (bool, error) {
+	return wait.PollUntilContextTimeout(timeoutCtx, 5*time.Second, timeout, true, func(ctx context.Context) (bool, error) {
 		allReady := true
 		totalPods := 0
 		readyPods := 0
 
 		for _, namespace := range namespaces {
-			var labelSelector string
-			if config.PodLabelSelector != "" {
-				labelSelector = config.PodLabelSelector
-			}
-
 			pods, err := clientset.CoreV1().Pods(namespace).List(ctx, metav1.ListOptions{
 				LabelSelector: labelSelector,
 			})
@@ -313,12 +296,7 @@ func updateResource(ctx context.Context, dynamicClient dynamic.Interface, gvr sc
 
 // WaitForPodsInNamespace waits for all pods in a namespace to be ready
 func WaitForPodsInNamespace(ctx context.Context, namespace string, restConfig *rest.Config, timeout time.Duration, logger *logrus.Logger) error {
-	workloadConfig := &WorkloadConfig{
-		RestConfig: restConfig,
-		Timeout:    timeout,
-	}
-
-	return WaitForPods(ctx, workloadConfig, []string{namespace}, logger)
+	return WaitForPods(ctx, restConfig, []string{namespace}, "", timeout, logger)
 }
 
 // getGVRFromGVK converts a GroupVersionKind to GroupVersionResource using REST mapper
