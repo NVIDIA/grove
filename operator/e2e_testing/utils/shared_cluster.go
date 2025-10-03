@@ -80,8 +80,18 @@ func (scm *SharedClusterManager) Setup(ctx context.Context, testImages []string)
 		LoadBalancerPort: "8090:80",
 		EnableRegistry:   true,
 		RegistryPort:     "5001",
-		AgentNodeLabels: map[string]string{
-			"node_role.e2e.grove.nvidia.com": "agent",
+		NodeLabels: []NodeLabel{
+			{
+				Key:         "node_role.e2e.grove.nvidia.com",
+				Value:       "agent",
+				NodeFilters: []string{"agent:*"},
+			},
+			// we currently don't want GPUs in e2e tests as validator is causing issues
+			{
+				Key:         "nvidia.com/gpu.deploy.operands",
+				Value:       "false",
+				NodeFilters: []string{"server:*", "agent:*"},
+			},
 		},
 		AgentNodeTaints: []NodeTaint{
 			{
