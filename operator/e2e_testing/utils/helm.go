@@ -18,17 +18,18 @@ package utils
 
 import (
 	"fmt"
+	"io"
+	"net/http"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/sirupsen/logrus"
 	"helm.sh/helm/v3/pkg/action"
 	"helm.sh/helm/v3/pkg/chart/loader"
 	"helm.sh/helm/v3/pkg/cli"
-	"helm.sh/helm/v3/pkg/getter"
 	"helm.sh/helm/v3/pkg/registry"
 	"helm.sh/helm/v3/pkg/release"
-	"helm.sh/helm/v3/pkg/repo"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"k8s.io/client-go/rest"
 )
@@ -39,7 +40,7 @@ type HelmInstallConfig struct {
 	RestConfig *rest.Config
 	// ReleaseName is the name of the Helm release. Required unless GenerateName is true.
 	ReleaseName string
-	// ChartRef is the chart reference (path or OCI reference). Required.
+	// ChartRef is the chart reference (path, URL, or chart name). Required.
 	ChartRef string
 	// ChartVersion is the version of the chart to install. Required.
 	ChartVersion string
@@ -57,9 +58,7 @@ type HelmInstallConfig struct {
 	HelmLoggerFunc func(format string, v ...interface{})
 	// Logger is the full logger for component operations.
 	Logger *logrus.Logger
-	// RepoName is the name of the Helm repository to add (optional).
-	RepoName string
-	// RepoURL is the URL of the Helm repository to add (optional, requires RepoName).
+	// RepoURL is the base URL of the Helm repository (optional, for direct chart downloads).
 	RepoURL string
 }
 
@@ -86,11 +85,6 @@ func (c *HelmInstallConfig) Validate() error {
 		return fmt.Errorf("missing required fields: %s", strings.Join(missing, ", "))
 	}
 
-	// Validate repository configuration
-	if (c.RepoName != "" && c.RepoURL == "") || (c.RepoName == "" && c.RepoURL != "") {
-		return fmt.Errorf("both RepoName and RepoURL must be specified together")
-	}
-
 	// Set defaults
 	if c.Values == nil {
 		c.Values = make(map[string]interface{})
@@ -107,43 +101,35 @@ func InstallHelmChart(config *HelmInstallConfig) (*release.Release, error) {
 		return nil, err
 	}
 
-	config.HelmLoggerFunc("Setting up Helm and Kubernetes configuration for %s...", config.ReleaseName)
+	// Initialize Helm action configuration
+	config.HelmLoggerFunc("Setting up Helm configuration for %s...", config.ReleaseName)
 	actionConfig, err := setupHelmAction(config)
 	if err != nil {
 		return nil, err
 	}
 
-	// Add the Helm repository if configured
-	if config.RepoName != "" && config.RepoURL != "" {
-		config.HelmLoggerFunc("Adding Helm repository %s (%s)...", config.RepoName, config.RepoURL)
-		if err := addHelmRepo(actionConfig, config); err != nil {
-			return nil, fmt.Errorf("failed to add Helm repository: %w", err)
-		}
-		config.HelmLoggerFunc("Repository %s added successfully", config.RepoName)
-	}
-
-	installClient := newInstallClient(actionConfig, config)
-
-	config.HelmLoggerFunc("Locating and pulling chart %s version %s...", config.ChartRef, config.ChartVersion)
-	chartPath, err := installClient.LocateChart(config.ChartRef, cli.New())
+	// Resolve chart location (download from HTTP or locate via Helm)
+	chartPath, err := resolveChart(actionConfig, config)
 	if err != nil {
-		return nil, fmt.Errorf("failed to locate chart: %w", err)
+		return nil, err
 	}
-	config.HelmLoggerFunc("Chart located at: %s", chartPath)
 
-	// Load the chart from the located path.
+	// Load and validate the chart
+	config.HelmLoggerFunc("Loading chart from %s...", chartPath)
 	chart, err := loader.Load(chartPath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to load chart: %w", err)
 	}
 
-	// Run the installation.
+	// Install the chart
+	config.HelmLoggerFunc("Installing chart %s in namespace %s...", config.ChartRef, config.Namespace)
+	installClient := newInstallClient(actionConfig, config)
 	rel, err := installClient.Run(chart, config.Values)
 	if err != nil {
 		return nil, fmt.Errorf("helm install failed: %w", err)
 	}
 
-	config.HelmLoggerFunc("Success! Release '%s' installed in namespace '%s'. Status: %s", rel.Name, rel.Namespace, rel.Info.Status)
+	config.HelmLoggerFunc("✅ Release '%s' installed successfully. Status: %s", rel.Name, rel.Info.Status)
 	return rel, nil
 }
 
@@ -169,70 +155,74 @@ func setupHelmAction(config *HelmInstallConfig) (*action.Configuration, error) {
 	return actionConfig, nil
 }
 
-// addHelmRepo adds a Helm repository.
-func addHelmRepo(actionConfig *action.Configuration, config *HelmInstallConfig) error {
-	settings := cli.New()
-
-	// Create a new repo entry
-	repoEntry := &repo.Entry{
-		Name: config.RepoName,
-		URL:  config.RepoURL,
+// resolveChart determines how to obtain the chart and returns its local path.
+func resolveChart(actionConfig *action.Configuration, config *HelmInstallConfig) (string, error) {
+	// If RepoURL is provided, download the chart directly via HTTP
+	if config.RepoURL != "" {
+		config.HelmLoggerFunc("Downloading chart %s version %s...", config.ChartRef, config.ChartVersion)
+		return downloadChart(config)
 	}
 
-	// Get the repository file path from settings
-	repoFile := settings.RepositoryConfig
-
-	// Load or create the repository file
-	repoFileData, err := repo.LoadFile(repoFile)
-	if err != nil && !os.IsNotExist(err) {
-		return fmt.Errorf("failed to load repository file: %w", err)
-	}
-	if repoFileData == nil {
-		repoFileData = repo.NewFile()
-	}
-
-	// Check if the repo already exists and update it if necessary
-	if repoFileData.Has(config.RepoName) {
-		config.HelmLoggerFunc("Repository %s already exists, updating...", config.RepoName)
-		repoFileData.Update(repoEntry)
-	} else {
-		repoFileData.Add(repoEntry)
-	}
-
-	// Write the repository file
-	if err := repoFileData.WriteFile(repoFile, 0644); err != nil {
-		return fmt.Errorf("failed to write repository file: %w", err)
-	}
-
-	// Create a chart repository with getter providers for HTTP/HTTPS support
-	chartRepo, err := repo.NewChartRepository(repoEntry, getter.All(settings))
+	// Otherwise, use Helm's LocateChart (for OCI registries or local paths)
+	config.HelmLoggerFunc("Locating chart %s...", config.ChartRef)
+	installClient := newInstallClient(actionConfig, config)
+	chartPath, err := installClient.LocateChart(config.ChartRef, cli.New())
 	if err != nil {
-		return fmt.Errorf("failed to create chart repository: %w", err)
+		return "", fmt.Errorf("failed to locate chart: %w", err)
+	}
+	return chartPath, nil
+}
+
+// downloadChart downloads a Helm chart tarball directly via HTTP.
+func downloadChart(config *HelmInstallConfig) (string, error) {
+	// Create a temporary directory for the downloaded chart
+	tempDir, err := os.MkdirTemp("", "helm-chart-*")
+	if err != nil {
+		return "", fmt.Errorf("failed to create temp directory: %w", err)
 	}
 
-	// Set the cache path
-	chartRepo.CachePath = settings.RepositoryCache
+	// Construct the chart URL: <repoURL>/charts/<chartName>-<version>.tgz
+	chartURL := fmt.Sprintf("%s/charts/%s-%s.tgz", config.RepoURL, config.ChartRef, config.ChartVersion)
+	config.HelmLoggerFunc("Chart URL: %s", chartURL)
 
-	// Download the repository index
-	if _, err := chartRepo.DownloadIndexFile(); err != nil {
-		return fmt.Errorf("failed to download repository index: %w", err)
+	// Download the chart using HTTP
+	resp, err := http.Get(chartURL)
+	if err != nil {
+		return "", fmt.Errorf("HTTP GET failed: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return "", fmt.Errorf("HTTP request failed with status %d", resp.StatusCode)
 	}
 
-	return nil
+	// Save the chart to a file
+	chartFileName := fmt.Sprintf("%s-%s.tgz", config.ChartRef, config.ChartVersion)
+	chartPath := filepath.Join(tempDir, chartFileName)
+
+	outFile, err := os.Create(chartPath)
+	if err != nil {
+		return "", fmt.Errorf("failed to create chart file: %w", err)
+	}
+	defer outFile.Close()
+
+	if _, err := io.Copy(outFile, resp.Body); err != nil {
+		return "", fmt.Errorf("failed to write chart file: %w", err)
+	}
+
+	config.HelmLoggerFunc("Chart downloaded to: %s", chartPath)
+	return chartPath, nil
 }
 
 // newInstallClient creates and configures a Helm install action client from the provided configuration.
 func newInstallClient(actionConfig *action.Configuration, config *HelmInstallConfig) *action.Install {
-	// Create a new install action client.
 	client := action.NewInstall(actionConfig)
 
-	// Set fields from the config struct.
 	client.ReleaseName = config.ReleaseName
 	client.GenerateName = config.GenerateName
 	client.Namespace = config.Namespace
 	client.CreateNamespace = config.CreateNamespace
 	client.Wait = config.Wait
-	// This single field assignment populates both client.Version and client.ChartPathOptions.Version.
 	client.Version = config.ChartVersion
 
 	return client
@@ -240,21 +230,16 @@ func newInstallClient(actionConfig *action.Configuration, config *HelmInstallCon
 
 // newRESTClientGetter creates a RESTClientGetter for Helm actions
 func newRESTClientGetter(namespace string, restConfig *rest.Config) genericclioptions.RESTClientGetter {
-	// Create ConfigFlags with usePersistentConfig=true to reuse discovery clients and REST mappers.
 	flags := genericclioptions.NewConfigFlags(true)
-	// Set the namespace on the ConfigFlags object.
 	flags.Namespace = &namespace
 
-	// WrapConfigFn is the key. It intercepts the config that ConfigFlags would have built (from kubeconfig files)
-	// and allows us to substitute our own. This is the idiomatic way to inject a programmatic rest.Config
-	// while still getting the benefit of the default discovery/mapper implementations.
+	// Inject custom REST config if provided, otherwise use default kubeconfig
 	flags.WrapConfigFn = func(c *rest.Config) *rest.Config {
-		// If the user provided a specific rest.Config, use it. This is the custom config path.
 		if restConfig != nil {
 			return restConfig
 		}
-		// Otherwise, return the config that ConfigFlags built (from default kubeconfig path)
 		return c
 	}
+
 	return flags
 }

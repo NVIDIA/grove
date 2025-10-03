@@ -135,14 +135,13 @@ func SetupCompleteK3DCluster(ctx context.Context, cfg ClusterConfig, skaffoldYAM
 
 	nvidiaConfig := &HelmInstallConfig{
 		ReleaseName:     "nvidia-gpu-operator",
-		ChartRef:        "nvidia/gpu-operator",
+		ChartRef:        "gpu-operator",
 		ChartVersion:    "v25.3.4",
 		Namespace:       "gpu-operator",
 		RestConfig:      restConfig,
 		CreateNamespace: true,
 		Wait:            false,
 		GenerateName:    false,
-		RepoName:        "nvidia",
 		RepoURL:         "https://helm.ngc.nvidia.com/nvidia",
 		Values: map[string]interface{}{
 			"tolerations":        tolerations,
