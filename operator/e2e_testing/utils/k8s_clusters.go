@@ -142,6 +142,8 @@ func SetupCompleteK3DCluster(ctx context.Context, cfg ClusterConfig, skaffoldYAM
 		CreateNamespace: true,
 		Wait:            false,
 		GenerateName:    false,
+		RepoName:        "nvidia",
+		RepoURL:         "https://helm.ngc.nvidia.com/nvidia",
 		Values: map[string]interface{}{
 			"tolerations":        tolerations,
 			"driver":             map[string]interface{}{"enabled": false},
