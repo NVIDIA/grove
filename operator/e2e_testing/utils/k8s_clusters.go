@@ -48,19 +48,26 @@ type NodeTaint struct {
 	Effect string
 }
 
+// NodeLabel represents a Kubernetes node label with its target node filters
+type NodeLabel struct {
+	Key         string   // Label key
+	Value       string   // Label value
+	NodeFilters []string // Node filters (e.g., "server:*", "agent:*", "server:0", "agent:1")
+}
+
 // ClusterConfig holds configuration for creating a k3d cluster
 type ClusterConfig struct {
-	Name             string            // Name of the k3d cluster
-	Servers          int               // Number of server/non-worker nodes
-	Agents           int               // Number of agent/worker nodes
-	Image            string            // Docker image to use for k3d cluster (e.g., "rancher/k3s:v1.28.8-k3s1")
-	HostPort         string            // Port on host to expose Kubernetes API (e.g., "6550")
-	LoadBalancerPort string            // Load balancer port mapping in format "hostPort:containerPort" (e.g., "8080:80")
-	AgentNodeLabels  map[string]string // Kubernetes labels to apply to all agent nodes
-	AgentNodeTaints  []NodeTaint       // Taints to apply to agent nodes
-	WorkerMemory     string            // Memory allocation for worker/agent nodes (e.g., "150m")
-	EnableRegistry   bool              // Enable built-in Docker registry
-	RegistryPort     string            // Port for the Docker registry (e.g., "5001")
+	Name             string      // Name of the k3d cluster
+	Servers          int         // Number of server/non-worker nodes
+	Agents           int         // Number of agent/worker nodes
+	Image            string      // Docker image to use for k3d cluster (e.g., "rancher/k3s:v1.28.8-k3s1")
+	HostPort         string      // Port on host to expose Kubernetes API (e.g., "6550")
+	LoadBalancerPort string      // Load balancer port mapping in format "hostPort:containerPort" (e.g., "8080:80")
+	NodeLabels       []NodeLabel // Kubernetes labels to apply with specific node filters
+	AgentNodeTaints  []NodeTaint // Taints to apply to agent nodes
+	WorkerMemory     string      // Memory allocation for worker/agent nodes (e.g., "150m")
+	EnableRegistry   bool        // Enable built-in Docker registry
+	RegistryPort     string      // Port for the Docker registry (e.g., "5001")
 }
 
 // DefaultClusterConfig returns a sensible default cluster configuration
@@ -232,17 +239,15 @@ func SetupK3DCluster(ctx context.Context, cfg ClusterConfig, logger *logrus.Logg
 		},
 	}
 
-	// Apply Kubernetes node labels to all agent nodes, if provided
-	if len(cfg.AgentNodeLabels) > 0 {
-		for k, v := range cfg.AgentNodeLabels {
-			clusterConfig.Options.K3sOptions.NodeLabels = append(
-				clusterConfig.Options.K3sOptions.NodeLabels,
-				v1alpha5.LabelWithNodeFilters{
-					Label:       fmt.Sprintf("%s=%s", k, v),
-					NodeFilters: []string{"agent:*"},
-				},
-			)
-		}
+	// Apply Kubernetes node labels with their specified node filters
+	for _, nodeLabel := range cfg.NodeLabels {
+		clusterConfig.Options.K3sOptions.NodeLabels = append(
+			clusterConfig.Options.K3sOptions.NodeLabels,
+			v1alpha5.LabelWithNodeFilters{
+				Label:       fmt.Sprintf("%s=%s", nodeLabel.Key, nodeLabel.Value),
+				NodeFilters: nodeLabel.NodeFilters,
+			},
+		)
 	}
 
 	// Apply agent node taints if specified
