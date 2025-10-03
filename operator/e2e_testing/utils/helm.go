@@ -25,8 +25,10 @@ import (
 	"helm.sh/helm/v3/pkg/action"
 	"helm.sh/helm/v3/pkg/chart/loader"
 	"helm.sh/helm/v3/pkg/cli"
+	"helm.sh/helm/v3/pkg/getter"
 	"helm.sh/helm/v3/pkg/registry"
 	"helm.sh/helm/v3/pkg/release"
+	"helm.sh/helm/v3/pkg/repo"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"k8s.io/client-go/rest"
 )
@@ -55,6 +57,10 @@ type HelmInstallConfig struct {
 	HelmLoggerFunc func(format string, v ...interface{})
 	// Logger is the full logger for component operations.
 	Logger *logrus.Logger
+	// RepoName is the name of the Helm repository to add (optional).
+	RepoName string
+	// RepoURL is the URL of the Helm repository to add (optional, requires RepoName).
+	RepoURL string
 }
 
 // Validate validates and sets defaults for the configuration.
@@ -80,6 +86,11 @@ func (c *HelmInstallConfig) Validate() error {
 		return fmt.Errorf("missing required fields: %s", strings.Join(missing, ", "))
 	}
 
+	// Validate repository configuration
+	if (c.RepoName != "" && c.RepoURL == "") || (c.RepoName == "" && c.RepoURL != "") {
+		return fmt.Errorf("both RepoName and RepoURL must be specified together")
+	}
+
 	// Set defaults
 	if c.Values == nil {
 		c.Values = make(map[string]interface{})
@@ -100,6 +111,15 @@ func InstallHelmChart(config *HelmInstallConfig) (*release.Release, error) {
 	actionConfig, err := setupHelmAction(config)
 	if err != nil {
 		return nil, err
+	}
+
+	// Add the Helm repository if configured
+	if config.RepoName != "" && config.RepoURL != "" {
+		config.HelmLoggerFunc("Adding Helm repository %s (%s)...", config.RepoName, config.RepoURL)
+		if err := addHelmRepo(actionConfig, config); err != nil {
+			return nil, fmt.Errorf("failed to add Helm repository: %w", err)
+		}
+		config.HelmLoggerFunc("Repository %s added successfully", config.RepoName)
 	}
 
 	installClient := newInstallClient(actionConfig, config)
@@ -147,6 +167,58 @@ func setupHelmAction(config *HelmInstallConfig) (*action.Configuration, error) {
 	actionConfig.RegistryClient = regClient
 
 	return actionConfig, nil
+}
+
+// addHelmRepo adds a Helm repository.
+func addHelmRepo(actionConfig *action.Configuration, config *HelmInstallConfig) error {
+	settings := cli.New()
+
+	// Create a new repo entry
+	repoEntry := &repo.Entry{
+		Name: config.RepoName,
+		URL:  config.RepoURL,
+	}
+
+	// Get the repository file path from settings
+	repoFile := settings.RepositoryConfig
+
+	// Load or create the repository file
+	repoFileData, err := repo.LoadFile(repoFile)
+	if err != nil && !os.IsNotExist(err) {
+		return fmt.Errorf("failed to load repository file: %w", err)
+	}
+	if repoFileData == nil {
+		repoFileData = repo.NewFile()
+	}
+
+	// Check if the repo already exists and update it if necessary
+	if repoFileData.Has(config.RepoName) {
+		config.HelmLoggerFunc("Repository %s already exists, updating...", config.RepoName)
+		repoFileData.Update(repoEntry)
+	} else {
+		repoFileData.Add(repoEntry)
+	}
+
+	// Write the repository file
+	if err := repoFileData.WriteFile(repoFile, 0644); err != nil {
+		return fmt.Errorf("failed to write repository file: %w", err)
+	}
+
+	// Create a chart repository with getter providers for HTTP/HTTPS support
+	chartRepo, err := repo.NewChartRepository(repoEntry, getter.All(settings))
+	if err != nil {
+		return fmt.Errorf("failed to create chart repository: %w", err)
+	}
+
+	// Set the cache path
+	chartRepo.CachePath = settings.RepositoryCache
+
+	// Download the repository index
+	if _, err := chartRepo.DownloadIndexFile(); err != nil {
+		return fmt.Errorf("failed to download repository index: %w", err)
+	}
+
+	return nil
 }
 
 // newInstallClient creates and configures a Helm install action client from the provided configuration.
