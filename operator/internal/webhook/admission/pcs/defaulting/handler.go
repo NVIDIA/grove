@@ -29,7 +29,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 )
 
-// Handler struct sets default values on PodCliqueSet CR
+// Handler sets default values on PodCliqueSet resources.
 type Handler struct {
 	logger logr.Logger
 }
@@ -41,7 +41,7 @@ func NewHandler(mgr manager.Manager) *Handler {
 	}
 }
 
-// Default implements webhook.CustomDefaulter
+// Default applies default values to a PodCliqueSet object.
 func (h *Handler) Default(ctx context.Context, obj runtime.Object) error {
 	h.logger.Info("Defaulting webhook invoked for PodCliqueSet")
 	pcs, ok := obj.(*v1alpha1.PodCliqueSet)
