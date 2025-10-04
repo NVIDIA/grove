@@ -27,6 +27,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/validation/field"
 )
 
+// validateEnumType validates that a value is one of the allowed enum values.
 func validateEnumType[T comparable](value *T, allowedValues sets.Set[T], fldPath *field.Path) field.ErrorList {
 	allErrs := validateNonNilField(value, fldPath)
 	if len(allErrs) != 0 {
@@ -38,6 +39,7 @@ func validateEnumType[T comparable](value *T, allowedValues sets.Set[T], fldPath
 	return allErrs
 }
 
+// validateNonNilField validates that a pointer field is not nil.
 func validateNonNilField[T any](value *T, fldPath *field.Path) field.ErrorList {
 	allErrs := field.ErrorList{}
 	if value == nil {
@@ -46,6 +48,7 @@ func validateNonNilField[T any](value *T, fldPath *field.Path) field.ErrorList {
 	return allErrs
 }
 
+// validateNonEmptyStringField validates that a string field is not empty.
 func validateNonEmptyStringField(value string, fldPath *field.Path) field.ErrorList {
 	allErrs := field.ErrorList{}
 	if utils.IsEmptyStringType(value) {
@@ -54,6 +57,7 @@ func validateNonEmptyStringField(value string, fldPath *field.Path) field.ErrorL
 	return allErrs
 }
 
+// sliceMustHaveUniqueElements validates that all elements in a string slice are unique.
 func sliceMustHaveUniqueElements(s []string, fldPath *field.Path, msg string) field.ErrorList {
 	allErrs := field.ErrorList{}
 	duplicates := lo.FindDuplicates(s)

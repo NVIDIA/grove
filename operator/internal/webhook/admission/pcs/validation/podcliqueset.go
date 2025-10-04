@@ -39,11 +39,13 @@ const (
 
 var allowedStartupTypes = sets.New(grovecorev1alpha1.CliqueStartupTypeInOrder, grovecorev1alpha1.CliqueStartupTypeAnyOrder, grovecorev1alpha1.CliqueStartupTypeExplicit)
 
+// pcsValidator validates PodCliqueSet resources for create and update operations.
 type pcsValidator struct {
 	operation admissionv1.Operation
 	pcs       *grovecorev1alpha1.PodCliqueSet
 }
 
+// newPCSValidator creates a new PodCliqueSet validator for the given operation.
 func newPCSValidator(pcs *grovecorev1alpha1.PodCliqueSet, operation admissionv1.Operation) *pcsValidator {
 	return &pcsValidator{
 		operation: operation,
@@ -81,11 +83,11 @@ func (v *pcsValidator) validatePodCliqueSetSpec(fldPath *field.Path) ([]string, 
 	return warnings, allErrs
 }
 
+// validatePodGangTemplateSpec validates the template specification including startup type, cliques, scheduling policy, and scaling groups.
 func (v *pcsValidator) validatePodGangTemplateSpec(fldPath *field.Path) ([]string, field.ErrorList) {
 	allErrs := field.ErrorList{}
 
 	allErrs = append(allErrs, validateEnumType(v.pcs.Spec.Template.StartupType, allowedStartupTypes, fldPath.Child("cliqueStartupType"))...)
-	// validate cliques
 	warnings, errs := v.validatePodCliqueTemplates(fldPath.Child("cliques"))
 	if len(errs) != 0 {
 		allErrs = append(allErrs, errs...)
@@ -97,6 +99,7 @@ func (v *pcsValidator) validatePodGangTemplateSpec(fldPath *field.Path) ([]strin
 	return warnings, allErrs
 }
 
+// validatePodCliqueTemplates validates all PodClique templates ensuring unique names, roles, scheduler names, and proper dependencies.
 func (v *pcsValidator) validatePodCliqueTemplates(fldPath *field.Path) ([]string, field.ErrorList) {
 	allErrs := field.ErrorList{}
 
@@ -145,6 +148,7 @@ func (v *pcsValidator) validatePodCliqueTemplates(fldPath *field.Path) ([]string
 	return warnings, allErrs
 }
 
+// validatePodCliqueNameConstraints validates that PodClique names meet DNS subdomain requirements and pod naming constraints.
 func (v *pcsValidator) validatePodCliqueNameConstraints(fldPath *field.Path, cliqueTemplateSpec *grovecorev1alpha1.PodCliqueTemplateSpec, scalingGroupCliqueNames sets.Set[string]) field.ErrorList {
 	allErrs := field.ErrorList{}
 	if err := apivalidation.NameIsDNSSubdomain(cliqueTemplateSpec.Name, false); err != nil {
@@ -160,6 +164,7 @@ func (v *pcsValidator) validatePodCliqueNameConstraints(fldPath *field.Path, cli
 	return allErrs
 }
 
+// validateStandalonePodClique validates pod naming constraints for PodCliques that are not part of any scaling group.
 func validateStandalonePodClique(fldPath *field.Path, v *pcsValidator, cliqueTemplateSpec *grovecorev1alpha1.PodCliqueTemplateSpec) field.ErrorList {
 	allErrs := field.ErrorList{}
 	if err := validatePodNameConstraints(v.pcs.Name, "", cliqueTemplateSpec.Name); err != nil {
@@ -170,6 +175,7 @@ func validateStandalonePodClique(fldPath *field.Path, v *pcsValidator, cliqueTem
 	return allErrs
 }
 
+// validatePodGangSchedulingPolicyConfig validates the scheduling policy configuration including network pack group configurations.
 func (v *pcsValidator) validatePodGangSchedulingPolicyConfig(schedulingPolicyConfig *grovecorev1alpha1.SchedulingPolicyConfig, fldPath *field.Path) field.ErrorList {
 	allErrs := field.ErrorList{}
 	if schedulingPolicyConfig == nil {
@@ -181,6 +187,7 @@ func (v *pcsValidator) validatePodGangSchedulingPolicyConfig(schedulingPolicyCon
 	return allErrs
 }
 
+// validatePodCliqueScalingGroupConfigs validates scaling group configurations including name uniqueness, clique references, and replica settings.
 func (v *pcsValidator) validatePodCliqueScalingGroupConfigs(fldPath *field.Path) field.ErrorList {
 	allErrs := field.ErrorList{}
 
@@ -247,6 +254,7 @@ func (v *pcsValidator) validatePodCliqueScalingGroupConfigs(fldPath *field.Path)
 	return allErrs
 }
 
+// validateTerminationDelay validates that terminationDelay is set and greater than zero.
 func (v *pcsValidator) validateTerminationDelay(fldPath *field.Path) field.ErrorList {
 	allErrs := field.ErrorList{}
 
@@ -261,6 +269,7 @@ func (v *pcsValidator) validateTerminationDelay(fldPath *field.Path) field.Error
 	return allErrs
 }
 
+// validatePodCliqueTemplateSpec validates a single PodClique template specification including metadata and spec.
 func (v *pcsValidator) validatePodCliqueTemplateSpec(cliqueTemplateSpec *grovecorev1alpha1.PodCliqueTemplateSpec,
 	fldPath *field.Path, scalingGroupCliqueNames sets.Set[string]) ([]string, field.ErrorList) {
 	allErrs := field.ErrorList{}
@@ -278,6 +287,7 @@ func (v *pcsValidator) validatePodCliqueTemplateSpec(cliqueTemplateSpec *groveco
 	return warnings, allErrs
 }
 
+// validateCliqueDependencies validates that all clique dependencies refer to existing cliques and contain no circular dependencies.
 func validateCliqueDependencies(cliques []*grovecorev1alpha1.PodCliqueTemplateSpec, fldPath *field.Path) field.ErrorList {
 	allErrs := field.ErrorList{}
 
@@ -303,6 +313,7 @@ func validateCliqueDependencies(cliques []*grovecorev1alpha1.PodCliqueTemplateSp
 	return allErrs
 }
 
+// validateNetworkPackGroupConfigs validates network pack group configurations for duplicates and partial scaling group inclusions.
 func (v *pcsValidator) validateNetworkPackGroupConfigs(fldPath *field.Path) field.ErrorList {
 	allErrs := field.ErrorList{}
 	allErrs = append(allErrs, v.checkNetworkPackGroupConfigsForDuplicates(fldPath)...)
@@ -310,6 +321,7 @@ func (v *pcsValidator) validateNetworkPackGroupConfigs(fldPath *field.Path) fiel
 	return allErrs
 }
 
+// checkNetworkPackGroupConfigsForDuplicates ensures that each PodClique belongs to at most one NetworkPackGroupConfig.
 func (v *pcsValidator) checkNetworkPackGroupConfigsForDuplicates(fldPath *field.Path) field.ErrorList {
 	allErrs := field.ErrorList{}
 
@@ -325,6 +337,7 @@ func (v *pcsValidator) checkNetworkPackGroupConfigsForDuplicates(fldPath *field.
 	return allErrs
 }
 
+// checkNetworkPackGroupConfigsForPartialPCSGInclusions ensures that NetworkPackGroupConfigs either include all cliques from a scaling group or none.
 func (v *pcsValidator) checkNetworkPackGroupConfigsForPartialPCSGInclusions(fldPath *field.Path) field.ErrorList {
 	allErrs := field.ErrorList{}
 	pcsgConfigs := v.pcs.Spec.Template.PodCliqueScalingGroupConfigs
@@ -348,7 +361,7 @@ func (v *pcsValidator) checkNetworkPackGroupConfigsForPartialPCSGInclusions(fldP
 	return allErrs
 }
 
-// getScalingGroupCliqueNames returns a set of all clique names that belong to scaling groups
+// getScalingGroupCliqueNames returns a set of all clique names that belong to scaling groups.
 func (v *pcsValidator) getScalingGroupCliqueNames() sets.Set[string] {
 	scalingGroupCliqueNames := sets.New[string]()
 	for _, scalingGroupConfig := range v.pcs.Spec.Template.PodCliqueScalingGroupConfigs {
@@ -357,7 +370,7 @@ func (v *pcsValidator) getScalingGroupCliqueNames() sets.Set[string] {
 	return scalingGroupCliqueNames
 }
 
-// checks if the PodClique names specified in PodCliqueScalingGroupConfig refer to a defined clique in the PodCliqueSet.
+// validateScalingGroupPodCliqueNames validates that scaling group clique references exist and meet naming constraints.
 func (v *pcsValidator) validateScalingGroupPodCliqueNames(pcsgName string, allPclqNames, pclqNameInScalingGrp []string, fldPath, pcsgNameFieldPath *field.Path) field.ErrorList {
 	allErrs := field.ErrorList{}
 
@@ -378,6 +391,7 @@ func (v *pcsValidator) validateScalingGroupPodCliqueNames(pcsgName string, allPc
 	return allErrs
 }
 
+// validatePodCliqueSpec validates the specification of a PodClique including replicas, minAvailable, dependencies, and autoscaling configuration.
 func (v *pcsValidator) validatePodCliqueSpec(name string, cliqueSpec grovecorev1alpha1.PodCliqueSpec, fldPath *field.Path) ([]string, field.ErrorList) {
 	allErrs := field.ErrorList{}
 
@@ -425,10 +439,12 @@ func (v *pcsValidator) validatePodCliqueSpec(name string, cliqueSpec grovecorev1
 	return warnings, allErrs
 }
 
+// isStartupTypeExplicit returns true if the startup type is Explicit.
 func (v *pcsValidator) isStartupTypeExplicit() bool {
 	return v.pcs.Spec.Template.StartupType != nil && *v.pcs.Spec.Template.StartupType == grovecorev1alpha1.CliqueStartupTypeExplicit
 }
 
+// validateScaleConfig validates autoscaling configuration ensuring minReplicas and maxReplicas are properly set relative to minAvailable.
 func validateScaleConfig(scaleConfig *grovecorev1alpha1.AutoScalingConfig, minAvailable int32, fldPath *field.Path) field.ErrorList {
 	allErrs := field.ErrorList{}
 	// This should ideally not happen, the defaulting webhook will always set the default value for minReplicas.
@@ -445,6 +461,7 @@ func validateScaleConfig(scaleConfig *grovecorev1alpha1.AutoScalingConfig, minAv
 	return allErrs
 }
 
+// validatePodSpec validates the PodSpec ensuring certain fields are not set that would conflict with operator management.
 func (v *pcsValidator) validatePodSpec(spec corev1.PodSpec, fldPath *field.Path) ([]string, field.ErrorList) {
 	allErrs := field.ErrorList{}
 	var warnings []string
@@ -477,12 +494,14 @@ func (v *pcsValidator) validateUpdate(oldPCS *grovecorev1alpha1.PodCliqueSet) er
 	return allErrs.ToAggregate()
 }
 
+// validatePodCliqueSetSpecUpdate validates updates to the PodCliqueSet specification.
 func validatePodCliqueSetSpecUpdate(newSpec, oldSpec *grovecorev1alpha1.PodCliqueSetSpec, fldPath *field.Path) field.ErrorList {
 	allErrs := field.ErrorList{}
 	allErrs = append(allErrs, validatePodGangTemplateSpecUpdate(&newSpec.Template, &oldSpec.Template, fldPath.Child("template"))...)
 	return allErrs
 }
 
+// validatePodGangTemplateSpecUpdate validates updates to the template specification ensuring immutability of critical fields.
 func validatePodGangTemplateSpecUpdate(newSpec, oldSpec *grovecorev1alpha1.PodCliqueSetTemplateSpec, fldPath *field.Path) field.ErrorList {
 	allErrs := field.ErrorList{}
 
@@ -494,13 +513,14 @@ func validatePodGangTemplateSpecUpdate(newSpec, oldSpec *grovecorev1alpha1.PodCl
 	return allErrs
 }
 
+// validatePodGangSchedulingPolicyConfigUpdate validates that scheduling policy configuration remains immutable.
 func validatePodGangSchedulingPolicyConfigUpdate(newConfig, oldConfig *grovecorev1alpha1.SchedulingPolicyConfig, fldPath *field.Path) field.ErrorList {
 	allErrs := field.ErrorList{}
 	allErrs = append(allErrs, apivalidation.ValidateImmutableField(newConfig, oldConfig, fldPath.Child("networkPackStrategy"))...)
 	return allErrs
 }
 
-// validatePodCliqueScalingGroupConfigsUpdate validates immutable fields in PodCliqueScalingGroupConfigs
+// validatePodCliqueScalingGroupConfigsUpdate validates immutable fields in PodCliqueScalingGroupConfigs.
 func validatePodCliqueScalingGroupConfigsUpdate(newConfigs, oldConfigs []grovecorev1alpha1.PodCliqueScalingGroupConfig, fldPath *field.Path) field.ErrorList {
 	allErrs := field.ErrorList{}
 
@@ -532,11 +552,12 @@ func validatePodCliqueScalingGroupConfigsUpdate(newConfigs, oldConfigs []groveco
 	return allErrs
 }
 
-// requiresOrderValidation checks if the StartupType requires clique order validation
+// requiresOrderValidation checks if the StartupType requires clique order validation.
 func requiresOrderValidation(startupType *grovecorev1alpha1.CliqueStartupType) bool {
 	return startupType != nil && (*startupType == grovecorev1alpha1.CliqueStartupTypeInOrder || *startupType == grovecorev1alpha1.CliqueStartupTypeExplicit)
 }
 
+// validatePodCliqueUpdate validates that PodClique updates maintain composition, order (when required), and immutable fields.
 func validatePodCliqueUpdate(newCliques, oldCliques []*grovecorev1alpha1.PodCliqueTemplateSpec, startupType *grovecorev1alpha1.CliqueStartupType, fldPath *field.Path) field.ErrorList {
 	allErrs := field.ErrorList{}
 

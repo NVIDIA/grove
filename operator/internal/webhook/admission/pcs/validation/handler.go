@@ -83,6 +83,7 @@ func (h *Handler) ValidateDelete(_ context.Context, _ runtime.Object) (admission
 	return nil, nil
 }
 
+// castToPodCliqueSet attempts to cast a runtime.Object to a PodCliqueSet.
 func castToPodCliqueSet(obj runtime.Object) (*v1alpha1.PodCliqueSet, error) {
 	pcs, ok := obj.(*v1alpha1.PodCliqueSet)
 	if !ok {
@@ -91,6 +92,7 @@ func castToPodCliqueSet(obj runtime.Object) (*v1alpha1.PodCliqueSet, error) {
 	return pcs, nil
 }
 
+// logValidatorFunctionInvocation logs details about the validation request including user and operation information.
 func (h *Handler) logValidatorFunctionInvocation(ctx context.Context) {
 	req, err := admission.RequestFromContext(ctx)
 	if err != nil {

@@ -41,14 +41,12 @@ func defaultPodCliqueSet(pcs *grovecorev1alpha1.PodCliqueSet) {
 
 // defaultPodCliqueSetSpec adds defaults to the specification of a PodCliqueSet.
 func defaultPodCliqueSetSpec(spec *grovecorev1alpha1.PodCliqueSetSpec) {
-	// default PodCliqueSetTemplateSpec
 	defaultPodCliqueSetTemplateSpec(&spec.Template)
 }
 
+// defaultPodCliqueSetTemplateSpec applies defaults to the template specification including cliques, scaling groups, and service configuration.
 func defaultPodCliqueSetTemplateSpec(spec *grovecorev1alpha1.PodCliqueSetTemplateSpec) {
-	// default PodCliqueTemplateSpecs
 	spec.Cliques = defaultPodCliqueTemplateSpecs(spec.Cliques)
-	// default PodCliqueScalingGroupConfigs
 	spec.PodCliqueScalingGroupConfigs = defaultPodCliqueScalingGroupConfigs(spec.PodCliqueScalingGroupConfigs)
 	if spec.TerminationDelay == nil {
 		spec.TerminationDelay = &metav1.Duration{Duration: defaultTerminationDelay}
@@ -57,6 +55,7 @@ func defaultPodCliqueSetTemplateSpec(spec *grovecorev1alpha1.PodCliqueSetTemplat
 	spec.HeadlessServiceConfig = defaultHeadlessServiceConfig(spec.HeadlessServiceConfig)
 }
 
+// defaultHeadlessServiceConfig applies defaults to the headless service configuration.
 func defaultHeadlessServiceConfig(headlessServiceConfig *grovecorev1alpha1.HeadlessServiceConfig) *grovecorev1alpha1.HeadlessServiceConfig {
 	if headlessServiceConfig == nil {
 		headlessServiceConfig = &grovecorev1alpha1.HeadlessServiceConfig{
@@ -66,6 +65,7 @@ func defaultHeadlessServiceConfig(headlessServiceConfig *grovecorev1alpha1.Headl
 	return headlessServiceConfig
 }
 
+// defaultPodCliqueTemplateSpecs applies defaults to each PodClique template including replicas, minAvailable, and autoscaling configuration.
 func defaultPodCliqueTemplateSpecs(cliqueSpecs []*grovecorev1alpha1.PodCliqueTemplateSpec) []*grovecorev1alpha1.PodCliqueTemplateSpec {
 	defaultedCliqueSpecs := make([]*grovecorev1alpha1.PodCliqueTemplateSpec, 0, len(cliqueSpecs))
 	for _, cliqueSpec := range cliqueSpecs {
@@ -87,6 +87,8 @@ func defaultPodCliqueTemplateSpecs(cliqueSpecs []*grovecorev1alpha1.PodCliqueTem
 	return defaultedCliqueSpecs
 }
 
+// defaultPodCliqueScalingGroupConfigs applies defaults to scaling group configurations.
+// Note: Replicas field is already set by kubebuilder defaults before the webhook runs.
 func defaultPodCliqueScalingGroupConfigs(scalingGroupConfigs []grovecorev1alpha1.PodCliqueScalingGroupConfig) []grovecorev1alpha1.PodCliqueScalingGroupConfig {
 	defaultedScalingGroupConfigs := make([]grovecorev1alpha1.PodCliqueScalingGroupConfig, 0, len(scalingGroupConfigs))
 	for _, scalingGroupConfig := range scalingGroupConfigs {
