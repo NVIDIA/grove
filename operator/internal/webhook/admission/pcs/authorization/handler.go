@@ -97,34 +97,34 @@ func (h *Handler) Handle(ctx context.Context, req admission.Request) admission.R
 	}
 
 	if req.Operation == admissionv1.Delete {
-		return h.handleDelete(req.UserInfo, resPartialObjMeta)
+		return h.handleDelete(req.UserInfo, resObjectKey)
 	}
 
-	return h.handleUpdate(req.UserInfo, resPartialObjMeta)
+	return h.handleUpdate(req.UserInfo, resObjectKey)
 }
 
 // handleDelete allows deletion of managed resources only if the request is either from the service account used by the reconcilers
 // or the request is coming from one of the exempted service accounts.
-func (h *Handler) handleDelete(userInfo authenticationv1.UserInfo, resObjMeta *metav1.PartialObjectMetadata) admission.Response {
+func (h *Handler) handleDelete(userInfo authenticationv1.UserInfo, resObjectKey client.ObjectKey) admission.Response {
 	if userInfo.Username == h.config.ReconcilerServiceAccountUserName {
-		return admission.Allowed(fmt.Sprintf("admission allowed, deletion of resource: %v is initiated by the grove reconciler service account", client.ObjectKeyFromObject(resObjMeta)))
+		return admission.Allowed(fmt.Sprintf("admission allowed, deletion of resource: %v is initiated by the grove reconciler service account", resObjectKey))
 	}
 	if slices.Contains(h.config.ExemptServiceAccountUserNames, userInfo.Username) {
-		return admission.Allowed(fmt.Sprintf("admission allowed, deletion of resource: %v is initiated by exempt user account", client.ObjectKeyFromObject(resObjMeta)))
+		return admission.Allowed(fmt.Sprintf("admission allowed, deletion of resource: %v is initiated by exempt user account", resObjectKey))
 	}
 
-	return admission.Denied(fmt.Sprintf("admission denied, deletion of resource: %v is not allowed", client.ObjectKeyFromObject(resObjMeta)))
+	return admission.Denied(fmt.Sprintf("admission denied, deletion of resource: %v is not allowed", resObjectKey))
 }
 
-func (h *Handler) handleUpdate(userInfo authenticationv1.UserInfo, resObjMeta *metav1.PartialObjectMetadata) admission.Response {
+func (h *Handler) handleUpdate(userInfo authenticationv1.UserInfo, resObjectKey client.ObjectKey) admission.Response {
 	if userInfo.Username == h.config.ReconcilerServiceAccountUserName {
-		return admission.Allowed(fmt.Sprintf("admission allowed, updation of resource: %v is initiated by the grove reconciler service account", client.ObjectKeyFromObject(resObjMeta)))
+		return admission.Allowed(fmt.Sprintf("admission allowed, updation of resource: %v is initiated by the grove reconciler service account", resObjectKey))
 	}
 	if slices.Contains(h.config.ExemptServiceAccountUserNames, userInfo.Username) {
-		return admission.Allowed(fmt.Sprintf("admission allowed, updation of resource: %v is initiated by exempt user account", client.ObjectKeyFromObject(resObjMeta)))
+		return admission.Allowed(fmt.Sprintf("admission allowed, updation of resource: %v is initiated by exempt user account", resObjectKey))
 	}
 
-	return admission.Denied(fmt.Sprintf("admission denied: updation of resource: %v is not allowed", client.ObjectKeyFromObject(resObjMeta)))
+	return admission.Denied(fmt.Sprintf("admission denied: updation of resource: %v is not allowed", resObjectKey))
 }
 
 func (h *Handler) getParentPodCliqueSet(ctx context.Context, resourceObjMeta metav1.ObjectMeta) (*grovecorev1alpha1.PodCliqueSet, admission.Warnings, error) {

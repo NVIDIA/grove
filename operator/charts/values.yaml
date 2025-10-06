@@ -18,7 +18,7 @@ resources:
     ephemeral-storage: 128Mi
 
 # Set of tolerations to apply to the operator deployment.
-tolerations: []
+tolerations: [ ]
 
 # This section builds out the service account more information can be found here: https://kubernetes.io/docs/concepts/security/service-accounts/
 serviceAccount:
@@ -120,6 +120,11 @@ webhooks:
     labels:
       app.kubernetes.io/component: operator-pcs-defaulting-webhook
       app.kubernetes.io/name: pcs-defaulting-webhook
+      app.kubernetes.io/part-of: grove
+  authorizerWebhook:
+    labels:
+      app.kubernetes.io/component: operator-authorizer-webhook
+      app.kubernetes.io/name: authorizer-webhook
       app.kubernetes.io/part-of: grove
 
 webhookServerSecret:
