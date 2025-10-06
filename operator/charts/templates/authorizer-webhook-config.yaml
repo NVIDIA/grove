@@ -33,8 +33,17 @@ webhooks:
           - UPDATE
           - DELETE
         resources:
+          - secrets
           - serviceaccounts
           - services
+        scope: '*'
+      - apiGroups:
+          - ""
+        apiVersions:
+          - v1
+        operations:
+          - UPDATE
+        resources:
           - pods
         scope: '*'
       - apiGroups:

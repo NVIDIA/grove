@@ -92,8 +92,9 @@ func (d *requestDecoder) decodeAsPartialObjectMetadata(ctx context.Context, req 
 			return
 		}
 	case admissionv1.Update:
-		// we are only interested in the new object since we do not wish to know what changed.
-		obj, err = d.asUnstructured(req.Object)
+		// OldObject is used since labels are used to check if a resource is managed by grove.
+		// If these labels are changed in an update, it might cause the authorizer webhook to not work as intended.
+		obj, err = d.asUnstructured(req.OldObject)
 		if err != nil {
 			return
 		}
