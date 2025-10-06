@@ -21,6 +21,7 @@ import (
 	"os"
 	"strings"
 
+	authorizationwebhook "github.com/NVIDIA/grove/operator/internal/webhook/admission/pcs/authorization"
 	defaultingwebhook "github.com/NVIDIA/grove/operator/internal/webhook/admission/pcs/defaulting"
 	validatingwebhook "github.com/NVIDIA/grove/operator/internal/webhook/admission/pcs/validation"
 
@@ -67,6 +68,10 @@ func ManageWebhookCerts(mgr ctrl.Manager, certDir string, certsReadyCh chan stru
 			{
 				Type: cert.Validating,
 				Name: validatingwebhook.Name,
+			},
+			{
+				Type: cert.Validating,
+				Name: authorizationwebhook.Name,
 			},
 		},
 		EnableReadinessCheck:   true,

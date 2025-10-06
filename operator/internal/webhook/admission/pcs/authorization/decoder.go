@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"github.com/NVIDIA/grove/operator/api/common/constants"
 	grovecorev1alpha1 "github.com/NVIDIA/grove/operator/api/core/v1alpha1"
+	groveschedulerv1alpha1 "github.com/NVIDIA/grove/scheduler/api/core/v1alpha1"
 	"github.com/go-logr/logr"
 	admissionv1 "k8s.io/api/admission/v1"
 	autoscalingv2 "k8s.io/api/autoscaling/v2"
@@ -35,6 +36,7 @@ var (
 	scaleSubResourceV1GVK = autoscalingv1.SchemeGroupVersion.WithKind("Scale")
 	hpaV2GVK              = autoscalingv2.SchemeGroupVersion.WithKind("HorizontalPodAutoscaler")
 	hpaV1GVK              = autoscalingv1.SchemeGroupVersion.WithKind("HorizontalPodAutoscaler")
+	podgangGVK            = groveschedulerv1alpha1.SchemeGroupVersion.WithKind("PodGang")
 
 	errDecodeRequestObject  = errors.New("failed to decode request")
 	errUnsupportedOperation = errors.New("unsupported operation")
@@ -62,7 +64,7 @@ func (d *requestDecoder) decode(ctx context.Context, logger logr.Logger, req adm
 		Kind:    req.Kind.Kind,
 	}
 	switch reqGVK {
-	case pcsgGVK, pclqGVK, podGVK, serviceAccountGVK, serviceGVK, secretGVK, roleGVK, roleBindingGVK, hpaV2GVK, hpaV1GVK:
+	case pcsgGVK, pclqGVK, podGVK, serviceAccountGVK, serviceGVK, secretGVK, roleGVK, roleBindingGVK, hpaV2GVK, hpaV1GVK, podgangGVK:
 		return d.decodeAsPartialObjectMetadata(ctx, req, false)
 	case scaleSubResourceV2GVK, scaleSubResourceV1GVK:
 		return d.decodeAsPartialObjectMetadata(ctx, req, true)
