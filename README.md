@@ -4,14 +4,9 @@
 
 # Grove
 
-Grove is a Kubernetes API purpose-built for orchestrating AI workloads in GPU clusters, where a single custom resource allows you to hierarchically compose multiple AI components with flexible gang-scheduling and auto-scaling specification at multiple levels. Through native support for network topology-aware gang scheduling, multidimensional auto-scaling and prescriptive startup ordering, Grove enables developers to define complex AI stacks in a concise, declarative, and framework-agnostic manner.
+Grove is a Kubernetes API purpose-built for orchestrating AI workloads on GPU clusters. The modern inference landscape spans a wide range of workload types — from traditional single-node deployments where each model instance runs in a single pod, to large-scale disaggregated systems where one model instance may include multiple components such as prefill and decode, each distributed across many pods and nodes. Grove is designed to unify this entire spectrum under a single API, allowing developers to declaratively represent any workload by composing as many components as their system requires — whether single-node, multi-node, or multi-component — within one cohesive custom resource.
 
-Grove was originally motivated by the challenges of orchestrating multinode, disaggregated inference systems. It provides a consistent and unified API that allows users to define, configure, and scale prefill, decode, and any other components like routing within a single custom resource. However, it is flexible enough to map naturally to the roles, scaling behaviors, and dependencies of any real-world inference systems, from "traditional" single node aggregated inference to agentic pipelines with multiple models.
-
-## Why Grove?
-
-Modern inference systems are often no longer single-pod workloads. They involve multiple components running across many nodes, often requiring coordination, colocation, custom roles, and precise startup ordering. Inference workloads also need better scheduler coordination to achieve key performance SLAs with features such as network topology-aware gang-scheduling, auto-scaling, rolling updates and more. The Grove project was created so that AI developers can define their workload in a declarative manner and influence scheduler level optimizations with easy-to-use, high-level, Grove scheduling APIs.
-
+Additionally, as workloads scale in size and complexity, achieving efficient resource utilization and optimal performance depends on capabilities such as all-or-nothing (“gang”) scheduling, topology-aware placement, prescriptive startup ordering, and independent scaling of components. Grove is designed with these needs as first-class citizens — providing native abstractions for expressing scheduling intent, topology constraints, startup dependencies, and per-component scaling behaviors that can be directly interpreted by underlying schedulers.
 
 ## Core Concepts
 
@@ -21,7 +16,7 @@ The Grove API consists of a user API and a scheduling API. While the user API (`
 |---------------------------------------------------------------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | [PodCliqueSet](operator/api/core/v1alpha1/podcliqueset.go)          | The top-level Grove object that defines a group of components managed and colocated together. Also supports autoscaling with topology aware spread of PodCliqueSet replicas for availability.            |
 | [PodClique](operator/api/core/v1alpha1/podclique.go)                | A group of pods representing a specific role (e.g., leader, worker, frontend). Each clique has an independent configuration and supports custom scaling logic.                                           |
-| [PodCliqueScalingGroup](operator/api/core/v1alpha1/scalinggroup.go) | A set of PodCliques that scale and are scheduled together. Ideal for tightly coupled roles like prefill leader and worker.                                                                               |
+| [PodCliqueScalingGroup](operator/api/core/v1alpha1/scalinggroup.go) | A set of PodCliques that scale and are scheduled together as a gang. Ideal for tightly coupled roles like prefill leader and worker.                                                                               |
 | [PodGang](scheduler/api/core/v1alpha1/podgang.go)                   | The scheduler API that defines a unit of gang-scheduling. A PodGang is a collection of groups of similar pods, where each pod group defines a minimum number of replicas guaranteed for gang-scheduling. |
 
 
