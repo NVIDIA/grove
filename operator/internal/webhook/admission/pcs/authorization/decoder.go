@@ -73,9 +73,7 @@ func (d *requestDecoder) decode(ctx context.Context, logger logr.Logger, req adm
 }
 
 func (d *requestDecoder) decodeAsPartialObjectMetadata(ctx context.Context, req admission.Request, isScaleSubResource bool) (partialObjMeta *metav1.PartialObjectMetadata, err error) {
-	var (
-		obj = &unstructured.Unstructured{}
-	)
+	var obj *unstructured.Unstructured
 	switch req.Operation {
 	case admissionv1.Connect:
 		return

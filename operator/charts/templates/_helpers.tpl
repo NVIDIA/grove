@@ -34,7 +34,8 @@ config.yaml: |
   {{- if .Values.config.authorizer.enabled }}
   authorizer:
     enabled: {{ .Values.config.authorizer.enabled }}
-    exemptServiceAccounts: {{ join "," .Values.config.authorizer.exemptServiceAccounts }}
+    reconcilerServiceAccountUserName: "{{ printf "system:serviceaccount:%s:%s" .Release.Namespace .Values.serviceAccount.name }}"
+    exemptServiceAccountUserNames: {{ join "," .Values.config.authorizer.exemptServiceAccountUserNames }}
   {{- end }}
 
 {{- end -}}

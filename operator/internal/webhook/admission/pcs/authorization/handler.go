@@ -40,7 +40,7 @@ import (
 // allowedOperations are operations that will always be allowed irrespective of who is making this call.
 // If the user who invokes Create/Connect have the required RBAC they can invoke these operations and this webhook
 // will not disallow it.
-var allowedOperations = []admissionv1.Operation{admissionv1.Create, admissionv1.Connect}
+var allowedOperations = []admissionv1.Operation{admissionv1.Connect}
 
 // Handler is the PodCliqueSet authorization admission webhook handler.
 type Handler struct {
@@ -63,7 +63,7 @@ func NewHandler(mgr manager.Manager, config groveconfigv1alpha1.AuthorizerConfig
 func (h *Handler) Handle(ctx context.Context, req admission.Request) admission.Response {
 	log := h.logger.WithValues("user", req.UserInfo.Username, "operation", req.Operation, "resource", req.Resource, "subresource", req.SubResource, "name", req.Name, "namespace", req.Namespace)
 	log.Info("Authorizer webhook invoked")
-	// always allow 'create' or 'connect' operations, irrespective of the user.
+	// always allow 'connect' operations, irrespective of the user.
 	if slices.Contains(allowedOperations, req.Operation) {
 		return admission.Allowed(fmt.Sprintf("operation %s is allowed", req.Operation))
 	}
@@ -97,7 +97,7 @@ func (h *Handler) Handle(ctx context.Context, req admission.Request) admission.R
 	}
 
 	if req.Operation == admissionv1.Delete {
-		return h.handleDelete(req)
+		return h.handleDelete(req.UserInfo, resPartialObjMeta)
 	}
 
 	return h.handleUpdate(req.UserInfo, resPartialObjMeta)
@@ -105,16 +105,26 @@ func (h *Handler) Handle(ctx context.Context, req admission.Request) admission.R
 
 // handleDelete allows deletion of managed resources only if the request is either from the service account used by the reconcilers
 // or the request is coming from one of the exempted service accounts.
-func (h *Handler) handleDelete(req admission.Request, resObjMeta, pcsObjMeta metav1.ObjectMeta) admission.Response {
-	if req.UserInfo.Username == h.config.ReconcilerServiceAccountUserName {
-		return admission.Allowed(fmt.Sprintf("admission allowed, deletion of resource: %v is initiated by the grove reconciler service account", k8sutils.GetObjectKeyFromObjectMeta(resObjMeta)))
+func (h *Handler) handleDelete(userInfo authenticationv1.UserInfo, resObjMeta *metav1.PartialObjectMetadata) admission.Response {
+	if userInfo.Username == h.config.ReconcilerServiceAccountUserName {
+		return admission.Allowed(fmt.Sprintf("admission allowed, deletion of resource: %v is initiated by the grove reconciler service account", client.ObjectKeyFromObject(resObjMeta)))
 	}
-	// If either the deletion PCS is in progress or deletion of the resource is in progress then allow deletion by exempted service accounts.
+	if slices.Contains(h.config.ExemptServiceAccountUserNames, userInfo.Username) {
+		return admission.Allowed(fmt.Sprintf("admission allowed, deletion of resource: %v is initiated by exempt user account", client.ObjectKeyFromObject(resObjMeta)))
+	}
 
+	return admission.Denied(fmt.Sprintf("admission denied, deletion of resource: %v is not allowed", client.ObjectKeyFromObject(resObjMeta)))
 }
 
-func (h *Handler) handleUpdate(userInfo authenticationv1.UserInfo, resObjMeta metav1.ObjectMeta) admission.Response {
-	
+func (h *Handler) handleUpdate(userInfo authenticationv1.UserInfo, resObjMeta *metav1.PartialObjectMetadata) admission.Response {
+	if userInfo.Username == h.config.ReconcilerServiceAccountUserName {
+		return admission.Allowed(fmt.Sprintf("admission allowed, updation of resource: %v is initiated by the grove reconciler service account", client.ObjectKeyFromObject(resObjMeta)))
+	}
+	if slices.Contains(h.config.ExemptServiceAccountUserNames, userInfo.Username) {
+		return admission.Allowed(fmt.Sprintf("admission allowed, updation of resource: %v is initiated by exempt user account", client.ObjectKeyFromObject(resObjMeta)))
+	}
+
+	return admission.Denied(fmt.Sprintf("admission denied: updation of resource: %v is not allowed", client.ObjectKeyFromObject(resObjMeta)))
 }
 
 func (h *Handler) getParentPodCliqueSet(ctx context.Context, resourceObjMeta metav1.ObjectMeta) (*grovecorev1alpha1.PodCliqueSet, admission.Warnings, error) {

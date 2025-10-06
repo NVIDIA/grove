@@ -106,7 +106,7 @@ func validateAuthorizerConfiguration(cfg configv1alpha1.AuthorizerConfig, fldPat
 	if len(strings.TrimSpace(cfg.ReconcilerServiceAccountUserName)) == 0 {
 		allErrs = append(allErrs, field.Required(fldPath.Child("reconcilerServiceAccountRef", "name"), "reconciler ServiceAccount name is required"))
 	}
-	if len(strings.TrimSpace(cfg.ReconcilerServiceAccountUserName.Namespace)) == 0 {
+	if len(strings.TrimSpace(cfg.ReconcilerServiceAccountUserName)) == 0 {
 		allErrs = append(allErrs, field.Required(fldPath.Child("reconcilerServiceAccountRef", "namespace"), "reconciler ServiceAccount namespace is required"))
 	}
 

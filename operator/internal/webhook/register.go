@@ -20,6 +20,9 @@ import (
 	"fmt"
 	"log/slog"
 
+	configv1alpha1 "github.com/NVIDIA/grove/operator/api/config/v1alpha1"
+
+	"github.com/NVIDIA/grove/operator/internal/webhook/admission/pcs/authorization"
 	"github.com/NVIDIA/grove/operator/internal/webhook/admission/pcs/defaulting"
 	"github.com/NVIDIA/grove/operator/internal/webhook/admission/pcs/validation"
 
@@ -27,7 +30,7 @@ import (
 )
 
 // RegisterWebhooks registers the webhooks with the controller manager.
-func RegisterWebhooks(mgr manager.Manager) error {
+func RegisterWebhooks(mgr manager.Manager, authorizerConfig configv1alpha1.AuthorizerConfig) error {
 	defaultingWebhook := defaulting.NewHandler(mgr)
 	slog.Info("Registering webhook with manager", "handler", defaulting.Name)
 	if err := defaultingWebhook.RegisterWithManager(mgr); err != nil {
@@ -37,6 +40,11 @@ func RegisterWebhooks(mgr manager.Manager) error {
 	slog.Info("Registering webhook with manager", "handler", validation.Name)
 	if err := validatingWebhook.RegisterWithManager(mgr); err != nil {
 		return fmt.Errorf("failed adding %s webhook handler: %v", validation.Name, err)
+	}
+	authorizerWebhook := authorization.NewHandler(mgr, authorizerConfig)
+	slog.Info("Registering webhook with manager", "handler", authorization.Name)
+	if err := authorizerWebhook.RegisterWithManager(mgr); err != nil {
+		return fmt.Errorf("failed adding %s webhook handler: %v", authorization.Name, err)
 	}
 	return nil
 }
