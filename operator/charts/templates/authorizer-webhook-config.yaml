@@ -92,33 +92,4 @@ webhooks:
           - podgangs
         scope: '*'
     timeoutSeconds: 10
-{{- /* This webhook is required for specially handling scale subresource for PCLQ and PCSG */}}
-{{- /* because an `objectSelector` does not work for subresources. */}}
-{{- /* Refer https://github.com/kubernetes/kubernetes/issues/113594#issuecomment-1332573990. */}}
-  - admissionReviewVersions:
-      - v1
-    clientConfig:
-      service:
-        name: {{ required ".Values.service.name is required" .Values.service.name }}
-        namespace: {{ .Release.Namespace }}
-        path: /webhooks/authorizer-webhook
-        port: {{ required ".Values.config.server.webhooks.port" .Values.config.server.webhooks.port }}
-    failurePolicy: Fail
-    matchPolicy: Exact
-    name: scalesub.authorizer.webhooks.grove.io
-    namespaceSelector: { }
-    rules:
-      - apiGroups:
-          - "grove.io"
-        apiVersions:
-          - "v1alpha1"
-        operations:
-          - UPDATE
-          - DELETE
-        resources:
-          - podcliques/scale
-          - podcliquescalinggroups/scale
-        scope: '*'
-    sideEffects: None
-    timeoutSeconds: 10
 {{- end }}

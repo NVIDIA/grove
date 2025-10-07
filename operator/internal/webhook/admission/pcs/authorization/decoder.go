@@ -41,6 +41,7 @@ import (
 )
 
 var (
+	pcsGVK            = grovecorev1alpha1.SchemeGroupVersion.WithKind(constants.KindPodCliqueSet)
 	pcsgGVK           = grovecorev1alpha1.SchemeGroupVersion.WithKind(constants.KindPodCliqueScalingGroup)
 	pclqGVK           = grovecorev1alpha1.SchemeGroupVersion.WithKind(constants.KindPodClique)
 	podGVK            = corev1.SchemeGroupVersion.WithKind("Pod")
