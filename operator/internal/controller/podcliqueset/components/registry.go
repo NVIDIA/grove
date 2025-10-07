@@ -34,7 +34,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 )
 
-// CreateOperatorRegistry initializes the operator registry for the PodCliqueSet reconciler.
+// CreateOperatorRegistry initializes the operator registry for the PodCliqueSet reconciler
 func CreateOperatorRegistry(mgr manager.Manager, eventRecorder record.EventRecorder) component.OperatorRegistry[v1alpha1.PodCliqueSet] {
 	cl := mgr.GetClient()
 	reg := component.NewOperatorRegistry[v1alpha1.PodCliqueSet]()

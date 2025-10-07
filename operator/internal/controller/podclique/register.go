@@ -79,6 +79,7 @@ func (r *Reconciler) RegisterWithManager(mgr ctrl.Manager) error {
 		Complete(r)
 }
 
+// managedPodCliquePredicate filters PodClique events to only process managed PodCliques owned by expected resources
 func managedPodCliquePredicate() predicate.Predicate {
 	expectedOwnerKinds := []string{constants.KindPodCliqueScalingGroup, constants.KindPodCliqueSet}
 	return predicate.Funcs{
@@ -113,10 +114,12 @@ func podPredicate() predicate.Predicate {
 	}
 }
 
+// hasPodSpecChanged checks if the Pod's spec has changed by comparing generation values
 func hasPodSpecChanged(updateEvent event.UpdateEvent) bool {
 	return updateEvent.ObjectOld.GetGeneration() != updateEvent.ObjectNew.GetGeneration()
 }
 
+// hasPodStatusChanged determines if relevant Pod status fields have changed that require reconciliation
 func hasPodStatusChanged(updateEvent event.UpdateEvent) bool {
 	oldPod, oldOk := updateEvent.ObjectOld.(*corev1.Pod)
 	newPod, newOk := updateEvent.ObjectNew.(*corev1.Pod)
@@ -129,6 +132,7 @@ func hasPodStatusChanged(updateEvent event.UpdateEvent) bool {
 		hasStartedAndReadyChangedForAnyContainer(oldPod.Status.ContainerStatuses, newPod.Status.ContainerStatuses)
 }
 
+// hasReadyConditionChanged checks if the Pod's Ready condition status has transitioned
 func hasReadyConditionChanged(oldPodConditions, newPodConditions []corev1.PodCondition) bool {
 	getReadyCondition := func(podConditions []corev1.PodCondition) (corev1.PodCondition, bool) {
 		return lo.Find(podConditions, func(condition corev1.PodCondition) bool {
@@ -142,12 +146,14 @@ func hasReadyConditionChanged(oldPodConditions, newPodConditions []corev1.PodCon
 	return oldPodReady != newPodReady
 }
 
+// hasLastTerminationStateChanged detects changes in container termination states with non-zero exit codes
 func hasLastTerminationStateChanged(oldContainerStatuses []corev1.ContainerStatus, newContainerStatuses []corev1.ContainerStatus) bool {
 	oldErroneousContainerStatus := k8sutils.GetContainerStatusIfTerminatedErroneously(oldContainerStatuses)
 	newErroneousContainerStatus := k8sutils.GetContainerStatusIfTerminatedErroneously(newContainerStatuses)
 	return utils.OnlyOneIsNil(oldErroneousContainerStatus, newErroneousContainerStatus)
 }
 
+// hasStartedAndReadyChangedForAnyContainer checks if any container's Started or Ready status has changed
 func hasStartedAndReadyChangedForAnyContainer(oldContainerStatuses []corev1.ContainerStatus, newContainerStatuses []corev1.ContainerStatus) bool {
 	for _, oldContainerStatus := range oldContainerStatuses {
 		matchingNewContainerStatus, ok := lo.Find(newContainerStatuses, func(containerStatus corev1.ContainerStatus) bool {
@@ -181,6 +187,7 @@ func mapPodCliqueSetToPCLQs() handler.MapFunc {
 	}
 }
 
+// podCliqueSetPredicate filters PodCliqueSet events to only process generation hash changes
 func podCliqueSetPredicate() predicate.Predicate {
 	return predicate.Funcs{
 		CreateFunc: func(_ event.CreateEvent) bool { return false },
@@ -214,6 +221,7 @@ func mapPodCliqueScalingGroupToPCLQs() handler.MapFunc {
 	}
 }
 
+// podCliqueScalingGroupPredicate filters PodCliqueScalingGroup events to only process rolling update changes
 func podCliqueScalingGroupPredicate() predicate.Predicate {
 	return predicate.Funcs{
 		CreateFunc: func(_ event.CreateEvent) bool { return false },
@@ -253,11 +261,13 @@ func mapPodGangToPCLQs() handler.MapFunc {
 	}
 }
 
+// extractPCLQNameFromPodName extracts the PodClique name from a Pod name by removing the replica index suffix
 func extractPCLQNameFromPodName(podName string) string {
 	endIndex := strings.LastIndex(podName, "-")
 	return podName[:endIndex]
 }
 
+// podGangPredicate allows all PodGang create and update events to trigger PodClique reconciliation
 func podGangPredicate() predicate.Predicate {
 	return predicate.Funcs{
 		CreateFunc:  func(_ event.CreateEvent) bool { return true },
@@ -267,6 +277,7 @@ func podGangPredicate() predicate.Predicate {
 	}
 }
 
+// isManagedPod checks if a Pod is managed by Grove and owned by a PodClique
 func isManagedPod(obj client.Object) bool {
 	pod, ok := obj.(*corev1.Pod)
 	if !ok {
