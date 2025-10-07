@@ -327,8 +327,6 @@ func (r _resource) isBasePodGangScheduled(ctx context.Context, logger logr.Logge
 			)
 		}
 
-		// CRITICAL READINESS CHECK: Compare actual ready pods vs required minimum
-		// If ANY PodClique in the base PodGang fails this check, the entire base is considered not ready
 		if pclq.Status.ScheduledReplicas < podGroup.MinReplicas {
 			logger.Info("Base PodGang not scheduled: PodClique has insufficient scheduled replicas",
 				"basePodGangName", basePodGangName,
