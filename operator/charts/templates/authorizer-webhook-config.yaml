@@ -92,6 +92,9 @@ webhooks:
           - podgangs
         scope: '*'
     timeoutSeconds: 10
+{{- /* This webhook is required for specially handling scale subresource for PCLQ and PCSG */}}
+{{- /* because an `objectSelector` does not work for subresources. */}}
+{{- /* Refer https://github.com/kubernetes/kubernetes/issues/113594#issuecomment-1332573990. */}}
   - admissionReviewVersions:
       - v1
     clientConfig:
