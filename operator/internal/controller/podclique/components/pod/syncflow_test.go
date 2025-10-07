@@ -194,7 +194,7 @@ func TestCheckAndRemovePodSchedulingGates_MinAvailableAware(t *testing.T) {
 			}
 
 			// For scaled PodGang tests, add the base PodGang label to the PodClique
-			// This is what the production code expects to read in checkBasePodGangReadinessForPodClique
+			// This is what the production code expects to read in checkBasePodGangScheduledForPodClique
 			if isScaledPodGangTest {
 				testPclq.Labels = map[string]string{
 					common.LabelBasePodGang: "simple1-0",
@@ -320,42 +320,42 @@ func TestCheckAndRemovePodSchedulingGates_ConcurrentExecution(t *testing.T) {
 	}
 }
 
-func TestIsBasePodGangReady(t *testing.T) {
+func TestIsBasePodGangScheduled(t *testing.T) {
 	tests := []struct {
 		name              string
 		basePodGangExists bool
 		podCliques        []testPodClique
-		expectedReady     bool
+		expectedScheduled bool
 		expectError       bool
 		description       string
 	}{
 		{
-			name:              "Base PodGang ready - all PodCliques meet MinAvailable",
+			name:              "Base PodGang is scheduled - all PodCliques meet MinAvailable",
 			basePodGangExists: true,
 			podCliques: []testPodClique{
-				{name: "simple1-0-pcb", minAvailable: 2, readyReplicas: 2},
-				{name: "simple1-0-pcc", minAvailable: 1, readyReplicas: 3},
+				{name: "simple1-0-pcb", minAvailable: 2, scheduledReplicas: 2},
+				{name: "simple1-0-pcc", minAvailable: 1, scheduledReplicas: 3},
 			},
-			expectedReady: true,
-			expectError:   false,
-			description:   "All PodCliques meet their MinAvailable requirements",
+			expectedScheduled: true,
+			expectError:       false,
+			description:       "All PodCliques meet their MinAvailable requirements",
 		},
 		{
-			name:              "Base PodGang not ready - one PodClique below MinAvailable",
+			name:              "Base PodGang not scheduled - one PodClique below MinAvailable",
 			basePodGangExists: true,
 			podCliques: []testPodClique{
-				{name: "simple1-0-pcb", minAvailable: 2, readyReplicas: 2},
-				{name: "simple1-0-pcc", minAvailable: 3, readyReplicas: 2}, // Below MinAvailable
+				{name: "simple1-0-pcb", minAvailable: 2, scheduledReplicas: 2},
+				{name: "simple1-0-pcc", minAvailable: 3, scheduledReplicas: 2}, // Below MinAvailable
 			},
-			expectedReady: false,
-			expectError:   false,
-			description:   "One PodClique below MinAvailable makes base PodGang not ready",
+			expectedScheduled: false,
+			expectError:       false,
+			description:       "One PodClique below MinAvailable makes base PodGang not scheduled",
 		},
 		{
 			name:              "Base PodGang missing",
 			basePodGangExists: false,
 			podCliques:        []testPodClique{},
-			expectedReady:     false,
+			expectedScheduled: false,
 			expectError:       true,
 			description:       "Missing base PodGang should return error for requeue",
 		},
@@ -363,11 +363,11 @@ func TestIsBasePodGangReady(t *testing.T) {
 			name:              "Base PodGang ready - single PodClique",
 			basePodGangExists: true,
 			podCliques: []testPodClique{
-				{name: "simple1-0-pcb", minAvailable: 1, readyReplicas: 1},
+				{name: "simple1-0-pcb", minAvailable: 1, scheduledReplicas: 1},
 			},
-			expectedReady: true,
-			expectError:   false,
-			description:   "Single PodClique meeting MinAvailable",
+			expectedScheduled: true,
+			expectError:       false,
+			description:       "Single PodClique meeting MinAvailable",
 		},
 	}
 
@@ -402,7 +402,7 @@ func TestIsBasePodGangReady(t *testing.T) {
 
 				// Add corresponding PodCliques
 				for _, pclq := range tt.podCliques {
-					podClique := createTestPodClique(pclq.name, pclq.minAvailable, pclq.readyReplicas)
+					podClique := createTestPodClique(pclq.name, pclq.minAvailable, pclq.scheduledReplicas)
 					objects = append(objects, podClique)
 				}
 			}
@@ -415,15 +415,15 @@ func TestIsBasePodGangReady(t *testing.T) {
 
 			// Test the readiness check
 			r := &_resource{client: fakeClient}
-			result, err := r.isBasePodGangReady(context.Background(), logr.Discard(), "default", "simple1-0")
+			result, err := r.isBasePodGangScheduled(context.Background(), logr.Discard(), "default", "simple1-0")
 
 			if tt.expectError {
 				require.Error(t, err, "Expected error for test case: %s", tt.name)
-				// When error occurs, result should be false and we don't check expectedReady
+				// When error occurs, result should be false and we don't check expectedScheduled
 				assert.False(t, result, "Result should be false when error occurs")
 			} else {
 				require.NoError(t, err, "Unexpected error for test case: %s", tt.name)
-				assert.Equal(t, tt.expectedReady, result, tt.description)
+				assert.Equal(t, tt.expectedScheduled, result, tt.description)
 			}
 		})
 	}
@@ -432,9 +432,9 @@ func TestIsBasePodGangReady(t *testing.T) {
 // Test helper types and functions
 
 type testPodClique struct {
-	name          string
-	minAvailable  int32
-	readyReplicas int32
+	name              string
+	minAvailable      int32
+	scheduledReplicas int32
 }
 
 func createTestPod(podGangName string, hasGate bool, inPodGang bool) *corev1.Pod {
@@ -548,7 +548,7 @@ func createTestBasePodGangWithPodCliques(podCliques []testPodClique) *grovesched
 	}
 }
 
-func createTestPodClique(name string, minAvailable, readyReplicas int32) *grovecorev1alpha1.PodClique {
+func createTestPodClique(name string, minAvailable, scheduledReplicas int32) *grovecorev1alpha1.PodClique {
 	return &grovecorev1alpha1.PodClique{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      name,
@@ -558,7 +558,7 @@ func createTestPodClique(name string, minAvailable, readyReplicas int32) *grovec
 			MinAvailable: ptr.To(minAvailable),
 		},
 		Status: grovecorev1alpha1.PodCliqueStatus{
-			ReadyReplicas: readyReplicas,
+			ScheduledReplicas: scheduledReplicas,
 		},
 	}
 }

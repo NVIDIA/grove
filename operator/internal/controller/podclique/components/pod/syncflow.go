@@ -240,15 +240,15 @@ func (r _resource) checkAndRemovePodSchedulingGates(sc *syncContext, logger logr
 	tasks := make([]utils.Task, 0, len(sc.existingPCLQPods))
 	skippedScheduleGatedPods := make([]string, 0, len(sc.existingPCLQPods))
 
-	// Pre-compute base PodGang readiness once for all pods in this PodClique
+	// Pre-compute if the base PodGang is scheduled once for all pods in this PodClique
 	// All pods in the same PodClique have the same base PodGang
-	basePodGangReady, basePodGangName, err := r.checkBasePodGangReadinessForPodClique(sc.ctx, logger, sc.pclq)
+	basePodGangScheduled, basePodGangName, err := r.checkBasePodGangScheduledForPodClique(sc.ctx, logger, sc.pclq)
 	if err != nil {
-		logger.Error(err, "Error checking base PodGang readiness for PodClique - will requeue")
+		logger.Error(err, "Error checking if base PodGang is scheduled for PodClique - will requeue")
 		return nil, groveerr.WrapError(err,
 			errCodeRemovePodSchedulingGate,
 			component.OperationSync,
-			"failed to check base PodGang readiness for PodClique",
+			"failed to check if base PodGang is scheduled for PodClique",
 		)
 	}
 
@@ -260,7 +260,7 @@ func (r _resource) checkAndRemovePodSchedulingGates(sc *syncContext, logger logr
 				skippedScheduleGatedPods = append(skippedScheduleGatedPods, p.Name)
 				continue
 			}
-			shouldSkip := r.shouldSkipPodSchedulingGateRemoval(logger, p, basePodGangReady, basePodGangName)
+			shouldSkip := r.shouldSkipPodSchedulingGateRemoval(logger, p, basePodGangScheduled, basePodGangName)
 			if shouldSkip {
 				skippedScheduleGatedPods = append(skippedScheduleGatedPods, p.Name)
 				continue
@@ -297,10 +297,10 @@ func (r _resource) checkAndRemovePodSchedulingGates(sc *syncContext, logger logr
 	return skippedScheduleGatedPods, nil
 }
 
-// isBasePodGangReady checks if the base PodGang (identified by name) is ready, returning errors for API failures.
-// A base PodGang is considered "ready" when ALL of its constituent PodCliques have achieved
-// their minimum required number of ready pods (PodClique.Status.ReadyReplicas >= PodGroup.MinReplicas).
-func (r _resource) isBasePodGangReady(ctx context.Context, logger logr.Logger, namespace, basePodGangName string) (bool, error) {
+// isBasePodGangScheduled checks if the base PodGang (identified by name) is scheduled, returning errors for API failures.
+// A base PodGang is considered "scheduled" when ALL of its constituent PodCliques have achieved
+// their minimum required number of scheduled pods (PodClique.Status.ScheduledReplicas >= PodGroup.MinReplicas).
+func (r _resource) isBasePodGangScheduled(ctx context.Context, logger logr.Logger, namespace, basePodGangName string) (bool, error) {
 	// Get the base PodGang - treat all errors (including NotFound) as requeue-able
 	basePodGang, err := componentutils.GetPodGang(ctx, r.client, basePodGangName, namespace)
 	if err != nil {
@@ -315,11 +315,9 @@ func (r _resource) isBasePodGangReady(ctx context.Context, logger logr.Logger, n
 	// Each PodGroup represents a PodClique within the base PodGang and must meet its MinReplicas requirement
 	for _, podGroup := range basePodGang.Spec.PodGroups {
 		pclqName := podGroup.Name
-
-		// Get the PodClique
 		pclq := &grovecorev1alpha1.PodClique{}
 		pclqKey := client.ObjectKey{Name: pclqName, Namespace: namespace}
-		if err := r.client.Get(ctx, pclqKey, pclq); err != nil {
+		if err = r.client.Get(ctx, pclqKey, pclq); err != nil {
 			// All errors (including NotFound) should trigger requeue for reliable retry
 			// This ensures PodClique exists before we evaluate base PodGang readiness
 			return false, groveerr.WrapError(err,
@@ -331,11 +329,11 @@ func (r _resource) isBasePodGangReady(ctx context.Context, logger logr.Logger, n
 
 		// CRITICAL READINESS CHECK: Compare actual ready pods vs required minimum
 		// If ANY PodClique in the base PodGang fails this check, the entire base is considered not ready
-		if pclq.Status.ReadyReplicas < podGroup.MinReplicas {
-			logger.Info("Base PodGang not ready: PodClique has insufficient ready replicas",
+		if pclq.Status.ScheduledReplicas < podGroup.MinReplicas {
+			logger.Info("Base PodGang not scheduled: PodClique has insufficient scheduled replicas",
 				"basePodGangName", basePodGangName,
 				"pclqName", pclqName,
-				"readyReplicas", pclq.Status.ReadyReplicas,
+				"scheduledReplicas", pclq.Status.ScheduledReplicas,
 				"minReplicas", podGroup.MinReplicas)
 			return false, nil // Not ready, but no error - legitimate state
 		}
@@ -345,9 +343,9 @@ func (r _resource) isBasePodGangReady(ctx context.Context, logger logr.Logger, n
 	return true, nil
 }
 
-// checkBasePodGangReadinessForPodClique determines if there's a base PodGang that needs to be checked
-// for readiness, and if so, performs that check once for the entire PodClique.
-func (r _resource) checkBasePodGangReadinessForPodClique(ctx context.Context, logger logr.Logger, pclq *grovecorev1alpha1.PodClique) (bool, string, error) {
+// checkBasePodGangScheduledForPodClique determines if there's a base PodGang for the PodClique. If there is one,
+// this function checks if it is scheduled.
+func (r _resource) checkBasePodGangScheduledForPodClique(ctx context.Context, logger logr.Logger, pclq *grovecorev1alpha1.PodClique) (bool, string, error) {
 	// Check if this PodClique has a base PodGang dependency
 	basePodGangName, hasBasePodGangLabel := pclq.GetLabels()[common.LabelBasePodGang]
 	if !hasBasePodGangLabel {
@@ -355,12 +353,12 @@ func (r _resource) checkBasePodGangReadinessForPodClique(ctx context.Context, lo
 		return true, "", nil
 	}
 
-	ready, err := r.isBasePodGangReady(ctx, logger, pclq.Namespace, basePodGangName)
+	scheduled, err := r.isBasePodGangScheduled(ctx, logger, pclq.Namespace, basePodGangName)
 	if err != nil {
 		return false, basePodGangName, err
 	}
 
-	return ready, basePodGangName, nil
+	return scheduled, basePodGangName, nil
 }
 
 // shouldSkipPodSchedulingGateRemoval implements the core PodGang scheduling gate logic.
