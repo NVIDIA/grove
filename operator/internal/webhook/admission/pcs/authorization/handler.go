@@ -28,6 +28,7 @@ import (
 	groveconfigv1alpha1 "github.com/NVIDIA/grove/operator/api/config/v1alpha1"
 	grovecorev1alpha1 "github.com/NVIDIA/grove/operator/api/core/v1alpha1"
 	k8sutils "github.com/NVIDIA/grove/operator/internal/utils/kubernetes"
+
 	"github.com/go-logr/logr"
 	admissionv1 "k8s.io/api/admission/v1"
 	authenticationv1 "k8s.io/api/authentication/v1"
@@ -51,6 +52,7 @@ type Handler struct {
 	logger  logr.Logger
 }
 
+// NewHandler creates a new handler for the auhtorizer webhook.
 func NewHandler(mgr manager.Manager, config groveconfigv1alpha1.AuthorizerConfig) *Handler {
 	return &Handler{
 		config:  config,
