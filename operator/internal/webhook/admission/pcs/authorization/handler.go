@@ -20,6 +20,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net/http"
+	"slices"
+
 	apicommon "github.com/NVIDIA/grove/operator/api/common"
 	apiconstants "github.com/NVIDIA/grove/operator/api/common/constants"
 	groveconfigv1alpha1 "github.com/NVIDIA/grove/operator/api/config/v1alpha1"
@@ -30,11 +33,9 @@ import (
 	authenticationv1 "k8s.io/api/authentication/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"net/http"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
-	"slices"
 )
 
 // allowedOperations are operations that will always be allowed irrespective of who is making this call.
@@ -68,19 +69,18 @@ func (h *Handler) Handle(ctx context.Context, req admission.Request) admission.R
 		log.Info("Connect operation requested, which is always allowed. Admitting.")
 		return admission.Allowed(fmt.Sprintf("operation %s is allowed", req.Operation))
 	}
+
+	// Scale is only created for the podcliques and podcliquescalinggroups resources.
+	if req.Kind.Kind == "Scale" {
+		return h.handleScaleSubresource(req)
+	}
+
 	// Decode and convert the request object to `metav1.PartialObjectMeta`.
-	resourcePartialObjMeta, err := h.decoder.decode(ctx, log, req)
+	resourcePartialObjMeta, err := h.decoder.decode(log, req)
 	if err != nil {
 		return admission.Errored(toAdmissionError(err), err)
 	}
 	resourceObjectKey := client.ObjectKeyFromObject(resourcePartialObjMeta)
-
-	// If the resource is not a managed by grove operator then allow it. We should not be blocking any other operator that
-	// might be operating these resources. Reconcilers are expected to filter out events for
-	// un-managed resources.
-	if !isManagedResource(resourcePartialObjMeta.ObjectMeta) {
-		return admission.Allowed(fmt.Sprintf("resource %v is not managed by grove, skipping further authorization checks", resourceObjectKey))
-	}
 
 	// Get the parent PodCliqueSet
 	pcs, warnings, err := h.getParentPodCliqueSet(ctx, resourcePartialObjMeta.ObjectMeta)
@@ -103,6 +103,13 @@ func (h *Handler) Handle(ctx context.Context, req admission.Request) admission.R
 	}
 
 	return h.handleUpdate(req.UserInfo, resourceObjectKey)
+}
+
+func (h *Handler) handleScaleSubresource(req admission.Request) admission.Response {
+	if slices.Contains(h.config.ExemptServiceAccountUserNames, req.UserInfo.Username) {
+		return admission.Allowed(fmt.Sprintf("Scale subresource for resource: %v is authorized to be modified.", req.Resource))
+	}
+	return admission.Denied(fmt.Sprintf("Scale subresource for resource: %v is not authorized to be modified.", req.Resource))
 }
 
 // handleDelete allows deletion of managed resources only if the request is either from the service account used by the reconcilers
@@ -153,9 +160,4 @@ func toAdmissionError(err error) int32 {
 		return http.StatusBadRequest
 	}
 	return http.StatusInternalServerError
-}
-
-func isManagedResource(objMeta metav1.ObjectMeta) bool {
-	managedBy, ok := objMeta.Labels[apicommon.LabelManagedByKey]
-	return ok && managedBy == apicommon.LabelManagedByValue
 }
