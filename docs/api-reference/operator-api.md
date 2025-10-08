@@ -603,7 +603,6 @@ _Appears in:_
 | --- | --- | --- | --- |
 | `enabled` _boolean_ | Enabled indicates whether the authorizer is enabled. |  |  |
 | `exemptServiceAccountUserNames` _string array_ | ExemptServiceAccountUserNames is a list of service account usernames that are exempt from authorizer checks.<br />Each service account username name in ExemptServiceAccountUserNames should be of the following format:<br />system:serviceaccount:<namespace>:<service-account-name>. ServiceAccounts are represented in this<br />format when checking the username in authenticationv1.UserInfo.Name. |  |  |
-| `reconcilerServiceAccountUserName` _string_ | ReconcilerServiceAccountUserName is the ServiceAccount username that is used<br />by all the reconcilers running as part of this operator.<br />It should in the format: system:serviceaccount:<namespace>:<service-account-name>.<br />ServiceAccounts are represented in this format when checking the username in authenticationv1.UserInfo.Name. |  |  |
 
 
 #### ClientConnectionConfiguration
