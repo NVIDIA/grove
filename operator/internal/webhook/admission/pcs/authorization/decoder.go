@@ -35,7 +35,6 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/scale/scheme/autoscalingv1"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 )
@@ -63,13 +62,11 @@ var (
 // as there is no need to get the full resource.
 type requestDecoder struct {
 	decoder admission.Decoder
-	client  client.Client
 }
 
 func newRequestDecoder(mgr manager.Manager) *requestDecoder {
 	return &requestDecoder{
 		decoder: admission.NewDecoder(mgr.GetScheme()),
-		client:  mgr.GetClient(),
 	}
 }
 
@@ -100,16 +97,16 @@ func (d *requestDecoder) decodeAsPartialObjectMetadata(req admission.Request) (p
 		if err != nil {
 			return
 		}
-	case admissionv1.Delete:
-		// OldObject contains the object being deleted
-		//https://github.com/kubernetes/kubernetes/pull/76346
+	case admissionv1.Update:
+		// OldObject is used since labels are used to check if a resource is managed by grove.
+		// If these labels are changed in an update, it might cause the authorizer webhook to not work as intended.
 		obj, err = d.asUnstructured(req.OldObject)
 		if err != nil {
 			return
 		}
-	case admissionv1.Update:
-		// OldObject is used since labels are used to check if a resource is managed by grove.
-		// If these labels are changed in an update, it might cause the authorizer webhook to not work as intended.
+	case admissionv1.Delete:
+		// OldObject contains the object being deleted
+		//https://github.com/kubernetes/kubernetes/pull/76346
 		obj, err = d.asUnstructured(req.OldObject)
 		if err != nil {
 			return

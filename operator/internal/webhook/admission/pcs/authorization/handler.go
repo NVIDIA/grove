@@ -30,7 +30,6 @@ import (
 
 	"github.com/go-logr/logr"
 	admissionv1 "k8s.io/api/admission/v1"
-	authenticationv1 "k8s.io/api/authentication/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -92,10 +91,8 @@ func (h *Handler) Handle(ctx context.Context, req admission.Request) admission.R
 	}
 
 	switch req.Operation {
-	case admissionv1.Create:
-		return h.handleCreate(req, resourceObjectKey)
-	case admissionv1.Update:
-		return h.handleUpdate(req.UserInfo, resourceObjectKey)
+	case admissionv1.Create, admissionv1.Update:
+		return h.handleCreateOrUpdate(req, resourceObjectKey)
 	case admissionv1.Delete:
 		return h.handleDelete(req, resourceObjectKey)
 	default:
@@ -103,33 +100,22 @@ func (h *Handler) Handle(ctx context.Context, req admission.Request) admission.R
 	}
 }
 
-func (h *Handler) handleCreate(req admission.Request, resourceObjectKey client.ObjectKey) admission.Response {
-	if reqGroupKind := groupKindFromRequest(req); reqGroupKind != pclqGVK.GroupKind() && reqGroupKind != pcsgGVK.GroupKind() && reqGroupKind != podgangGVK.GroupKind() {
-		return admission.Allowed(fmt.Sprintf("admission allowed, creation of resource: %v allowed", resourceObjectKey))
-	}
-
+// handleCreateOrUpdate allows creation/updation of managed resources only if the request is from the reconciler service account, or one of the exempted service accounts.
+func (h *Handler) handleCreateOrUpdate(req admission.Request, resourceObjectKey client.ObjectKey) admission.Response {
 	if req.UserInfo.Username == h.config.ReconcilerServiceAccountUserName {
-		return admission.Allowed(fmt.Sprintf("admission allowed, creation of resource: %v is only allowed by the grove reconciler service account", resourceObjectKey))
+		return admission.Allowed(fmt.Sprintf("admission allowed, creation/updation of resource: %v is initiated by the grove reconciler service account", resourceObjectKey))
 	}
 
-	return admission.Denied(fmt.Sprintf("admission denied, creation of resource: %v is only allowed by the grove reconciler service account", resourceObjectKey))
-}
-
-// handleUpdate allows update of managed resources only if the request is from the reconciler service account, or one of the exempted service accounts.
-func (h *Handler) handleUpdate(userInfo authenticationv1.UserInfo, resourceObjectKey client.ObjectKey) admission.Response {
-	if userInfo.Username == h.config.ReconcilerServiceAccountUserName {
-		return admission.Allowed(fmt.Sprintf("admission allowed, updation of resource: %v is initiated by the grove reconciler service account", resourceObjectKey))
+	if slices.Contains(h.config.ExemptServiceAccountUserNames, req.UserInfo.Username) {
+		return admission.Allowed(fmt.Sprintf("admission allowed, creation/updation of resource: %v is initiated by exempt service account", resourceObjectKey))
 	}
 
-	if slices.Contains(h.config.ExemptServiceAccountUserNames, userInfo.Username) {
-		return admission.Allowed(fmt.Sprintf("admission allowed, updation of resource: %v is initiated by exempt user account", resourceObjectKey))
-	}
-
-	return admission.Denied(fmt.Sprintf("admission denied, updation of resource: %v is not allowed", resourceObjectKey))
+	return admission.Denied(fmt.Sprintf("admission denied, creation/updation of resource: %v is not allowed", resourceObjectKey))
 }
 
 // handleDelete allows deletion of managed resources only if the request is either from the service account used by the reconcilers
 // or the request is coming from one of the exempted service accounts.
+// There is an exception to this, where no restriction are placed on Pods.
 func (h *Handler) handleDelete(req admission.Request, resourceObjectKey client.ObjectKey) admission.Response {
 	if groupKindFromRequest(req) == podGVK.GroupKind() {
 		return admission.Allowed("admission allowed, deletion of resource: Pod is allowed for all users")
@@ -157,8 +143,7 @@ func (h *Handler) getParentPCSPartialObjectMetadata(ctx context.Context, resourc
 	if apierrors.IsNotFound(err) {
 		return nil, admission.Warnings{fmt.Sprintf("parent PodCliqueSet %s not found for resource: %v", pcsName, resourceObjKey)}, nil
 	}
-
-	return pcsPartialObjectMetadata, nil, nil
+	return pcsPartialObjectMetadata, nil, err
 }
 
 func toAdmissionError(err error) int32 {
