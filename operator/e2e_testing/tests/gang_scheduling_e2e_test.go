@@ -123,7 +123,7 @@ func setupTestCluster(ctx context.Context, t *testing.T, requiredAgents int) (*k
 	// Cleanup function cleans workloads and handles teardown for individual tests
 	cleanup := func() {
 		if err := sharedCluster.CleanupWorkloads(ctx); err != nil {
-			logger.Info("Warning: failed to cleanup workloads: %v", err)
+			logger.Infof("Warning: failed to cleanup workloads: %v", err)
 		}
 
 		// If running individual test (not full suite), teardown the cluster completely
@@ -742,7 +742,7 @@ func Test_GS4_GangSchedulingWithPCSAndPCSGScalingFullReplicas(t *testing.T) {
 	workloadNamespace := "default"
 	workloadYAMLPath := "../yaml/workload1.yaml"
 	workloadLabelSelector := "app.kubernetes.io/part-of=workload1"
-	
+
 	_, err = utils.ApplyYAMLFile(ctx, workloadYAMLPath, workloadNamespace, restConfig, logger)
 	if err != nil {
 		t.Errorf("Failed to apply workload YAML: %v", err)
