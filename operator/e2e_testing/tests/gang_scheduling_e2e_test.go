@@ -297,15 +297,10 @@ func Test_GS2_GangSchedulingWithScalingFullReplicas(t *testing.T) {
 
 	logger.Info("2. Deploy workload WL1, and verify 10 newly created pods")
 	workloadNamespace := "default"
-	workloadConfig := &utils.WorkloadConfig{
-		YAMLFilePath:     "../yaml/workload1.yaml",
-		Namespace:        workloadNamespace,
-		RestConfig:       restConfig,
-		Timeout:          1 * time.Minute,
-		PodLabelSelector: "app.kubernetes.io/part-of=workload1",
-	}
+	workloadYAMLPath := "../yaml/workload1.yaml"
+	workloadLabelSelector := "app.kubernetes.io/part-of=workload1"
 
-	_, err = utils.ApplyYAML(ctx, workloadConfig, logger)
+	_, err = utils.ApplyYAMLFile(ctx, workloadYAMLPath, workloadNamespace, restConfig, logger)
 	if err != nil {
 		t.Errorf("Failed to apply workload YAML: %v", err)
 	}
@@ -316,7 +311,7 @@ func Test_GS2_GangSchedulingWithScalingFullReplicas(t *testing.T) {
 	err = pollForCondition(ctx, 2*time.Minute, 5*time.Second, func() (bool, error) {
 		var err error
 		pods, err = clientset.CoreV1().Pods(workloadNamespace).List(ctx, metav1.ListOptions{
-			LabelSelector: workloadConfig.PodLabelSelector,
+			LabelSelector: workloadLabelSelector,
 		})
 		if err != nil {
 			return false, err
@@ -338,7 +333,7 @@ func Test_GS2_GangSchedulingWithScalingFullReplicas(t *testing.T) {
 
 	err = pollForCondition(ctx, 2*time.Minute, 10*time.Second, func() (bool, error) {
 		pods, err := clientset.CoreV1().Pods(workloadNamespace).List(ctx, metav1.ListOptions{
-			LabelSelector: workloadConfig.PodLabelSelector,
+			LabelSelector: workloadLabelSelector,
 		})
 		if err != nil {
 			return false, err
@@ -364,13 +359,12 @@ func Test_GS2_GangSchedulingWithScalingFullReplicas(t *testing.T) {
 	}
 
 	logger.Info("5. Wait for pods to become ready")
-	workloadConfig.Timeout = 10 * time.Minute
-	if err := utils.WaitForPods(ctx, workloadConfig, []string{workloadNamespace}, logger); err != nil {
+	if err := utils.WaitForPods(ctx, restConfig, []string{workloadNamespace}, workloadLabelSelector, 10*time.Minute, logger); err != nil {
 		t.Errorf("Failed to wait for pods to be ready: %v", err)
 	}
 
 	pods, err = clientset.CoreV1().Pods(workloadNamespace).List(ctx, metav1.ListOptions{
-		LabelSelector: workloadConfig.PodLabelSelector,
+		LabelSelector: workloadLabelSelector,
 	})
 	if err != nil {
 		t.Errorf("Failed to list workload pods: %v", err)
@@ -429,7 +423,7 @@ func Test_GS2_GangSchedulingWithScalingFullReplicas(t *testing.T) {
 	err = pollForCondition(ctx, 3*time.Minute, 5*time.Second, func() (bool, error) {
 		var err error
 		pods, err = clientset.CoreV1().Pods(workloadNamespace).List(ctx, metav1.ListOptions{
-			LabelSelector: workloadConfig.PodLabelSelector,
+			LabelSelector: workloadLabelSelector,
 		})
 		if err != nil {
 			return false, err
@@ -466,13 +460,12 @@ func Test_GS2_GangSchedulingWithScalingFullReplicas(t *testing.T) {
 		}
 	}
 
-	workloadConfig.Timeout = 15 * time.Minute
-	if err := utils.WaitForPods(ctx, workloadConfig, []string{workloadNamespace}, logger); err != nil {
+	if err := utils.WaitForPods(ctx, restConfig, []string{workloadNamespace}, workloadLabelSelector, 15*time.Minute, logger); err != nil {
 		t.Errorf("Failed to wait for scaled pods to be ready: %v", err)
 	}
 
 	pods, err = clientset.CoreV1().Pods(workloadNamespace).List(ctx, metav1.ListOptions{
-		LabelSelector: workloadConfig.PodLabelSelector,
+		LabelSelector: workloadLabelSelector,
 	})
 	if err != nil {
 		t.Errorf("Failed to list workload pods after final uncordon: %v", err)
@@ -530,15 +523,10 @@ func Test_GS3_GangSchedulingWithPCSScalingFullReplicas(t *testing.T) {
 
 	logger.Info("2. Deploy workload WL1, and verify 10 newly created pods")
 	workloadNamespace := "default"
-	workloadConfig := &utils.WorkloadConfig{
-		YAMLFilePath:     "../yaml/workload1.yaml",
-		Namespace:        workloadNamespace,
-		RestConfig:       restConfig,
-		Timeout:          1 * time.Minute,
-		PodLabelSelector: "app.kubernetes.io/part-of=workload1",
-	}
+	workloadYAMLPath := "../yaml/workload1.yaml"
+	workloadLabelSelector := "app.kubernetes.io/part-of=workload1"
 
-	_, err = utils.ApplyYAML(ctx, workloadConfig, logger)
+	_, err = utils.ApplyYAMLFile(ctx, workloadYAMLPath, workloadNamespace, restConfig, logger)
 	if err != nil {
 		t.Errorf("Failed to apply workload YAML: %v", err)
 	}
@@ -548,7 +536,7 @@ func Test_GS3_GangSchedulingWithPCSScalingFullReplicas(t *testing.T) {
 	err = pollForCondition(ctx, 2*time.Minute, 5*time.Second, func() (bool, error) {
 		var err error
 		pods, err = clientset.CoreV1().Pods(workloadNamespace).List(ctx, metav1.ListOptions{
-			LabelSelector: workloadConfig.PodLabelSelector,
+			LabelSelector: workloadLabelSelector,
 		})
 		if err != nil {
 			return false, err
@@ -569,7 +557,7 @@ func Test_GS3_GangSchedulingWithPCSScalingFullReplicas(t *testing.T) {
 
 	err = pollForCondition(ctx, 2*time.Minute, 10*time.Second, func() (bool, error) {
 		pods, err := clientset.CoreV1().Pods(workloadNamespace).List(ctx, metav1.ListOptions{
-			LabelSelector: workloadConfig.PodLabelSelector,
+			LabelSelector: workloadLabelSelector,
 		})
 		if err != nil {
 			return false, err
@@ -595,13 +583,12 @@ func Test_GS3_GangSchedulingWithPCSScalingFullReplicas(t *testing.T) {
 	}
 
 	logger.Info("5. Wait for pods to become ready")
-	workloadConfig.Timeout = 10 * time.Minute
-	if err := utils.WaitForPods(ctx, workloadConfig, []string{workloadNamespace}, logger); err != nil {
+	if err := utils.WaitForPods(ctx, restConfig, []string{workloadNamespace}, workloadLabelSelector, 10*time.Minute, logger); err != nil {
 		t.Errorf("Failed to wait for pods to be ready: %v", err)
 	}
 
 	pods, err = clientset.CoreV1().Pods(workloadNamespace).List(ctx, metav1.ListOptions{
-		LabelSelector: workloadConfig.PodLabelSelector,
+		LabelSelector: workloadLabelSelector,
 	})
 	if err != nil {
 		t.Errorf("Failed to list workload pods: %v", err)
@@ -648,7 +635,7 @@ func Test_GS3_GangSchedulingWithPCSScalingFullReplicas(t *testing.T) {
 	err = pollForCondition(ctx, 5*time.Minute, 5*time.Second, func() (bool, error) {
 		var err error
 		pods, err = clientset.CoreV1().Pods(workloadNamespace).List(ctx, metav1.ListOptions{
-			LabelSelector: workloadConfig.PodLabelSelector,
+			LabelSelector: workloadLabelSelector,
 		})
 		if err != nil {
 			return false, err
@@ -687,13 +674,12 @@ func Test_GS3_GangSchedulingWithPCSScalingFullReplicas(t *testing.T) {
 		}
 	}
 
-	workloadConfig.Timeout = 15 * time.Minute
-	if err := utils.WaitForPods(ctx, workloadConfig, []string{workloadNamespace}, logger); err != nil {
+	if err := utils.WaitForPods(ctx, restConfig, []string{workloadNamespace}, workloadLabelSelector, 15*time.Minute, logger); err != nil {
 		t.Errorf("Failed to wait for scaled pods to be ready: %v", err)
 	}
 
 	pods, err = clientset.CoreV1().Pods(workloadNamespace).List(ctx, metav1.ListOptions{
-		LabelSelector: workloadConfig.PodLabelSelector,
+		LabelSelector: workloadLabelSelector,
 	})
 	if err != nil {
 		t.Errorf("Failed to list workload pods after final uncordon: %v", err)
@@ -754,15 +740,10 @@ func Test_GS4_GangSchedulingWithPCSAndPCSGScalingFullReplicas(t *testing.T) {
 
 	logger.Info("2. Deploy workload WL1, and verify 10 newly created pods")
 	workloadNamespace := "default"
+	workloadYAMLPath := "../yaml/workload1.yaml"
 	workloadLabelSelector := "app.kubernetes.io/part-of=workload1"
-	workloadConfig := &utils.WorkloadConfig{
-		YAMLFilePath:     "../yaml/workload1.yaml",
-		Namespace:        workloadNamespace,
-		RestConfig:       restConfig,
-		Timeout:          1 * time.Minute,
-		PodLabelSelector: workloadLabelSelector,
-	}
-	_, err = utils.ApplyYAML(ctx, workloadConfig, logger)
+	
+	_, err = utils.ApplyYAMLFile(ctx, workloadYAMLPath, workloadNamespace, restConfig, logger)
 	if err != nil {
 		t.Errorf("Failed to apply workload YAML: %v", err)
 	}
@@ -817,8 +798,7 @@ func Test_GS4_GangSchedulingWithPCSAndPCSGScalingFullReplicas(t *testing.T) {
 	}
 
 	logger.Info("5. Wait for pods to become ready")
-	workloadConfig.Timeout = 10 * time.Minute
-	if err := utils.WaitForPods(ctx, workloadConfig, []string{workloadNamespace}, logger); err != nil {
+	if err := utils.WaitForPods(ctx, restConfig, []string{workloadNamespace}, workloadLabelSelector, 10*time.Minute, logger); err != nil {
 		t.Errorf("Failed to wait for pods to be ready: %v", err)
 	}
 
@@ -853,8 +833,7 @@ func Test_GS4_GangSchedulingWithPCSAndPCSGScalingFullReplicas(t *testing.T) {
 		}
 	}
 
-	workloadConfig.Timeout = 10 * time.Minute
-	if err := utils.WaitForPods(ctx, workloadConfig, []string{workloadNamespace}, logger); err != nil {
+	if err := utils.WaitForPods(ctx, restConfig, []string{workloadNamespace}, workloadLabelSelector, 10*time.Minute, logger); err != nil {
 		t.Errorf("Failed to wait for pods to be ready after PCSG scale: %v", err)
 	}
 
@@ -875,8 +854,7 @@ func Test_GS4_GangSchedulingWithPCSAndPCSGScalingFullReplicas(t *testing.T) {
 		}
 	}
 
-	workloadConfig.Timeout = 10 * time.Minute
-	if err := utils.WaitForPods(ctx, workloadConfig, []string{workloadNamespace}, logger); err != nil {
+	if err := utils.WaitForPods(ctx, restConfig, []string{workloadNamespace}, workloadLabelSelector, 10*time.Minute, logger); err != nil {
 		t.Errorf("Failed to wait for pods to be ready after PCS scale: %v", err)
 	}
 
@@ -899,8 +877,7 @@ func Test_GS4_GangSchedulingWithPCSAndPCSGScalingFullReplicas(t *testing.T) {
 		}
 	}
 
-	workloadConfig.Timeout = 10 * time.Minute
-	if err := utils.WaitForPods(ctx, workloadConfig, []string{workloadNamespace}, logger); err != nil {
+	if err := utils.WaitForPods(ctx, restConfig, []string{workloadNamespace}, workloadLabelSelector, 10*time.Minute, logger); err != nil {
 		t.Errorf("Failed to wait for pods to be ready after final PCSG scale: %v", err)
 	}
 
@@ -1089,15 +1066,10 @@ func Test_GS5_GangSchedulingWithMinReplicas(t *testing.T) {
 
 	logger.Info("2. Deploy workload WL2, and verify 10 newly created pods")
 	workloadNamespace := "default"
-	workloadConfig := &utils.WorkloadConfig{
-		YAMLFilePath:     "../yaml/workload2.yaml",
-		Namespace:        workloadNamespace,
-		RestConfig:       restConfig,
-		Timeout:          1 * time.Minute, // Short timeout since we expect pods to be pending
-		PodLabelSelector: "app.kubernetes.io/part-of=workload2",
-	}
+	workloadYAMLPath := "../yaml/workload2.yaml"
+	workloadLabelSelector := "app.kubernetes.io/part-of=workload2"
 
-	_, err = utils.ApplyYAML(ctx, workloadConfig, logger)
+	_, err = utils.ApplyYAMLFile(ctx, workloadYAMLPath, workloadNamespace, restConfig, logger)
 	if err != nil {
 		t.Errorf("Failed to apply workload YAML: %v", err)
 	}
@@ -1110,7 +1082,7 @@ func Test_GS5_GangSchedulingWithMinReplicas(t *testing.T) {
 	err = pollForCondition(ctx, 2*time.Minute, 5*time.Second, func() (bool, error) {
 		var err error
 		pods, err = clientset.CoreV1().Pods(workloadNamespace).List(ctx, metav1.ListOptions{
-			LabelSelector: workloadConfig.PodLabelSelector,
+			LabelSelector: workloadLabelSelector,
 		})
 		if err != nil {
 			return false, err
@@ -1137,7 +1109,7 @@ func Test_GS5_GangSchedulingWithMinReplicas(t *testing.T) {
 	// Verify pods remain pending due to gang scheduling constraints
 	err = pollForCondition(ctx, 2*time.Minute, 10*time.Second, func() (bool, error) {
 		pods, err := clientset.CoreV1().Pods(workloadNamespace).List(ctx, metav1.ListOptions{
-			LabelSelector: workloadConfig.PodLabelSelector,
+			LabelSelector: workloadLabelSelector,
 		})
 		if err != nil {
 			return false, err
@@ -1165,7 +1137,7 @@ func Test_GS5_GangSchedulingWithMinReplicas(t *testing.T) {
 	// Wait for exactly 3 pods to be scheduled (min-replicas)
 	err = pollForCondition(ctx, 5*time.Minute, 10*time.Second, func() (bool, error) {
 		pods, err := clientset.CoreV1().Pods(workloadNamespace).List(ctx, metav1.ListOptions{
-			LabelSelector: workloadConfig.PodLabelSelector,
+			LabelSelector: workloadLabelSelector,
 		})
 		if err != nil {
 			return false, err
@@ -1191,7 +1163,7 @@ func Test_GS5_GangSchedulingWithMinReplicas(t *testing.T) {
 
 	// Verify the scheduled pods and their distribution
 	pods, err = clientset.CoreV1().Pods(workloadNamespace).List(ctx, metav1.ListOptions{
-		LabelSelector: workloadConfig.PodLabelSelector,
+		LabelSelector: workloadLabelSelector,
 	})
 	if err != nil {
 		t.Errorf("Failed to list workload pods: %v", err)
@@ -1219,12 +1191,11 @@ func Test_GS5_GangSchedulingWithMinReplicas(t *testing.T) {
 	}
 
 	logger.Info("5. Wait for scheduled pods to become ready")
-	workloadConfig.Timeout = 5 * time.Minute
 	// Note: WaitForPods waits for ALL pods, but we only want the running ones to be ready
 	// We'll verify readiness manually
 	err = pollForCondition(ctx, 5*time.Minute, 10*time.Second, func() (bool, error) {
 		pods, err := clientset.CoreV1().Pods(workloadNamespace).List(ctx, metav1.ListOptions{
-			LabelSelector: workloadConfig.PodLabelSelector,
+			LabelSelector: workloadLabelSelector,
 		})
 		if err != nil {
 			return false, err
@@ -1258,14 +1229,13 @@ func Test_GS5_GangSchedulingWithMinReplicas(t *testing.T) {
 	}
 
 	// Wait for all remaining pods to be scheduled and ready
-	workloadConfig.Timeout = 10 * time.Minute
-	if err := utils.WaitForPods(ctx, workloadConfig, []string{workloadNamespace}, logger); err != nil {
+	if err := utils.WaitForPods(ctx, restConfig, []string{workloadNamespace}, workloadLabelSelector, 10*time.Minute, logger); err != nil {
 		t.Errorf("Failed to wait for all pods to be ready: %v", err)
 	}
 
 	// Final verification - all pods should be running
 	pods, err = clientset.CoreV1().Pods(workloadNamespace).List(ctx, metav1.ListOptions{
-		LabelSelector: workloadConfig.PodLabelSelector,
+		LabelSelector: workloadLabelSelector,
 	})
 	if err != nil {
 		t.Errorf("Failed to list workload pods: %v", err)
@@ -1330,15 +1300,10 @@ func Test_GS6_GangSchedulingWithPCSGScalingMinReplicas(t *testing.T) {
 
 	logger.Info("2. Deploy workload WL2, and verify 10 newly created pods")
 	workloadNamespace := "default"
-	workloadConfig := &utils.WorkloadConfig{
-		YAMLFilePath:     "../yaml/workload2.yaml",
-		Namespace:        workloadNamespace,
-		RestConfig:       restConfig,
-		Timeout:          1 * time.Minute, // Short timeout since we expect pods to be pending
-		PodLabelSelector: "app.kubernetes.io/part-of=workload2",
-	}
+	workloadYAMLPath := "../yaml/workload2.yaml"
+	workloadLabelSelector := "app.kubernetes.io/part-of=workload2"
 
-	_, err = utils.ApplyYAML(ctx, workloadConfig, logger)
+	_, err = utils.ApplyYAMLFile(ctx, workloadYAMLPath, workloadNamespace, restConfig, logger)
 	if err != nil {
 		t.Errorf("Failed to apply workload YAML: %v", err)
 	}
@@ -1349,7 +1314,7 @@ func Test_GS6_GangSchedulingWithPCSGScalingMinReplicas(t *testing.T) {
 	err = pollForCondition(ctx, 2*time.Minute, 5*time.Second, func() (bool, error) {
 		var err error
 		pods, err = clientset.CoreV1().Pods(workloadNamespace).List(ctx, metav1.ListOptions{
-			LabelSelector: workloadConfig.PodLabelSelector,
+			LabelSelector: workloadLabelSelector,
 		})
 		if err != nil {
 			return false, err
@@ -1376,7 +1341,7 @@ func Test_GS6_GangSchedulingWithPCSGScalingMinReplicas(t *testing.T) {
 	// Verify pods remain pending due to gang scheduling constraints
 	err = pollForCondition(ctx, 2*time.Minute, 10*time.Second, func() (bool, error) {
 		pods, err := clientset.CoreV1().Pods(workloadNamespace).List(ctx, metav1.ListOptions{
-			LabelSelector: workloadConfig.PodLabelSelector,
+			LabelSelector: workloadLabelSelector,
 		})
 		if err != nil {
 			return false, err
@@ -1405,7 +1370,7 @@ func Test_GS6_GangSchedulingWithPCSGScalingMinReplicas(t *testing.T) {
 	// Wait for exactly 3 pods to be scheduled (min-replicas)
 	err = pollForCondition(ctx, 5*time.Minute, 10*time.Second, func() (bool, error) {
 		pods, err := clientset.CoreV1().Pods(workloadNamespace).List(ctx, metav1.ListOptions{
-			LabelSelector: workloadConfig.PodLabelSelector,
+			LabelSelector: workloadLabelSelector,
 		})
 		if err != nil {
 			return false, err
@@ -1431,7 +1396,7 @@ func Test_GS6_GangSchedulingWithPCSGScalingMinReplicas(t *testing.T) {
 
 	// Verify the scheduled pods and their distribution
 	pods, err = clientset.CoreV1().Pods(workloadNamespace).List(ctx, metav1.ListOptions{
-		LabelSelector: workloadConfig.PodLabelSelector,
+		LabelSelector: workloadLabelSelector,
 	})
 	if err != nil {
 		t.Errorf("Failed to list workload pods: %v", err)
@@ -1461,7 +1426,7 @@ func Test_GS6_GangSchedulingWithPCSGScalingMinReplicas(t *testing.T) {
 	logger.Info("5. Wait for scheduled pods to become ready")
 	err = pollForCondition(ctx, 5*time.Minute, 10*time.Second, func() (bool, error) {
 		pods, err := clientset.CoreV1().Pods(workloadNamespace).List(ctx, metav1.ListOptions{
-			LabelSelector: workloadConfig.PodLabelSelector,
+			LabelSelector: workloadLabelSelector,
 		})
 		if err != nil {
 			return false, err
@@ -1495,14 +1460,13 @@ func Test_GS6_GangSchedulingWithPCSGScalingMinReplicas(t *testing.T) {
 	}
 
 	// Wait for all remaining pods to be scheduled and ready
-	workloadConfig.Timeout = 10 * time.Minute
-	if err := utils.WaitForPods(ctx, workloadConfig, []string{workloadNamespace}, logger); err != nil {
+	if err := utils.WaitForPods(ctx, restConfig, []string{workloadNamespace}, workloadLabelSelector, 10*time.Minute, logger); err != nil {
 		t.Errorf("Failed to wait for all pods to be ready: %v", err)
 	}
 
 	// Verify all 10 initial pods are running
 	pods, err = clientset.CoreV1().Pods(workloadNamespace).List(ctx, metav1.ListOptions{
-		LabelSelector: workloadConfig.PodLabelSelector,
+		LabelSelector: workloadLabelSelector,
 	})
 	if err != nil {
 		t.Errorf("Failed to list workload pods: %v", err)
@@ -1533,11 +1497,11 @@ func Test_GS6_GangSchedulingWithPCSGScalingMinReplicas(t *testing.T) {
 	expectedPodsAfterScaling := 14
 	expectedNewPendingPods := 4
 
-	scalePCSGAndWait(t, ctx, clientset, dynamicClient, workloadNamespace, workloadConfig.PodLabelSelector, pcsgName, 3, expectedPodsAfterScaling, expectedNewPendingPods)
+	scalePCSGAndWait(t, ctx, clientset, dynamicClient, workloadNamespace, workloadLabelSelector, pcsgName, 3, expectedPodsAfterScaling, expectedNewPendingPods)
 
 	logger.Info("9. Verify all newly created pods are pending due to insufficient resources")
 	pods, err = clientset.CoreV1().Pods(workloadNamespace).List(ctx, metav1.ListOptions{
-		LabelSelector: workloadConfig.PodLabelSelector,
+		LabelSelector: workloadLabelSelector,
 	})
 	if err != nil {
 		t.Errorf("Failed to list pods after PCSG scaling: %v", err)
@@ -1577,7 +1541,7 @@ func Test_GS6_GangSchedulingWithPCSGScalingMinReplicas(t *testing.T) {
 	// Wait for exactly 2 more pods to be scheduled (min-replicas for new PCSG replica)
 	err = pollForCondition(ctx, 5*time.Minute, 10*time.Second, func() (bool, error) {
 		pods, err := clientset.CoreV1().Pods(workloadNamespace).List(ctx, metav1.ListOptions{
-			LabelSelector: workloadConfig.PodLabelSelector,
+			LabelSelector: workloadLabelSelector,
 		})
 		if err != nil {
 			return false, err
@@ -1604,7 +1568,7 @@ func Test_GS6_GangSchedulingWithPCSGScalingMinReplicas(t *testing.T) {
 	logger.Info("11. Wait for scheduled pods to become ready")
 	err = pollForCondition(ctx, 5*time.Minute, 10*time.Second, func() (bool, error) {
 		pods, err := clientset.CoreV1().Pods(workloadNamespace).List(ctx, metav1.ListOptions{
-			LabelSelector: workloadConfig.PodLabelSelector,
+			LabelSelector: workloadLabelSelector,
 		})
 		if err != nil {
 			return false, err
@@ -1639,14 +1603,13 @@ func Test_GS6_GangSchedulingWithPCSGScalingMinReplicas(t *testing.T) {
 	}
 
 	// Wait for all remaining pods to be scheduled and ready
-	workloadConfig.Timeout = 10 * time.Minute
-	if err := utils.WaitForPods(ctx, workloadConfig, []string{workloadNamespace}, logger); err != nil {
+	if err := utils.WaitForPods(ctx, restConfig, []string{workloadNamespace}, workloadLabelSelector, 10*time.Minute, logger); err != nil {
 		t.Errorf("Failed to wait for all pods to be ready: %v", err)
 	}
 
 	// Final verification - all 14 pods should be running
 	pods, err = clientset.CoreV1().Pods(workloadNamespace).List(ctx, metav1.ListOptions{
-		LabelSelector: workloadConfig.PodLabelSelector,
+		LabelSelector: workloadLabelSelector,
 	})
 	if err != nil {
 		t.Errorf("Failed to list workload pods: %v", err)
@@ -1713,15 +1676,10 @@ func Test_GS7_GangSchedulingWithPCSGScalingMinReplicasAdvanced1(t *testing.T) {
 
 	logger.Info("2. Deploy workload WL2, and verify 10 newly created pods")
 	workloadNamespace := "default"
-	workloadConfig := &utils.WorkloadConfig{
-		YAMLFilePath:     "../yaml/workload2.yaml",
-		Namespace:        workloadNamespace,
-		RestConfig:       restConfig,
-		Timeout:          1 * time.Minute, // Short timeout since we expect pods to be pending
-		PodLabelSelector: "app.kubernetes.io/part-of=workload2",
-	}
+	workloadYAMLPath := "../yaml/workload2.yaml"
+	workloadLabelSelector := "app.kubernetes.io/part-of=workload2"
 
-	_, err = utils.ApplyYAML(ctx, workloadConfig, logger)
+	_, err = utils.ApplyYAMLFile(ctx, workloadYAMLPath, workloadNamespace, restConfig, logger)
 	if err != nil {
 		t.Errorf("Failed to apply workload YAML: %v", err)
 	}
@@ -1732,7 +1690,7 @@ func Test_GS7_GangSchedulingWithPCSGScalingMinReplicasAdvanced1(t *testing.T) {
 	err = pollForCondition(ctx, 2*time.Minute, 5*time.Second, func() (bool, error) {
 		var err error
 		pods, err = clientset.CoreV1().Pods(workloadNamespace).List(ctx, metav1.ListOptions{
-			LabelSelector: workloadConfig.PodLabelSelector,
+			LabelSelector: workloadLabelSelector,
 		})
 		if err != nil {
 			return false, err
@@ -1759,7 +1717,7 @@ func Test_GS7_GangSchedulingWithPCSGScalingMinReplicasAdvanced1(t *testing.T) {
 	// Verify pods remain pending due to gang scheduling constraints
 	err = pollForCondition(ctx, 2*time.Minute, 10*time.Second, func() (bool, error) {
 		pods, err := clientset.CoreV1().Pods(workloadNamespace).List(ctx, metav1.ListOptions{
-			LabelSelector: workloadConfig.PodLabelSelector,
+			LabelSelector: workloadLabelSelector,
 		})
 		if err != nil {
 			return false, err
@@ -1787,7 +1745,7 @@ func Test_GS7_GangSchedulingWithPCSGScalingMinReplicasAdvanced1(t *testing.T) {
 	// Wait for exactly 3 pods to be scheduled (min-replicas)
 	err = pollForCondition(ctx, 5*time.Minute, 10*time.Second, func() (bool, error) {
 		pods, err := clientset.CoreV1().Pods(workloadNamespace).List(ctx, metav1.ListOptions{
-			LabelSelector: workloadConfig.PodLabelSelector,
+			LabelSelector: workloadLabelSelector,
 		})
 		if err != nil {
 			return false, err
@@ -1814,7 +1772,7 @@ func Test_GS7_GangSchedulingWithPCSGScalingMinReplicasAdvanced1(t *testing.T) {
 	logger.Info("5. Wait for scheduled pods to become ready")
 	err = pollForCondition(ctx, 5*time.Minute, 10*time.Second, func() (bool, error) {
 		pods, err := clientset.CoreV1().Pods(workloadNamespace).List(ctx, metav1.ListOptions{
-			LabelSelector: workloadConfig.PodLabelSelector,
+			LabelSelector: workloadLabelSelector,
 		})
 		if err != nil {
 			return false, err
@@ -1850,7 +1808,7 @@ func Test_GS7_GangSchedulingWithPCSGScalingMinReplicasAdvanced1(t *testing.T) {
 	// Wait for exactly 2 more pods to be scheduled (sg-x-1 min-replicas)
 	err = pollForCondition(ctx, 5*time.Minute, 10*time.Second, func() (bool, error) {
 		pods, err := clientset.CoreV1().Pods(workloadNamespace).List(ctx, metav1.ListOptions{
-			LabelSelector: workloadConfig.PodLabelSelector,
+			LabelSelector: workloadLabelSelector,
 		})
 		if err != nil {
 			return false, err
@@ -1877,7 +1835,7 @@ func Test_GS7_GangSchedulingWithPCSGScalingMinReplicasAdvanced1(t *testing.T) {
 	logger.Info("7. Wait for scheduled pods to become ready")
 	err = pollForCondition(ctx, 5*time.Minute, 10*time.Second, func() (bool, error) {
 		pods, err := clientset.CoreV1().Pods(workloadNamespace).List(ctx, metav1.ListOptions{
-			LabelSelector: workloadConfig.PodLabelSelector,
+			LabelSelector: workloadLabelSelector,
 		})
 		if err != nil {
 			return false, err
@@ -1911,14 +1869,13 @@ func Test_GS7_GangSchedulingWithPCSGScalingMinReplicasAdvanced1(t *testing.T) {
 	}
 
 	// Wait for all remaining pods to be scheduled and ready
-	workloadConfig.Timeout = 10 * time.Minute
-	if err := utils.WaitForPods(ctx, workloadConfig, []string{workloadNamespace}, logger); err != nil {
+	if err := utils.WaitForPods(ctx, restConfig, []string{workloadNamespace}, workloadLabelSelector, 10*time.Minute, logger); err != nil {
 		t.Errorf("Failed to wait for all pods to be ready: %v", err)
 	}
 
 	// Verify all 10 initial pods are running
 	pods, err = clientset.CoreV1().Pods(workloadNamespace).List(ctx, metav1.ListOptions{
-		LabelSelector: workloadConfig.PodLabelSelector,
+		LabelSelector: workloadLabelSelector,
 	})
 	if err != nil {
 		t.Errorf("Failed to list workload pods: %v", err)
@@ -1948,7 +1905,7 @@ func Test_GS7_GangSchedulingWithPCSGScalingMinReplicasAdvanced1(t *testing.T) {
 	expectedPodsAfterScaling := 14
 	expectedNewPendingPods := 4
 	logger.Info("10. Set pcs-0-sg-x resource replicas equal to 3, then verify 4 newly created pods")
-	scalePCSGAndWait(t, ctx, clientset, dynamicClient, workloadNamespace, workloadConfig.PodLabelSelector, pcsgName, 3, expectedPodsAfterScaling, expectedNewPendingPods)
+	scalePCSGAndWait(t, ctx, clientset, dynamicClient, workloadNamespace, workloadLabelSelector, pcsgName, 3, expectedPodsAfterScaling, expectedNewPendingPods)
 
 	logger.Info("12. Uncordon 2 nodes and verify 2 more pods get scheduled (pcs-0-{sg-x-2-pc-b=1, sg-x-2-pc-c=1})")
 	twoMoreNodesToUncordon := nodesToCordon[8:10]
@@ -1961,7 +1918,7 @@ func Test_GS7_GangSchedulingWithPCSGScalingMinReplicasAdvanced1(t *testing.T) {
 	// Wait for exactly 2 more pods to be scheduled (min-replicas for new PCSG replica)
 	err = pollForCondition(ctx, 5*time.Minute, 10*time.Second, func() (bool, error) {
 		pods, err := clientset.CoreV1().Pods(workloadNamespace).List(ctx, metav1.ListOptions{
-			LabelSelector: workloadConfig.PodLabelSelector,
+			LabelSelector: workloadLabelSelector,
 		})
 		if err != nil {
 			return false, err
@@ -1988,7 +1945,7 @@ func Test_GS7_GangSchedulingWithPCSGScalingMinReplicasAdvanced1(t *testing.T) {
 	logger.Info("13. Wait for scheduled pods to become ready")
 	err = pollForCondition(ctx, 5*time.Minute, 10*time.Second, func() (bool, error) {
 		pods, err := clientset.CoreV1().Pods(workloadNamespace).List(ctx, metav1.ListOptions{
-			LabelSelector: workloadConfig.PodLabelSelector,
+			LabelSelector: workloadLabelSelector,
 		})
 		if err != nil {
 			return false, err
@@ -2022,14 +1979,13 @@ func Test_GS7_GangSchedulingWithPCSGScalingMinReplicasAdvanced1(t *testing.T) {
 	}
 
 	// Wait for all remaining pods to be scheduled and ready
-	workloadConfig.Timeout = 10 * time.Minute
-	if err := utils.WaitForPods(ctx, workloadConfig, []string{workloadNamespace}, logger); err != nil {
+	if err := utils.WaitForPods(ctx, restConfig, []string{workloadNamespace}, workloadLabelSelector, 10*time.Minute, logger); err != nil {
 		t.Errorf("Failed to wait for all pods to be ready: %v", err)
 	}
 
 	// Final verification - all 14 pods should be running
 	pods, err = clientset.CoreV1().Pods(workloadNamespace).List(ctx, metav1.ListOptions{
-		LabelSelector: workloadConfig.PodLabelSelector,
+		LabelSelector: workloadLabelSelector,
 	})
 	if err != nil {
 		t.Errorf("Failed to list workload pods: %v", err)
@@ -2092,15 +2048,10 @@ func Test_GS8_GangSchedulingWithPCSGScalingMinReplicasAdvanced2(t *testing.T) {
 
 	logger.Info("2. Deploy workload WL2, and verify 10 newly created pods")
 	workloadNamespace := "default"
-	workloadConfig := &utils.WorkloadConfig{
-		YAMLFilePath:     "../yaml/workload2.yaml",
-		Namespace:        workloadNamespace,
-		RestConfig:       restConfig,
-		Timeout:          1 * time.Minute, // Short timeout since we expect pods to be pending
-		PodLabelSelector: "app.kubernetes.io/part-of=workload2",
-	}
+	workloadYAMLPath := "../yaml/workload2.yaml"
+	workloadLabelSelector := "app.kubernetes.io/part-of=workload2"
 
-	_, err = utils.ApplyYAML(ctx, workloadConfig, logger)
+	_, err = utils.ApplyYAMLFile(ctx, workloadYAMLPath, workloadNamespace, restConfig, logger)
 	if err != nil {
 		t.Errorf("Failed to apply workload YAML: %v", err)
 	}
@@ -2111,7 +2062,7 @@ func Test_GS8_GangSchedulingWithPCSGScalingMinReplicasAdvanced2(t *testing.T) {
 	err = pollForCondition(ctx, 2*time.Minute, 5*time.Second, func() (bool, error) {
 		var err error
 		pods, err = clientset.CoreV1().Pods(workloadNamespace).List(ctx, metav1.ListOptions{
-			LabelSelector: workloadConfig.PodLabelSelector,
+			LabelSelector: workloadLabelSelector,
 		})
 		if err != nil {
 			return false, err
@@ -2138,7 +2089,7 @@ func Test_GS8_GangSchedulingWithPCSGScalingMinReplicasAdvanced2(t *testing.T) {
 	// Verify pods remain pending due to gang scheduling constraints
 	err = pollForCondition(ctx, 2*time.Minute, 10*time.Second, func() (bool, error) {
 		pods, err := clientset.CoreV1().Pods(workloadNamespace).List(ctx, metav1.ListOptions{
-			LabelSelector: workloadConfig.PodLabelSelector,
+			LabelSelector: workloadLabelSelector,
 		})
 		if err != nil {
 			return false, err
@@ -2185,7 +2136,7 @@ func Test_GS8_GangSchedulingWithPCSGScalingMinReplicasAdvanced2(t *testing.T) {
 	err = pollForCondition(ctx, 3*time.Minute, 5*time.Second, func() (bool, error) {
 		var err error
 		pods, err = clientset.CoreV1().Pods(workloadNamespace).List(ctx, metav1.ListOptions{
-			LabelSelector: workloadConfig.PodLabelSelector,
+			LabelSelector: workloadLabelSelector,
 		})
 		if err != nil {
 			return false, err
@@ -2228,7 +2179,7 @@ func Test_GS8_GangSchedulingWithPCSGScalingMinReplicasAdvanced2(t *testing.T) {
 	// Wait for exactly 3 pods to be scheduled (min-replicas)
 	err = pollForCondition(ctx, 5*time.Minute, 10*time.Second, func() (bool, error) {
 		pods, err := clientset.CoreV1().Pods(workloadNamespace).List(ctx, metav1.ListOptions{
-			LabelSelector: workloadConfig.PodLabelSelector,
+			LabelSelector: workloadLabelSelector,
 		})
 		if err != nil {
 			return false, err
@@ -2255,7 +2206,7 @@ func Test_GS8_GangSchedulingWithPCSGScalingMinReplicasAdvanced2(t *testing.T) {
 	logger.Info("7. Wait for scheduled pods to become ready")
 	err = pollForCondition(ctx, 5*time.Minute, 10*time.Second, func() (bool, error) {
 		pods, err := clientset.CoreV1().Pods(workloadNamespace).List(ctx, metav1.ListOptions{
-			LabelSelector: workloadConfig.PodLabelSelector,
+			LabelSelector: workloadLabelSelector,
 		})
 		if err != nil {
 			return false, err
@@ -2291,7 +2242,7 @@ func Test_GS8_GangSchedulingWithPCSGScalingMinReplicasAdvanced2(t *testing.T) {
 	// Wait for exactly 4 more pods to be scheduled (sg-x-1 and sg-x-2 min-replicas)
 	err = pollForCondition(ctx, 5*time.Minute, 10*time.Second, func() (bool, error) {
 		pods, err := clientset.CoreV1().Pods(workloadNamespace).List(ctx, metav1.ListOptions{
-			LabelSelector: workloadConfig.PodLabelSelector,
+			LabelSelector: workloadLabelSelector,
 		})
 		if err != nil {
 			return false, err
@@ -2317,7 +2268,7 @@ func Test_GS8_GangSchedulingWithPCSGScalingMinReplicasAdvanced2(t *testing.T) {
 	logger.Info("9. Wait for scheduled pods to become ready")
 	err = pollForCondition(ctx, 5*time.Minute, 10*time.Second, func() (bool, error) {
 		pods, err := clientset.CoreV1().Pods(workloadNamespace).List(ctx, metav1.ListOptions{
-			LabelSelector: workloadConfig.PodLabelSelector,
+			LabelSelector: workloadLabelSelector,
 		})
 		if err != nil {
 			return false, err
@@ -2351,14 +2302,13 @@ func Test_GS8_GangSchedulingWithPCSGScalingMinReplicasAdvanced2(t *testing.T) {
 	}
 
 	// Wait for all remaining pods to be scheduled and ready
-	workloadConfig.Timeout = 10 * time.Minute
-	if err := utils.WaitForPods(ctx, workloadConfig, []string{workloadNamespace}, logger); err != nil {
+	if err := utils.WaitForPods(ctx, restConfig, []string{workloadNamespace}, workloadLabelSelector, 10*time.Minute, logger); err != nil {
 		t.Errorf("Failed to wait for all pods to be ready: %v", err)
 	}
 
 	// Final verification - all 14 pods should be running
 	pods, err = clientset.CoreV1().Pods(workloadNamespace).List(ctx, metav1.ListOptions{
-		LabelSelector: workloadConfig.PodLabelSelector,
+		LabelSelector: workloadLabelSelector,
 	})
 	if err != nil {
 		t.Errorf("Failed to list workload pods: %v", err)
@@ -2422,15 +2372,10 @@ func Test_GS9_GangSchedulingWithPCSScalingMinReplicas(t *testing.T) {
 
 	logger.Info("2. Deploy workload WL2, and verify 10 newly created pods")
 	workloadNamespace := "default"
-	workloadConfig := &utils.WorkloadConfig{
-		YAMLFilePath:     "../yaml/workload2.yaml",
-		Namespace:        workloadNamespace,
-		RestConfig:       restConfig,
-		Timeout:          1 * time.Minute, // Short timeout since we expect pods to be pending
-		PodLabelSelector: "app.kubernetes.io/part-of=workload2",
-	}
+	workloadYAMLPath := "../yaml/workload2.yaml"
+	workloadLabelSelector := "app.kubernetes.io/part-of=workload2"
 
-	_, err = utils.ApplyYAML(ctx, workloadConfig, logger)
+	_, err = utils.ApplyYAMLFile(ctx, workloadYAMLPath, workloadNamespace, restConfig, logger)
 	if err != nil {
 		t.Errorf("Failed to apply workload YAML: %v", err)
 	}
@@ -2442,7 +2387,7 @@ func Test_GS9_GangSchedulingWithPCSScalingMinReplicas(t *testing.T) {
 	err = pollForCondition(ctx, 2*time.Minute, 5*time.Second, func() (bool, error) {
 		var err error
 		pods, err = clientset.CoreV1().Pods(workloadNamespace).List(ctx, metav1.ListOptions{
-			LabelSelector: workloadConfig.PodLabelSelector,
+			LabelSelector: workloadLabelSelector,
 		})
 		if err != nil {
 			return false, err
@@ -2469,7 +2414,7 @@ func Test_GS9_GangSchedulingWithPCSScalingMinReplicas(t *testing.T) {
 	// Verify pods remain pending due to gang scheduling constraints
 	err = pollForCondition(ctx, 2*time.Minute, 10*time.Second, func() (bool, error) {
 		pods, err := clientset.CoreV1().Pods(workloadNamespace).List(ctx, metav1.ListOptions{
-			LabelSelector: workloadConfig.PodLabelSelector,
+			LabelSelector: workloadLabelSelector,
 		})
 		if err != nil {
 			return false, err
@@ -2497,7 +2442,7 @@ func Test_GS9_GangSchedulingWithPCSScalingMinReplicas(t *testing.T) {
 	// Wait for exactly 3 pods to be scheduled (min-replicas)
 	err = pollForCondition(ctx, 5*time.Minute, 10*time.Second, func() (bool, error) {
 		pods, err := clientset.CoreV1().Pods(workloadNamespace).List(ctx, metav1.ListOptions{
-			LabelSelector: workloadConfig.PodLabelSelector,
+			LabelSelector: workloadLabelSelector,
 		})
 		if err != nil {
 			return false, err
@@ -2523,7 +2468,7 @@ func Test_GS9_GangSchedulingWithPCSScalingMinReplicas(t *testing.T) {
 	logger.Info("5. Wait for scheduled pods to become ready")
 	err = pollForCondition(ctx, 5*time.Minute, 10*time.Second, func() (bool, error) {
 		pods, err := clientset.CoreV1().Pods(workloadNamespace).List(ctx, metav1.ListOptions{
-			LabelSelector: workloadConfig.PodLabelSelector,
+			LabelSelector: workloadLabelSelector,
 		})
 		if err != nil {
 			return false, err
@@ -2557,14 +2502,13 @@ func Test_GS9_GangSchedulingWithPCSScalingMinReplicas(t *testing.T) {
 	}
 
 	// Wait for all remaining pods to be scheduled and ready
-	workloadConfig.Timeout = 10 * time.Minute
-	if err := utils.WaitForPods(ctx, workloadConfig, []string{workloadNamespace}, logger); err != nil {
+	if err := utils.WaitForPods(ctx, restConfig, []string{workloadNamespace}, workloadLabelSelector, 10*time.Minute, logger); err != nil {
 		t.Errorf("Failed to wait for all pods to be ready: %v", err)
 	}
 
 	// Verify all 10 initial pods are running
 	pods, err = clientset.CoreV1().Pods(workloadNamespace).List(ctx, metav1.ListOptions{
-		LabelSelector: workloadConfig.PodLabelSelector,
+		LabelSelector: workloadLabelSelector,
 	})
 	if err != nil {
 		t.Errorf("Failed to list workload pods: %v", err)
@@ -2595,7 +2539,7 @@ func Test_GS9_GangSchedulingWithPCSScalingMinReplicas(t *testing.T) {
 	expectedPodsAfterScaling := 20
 	expectedNewPendingPods := 10
 
-	scalePCSAndWait(t, ctx, clientset, dynamicClient, workloadNamespace, workloadConfig.PodLabelSelector, pcsName, 2, expectedPodsAfterScaling, expectedNewPendingPods)
+	scalePCSAndWait(t, ctx, clientset, dynamicClient, workloadNamespace, workloadLabelSelector, pcsName, 2, expectedPodsAfterScaling, expectedNewPendingPods)
 
 	logger.Info("9. Uncordon 3 nodes and verify another 3 pods get scheduled (pcs-1-{pc-a=1, sg-x-0-pc-b=1, sg-x-0-pc-c=1})")
 	threeNodesToUncordon := nodesToCordon[8:11]
@@ -2608,7 +2552,7 @@ func Test_GS9_GangSchedulingWithPCSScalingMinReplicas(t *testing.T) {
 	// Wait for exactly 3 more pods to be scheduled (min-replicas for new PCS replica)
 	err = pollForCondition(ctx, 5*time.Minute, 10*time.Second, func() (bool, error) {
 		pods, err := clientset.CoreV1().Pods(workloadNamespace).List(ctx, metav1.ListOptions{
-			LabelSelector: workloadConfig.PodLabelSelector,
+			LabelSelector: workloadLabelSelector,
 		})
 		if err != nil {
 			return false, err
@@ -2634,7 +2578,7 @@ func Test_GS9_GangSchedulingWithPCSScalingMinReplicas(t *testing.T) {
 	logger.Info("10. Wait for scheduled pods to become ready")
 	err = pollForCondition(ctx, 5*time.Minute, 10*time.Second, func() (bool, error) {
 		pods, err := clientset.CoreV1().Pods(workloadNamespace).List(ctx, metav1.ListOptions{
-			LabelSelector: workloadConfig.PodLabelSelector,
+			LabelSelector: workloadLabelSelector,
 		})
 		if err != nil {
 			return false, err
@@ -2668,14 +2612,13 @@ func Test_GS9_GangSchedulingWithPCSScalingMinReplicas(t *testing.T) {
 	}
 
 	// Wait for all remaining pods to be scheduled and ready
-	workloadConfig.Timeout = 10 * time.Minute
-	if err := utils.WaitForPods(ctx, workloadConfig, []string{workloadNamespace}, logger); err != nil {
+	if err := utils.WaitForPods(ctx, restConfig, []string{workloadNamespace}, workloadLabelSelector, 10*time.Minute, logger); err != nil {
 		t.Errorf("Failed to wait for all pods to be ready: %v", err)
 	}
 
 	// Final verification - all 20 pods should be running
 	pods, err = clientset.CoreV1().Pods(workloadNamespace).List(ctx, metav1.ListOptions{
-		LabelSelector: workloadConfig.PodLabelSelector,
+		LabelSelector: workloadLabelSelector,
 	})
 	if err != nil {
 		t.Errorf("Failed to list workload pods: %v", err)
@@ -2738,15 +2681,10 @@ func Test_GS10_GangSchedulingWithPCSScalingMinReplicasAdvanced(t *testing.T) {
 
 	logger.Info("2. Deploy workload WL2, and verify 10 newly created pods")
 	workloadNamespace := "default"
-	workloadConfig := &utils.WorkloadConfig{
-		YAMLFilePath:     "../yaml/workload2.yaml",
-		Namespace:        workloadNamespace,
-		RestConfig:       restConfig,
-		Timeout:          1 * time.Minute, // Short timeout since we expect pods to be pending
-		PodLabelSelector: "app.kubernetes.io/part-of=workload2",
-	}
+	workloadYAMLPath := "../yaml/workload2.yaml"
+	workloadLabelSelector := "app.kubernetes.io/part-of=workload2"
 
-	_, err = utils.ApplyYAML(ctx, workloadConfig, logger)
+	_, err = utils.ApplyYAMLFile(ctx, workloadYAMLPath, workloadNamespace, restConfig, logger)
 	if err != nil {
 		t.Errorf("Failed to apply workload YAML: %v", err)
 	}
@@ -2758,7 +2696,7 @@ func Test_GS10_GangSchedulingWithPCSScalingMinReplicasAdvanced(t *testing.T) {
 	err = pollForCondition(ctx, 2*time.Minute, 5*time.Second, func() (bool, error) {
 		var err error
 		pods, err = clientset.CoreV1().Pods(workloadNamespace).List(ctx, metav1.ListOptions{
-			LabelSelector: workloadConfig.PodLabelSelector,
+			LabelSelector: workloadLabelSelector,
 		})
 		if err != nil {
 			return false, err
@@ -2785,7 +2723,7 @@ func Test_GS10_GangSchedulingWithPCSScalingMinReplicasAdvanced(t *testing.T) {
 	// Verify pods remain pending due to gang scheduling constraints
 	err = pollForCondition(ctx, 2*time.Minute, 10*time.Second, func() (bool, error) {
 		pods, err := clientset.CoreV1().Pods(workloadNamespace).List(ctx, metav1.ListOptions{
-			LabelSelector: workloadConfig.PodLabelSelector,
+			LabelSelector: workloadLabelSelector,
 		})
 		if err != nil {
 			return false, err
@@ -2834,7 +2772,7 @@ func Test_GS10_GangSchedulingWithPCSScalingMinReplicasAdvanced(t *testing.T) {
 	err = pollForCondition(ctx, 3*time.Minute, 5*time.Second, func() (bool, error) {
 		var err error
 		pods, err = clientset.CoreV1().Pods(workloadNamespace).List(ctx, metav1.ListOptions{
-			LabelSelector: workloadConfig.PodLabelSelector,
+			LabelSelector: workloadLabelSelector,
 		})
 		if err != nil {
 			return false, err
@@ -2879,7 +2817,7 @@ func Test_GS10_GangSchedulingWithPCSScalingMinReplicasAdvanced(t *testing.T) {
 	// Wait for exactly 6 pods to be scheduled (min-replicas for both PCS replicas)
 	err = pollForCondition(ctx, 5*time.Minute, 10*time.Second, func() (bool, error) {
 		pods, err := clientset.CoreV1().Pods(workloadNamespace).List(ctx, metav1.ListOptions{
-			LabelSelector: workloadConfig.PodLabelSelector,
+			LabelSelector: workloadLabelSelector,
 		})
 		if err != nil {
 			return false, err
@@ -2905,7 +2843,7 @@ func Test_GS10_GangSchedulingWithPCSScalingMinReplicasAdvanced(t *testing.T) {
 	logger.Info("7. Wait for scheduled pods to become ready")
 	err = pollForCondition(ctx, 5*time.Minute, 10*time.Second, func() (bool, error) {
 		pods, err := clientset.CoreV1().Pods(workloadNamespace).List(ctx, metav1.ListOptions{
-			LabelSelector: workloadConfig.PodLabelSelector,
+			LabelSelector: workloadLabelSelector,
 		})
 		if err != nil {
 			return false, err
@@ -2941,7 +2879,7 @@ func Test_GS10_GangSchedulingWithPCSScalingMinReplicasAdvanced(t *testing.T) {
 	// Wait for exactly 4 more pods to be scheduled (sg-x-1 for both PCS replicas)
 	err = pollForCondition(ctx, 5*time.Minute, 10*time.Second, func() (bool, error) {
 		pods, err := clientset.CoreV1().Pods(workloadNamespace).List(ctx, metav1.ListOptions{
-			LabelSelector: workloadConfig.PodLabelSelector,
+			LabelSelector: workloadLabelSelector,
 		})
 		if err != nil {
 			return false, err
@@ -2967,7 +2905,7 @@ func Test_GS10_GangSchedulingWithPCSScalingMinReplicasAdvanced(t *testing.T) {
 	logger.Info("9. Wait for scheduled pods to become ready")
 	err = pollForCondition(ctx, 5*time.Minute, 10*time.Second, func() (bool, error) {
 		pods, err := clientset.CoreV1().Pods(workloadNamespace).List(ctx, metav1.ListOptions{
-			LabelSelector: workloadConfig.PodLabelSelector,
+			LabelSelector: workloadLabelSelector,
 		})
 		if err != nil {
 			return false, err
@@ -3001,14 +2939,13 @@ func Test_GS10_GangSchedulingWithPCSScalingMinReplicasAdvanced(t *testing.T) {
 	}
 
 	// Wait for all remaining pods to be scheduled and ready
-	workloadConfig.Timeout = 10 * time.Minute
-	if err := utils.WaitForPods(ctx, workloadConfig, []string{workloadNamespace}, logger); err != nil {
+	if err := utils.WaitForPods(ctx, restConfig, []string{workloadNamespace}, workloadLabelSelector, 10*time.Minute, logger); err != nil {
 		t.Errorf("Failed to wait for all pods to be ready: %v", err)
 	}
 
 	// Final verification - all 20 pods should be running
 	pods, err = clientset.CoreV1().Pods(workloadNamespace).List(ctx, metav1.ListOptions{
-		LabelSelector: workloadConfig.PodLabelSelector,
+		LabelSelector: workloadLabelSelector,
 	})
 	if err != nil {
 		t.Errorf("Failed to list workload pods: %v", err)
@@ -3101,16 +3038,10 @@ func Test_GS11_GangSchedulingWithPCSAndPCSGScalingMinReplicas(t *testing.T) {
 
 	logger.Info("2. Deploy workload WL2, and verify 10 newly created pods")
 	workloadNamespace := "default"
+	workloadYAMLPath := "../yaml/workload2.yaml"
 	workloadLabelSelector := "app.kubernetes.io/part-of=workload2"
-	workloadConfig := &utils.WorkloadConfig{
-		YAMLFilePath:     "../yaml/workload2.yaml",
-		Namespace:        workloadNamespace,
-		RestConfig:       restConfig,
-		Timeout:          1 * time.Minute,
-		PodLabelSelector: workloadLabelSelector,
-	}
 
-	_, err = utils.ApplyYAML(ctx, workloadConfig, logger)
+	_, err = utils.ApplyYAMLFile(ctx, workloadYAMLPath, workloadNamespace, restConfig, logger)
 	if err != nil {
 		t.Errorf("Failed to apply workload YAML: %v", err)
 	}
@@ -3184,8 +3115,7 @@ func Test_GS11_GangSchedulingWithPCSAndPCSGScalingMinReplicas(t *testing.T) {
 		}
 	}
 
-	workloadConfig.Timeout = 10 * time.Minute
-	if err := utils.WaitForPods(ctx, workloadConfig, []string{workloadNamespace}, logger); err != nil {
+	if err := utils.WaitForPods(ctx, restConfig, []string{workloadNamespace}, workloadLabelSelector, 10*time.Minute, logger); err != nil {
 		t.Errorf("Failed to wait for first wave pods to be ready: %v", err)
 	}
 
@@ -3260,8 +3190,7 @@ func Test_GS11_GangSchedulingWithPCSAndPCSGScalingMinReplicas(t *testing.T) {
 		}
 	}
 
-	workloadConfig.Timeout = 10 * time.Minute
-	if err := utils.WaitForPods(ctx, workloadConfig, []string{workloadNamespace}, logger); err != nil {
+	if err := utils.WaitForPods(ctx, restConfig, []string{workloadNamespace}, workloadLabelSelector, 10*time.Minute, logger); err != nil {
 		t.Errorf("Failed to wait for PCSG completion pods to be ready: %v", err)
 	}
 
@@ -3304,8 +3233,7 @@ func Test_GS11_GangSchedulingWithPCSAndPCSGScalingMinReplicas(t *testing.T) {
 		}
 	}
 
-	workloadConfig.Timeout = 10 * time.Minute
-	if err := utils.WaitForPods(ctx, workloadConfig, []string{workloadNamespace}, logger); err != nil {
+	if err := utils.WaitForPods(ctx, restConfig, []string{workloadNamespace}, workloadLabelSelector, 10*time.Minute, logger); err != nil {
 		t.Errorf("Failed to wait for PCS completion pods to be ready: %v", err)
 	}
 
@@ -3375,8 +3303,7 @@ func Test_GS11_GangSchedulingWithPCSAndPCSGScalingMinReplicas(t *testing.T) {
 		}
 	}
 
-	workloadConfig.Timeout = 10 * time.Minute
-	if err := utils.WaitForPods(ctx, workloadConfig, []string{workloadNamespace}, logger); err != nil {
+	if err := utils.WaitForPods(ctx, restConfig, []string{workloadNamespace}, workloadLabelSelector, 10*time.Minute, logger); err != nil {
 		t.Errorf("Failed to wait for all final pods to be ready: %v", err)
 	}
 
@@ -3432,16 +3359,10 @@ func Test_GS12_GangSchedulingWithComplexPCSGScaling(t *testing.T) {
 
 	logger.Info("2. Deploy workload WL2, and verify 10 newly created pods")
 	workloadNamespace := "default"
+	workloadYAMLPath := "../yaml/workload2.yaml"
 	workloadLabelSelector := "app.kubernetes.io/part-of=workload2"
-	workloadConfig := &utils.WorkloadConfig{
-		YAMLFilePath:     "../yaml/workload2.yaml",
-		Namespace:        workloadNamespace,
-		RestConfig:       restConfig,
-		Timeout:          1 * time.Minute,
-		PodLabelSelector: workloadLabelSelector,
-	}
 
-	_, err = utils.ApplyYAML(ctx, workloadConfig, logger)
+	_, err = utils.ApplyYAMLFile(ctx, workloadYAMLPath, workloadNamespace, restConfig, logger)
 	if err != nil {
 		t.Errorf("Failed to apply workload YAML: %v", err)
 	}
@@ -3651,8 +3572,7 @@ func Test_GS12_GangSchedulingWithComplexPCSGScaling(t *testing.T) {
 		}
 	}
 
-	workloadConfig.Timeout = 10 * time.Minute
-	if err := utils.WaitForPods(ctx, workloadConfig, []string{workloadNamespace}, logger); err != nil {
+	if err := utils.WaitForPods(ctx, restConfig, []string{workloadNamespace}, workloadLabelSelector, 10*time.Minute, logger); err != nil {
 		t.Errorf("Failed to wait for all final pods to be ready: %v", err)
 	}
 
@@ -3664,55 +3584,6 @@ func Test_GS12_GangSchedulingWithComplexPCSGScaling(t *testing.T) {
 	assertPodsOnDistinctNodes(t, pods.Items)
 
 	logger.Info("🎉 Gang-scheduling PCS+PCSG scaling test completed successfully!")
-}
-
-// assertPodsOnDistinctNodes verifies that each pod in the provided list is scheduled on a unique node.
-// It fails the test if any pod lacks a node assignment or if multiple pods share the same node.
-func assertPodsOnDistinctNodes(t *testing.T, pods []v1.Pod) {
-	t.Helper()
-
-	assignedNodes := make(map[string]string, len(pods))
-	for _, pod := range pods {
-		nodeName := pod.Spec.NodeName
-		if nodeName == "" {
-			t.Errorf("Pod %s is running but has no assigned node", pod.Name)
-		}
-		if existingPod, exists := assignedNodes[nodeName]; exists {
-			t.Errorf("Pods %s and %s are scheduled on the same node %s; expected unique nodes", existingPod, pod.Name, nodeName)
-		}
-		assignedNodes[nodeName] = pod.Name
-	}
-}
-
-// pollForCondition repeatedly evaluates a condition function at the specified interval
-// until it returns true or the timeout is reached. Returns an error if the condition fails,
-// returns an error, or the timeout expires.
-func pollForCondition(ctx context.Context, timeout, interval time.Duration, condition func() (bool, error)) error {
-	timeoutCtx, cancel := context.WithTimeout(ctx, timeout)
-	defer cancel()
-
-	ticker := time.NewTicker(interval)
-	defer ticker.Stop()
-
-	// Check immediately first
-	if satisfied, err := condition(); err != nil {
-		return err
-	} else if satisfied {
-		return nil
-	}
-
-	for {
-		select {
-		case <-timeoutCtx.Done():
-			return fmt.Errorf("condition not met within timeout of %v", timeout)
-		case <-ticker.C:
-			if satisfied, err := condition(); err != nil {
-				return err
-			} else if satisfied {
-				return nil
-			}
-		}
-	}
 }
 
 // getAgentNodes retrieves the names of all agent (worker) nodes in the cluster,
