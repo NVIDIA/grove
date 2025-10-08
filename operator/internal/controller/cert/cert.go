@@ -21,6 +21,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/NVIDIA/grove/operator/internal/constants"
 	authorizationwebhook "github.com/NVIDIA/grove/operator/internal/webhook/admission/pcs/authorization"
 	defaultingwebhook "github.com/NVIDIA/grove/operator/internal/webhook/admission/pcs/defaulting"
 	validatingwebhook "github.com/NVIDIA/grove/operator/internal/webhook/admission/pcs/validation"
@@ -35,7 +36,6 @@ const (
 	serviceName                      = "grove-operator"
 	certificateAuthorityName         = "Grove-CA"
 	certificateAuthorityOrganization = "Grove"
-	operatorNamespaceFile            = "/var/run/secrets/kubernetes.io/serviceaccount/namespace"
 )
 
 // ManageWebhookCerts registers the cert-controller with the manager which will be used to manage
@@ -89,7 +89,7 @@ func WaitTillWebhookCertsReady(logger logr.Logger, certsReady chan struct{}) {
 }
 
 func getOperatorNamespace() (string, error) {
-	data, err := os.ReadFile(operatorNamespaceFile)
+	data, err := os.ReadFile(constants.OperatorNamespaceFile)
 	if err != nil {
 		return "", err
 	}

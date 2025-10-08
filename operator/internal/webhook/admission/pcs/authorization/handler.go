@@ -40,19 +40,21 @@ import (
 
 // Handler is the PodCliqueSet authorization admission webhook handler.
 type Handler struct {
-	config  groveconfigv1alpha1.AuthorizerConfig
-	client  client.Client
-	decoder *requestDecoder
-	logger  logr.Logger
+	config                           groveconfigv1alpha1.AuthorizerConfig
+	client                           client.Client
+	decoder                          *requestDecoder
+	logger                           logr.Logger
+	reconcilerServiceAccountUserName string
 }
 
 // NewHandler creates a new handler for the auhtorizer webhook.
-func NewHandler(mgr manager.Manager, config groveconfigv1alpha1.AuthorizerConfig) *Handler {
+func NewHandler(mgr manager.Manager, config groveconfigv1alpha1.AuthorizerConfig, reconcilerServiceAccountUserName string) *Handler {
 	return &Handler{
-		config:  config,
-		client:  mgr.GetClient(),
-		decoder: newRequestDecoder(mgr),
-		logger:  mgr.GetLogger().WithName("authorizer-webhook").WithName(Name),
+		config:                           config,
+		client:                           mgr.GetClient(),
+		decoder:                          newRequestDecoder(mgr),
+		logger:                           mgr.GetLogger().WithName("authorizer-webhook").WithName(Name),
+		reconcilerServiceAccountUserName: reconcilerServiceAccountUserName,
 	}
 }
 
@@ -102,7 +104,7 @@ func (h *Handler) Handle(ctx context.Context, req admission.Request) admission.R
 
 // handleCreateOrUpdate allows creation/updation of managed resources only if the request is from the reconciler service account, or one of the exempted service accounts.
 func (h *Handler) handleCreateOrUpdate(req admission.Request, resourceObjectKey client.ObjectKey) admission.Response {
-	if req.UserInfo.Username == h.config.ReconcilerServiceAccountUserName {
+	if req.UserInfo.Username == h.reconcilerServiceAccountUserName {
 		return admission.Allowed(fmt.Sprintf("admission allowed, creation/updation of resource: %v is initiated by the grove reconciler service account", resourceObjectKey))
 	}
 
@@ -121,7 +123,7 @@ func (h *Handler) handleDelete(req admission.Request, resourceObjectKey client.O
 		return admission.Allowed("admission allowed, deletion of resource: Pod is allowed for all users having sufficient RBAC")
 	}
 
-	if req.UserInfo.Username == h.config.ReconcilerServiceAccountUserName {
+	if req.UserInfo.Username == h.reconcilerServiceAccountUserName {
 		return admission.Allowed(fmt.Sprintf("admission allowed, deletion of resource: %v is initiated by the grove reconciler service account", resourceObjectKey))
 	}
 

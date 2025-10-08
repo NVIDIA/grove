@@ -25,8 +25,12 @@ const (
 	PodNamespaceFileName = "namespace"
 	// VolumeMountPathPodInfo contains the file path at which the downward API volume is mounted.
 	VolumeMountPathPodInfo = "/var/grove/pod-info"
+	// OperatorNamespaceFile is the file path at which the namespace file is mounted.
+	OperatorNamespaceFile = "/var/run/secrets/kubernetes.io/serviceaccount/namespace"
 	// ComponentSyncRetryInterval is a retry interval with which a reconcile request will be requeued.
 	ComponentSyncRetryInterval = 5 * time.Second
+	// EnvVarServiceAccountName is the name of the environment variable that stores the serviceAccountName of the operator pod.
+	EnvVarServiceAccountName = "GROVE_OPERATOR_SERVICE_ACCOUNT_NAME"
 )
 
 // constants used for pod lifecycle events

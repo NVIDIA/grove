@@ -19,8 +19,10 @@ package webhook
 import (
 	"fmt"
 	"log/slog"
+	"os"
 
 	configv1alpha1 "github.com/NVIDIA/grove/operator/api/config/v1alpha1"
+	"github.com/NVIDIA/grove/operator/internal/constants"
 	"github.com/NVIDIA/grove/operator/internal/webhook/admission/pcs/authorization"
 	"github.com/NVIDIA/grove/operator/internal/webhook/admission/pcs/defaulting"
 	"github.com/NVIDIA/grove/operator/internal/webhook/admission/pcs/validation"
@@ -41,11 +43,24 @@ func RegisterWebhooks(mgr manager.Manager, authorizerConfig configv1alpha1.Autho
 		return fmt.Errorf("failed adding %s webhook handler: %v", validation.Name, err)
 	}
 	if authorizerConfig.Enabled {
-		authorizerWebhook := authorization.NewHandler(mgr, authorizerConfig)
+		serviceAccountName, ok := os.LookupEnv(constants.EnvVarServiceAccountName)
+		if !ok {
+			return fmt.Errorf("can not register authorizer webhook with no \"%s\" environment vairable", constants.EnvVarServiceAccountName)
+		}
+		namespace, err := os.ReadFile(constants.OperatorNamespaceFile)
+		if err != nil {
+			return fmt.Errorf("error reading namespace file with error: %w", err)
+		}
+		reconcilerServiceAccountUserName := generateReconcilerServiceAccountUsername(string(namespace), serviceAccountName)
+		authorizerWebhook := authorization.NewHandler(mgr, authorizerConfig, reconcilerServiceAccountUserName)
 		slog.Info("Registering webhook with manager", "handler", authorization.Name)
 		if err := authorizerWebhook.RegisterWithManager(mgr); err != nil {
 			return fmt.Errorf("failed adding %s webhook handler: %v", authorization.Name, err)
 		}
 	}
 	return nil
+}
+
+func generateReconcilerServiceAccountUsername(namespace, serviceAccountName string) string {
+	return fmt.Sprintf("system:serviceaccount:%s:%s", namespace, serviceAccountName)
 }

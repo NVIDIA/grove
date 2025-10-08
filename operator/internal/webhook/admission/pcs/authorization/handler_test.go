@@ -246,10 +246,9 @@ func TestHandle(t *testing.T) {
 			mgr := createFakeManager(cl)
 
 			handler := NewHandler(mgr, groveconfigv1alpha1.AuthorizerConfig{
-				Enabled:                          true,
-				ReconcilerServiceAccountUserName: reconcilerServiceAccountUserName,
-				ExemptServiceAccountUserNames:    exemptServiceAccountUserNames,
-			})
+				Enabled:                       true,
+				ExemptServiceAccountUserNames: exemptServiceAccountUserNames,
+			}, reconcilerServiceAccountUserName)
 
 			// construct the request for pclq
 			u := createUnstructuredObject(tt.resourceGVK, tt.pcsNamespace, "test-resource-name")
@@ -319,10 +318,9 @@ func TestHandleCreateOrUpdate(t *testing.T) {
 			cl := testutils.NewTestClientBuilder().Build()
 			mgr := createFakeManager(cl)
 			handler := NewHandler(mgr, groveconfigv1alpha1.AuthorizerConfig{
-				Enabled:                          true,
-				ReconcilerServiceAccountUserName: reconcilerServiceAccountUserName,
-				ExemptServiceAccountUserNames:    exemptServiceAccountUserNames,
-			})
+				Enabled:                       true,
+				ExemptServiceAccountUserNames: exemptServiceAccountUserNames,
+			}, reconcilerServiceAccountUserName)
 
 			for _, gvk := range tt.gvks {
 				req := admission.Request{
@@ -400,10 +398,9 @@ func TestHandleDelete(t *testing.T) {
 			cl := testutils.NewTestClientBuilder().Build()
 			mgr := createFakeManager(cl)
 			handler := NewHandler(mgr, groveconfigv1alpha1.AuthorizerConfig{
-				Enabled:                          true,
-				ReconcilerServiceAccountUserName: reconcilerServiceAccountUserName,
-				ExemptServiceAccountUserNames:    exemptServiceAccountUserNames,
-			})
+				Enabled:                       true,
+				ExemptServiceAccountUserNames: exemptServiceAccountUserNames,
+			}, reconcilerServiceAccountUserName)
 
 			for _, gvk := range tt.gvks {
 				req := admission.Request{
@@ -515,9 +512,8 @@ func TestGetParentPCSPartialObjectMetadata(t *testing.T) {
 
 			mgr := createFakeManager(cl)
 			handler := NewHandler(mgr, groveconfigv1alpha1.AuthorizerConfig{
-				Enabled:                          true,
-				ReconcilerServiceAccountUserName: "system:serviceaccount:default:grove-operator",
-			})
+				Enabled: true,
+			}, reconcilerServiceAccountUserName)
 
 			fetchedPCS, warn, err := handler.getParentPCSPartialObjectMetadata(t.Context(), tt.resourceObjectMeta)
 

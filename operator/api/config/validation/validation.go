@@ -34,7 +34,6 @@ func ValidateOperatorConfiguration(config *configv1alpha1.OperatorConfiguration)
 	allErrs = append(allErrs, validateLeaderElectionConfiguration(config.LeaderElection, field.NewPath("leaderElection"))...)
 	allErrs = append(allErrs, validateClientConnectionConfiguration(config.ClientConnection, field.NewPath("clientConnection"))...)
 	allErrs = append(allErrs, validateControllerConfiguration(config.Controllers, field.NewPath("controllers"))...)
-	allErrs = append(allErrs, validateAuthorizerConfiguration(config.Authorizer, field.NewPath("authorizer"))...)
 	return allErrs
 }
 
@@ -94,22 +93,6 @@ func validatePodCliqueSetControllerConfiguration(pcsCfg configv1alpha1.PodClique
 func validatePodCliqueScalingGroupConfiguration(pcsgCfg configv1alpha1.PodCliqueScalingGroupControllerConfiguration, fldPath *field.Path) field.ErrorList {
 	allErrs := field.ErrorList{}
 	allErrs = append(allErrs, validateConcurrentSyncs(pcsgCfg.ConcurrentSyncs, fldPath)...)
-	return allErrs
-}
-
-func validateAuthorizerConfiguration(cfg configv1alpha1.AuthorizerConfig, fldPath *field.Path) field.ErrorList {
-	allErrs := field.ErrorList{}
-	if !cfg.Enabled {
-		return allErrs
-	}
-
-	if len(strings.TrimSpace(cfg.ReconcilerServiceAccountUserName)) == 0 {
-		allErrs = append(allErrs, field.Required(fldPath.Child("reconcilerServiceAccountRef", "name"), "reconciler ServiceAccount name is required"))
-	}
-	if len(strings.TrimSpace(cfg.ReconcilerServiceAccountUserName)) == 0 {
-		allErrs = append(allErrs, field.Required(fldPath.Child("reconcilerServiceAccountRef", "namespace"), "reconciler ServiceAccount namespace is required"))
-	}
-
 	return allErrs
 }
 

@@ -186,9 +186,4 @@ type AuthorizerConfig struct {
 	// format when checking the username in authenticationv1.UserInfo.Name.
 	// +optional
 	ExemptServiceAccountUserNames []string `json:"exemptServiceAccountUserNames,omitempty"`
-	// ReconcilerServiceAccountUserName is the ServiceAccount username that is used
-	// by all the reconcilers running as part of this operator.
-	// It should in the format: system:serviceaccount:<namespace>:<service-account-name>.
-	// ServiceAccounts are represented in this format when checking the username in authenticationv1.UserInfo.Name.
-	ReconcilerServiceAccountUserName string `json:"reconcilerServiceAccountUserName"`
 }
