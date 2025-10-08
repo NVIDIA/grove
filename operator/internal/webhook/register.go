@@ -40,10 +40,12 @@ func RegisterWebhooks(mgr manager.Manager, authorizerConfig configv1alpha1.Autho
 	if err := validatingWebhook.RegisterWithManager(mgr); err != nil {
 		return fmt.Errorf("failed adding %s webhook handler: %v", validation.Name, err)
 	}
-	authorizerWebhook := authorization.NewHandler(mgr, authorizerConfig)
-	slog.Info("Registering webhook with manager", "handler", authorization.Name)
-	if err := authorizerWebhook.RegisterWithManager(mgr); err != nil {
-		return fmt.Errorf("failed adding %s webhook handler: %v", authorization.Name, err)
+	if authorizerConfig.Enabled {
+		authorizerWebhook := authorization.NewHandler(mgr, authorizerConfig)
+		slog.Info("Registering webhook with manager", "handler", authorization.Name)
+		if err := authorizerWebhook.RegisterWithManager(mgr); err != nil {
+			return fmt.Errorf("failed adding %s webhook handler: %v", authorization.Name, err)
+		}
 	}
 	return nil
 }
