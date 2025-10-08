@@ -63,7 +63,7 @@ func (h *Handler) Handle(ctx context.Context, req admission.Request) admission.R
 
 	// always allow `CONNECT` operations, irrespective of the user.
 	if req.Operation == admissionv1.Connect {
-		log.Info("Connect operation requested, which is always allowed. Admitting.")
+		log.Info("Connect operation requested, which is always allowed for users with sufficient RBAC. Admitting.")
 		return admission.Allowed(fmt.Sprintf("operation %s is allowed", req.Operation))
 	}
 
@@ -84,9 +84,9 @@ func (h *Handler) Handle(ctx context.Context, req admission.Request) admission.R
 		return admission.Allowed(fmt.Sprintf("admission allowed, no PodCliqueSet could be determined for resource: %v", resourceObjectKey)).WithWarnings(warnings...)
 	}
 
-	// Check if protection of PodCliqueSet managed resources has been disabled.
-	if metav1.HasAnnotation(pcsPartialObjectMetadata.ObjectMeta, apiconstants.AnnotationDisableManagedResourceProtection) {
-		log.Info("Resource has the \"grove.io/disable-managed-resource-protection\" annotation, authorized webhook bypassed. Admitting request.", "objectKey", resourceObjectKey)
+	// Check if protection of PodCliqueSet managed resources has been disabled by setting the annotation to "true".
+	if value, ok := pcsPartialObjectMetadata.Annotations[apiconstants.AnnotationDisableManagedResourceProtection]; ok && value == "true" {
+		log.Info("Resource has the \"grove.io/disable-managed-resource-protection\" annotation set to \"true\", authorized webhook bypassed. Admitting request.", "objectKey", resourceObjectKey)
 		return admission.Allowed(fmt.Sprintf("admission allowed, resource protection is disabled for PodCliqueSet: %v", client.ObjectKeyFromObject(pcsPartialObjectMetadata)))
 	}
 
@@ -107,7 +107,7 @@ func (h *Handler) handleCreateOrUpdate(req admission.Request, resourceObjectKey 
 	}
 
 	if slices.Contains(h.config.ExemptServiceAccountUserNames, req.UserInfo.Username) {
-		return admission.Allowed(fmt.Sprintf("admission allowed, creation/updation of resource: %v is initiated by exempt service account", resourceObjectKey))
+		return admission.Allowed(fmt.Sprintf("admission allowed, creation/updation of resource: %v is initiated by exempt serviceaccount: %v", resourceObjectKey, req.UserInfo.Username))
 	}
 
 	return admission.Denied(fmt.Sprintf("admission denied, creation/updation of resource: %v is not allowed", resourceObjectKey))
@@ -118,7 +118,7 @@ func (h *Handler) handleCreateOrUpdate(req admission.Request, resourceObjectKey 
 // There is an exception to this, where no restriction are placed on Pods.
 func (h *Handler) handleDelete(req admission.Request, resourceObjectKey client.ObjectKey) admission.Response {
 	if groupKindFromRequest(req) == podGVK.GroupKind() {
-		return admission.Allowed("admission allowed, deletion of resource: Pod is allowed for all users")
+		return admission.Allowed("admission allowed, deletion of resource: Pod is allowed for all users having sufficient RBAC")
 	}
 
 	if req.UserInfo.Username == h.config.ReconcilerServiceAccountUserName {
@@ -126,7 +126,7 @@ func (h *Handler) handleDelete(req admission.Request, resourceObjectKey client.O
 	}
 
 	if slices.Contains(h.config.ExemptServiceAccountUserNames, req.UserInfo.Username) {
-		return admission.Allowed(fmt.Sprintf("admission allowed, deletion of resource: %v is initiated by exempt user account", resourceObjectKey))
+		return admission.Allowed(fmt.Sprintf("admission allowed, deletion of resource: %v is initiated by exempt serviceaccount: %v", resourceObjectKey, req.UserInfo.Username))
 	}
 
 	return admission.Denied(fmt.Sprintf("admission denied, deletion of resource: %v is not allowed", resourceObjectKey))

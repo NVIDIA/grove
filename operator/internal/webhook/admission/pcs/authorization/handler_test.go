@@ -234,7 +234,7 @@ func TestHandle(t *testing.T) {
 				},
 			}
 
-			// setup mock client, inject errors if any
+			// setup fake client, inject errors if any
 			clBuilder := testutils.NewTestClientBuilder()
 			if tt.pcsNeeded {
 				clBuilder.WithObjects(pcsObjectMetadata)
