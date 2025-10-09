@@ -146,6 +146,7 @@ func GetContainerStatusIfTerminatedErroneously(containerStatuses []corev1.Contai
 	return &containerStatus
 }
 
+// logTerminatedErroneouslyPodContainerStatus logs details about a container that terminated with a non-zero exit code.
 func logTerminatedErroneouslyPodContainerStatus(logger logr.Logger, podObjKey client.ObjectKey, containerStatus *corev1.ContainerStatus) {
 	if containerStatus != nil && containerStatus.LastTerminationState.Terminated != nil {
 		logger.Info("container previously exited with a non-zero exit code",
