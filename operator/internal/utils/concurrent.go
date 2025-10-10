@@ -35,24 +35,24 @@ type Task struct {
 	Fn func(ctx context.Context) error
 }
 
-// RunResult is a structure that holds the results of running taskConfigs concurrently.
+// RunResult holds the results of running tasks concurrently.
 type RunResult struct {
-	// SuccessfulTasks holds the names of taskConfigs that were executed successfully.
+	// SuccessfulTasks are the names of tasks that executed successfully.
 	SuccessfulTasks []string
-	// FailedTasks holds the names of taskConfigs that failed during execution.
+	// FailedTasks are the names of tasks that failed during execution.
 	FailedTasks []string
-	// SkippedTasks holds the names of taskConfigs that were skipped (not executed).
+	// SkippedTasks are the names of tasks that were skipped.
 	SkippedTasks []string
-	// Errors holds the errors encountered during the execution of taskConfigs.
+	// Errors contains all errors encountered during task execution.
 	Errors []error
 }
 
-// HasErrors checks if there are any taskConfigs that errored out during execution.
+// HasErrors returns true if any tasks encountered errors.
 func (r *RunResult) HasErrors() bool {
 	return len(r.Errors) > 0
 }
 
-// GetAggregatedError aggregates all errors encountered during the execution of taskConfigs.
+// GetAggregatedError returns all task errors joined into a single error.
 func (r *RunResult) GetAggregatedError() error {
 	if !r.HasErrors() {
 		return nil
@@ -60,17 +60,15 @@ func (r *RunResult) GetAggregatedError() error {
 	return errors.Join(r.Errors...)
 }
 
-// GetSummary returns a summary of the RunResult, including the number of successful, failed, and skipped taskConfigs.
+// GetSummary returns a summary of successful, failed, and skipped tasks.
 func (r *RunResult) GetSummary() string {
 	return fmt.Sprintf("RunResult{SuccessfulTasks: %v, FailedTasks: %v, SkippedTasks: %v}",
 		r.SuccessfulTasks, r.FailedTasks, r.SkippedTasks)
 }
 
-// RunConcurrentlyWithSlowStart executes a slice of Tasks by grouping them into batches that double in size each time, starting with `initialBatchSize`.
-// If the whole batch succeeds, the next batch is doubled in size and executed.
-// If there are any errors in the batch, then it fails fast and returns the errors immediately, thus halting the execution of further taskConfigs.
-// kube-apiserver does not provide batching of requests, therefore if there are many resources for which calls are made to kube-apiserver,
-// then this function prevents overwhelming the kube-apiserver with too many requests at once.
+// RunConcurrentlyWithSlowStart executes tasks in exponentially growing batches starting at initialBatchSize.
+// Each successful batch doubles the size of the next batch. On any batch failure, execution halts immediately
+// and remaining tasks are marked as skipped. This prevents overwhelming kube-apiserver with concurrent requests.
 func RunConcurrentlyWithSlowStart(ctx context.Context, logger logr.Logger, initialBatchSize int, tasks []Task) RunResult {
 	remaining := len(tasks)
 	aggregatedRunResult := RunResult{}
@@ -106,8 +104,7 @@ func RunConcurrentlyWithBounds(ctx context.Context, logger logr.Logger, tasks []
 	return createRunResult(tasks, tasksInError)
 }
 
-// Functions to create and update RunResult
-// -------------------------------------------------------------------------------------------
+// createRunResult builds a RunResult from all tasks, separating successful and failed tasks.
 func createRunResult(allTasks []Task, tasksInError []lo.Tuple2[string, error]) RunResult {
 	result := RunResult{
 		SuccessfulTasks: make([]string, 0, len(allTasks)),
@@ -129,12 +126,14 @@ func createRunResult(allTasks []Task, tasksInError []lo.Tuple2[string, error]) R
 	return result
 }
 
+// updateWithBatchRunResult merges a batch result into the aggregated result.
 func updateWithBatchRunResult(aggregatedRunResult *RunResult, batchRunResult RunResult) {
 	aggregatedRunResult.SuccessfulTasks = append(aggregatedRunResult.SuccessfulTasks, batchRunResult.SuccessfulTasks...)
 	aggregatedRunResult.FailedTasks = append(aggregatedRunResult.FailedTasks, batchRunResult.FailedTasks...)
 	aggregatedRunResult.Errors = append(aggregatedRunResult.Errors, batchRunResult.Errors...)
 }
 
+// computeAndUpdateSkippedTasks identifies tasks that were neither successful nor failed and marks them as skipped.
 func computeAndUpdateSkippedTasks(result *RunResult, allTasks []Task) {
 	allTaskNames := lo.Map(allTasks, func(task Task, _ int) string {
 		return task.Name
@@ -145,15 +144,13 @@ func computeAndUpdateSkippedTasks(result *RunResult, allTasks []Task) {
 	result.SkippedTasks = append(result.SkippedTasks, skippedTaskNames...)
 }
 
-// Types and functions/methods to manage concurrent execution of taskConfigs
-// -------------------------------------------------------------------------------------------
-
 type runGroup struct {
 	logger    logr.Logger
 	wg        sync.WaitGroup
 	errTaskCh chan lo.Tuple2[string, error]
 }
 
+// newRunGroup creates a runGroup for managing concurrent task execution.
 func newRunGroup(numTasks int, logger logr.Logger) *runGroup {
 	return &runGroup{
 		logger:    logger,
@@ -162,6 +159,7 @@ func newRunGroup(numTasks int, logger logr.Logger) *runGroup {
 	}
 }
 
+// trigger starts a task in a new goroutine, capturing panics and errors.
 func (rg *runGroup) trigger(ctx context.Context, task Task) {
 	rg.wg.Add(1)
 	rg.logger.V(4).Info("triggering concurrent execution of task", "taskName", task.Name)
@@ -181,6 +179,7 @@ func (rg *runGroup) trigger(ctx context.Context, task Task) {
 	}(task)
 }
 
+// waitAndCollectErroneousTasks waits for all tasks to complete and returns tasks that encountered errors.
 func (rg *runGroup) waitAndCollectErroneousTasks() []lo.Tuple2[string, error] {
 	rg.wg.Wait()
 	close(rg.errTaskCh)
