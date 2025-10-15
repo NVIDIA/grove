@@ -369,7 +369,6 @@ func (scm *SharedClusterManager) listRemainingResources(ctx context.Context) {
 	}{
 		{"grove.io", "v1alpha1", "podcliquesets", "PodCliqueSets"},
 		{"grove.io", "v1alpha1", "podcliquescalinggroups", "PodCliqueScalingGroups"},
-		{"grove.io", "v1alpha1", "podgangsets", "PodGangSets"},
 		{"scheduler.grove.io", "v1alpha1", "podgangs", "PodGangs"},
 	}
 
