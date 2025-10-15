@@ -28,6 +28,7 @@ CLUSTER_NAME="grove-test-cluster"
 DEPLOY_REGISTRY=true
 RECREATE_CLUSTER=false
 FEATURE_GATES=()
+FAKE_NODES=0
 USAGE=""
 
 function kind::create_usage() {
@@ -38,6 +39,7 @@ function kind::create_usage() {
     -s | --skip-registry                  Skip creating a local docker registry. Default value is false.
     -r | --recreate                       If this flag is specified then it will recreate the cluster if it already exists.
     -g | --feature-gates <feature-gates>  Comma separated list of feature gates to enable on the cluster.
+    -f | --fake-nodes    <count>          Number of fake nodes to create using KWOK. Default value is 0.
   ")
   echo "${usage}"
 }
@@ -76,6 +78,10 @@ function kind::parse_flags() {
         shift
         IFS=',' read -r -a FEATURE_GATES <<< "$1"
         unset IFS
+        ;;
+      --fake-nodes | -f)
+        shift
+        FAKE_NODES=$1
         ;;
       -h | --help)
         shift
@@ -135,7 +141,16 @@ function kind::create_cluster() {
   mkdir -p "${KIND_CONFIG_DIR}"
   echo "Creating kind cluster ${CLUSTER_NAME}..."
   kind::generate_config
+  
+  # If KUBECONFIG is not already set (e.g., by the Makefile), set it to our default location
+  # This ensures kubectl commands target the correct cluster
+  if [ -z "${KUBECONFIG:-}" ]; then
+    export KUBECONFIG="${KIND_CONFIG_DIR}/kubeconfig"
+    echo "Setting KUBECONFIG to ${KUBECONFIG}"
+  fi
+  
   kind create cluster --name "${CLUSTER_NAME}" --config "${KIND_CONFIG_DIR}/cluster-config.yaml"
+  
   if [ "${DEPLOY_REGISTRY}" = true ]; then
     kind::initialize_registry
     kind::create_local_container_reg_configmap
@@ -227,11 +242,158 @@ function kind::delete_container_registry() {
 	fi
 }
 
+function kind::check_fake_nodes_prerequisites() {
+  if ! command -v kubectl &> /dev/null; then
+    echo "kubectl is not installed. Please install kubectl from https://kubernetes.io/docs/tasks/tools/install-kubectl/"
+    exit 1
+  fi
+  if ! command -v jq &> /dev/null; then
+    echo "jq is not installed. Please install jq from https://jqlang.org/download"
+    exit 1
+  fi
+  if ! command -v curl &> /dev/null; then
+    echo "curl is not installed. Please install curl."
+    exit 1
+  fi
+}
+
+# deploy_kwok deploys KWOK using the instructions at https://kwok.sigs.k8s.io/docs/user/kwok-in-cluster/
+function kind::deploy_kwok() {
+  local kwok_repo="kubernetes-sigs/kwok"
+  local kwok_latest_release=$(curl -s "https://api.github.com/repos/${kwok_repo}/releases/latest" | jq -r '.tag_name')
+  echo "Deploying KWOK ${kwok_latest_release}..."
+  
+  # deploy KWOK CRDs and controller
+  echo "  Installing KWOK CRDs and controller..."
+  kubectl apply -f "https://github.com/${kwok_repo}/releases/download/${kwok_latest_release}/kwok.yaml" > /dev/null
+  
+  # setup default custom resources of stages
+  echo "  Setting up KWOK stage configurations..."
+  kubectl apply -f "https://github.com/${kwok_repo}/releases/download/${kwok_latest_release}/stage-fast.yaml" > /dev/null
+  
+  # Wait for KWOK controller to be ready
+  echo "  Waiting for KWOK controller to be ready..."
+  kubectl wait --for=condition=available --timeout=60s deployment/kwok-controller -n kube-system > /dev/null
+  
+  echo "KWOK deployed successfully!"
+}
+
+function kind::create_fake_nodes() {
+  local node_count=$1
+  echo "Creating ${node_count} fake nodes..."
+  
+  for ((i=1; i<=node_count; i++)); do
+    local node_name="fake-node-$(printf "%03d" $i)"
+    cat <<EOF | kubectl apply -f - > /dev/null
+apiVersion: v1
+kind: Node
+metadata:
+  annotations:
+    node.alpha.kubernetes.io/ttl: "0"
+    kwok.x-k8s.io/node: fake
+  labels:
+    beta.kubernetes.io/arch: amd64
+    beta.kubernetes.io/os: linux
+    kubernetes.io/arch: amd64
+    kubernetes.io/hostname: ${node_name}
+    kubernetes.io/os: linux
+    kubernetes.io/role: agent
+    node-role.kubernetes.io/agent: ""
+    type: kwok
+  name: ${node_name}
+spec:
+  taints:
+  - effect: NoSchedule
+    key: fake-node
+    value: "true"
+status:
+  allocatable:
+    cpu: "64"
+    ephemeral-storage: 1Ti
+    hugepages-1Gi: "0"
+    hugepages-2Mi: "0"
+    memory: 512Gi
+    pods: "110"
+  capacity:
+    cpu: "64"
+    ephemeral-storage: 1Ti
+    hugepages-1Gi: "0"
+    hugepages-2Mi: "0"
+    memory: 512Gi
+    pods: "110"
+  conditions:
+  - lastHeartbeatTime: "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+    lastTransitionTime: "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+    message: kubelet is posting ready status
+    reason: KubeletReady
+    status: "True"
+    type: Ready
+  - lastHeartbeatTime: "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+    lastTransitionTime: "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+    message: kubelet has sufficient memory available
+    reason: KubeletHasSufficientMemory
+    status: "False"
+    type: MemoryPressure
+  - lastHeartbeatTime: "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+    lastTransitionTime: "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+    message: kubelet has no disk pressure
+    reason: KubeletHasNoDiskPressure
+    status: "False"
+    type: DiskPressure
+  - lastHeartbeatTime: "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+    lastTransitionTime: "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+    message: kubelet has sufficient PID available
+    reason: KubeletHasSufficientPID
+    status: "False"
+    type: PIDPressure
+  - lastHeartbeatTime: "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+    lastTransitionTime: "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+    message: network is available
+    reason: RouteCreated
+    status: "False"
+    type: NetworkUnavailable
+  nodeInfo:
+    architecture: amd64
+    bootID: ""
+    containerRuntimeVersion: ""
+    kernelVersion: ""
+    kubeProxyVersion: fake
+    kubeletVersion: fake
+    machineID: ""
+    operatingSystem: linux
+    osImage: ""
+    systemUUID: ""
+  phase: Running
+EOF
+    echo "  Created fake node: ${node_name}"
+  done
+  
+  echo "Successfully created ${node_count} fake nodes!"
+  echo ""
+  echo "Fake nodes are tainted with 'fake-node=true:NoSchedule'"
+  echo "To schedule pods on these nodes, add this toleration to your pod specs:"
+  echo "  tolerations:"
+  echo "  - key: fake-node"
+  echo "    operator: Exists"
+  echo "    effect: NoSchedule"
+}
+
+function kind::setup_fake_nodes() {
+  if [ "${FAKE_NODES}" -gt 0 ]; then
+    echo ""
+    echo "Setting up ${FAKE_NODES} fake nodes..."
+    kind::check_fake_nodes_prerequisites
+    kind::deploy_kwok
+    kind::create_fake_nodes "${FAKE_NODES}"
+  fi
+}
+
 function main() {
   kind::check_prerequisites
   kind::parse_flags "$@"
   kind::clamp_mss_to_pmtu
   kind::create_cluster
+  kind::setup_fake_nodes
   printf "\n\033[0;33m📌 NOTE: To target the newly created kind cluster, please run the following command:\n\n export KUBECONFIG=${KUBECONFIG}\n\033[0m\n"
 }
 

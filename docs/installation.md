@@ -11,7 +11,7 @@ You can use the published [Helm `grove-charts` package](https://github.com/NVIDI
 helm upgrade -i grove oci://ghcr.io/nvidia/grove/grove-charts:<tag>
 ```
 
-You could also deploy Grove to your cluster through the provided make targets, by following [installation using make targets](#installation-using-make-targets).
+You could also deploy Grove to your cluster through the provided make targets, by following [remote cluster setup](#remote-cluster-set-up) and [installation using make targets](#installation-using-make-targets).
 
 ## Developing Grove
 
@@ -27,6 +27,22 @@ In case you wish to develop Grove using a local kind cluster, please do the foll
 
   ```bash
   make kind-up
+  ```
+
+- **Optional**: To create a KIND cluster with fake nodes for testing at scale, specify the number of fake nodes:
+
+  ```bash
+  # Create a cluster with 20 fake nodes
+  make kind-up FAKE_NODES=20
+  ```
+
+  This will automatically install [KWOK](https://kwok.sigs.k8s.io/) (Kubernetes WithOut Kubelet) and create the specified number of fake nodes. These fake nodes are tainted with `fake-node=true:NoSchedule`, so you'll need to add the following toleration to your pod specs to schedule on them:
+
+  ```yaml
+  tolerations:
+  - key: fake-node
+    operator: Exists
+    effect: NoSchedule
   ```
 
 - Specify the `KUBECONFIG` environment variable in your shell session to the path printed out at the end of the previous step:
