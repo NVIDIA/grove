@@ -4,66 +4,79 @@
 
 # Grove
 
-Grove is a Kubernetes API purpose-built for orchestrating AI workloads on GPU clusters. The modern inference landscape spans a wide range of workload types — from traditional single-node deployments where each model instance runs in a single pod, to large-scale disaggregated systems where one model instance may include multiple components such as prefill and decode, each distributed across many pods and nodes. Grove is designed to unify this entire spectrum under a single API, allowing developers to declaratively represent any inference workload by composing as many components as their system requires — whether single-node or multi-node — within one cohesive custom resource.
+Modern AI inference workloads need capabilities that Kubernetes doesn't provide out-of-the-box:
 
-Additionally, as workloads scale in size and complexity, achieving efficient resource utilization and optimal performance depends on capabilities such as all-or-nothing (“gang”) scheduling, topology-aware placement, prescriptive startup ordering, and independent scaling of components. Grove is designed with these needs as first-class citizens — providing native abstractions for expressing scheduling intent, topology constraints, startup dependencies, and per-component scaling behaviors that can be directly interpreted by underlying schedulers.
+- **Gang scheduling** - Prefill and decode pods must start together or not at all
+- **Grouped scaling** - Tightly-coupled components that need to scale as a unit
+- **Startup ordering** - Different components in a workload which must start in an explicit ordering
+- **Topology-aware placement** - NVLink-connected GPUs or workloads shouldn't be scattered across nodes
 
-## Core Concepts
+Grove is a Kubernetes API that provides a single declarative interface for orchestrating any AI inference workload — from simple, single-pod deployments to complex multi-node, disaggregated systems.
 
-The Grove API consists of a user API and a scheduling API. While the user API (`PodCliqueSet`, `PodClique`, `PodCliqueScalingGroup`) allows users to represent their AI workloads, the scheduling API (`PodGang`) enables scheduler integration to support the network topology-optimized gang-scheduling and auto-scaling requirements of the workload.
+**One API. Any inference architecture.**
 
-| Concept                                                             | Description                                                                                                                                                                                              |
-|---------------------------------------------------------------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| [PodCliqueSet](operator/api/core/v1alpha1/podcliqueset.go)          | The top-level Grove object that defines a group of components managed and colocated together. Also supports autoscaling with topology aware spread of PodCliqueSet replicas for availability.            |
-| [PodClique](operator/api/core/v1alpha1/podclique.go)                | A group of pods representing a specific role (e.g., leader, worker, frontend). Each clique has an independent configuration and supports custom scaling logic.                                           |
-| [PodCliqueScalingGroup](operator/api/core/v1alpha1/scalinggroup.go) | A set of PodCliques that scale and are scheduled together as a gang. Ideal for tightly coupled roles like prefill leader and worker.                                                                               |
-| [PodGang](scheduler/api/core/v1alpha1/podgang.go)                   | The scheduler API that defines a unit of gang-scheduling. A PodGang is a collection of groups of similar pods, where each pod group defines a minimum number of replicas guaranteed for gang-scheduling. |
+## Quick Start
 
+Get Grove running in 5 minutes:
 
-## Key Capabilities
+```bash
+# 1. Create a local kind cluster
+cd operator && make kind-up
 
-- **Declarative composition of Role-Based Pod Groups**
-  `PodCliqueSet` API provides users a capability to declaratively compose tightly coupled group of pods with explicit role based logic, e.g. disaggregated roles in a model serving stack such as `prefill`, `decode` and `routing`.
-- **Flexible Gang Scheduling**
-  `PodClique`'s and `PodCliqueScalingGroup`s allow users to specify flexible gang-scheduling requirements at multiple levels within a `PodCliqueSet` to prevent resource deadlocks.
-- **Multi-level Horizontal Auto-Scaling**
-  Supports pluggable horizontal auto-scaling solutions to scale `PodCliqueSet`, `PodClique` and `PodCliqueScalingGroup` custom resources.
-- **Network Topology-Aware Scheduling**
-  Allows specifying network topology pack and spread constraints to optimize for both network performance and service availability.
-- **Custom Startup Dependencies**
-  Prescribe the order in which the `PodClique`s must start in a declarative specification. Pod startup is decoupled from pod creation or scheduling.
-- **Resource-Aware Rolling Updates**
-  Supports reuse of resource reservations of `Pod`s during updates in order to preserve topology-optimized placement.
+# 2. Deploy Grove
+kind get kubeconfig --name grove-test-cluster > hack/kind/kubeconfig
+export KUBECONFIG=$(pwd)/hack/kind/kubeconfig
+make deploy
 
-## Example Use Cases
+# 3. Deploy your first workload
+kubectl apply -f samples/simple/simple1.yaml
 
-- **Multi-Node, Disaggregated Inference for large models** ***(DeepSeek-R1, Llama-4-Maverick)*** : [Visualization](docs/assets/multinode-disaggregated.excalidraw.png)
-- **Single-Node, Disaggregated Inference** : [Visualization](docs/assets/singlenode-disaggregated.excalidraw.png)
-- **Agentic Pipeline of Models** : [Visualization](docs/assets/agentic-pipeline.excalidraw.png)
-- **Standard Aggregated Single Node or Single GPU Inference** : [Visualization](docs/assets/singlenode-aggregated.excalidraw.png)
+# 4. Watch it scale
+kubectl get pcs,pclq,pcsg,pg,pod -owide
+```
 
-## Getting Started
+**→ [Full Quickstart Guide](docs/quickstart.md)** | **[Installation Docs](docs/installation.md)**
 
-You can get started with the Grove operator by following our [installation guide](docs/installation.md).
+## What Grove Solves
+
+Grove handles the complexities of modern AI inference deployments:
+
+| Your Setup | What Grove Does |
+|------------|-----------------|
+| **Disaggregated inference** (prefill + decode) | Gang schedules all components together, scales them independently and as a unit |
+| **Multi-model pipelines** | Enforces startup order (router → workers), auto-scales each stage |
+| **Multi-node inference** (DeepSeek-R1, Llama 405B) | Packs pods onto NVLink-connected GPUs for optimal network performance |
+| **Simple single-pod serving** | Works for this too! One API for any architecture |
+
+**Use Cases:** [Multi-node disaggregated](docs/assets/multinode-disaggregated.excalidraw.png) · [Single-node disaggregated](docs/assets/singlenode-disaggregated.excalidraw.png) · [Agentic pipelines](docs/assets/agentic-pipeline.excalidraw.png) · [Standard serving](docs/assets/singlenode-aggregated.excalidraw.png)
+
+## How It Works
+
+Grove introduces four simple concepts:
+
+| Concept | What It Does |
+|---------|--------------|
+| **PodCliqueSet** | Your entire workload (e.g., "my-inference-stack") |
+| **PodClique** | A component role (e.g., "prefill", "decode", "router") |
+| **PodCliqueScalingGroup** | Components that must scale together (e.g., prefill + decode) |
+| **PodGang** | Internal scheduler primitive for gang scheduling (you don't touch this) |
+
+**→ [API Reference](docs/api-reference/operator-api.md)**
 
 ## Roadmap
 
 ### 2025 Priorities
 
-Update: We are aligning our release schedule with [Nvidia Dynamo](https://github.com/ai-dynamo/dynamo) to ensure seamless integration. Once our release cadence (e.g., weekly, monthly) is finalized, it will be reflected here.
+> **Note:** We are aligning our release schedule with [NVIDIA Dynamo](https://github.com/ai-dynamo/dynamo) to ensure seamless integration. Release dates will be updated once our cadence (e.g., weekly, monthly) is finalized.
 
-**Release v0.1.0** *(ETA: Mid September 2025)*
-- Grove v1alpha1 API
-- Hierarchical Gang Scheduling and Gang Termination
+**Q4 2025**
+- Topology-Aware Scheduling
 - Multi-Level Horizontal Auto-Scaling
 - Startup Ordering
 - Rolling Updates
 
-**Release v0.2.0** *(ETA: October 2025)*
-- Topology-Aware Scheduling
+**Q1 2026**
 - Resource-Optimized Rolling Updates
-
-**Release v0.3.0** *(ETA: November 2025)*
 - Multi-Node NVLink Auto-Scaling Support
 
 ## Contributions
