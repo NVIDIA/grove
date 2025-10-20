@@ -61,7 +61,7 @@ config:
   logLevel: info
   logFormat: json
   authorizer:
-    enabled: true
+    enabled: false
     exemptServiceAccountUserNames:
       - system:serviceaccount:kube-system:generic-garbage-collector
       - system:serviceaccount:kube-system:horizontal-pod-autoscaler

@@ -40,7 +40,7 @@ const (
 
 // ManageWebhookCerts registers the cert-controller with the manager which will be used to manage
 // webhook certificates.
-func ManageWebhookCerts(mgr ctrl.Manager, certDir string, certsReadyCh chan struct{}) error {
+func ManageWebhookCerts(mgr ctrl.Manager, certDir string, authorizerEnabled bool, certsReadyCh chan struct{}) error {
 	namespace, err := getOperatorNamespace()
 	if err != nil {
 		return err
@@ -69,13 +69,15 @@ func ManageWebhookCerts(mgr ctrl.Manager, certDir string, certsReadyCh chan stru
 				Type: cert.Validating,
 				Name: validatingwebhook.Name,
 			},
-			{
-				Type: cert.Validating,
-				Name: authorizationwebhook.Name,
-			},
 		},
 		EnableReadinessCheck:   true,
 		RestartOnSecretRefresh: true,
+	}
+	if authorizerEnabled {
+		rotator.Webhooks = append(rotator.Webhooks, cert.WebhookInfo{
+			Type: cert.Validating,
+			Name: authorizationwebhook.Name,
+		})
 	}
 	return cert.AddRotator(mgr, rotator)
 }
