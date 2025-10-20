@@ -65,6 +65,7 @@ config:
     exemptServiceAccountUserNames:
       - system:serviceaccount:kube-system:generic-garbage-collector
       - system:serviceaccount:kube-system:horizontal-pod-autoscaler
+      - system:kube-controller-manager
 
 configMap:
   labels:
