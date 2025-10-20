@@ -28,7 +28,7 @@ permissions:
   packages: write
 
 env:
-  DOCKER_REGISTRY: "ghcr.io/nvidia/grove"
+  DOCKER_REGISTRY: "ghcr.io/${{ github.repository_owner }}/grove"
 
 jobs:
   build-and-push:
