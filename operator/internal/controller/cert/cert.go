@@ -60,24 +60,9 @@ func ManageWebhookCerts(mgr ctrl.Manager, certDir string, authorizerEnabled bool
 			fmt.Sprintf("%s.%s", serviceName, namespace),
 			fmt.Sprintf("%s.%s.svc.cluster.local", serviceName, namespace),
 		},
-		Webhooks: []cert.WebhookInfo{
-			{
-				Type: cert.Mutating,
-				Name: defaultingwebhook.Name,
-			},
-			{
-				Type: cert.Validating,
-				Name: validatingwebhook.Name,
-			},
-		},
+		Webhooks:               getWebhooks(authorizerEnabled),
 		EnableReadinessCheck:   true,
 		RestartOnSecretRefresh: true,
-	}
-	if authorizerEnabled {
-		rotator.Webhooks = append(rotator.Webhooks, cert.WebhookInfo{
-			Type: cert.Validating,
-			Name: authorizationwebhook.Name,
-		})
 	}
 	return cert.AddRotator(mgr, rotator)
 }
@@ -88,6 +73,28 @@ func WaitTillWebhookCertsReady(logger logr.Logger, certsReady chan struct{}) {
 	logger.Info("Waiting for certs to be ready and injected into webhook configurations")
 	<-certsReady
 	logger.Info("Certs are ready and injected into webhook configurations")
+}
+
+// getWebhooks returns the webhooks that are to be registered with the cert-controller
+func getWebhooks(authorizerEnabled bool) []cert.WebhookInfo {
+	// defaulting and validating webhooks are always enabled, and are therefore registered by default.
+	webhooks := []cert.WebhookInfo{
+		{
+			Type: cert.Mutating,
+			Name: defaultingwebhook.Name,
+		},
+		{
+			Type: cert.Validating,
+			Name: validatingwebhook.Name,
+		},
+	}
+	if authorizerEnabled {
+		webhooks = append(webhooks, cert.WebhookInfo{
+			Type: cert.Validating,
+			Name: authorizationwebhook.Name,
+		})
+	}
+	return webhooks
 }
 
 func getOperatorNamespace() (string, error) {
