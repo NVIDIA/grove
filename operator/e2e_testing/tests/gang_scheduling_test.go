@@ -20,8 +20,8 @@ package tests
 
 import (
 	"context"
+	"fmt"
 	"testing"
-	"time"
 
 	"github.com/NVIDIA/grove/operator/e2e_testing/utils"
 	v1 "k8s.io/api/core/v1"
@@ -72,7 +72,7 @@ func Test_GS1_GangSchedulingWithFullReplicas(t *testing.T) {
 
 	// Poll until we have the expected number of pods created
 	var pods *v1.PodList
-	err = pollForCondition(ctx, 2*time.Minute, 5*time.Second, func() (bool, error) {
+	err = pollForCondition(ctx, defaultPollTimeout, defaultPollInterval, func() (bool, error) {
 		var err error
 		pods, err = clientset.CoreV1().Pods(workloadNamespace).List(ctx, metav1.ListOptions{
 			LabelSelector: "app.kubernetes.io/part-of=workload1",
@@ -87,15 +87,9 @@ func Test_GS1_GangSchedulingWithFullReplicas(t *testing.T) {
 	}
 
 	logger.Info("3. Verify all workload pods are pending due to insufficient resources")
-	pendingPods := 0
-	for _, pod := range pods.Items {
-		if pod.Status.Phase == v1.PodPending {
-			pendingPods++
-		}
-	}
 
-	// Poll to verify pods remain pending for a reasonable time (gang scheduling should prevent partial scheduling)
-	err = pollForCondition(ctx, 2*time.Minute, 10*time.Second, func() (bool, error) {
+	// Poll until all pods have Unschedulable events from kai-scheduler (gang scheduling should prevent partial scheduling)
+	err = pollForCondition(ctx, defaultPollTimeout, defaultPollInterval, func() (bool, error) {
 		pods, err := clientset.CoreV1().Pods(workloadNamespace).List(ctx, metav1.ListOptions{
 			LabelSelector: "app.kubernetes.io/part-of=workload1",
 		})
@@ -103,18 +97,55 @@ func Test_GS1_GangSchedulingWithFullReplicas(t *testing.T) {
 			return false, err
 		}
 
-		stillPendingPods := 0
+		// Verify all pods are still pending and have Unschedulable events
+		podsWithUnschedulableEvent := 0
 		for _, pod := range pods.Items {
-			if pod.Status.Phase == v1.PodPending {
-				stillPendingPods++
+			// First check the pod is pending
+			if pod.Status.Phase != v1.PodPending {
+				return false, fmt.Errorf("expected pod %s to be pending, but it is %s", pod.Name, pod.Status.Phase)
 			}
+
+			// Check for Unschedulable event from kai-scheduler
+			events, err := clientset.CoreV1().Events(workloadNamespace).List(ctx, metav1.ListOptions{
+				FieldSelector: fmt.Sprintf("involvedObject.name=%s,involvedObject.kind=Pod", pod.Name),
+			})
+			if err != nil {
+				return false, err
+			}
+
+			// Find the most recent event, unfortunately the events are guaranteed to be sorted by timestamp
+			var mostRecentEvent *v1.Event
+			for i := range events.Items {
+				event := &events.Items[i]
+				if mostRecentEvent == nil || event.LastTimestamp.After(mostRecentEvent.LastTimestamp.Time) {
+					mostRecentEvent = event
+				}
+			}
+
+			// Check if the most recent event is Warning/Unschedulable from kai-scheduler
+			if mostRecentEvent != nil &&
+				mostRecentEvent.Type == v1.EventTypeWarning &&
+				mostRecentEvent.Reason == "Unschedulable" &&
+				mostRecentEvent.Source.Component == "kai-scheduler" {
+				logger.Debugf("Pod %s has Unschedulable event: %s", pod.Name, mostRecentEvent.Message)
+				podsWithUnschedulableEvent++
+			} else if mostRecentEvent != nil {
+				logger.Debugf("Pod %s most recent event is not Unschedulable: type=%s, reason=%s, component=%s",
+					pod.Name, mostRecentEvent.Type, mostRecentEvent.Reason, mostRecentEvent.Source.Component)
+			}
+
 		}
 
-		// We're checking that they remain pending, so we want this condition to be true consistently
-		return stillPendingPods == len(pods.Items), nil
+		// Return true only when all pods have the Unschedulable event
+		if podsWithUnschedulableEvent == len(pods.Items) {
+			return true, nil
+		}
+
+		logger.Debugf("Waiting for all pods to have Unschedulable events: %d/%d", podsWithUnschedulableEvent, len(pods.Items))
+		return false, nil
 	})
 	if err != nil {
-		t.Fatalf("Failed to verify pods remain pending: %v", err)
+		t.Fatalf("Failed to verify all pods have Unschedulable events: %v", err)
 	}
 
 	logger.Info("4. Uncordon the node and verify all pods get scheduled")
@@ -123,7 +154,7 @@ func Test_GS1_GangSchedulingWithFullReplicas(t *testing.T) {
 	}
 
 	// Wait for all pods to be scheduled and ready
-	if err := utils.WaitForPods(ctx, restConfig, []string{workloadNamespace}, "", 10*time.Minute, logger); err != nil {
+	if err := utils.WaitForPods(ctx, restConfig, []string{workloadNamespace}, "", defaultPollTimeout, defaultPollInterval, logger); err != nil {
 		t.Fatalf("Failed to wait for pods to be ready: %v", err)
 	}
 
@@ -133,17 +164,6 @@ func Test_GS1_GangSchedulingWithFullReplicas(t *testing.T) {
 	})
 	if err != nil {
 		t.Fatalf("Failed to list workload pods: %v", err)
-	}
-
-	runningPods := 0
-	for _, pod := range pods.Items {
-		if pod.Status.Phase == v1.PodRunning {
-			runningPods++
-		}
-	}
-
-	if runningPods != len(pods.Items) {
-		t.Fatalf("Expected all %d pods to be running, but only %d are running", len(pods.Items), runningPods)
 	}
 
 	// Verify that each pod is scheduled on a unique node, agent nodes have 150m memory

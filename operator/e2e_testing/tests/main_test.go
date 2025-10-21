@@ -72,6 +72,13 @@ func init() {
 	logger = utils.NewTestLogger(logrus.InfoLevel)
 }
 
+const (
+	// defaultPollTimeout is the timeout for most polling conditions
+	defaultPollTimeout = 30 * time.Second
+	// defaultPollInterval is the interval for most polling conditions
+	defaultPollInterval = 5 * time.Second
+)
+
 // TestMain manages the lifecycle of the shared cluster for all tests
 func TestMain(m *testing.M) {
 	ctx := context.Background()

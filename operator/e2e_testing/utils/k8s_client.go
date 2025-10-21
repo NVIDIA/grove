@@ -66,10 +66,13 @@ func ApplyYAMLFile(ctx context.Context, yamlFilePath string, namespace string, r
 }
 
 // WaitForPods waits for pods to be ready in the specified namespaces
-// labelSelector is optional (pass empty string for all pods), timeout of 0 defaults to 5 minutes
-func WaitForPods(ctx context.Context, restConfig *rest.Config, namespaces []string, labelSelector string, timeout time.Duration, logger *logrus.Logger) error {
+// labelSelector is optional (pass empty string for all pods), timeout of 0 defaults to 5 minutes, interval of 0 defaults to 5 seconds
+func WaitForPods(ctx context.Context, restConfig *rest.Config, namespaces []string, labelSelector string, timeout time.Duration, interval time.Duration, logger *logrus.Logger) error {
 	if timeout == 0 {
 		timeout = 5 * time.Minute
+	}
+	if interval == 0 {
+		interval = 5 * time.Second
 	}
 
 	clientset, err := kubernetes.NewForConfig(restConfig)
@@ -87,7 +90,7 @@ func WaitForPods(ctx context.Context, restConfig *rest.Config, namespaces []stri
 
 	logger.Debugf("⏳ Waiting for pods to be ready in namespaces: %v", namespaces)
 
-	return wait.PollUntilContextTimeout(timeoutCtx, 5*time.Second, timeout, true, func(ctx context.Context) (bool, error) {
+	return wait.PollUntilContextTimeout(timeoutCtx, interval, timeout, true, func(ctx context.Context) (bool, error) {
 		allReady := true
 		totalPods := 0
 		readyPods := 0
@@ -295,8 +298,8 @@ func updateResource(ctx context.Context, dynamicClient dynamic.Interface, gvr sc
 }
 
 // WaitForPodsInNamespace waits for all pods in a namespace to be ready
-func WaitForPodsInNamespace(ctx context.Context, namespace string, restConfig *rest.Config, timeout time.Duration, logger *logrus.Logger) error {
-	return WaitForPods(ctx, restConfig, []string{namespace}, "", timeout, logger)
+func WaitForPodsInNamespace(ctx context.Context, namespace string, restConfig *rest.Config, timeout time.Duration, interval time.Duration, logger *logrus.Logger) error {
+	return WaitForPods(ctx, restConfig, []string{namespace}, "", timeout, interval, logger)
 }
 
 // getGVRFromGVK converts a GroupVersionKind to GroupVersionResource using REST mapper
