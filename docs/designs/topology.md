@@ -7,10 +7,11 @@ This document defines the design for implementing topology-aware scheduling in t
 **Motivation**: Topology-aware scheduling is critical for Grove's multinode inference workloads because these
 applications require:
 
-- **Network Locality**: High-bandwidth communication between prefill and decode workers benefits from proximity
+- **Network Locality**: Proximity improves high-bandwidth communication between leaders and their respective workers (
+  prefill and decode, etc)
     - **Coordinated Placement**: Related components (e.g., model shards) perform better when co-located within the same
       topology domain
-    - **Latency Optimization**: Minimizing network hops between interdependent inference components improves end-to-end
+  - **Latency Optimization**: Minimizing network hops between interdependent inference components improves end-to-ends
       performance
 
 **Design Approach**: This design introduces a flexible topology system with three main components:
