@@ -2,7 +2,7 @@
 
 ## Overview
 
-This document defines the design for implementing topology-aware scheduling in the Grove operator..
+This document defines the design for implementing topology-aware scheduling in the Grove operator.
 
 **Motivation**: Topology-aware scheduling is critical for Grove's multinode inference workloads because these
 applications require:
