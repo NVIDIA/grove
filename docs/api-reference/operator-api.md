@@ -160,7 +160,7 @@ _Appears in:_
 
 
 
-PodClique is a set of pods running the same image. TODO: @renormalize expand on this.
+PodClique is a set of pods running the same image.
 
 
 
