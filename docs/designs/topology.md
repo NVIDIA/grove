@@ -18,7 +18,7 @@ applications require:
 
 1. **TopologyDomain CRD**: Admin-configured cluster topology hierarchy mapping friendly names (e.g., rack, zone, host)
    to node labels
-2. **Operator Configuration**: Selects active topology via `--topology-domain-name` argument
+2. **Operator Configuration**: Selects active topology via `OperatorConfiguration.TopologyDomainName` field
 3. **TopologyConstraint**: User-specified packing requirements in workloads (PodCliqueSet, PodCliqueScalingGroup,
    PodClique)
 
@@ -42,8 +42,7 @@ workload.
 - Root domain constraints for entire resource (RootDomain)
 - Ratio-based affinity groups between scaling groups (AffinityGroups with PackRatio)
 - Dynamic topology reconfiguration after creation
-- Per-workload topology domain selection
-- Automatic topology inference from workload characteristics
+- Automatic suggest topology according to workload characteristics
 
 ## Proposal
 
@@ -58,7 +57,7 @@ Grove implements topology-aware scheduling through three key components:
     - Multiple TopologyDomains supported for different environments
 
 2. **Operator Configuration**: References TopologyDomain by name
-    - Operator argument `--topology-domain-name=default` selects which TopologyDomain to use
+    - `OperatorConfiguration.TopologyDomainName: default` selects which TopologyDomain to use
     - All workload validation performed against configured TopologyDomain
     - Enables switching between topologies without changing workloads
 
@@ -66,54 +65,6 @@ Grove implements topology-aware scheduling through three key components:
     - PodCliqueSet, PodCliqueScalingGroup, and PodClique each have TopologyConstraint field
     - Users reference level names from TopologyDomain (e.g., `packDomain: "rack"`)
     - No direct TopologyDomain reference needed in workloads
-
-### Component Interactions
-
-```
-TopologyDomain CRD ──┐
-  (admin creates)    │
-                     │
-Operator Config ─────┼──> Operator validates PackDomain
-  (--topology-       │    against TopologyDomain.Spec.Levels
-   domain-name)      │
-                     │
-PodCliqueSet ────────┘
-  (packDomain: "rack")
-```
-
-### Automatic Optimization
-
-**Out-of-Box Optimization:**
-
-- Operator automatically generates **preferred** constraints using strictest topology level (e.g., "host")
-- Applied at all three levels (PodGang, NetworkPackGroup, PodGroup) during translation to scheduler API
-- Users get optimal packing without configuration
-
-**User Control:**
-
-- Users can specify **required** constraints via `packDomain` for strict placement requirements
-- Required constraints validated and must be satisfied
-- Preferred constraints enable best-effort optimization with graceful fallback
-
-### Controller Responsibilities
-
-The TopologyDomain controller manages:
-
-- **Kueue Topology Generation**: Auto-creates Kueue Topology CRD for KAI scheduler integration
-- **Deletion Protection**: Prevents deletion while PodCliqueSet resources reference it
-
-## Out of Scope
-
-The following features are explicitly out of scope for this design:
-
-- **Spread Constraints**: ReplicaSpreadDomain for distributing replicas across domains for fault tolerance is not
-  supported
-- **Advanced Topology Constraints Per Replica**: RootDomain for constraining entire resource (all replicas) within a
-  topology domain is not supported
-- **Ratio Grouping Between Groups**: AffinityGroups with PackRatio for complex workload patterns (e.g., 2 Prefill + 1
-  Decode ratios) is not supported
-- **Workload-Based Auto Constraints**: Automatic constraint generation based on workload characteristics, patterns, and
-  inference requirements
 
 ## Design Details
 
@@ -137,7 +88,7 @@ The following features are explicitly out of scope for this design:
 │         │                           │ (auto-generated)   │              │
 │         │                           └────────────────────┘              │
 │         │                                                               │
-│  Operator Config: --topology-domain-name=default                        │
+│  Operator Config: OperatorConfiguration.TopologyDomainName=default      │
 │         │                                                               │
 │         │ (validates against)                                           │
 ├─────────┼───────────────────────────────────────────────────────────────┤
@@ -172,7 +123,7 @@ to Kubernetes node labels and establishes ordering from broadest to narrowest sc
 **Characteristics:**
 
 - **Cluster-scoped**: Multiple TopologyDomains can exist
-- **Operator-selected**: Operator references one by name via `--topology-domain-name` argument
+- **Operator-selected**: Operator references one by name via `OperatorConfiguration.TopologyDomainName` field
 - **Immutable**: Once created, cannot be modified
 - **List-ordered hierarchy**: Index 0 = broadest (e.g., region), last = narrowest (e.g., host)
 
@@ -181,7 +132,7 @@ to Kubernetes node labels and establishes ordering from broadest to narrowest sc
 ```go
 // TopologyDomain defines the topology hierarchy for the cluster
 // This resource is immutable after creation
-// Multiple TopologyDomain resources can exist; Grove operator references one via --topology-domain-name argument
+// Multiple TopologyDomain resources can exist; Grove operator references one via OperatorConfiguration.TopologyDomainName field
 type TopologyDomain struct {
 metav1.TypeMeta   `json:",inline"`
 metav1.ObjectMeta `json:"metadata,omitempty"`
@@ -264,7 +215,7 @@ Steps:
 1. Install Grove: `helm install grove`
 2. Customize example above with your cluster's actual `topologyKey` values
 3. Create resource: `kubectl apply -f topologydomain.yaml`
-4. Configure operator with `--topology-domain-name` matching the resource name
+4. Configure operator with `OperatorConfiguration.TopologyDomainName` matching the resource name
 5. Create workloads with topology constraints
 
 Notes:
@@ -306,8 +257,7 @@ The TopologyDomain controller manages the TopologyDomain resource lifecycle with
 
 **1. Kueue Topology Generation**
 
-Automatically generates Kueue Topology CRD from the TopologyDomain referenced by operator's `--topology-domain-name`
-argument.
+Automatically generates Kueue Topology CRD from the TopologyDomain.
 
 **Why Kueue Topology is Required:**
 
@@ -350,12 +300,6 @@ spec:
     - nodeLabel: "kubernetes.io/hostname"
 ```
 
-Key Points:
-
-- Admin only creates TopologyDomain; Kueue Topology auto-generated
-- Owner reference ensures Kueue Topology deleted with TopologyDomain
-- Same name for both resources
-- No manual coordination required
 
 **Implementation Note:**
 
@@ -373,67 +317,56 @@ Deletion Workflow:
 2. Kubernetes blocks deletion (finalizer `grove.run.ai/topology-protection` present)
 3. Controller reconciles:
     - Detects deletion request (deletion timestamp set)
-    - Scans cluster for any PodCliqueSet resources
-    - If PodCliqueSet exists: Keeps finalizer, deletion blocked
-    - If no PodCliqueSet exists: Removes finalizer, deletion proceeds
+    - Scans cluster for any PodGang resources whose `Spec.TopologyRef` references this TopologyDomain by name
+    - If any PodGang references this TopologyDomain: Keeps finalizer, deletion blocked
+    - If no PodGang references this TopologyDomain: Removes finalizer, deletion proceeds
 4. Once finalizer removed, Kubernetes deletes TopologyDomain
 
-Why Only Check PodCliqueSet:
-
-- Grove ownership hierarchy: PodCliqueSet owns PodCliqueScalingGroup and PodClique
-- If no PodCliqueSet exists, other resources cannot exist
 
 Key Points:
 
-- Admin must delete all PodCliqueSet before deleting TopologyDomain
-- Controller continuously reconciles
+- Admin must delete all PodCliqueSet whose PodGang references this TopologyDomain before deletion
+- Controller checks PodGang.Spec.TopologyRef field to determine references
+- Controller continuously reconciles deletion requests
 - Prevents orphaned workloads with invalid topology references
 
 #### Operator Configuration
 
-Operator references TopologyDomain by name via command-line argument:
+Operator references TopologyDomain by name via OperatorConfiguration manifest:
 
 ```yaml
-apiVersion: apps/v1
-kind: Deployment
+apiVersion: grove.run.ai/v1alpha1
+kind: OperatorConfiguration
 metadata:
-  name: grove-operator
+  name: grove-operator-config
 spec:
-  template:
-    spec:
-      containers:
-        - name: operator
-          args:
-            - --topology-domain-name=default  # References TopologyDomain by name
+  # Specifies which TopologyDomain resource to use for validation
+  topologyDomainName: default
 ```
-
-Configuration:
-
-- `--topology-domain-name`: Specifies TopologyDomain resource name for validation
-- Operator loads referenced TopologyDomain at startup
-- All PodCliqueSet topology constraints validated against this TopologyDomain
 
 **Runtime Behavior:**
 
 When TopologyDomain is Missing or Deleted:
 
-- **Startup**: If `--topology-domain-name` is configured but TopologyDomain doesn't exist at startup, operator fails to
+- **Startup**: If `OperatorConfiguration.TopologyDomainName` is configured but TopologyDomain doesn't exist at startup,
+  operator fails to
   start
     - Operator requires TopologyDomain to exist for auto-optimization (preferred constraints generation)
     - This explicit failure prevents silent degradation of topology features
-    - Admin must create TopologyDomain or remove `--topology-domain-name` argument before operator starts
+  - Admin must create TopologyDomain or remove `TopologyDomainName` field before operator starts
 
 - **During Runtime**: If TopologyDomain is deleted while operator is running:
-    - Finalizer prevents deletion while any PodCliqueSet resources exist
+    - Finalizer prevents deletion while any PodCliqueSet that reference it (using PodGang) exist
     - If all PodCliqueSet resources are removed and TopologyDomain is deleted:
         - Operator blocks creation of ALL new workloads (topology and non-topology)
-        - Admin must either create new TopologyDomain OR remove `--topology-domain-name` operator argument and restart
+      - Admin must either create new TopologyDomain OR remove `TopologyDomainName` from OperatorConfiguration and
+        restart
         - This explicit behavior prevents implicit edge cases and ensures topology configuration consistency
 
 **Multiple Topologies:**
 
 - Multiple TopologyDomain resources can exist (e.g., "aws-topology", "on-prem-topology")
-- Operator argument selects which one to use
+- OperatorConfiguration field selects which one to use
 - Enables different topology configurations per environment
 
 ### 2. Operator API Changes (Grove CRDs)
@@ -508,7 +441,7 @@ The validation webhook ensures topology configuration consistency:
 
 **TopologyDomain Reference:**
 
-- TopologyDomain specified in operator's `--topology-domain-name` must exist
+- TopologyDomain specified in `OperatorConfiguration.TopologyDomainName` must exist
 - Referenced PackDomain name must exist in TopologyDomain.Spec.Levels
 - All validation performed against operator-configured TopologyDomain
 
@@ -639,7 +572,7 @@ The operator translates Grove operator API to Grove Scheduler API with three-lev
 **TopologyRef Population:**
 
 - Set to Kueue Topology resource name (matches TopologyDomain name from operator config)
-- Example: operator config `--topology-domain-name=default` → `TopologyRef.Name="default"`
+- Example: `OperatorConfiguration.TopologyDomainName: default` → `TopologyRef.Name="default"`
 - KAI scheduler uses this to locate the Kueue Topology CRD
 
 **Constraint Translation (Required and Preferred):**
@@ -724,7 +657,7 @@ When a PodCliqueSet is created or updated, the Grove Operator translates it into
 
 2. **Operator Reconciles PodCliqueSet**:
     - Operator detects PodCliqueSet creation/update
-    - Loads TopologyDomain specified in operator config (`--topology-domain-name`)
+   - Loads TopologyDomain specified in `OperatorConfiguration.TopologyDomainName`
     - Prepares PodGang resource creation/update
 
 3. **Build PodGang TopologyConstraint**:
@@ -747,7 +680,7 @@ When a PodCliqueSet is created or updated, the Grove Operator translates it into
 
 6. **Set TopologyRef**:
     - References Kueue Topology by name (matches TopologyDomain name from operator config)
-    - Example: `--topology-domain-name=default` → `TopologyRef.Name="default"`
+   - Example: `OperatorConfiguration.TopologyDomainName: default` → `TopologyRef.Name="default"`
     - KAI scheduler uses this to locate the Kueue Topology CRD
 
 7. **Create/Update PodGang in Scheduler API**:
@@ -809,7 +742,7 @@ High-level end-to-end flow:
 
 **Case 1: TopologyDomain Not Configured**
 
-- If `--topology-domain-name` argument not provided to operator: topology features completely disabled
+- If `OperatorConfiguration.TopologyDomainName` field not provided: topology features completely disabled
 - PodCliqueSet workloads without `packDomain` function normally
 - PodCliqueSet workloads with `packDomain` specified: validation webhook rejects creation (cannot validate without
   TopologyDomain)
@@ -817,11 +750,12 @@ High-level end-to-end flow:
 
 **Case 2: TopologyDomain Configured but Missing at Startup**
 
-- If `--topology-domain-name` argument provided but TopologyDomain resource doesn't exist: operator fails to start
+- If `OperatorConfiguration.TopologyDomainName` field provided but TopologyDomain resource doesn't exist: operator fails
+  to start
 - Operator requires TopologyDomain to exist for auto-optimization
 - Admin must either:
     - Create the referenced TopologyDomain resource, OR
-    - Remove `--topology-domain-name` argument from operator configuration
+  - Remove `TopologyDomainName` field from OperatorConfiguration
 
 **Case 3: TopologyDomain Deleted During Runtime**
 
@@ -831,14 +765,14 @@ High-level end-to-end flow:
     - Existing workloads continue to function (already scheduled)
 - Admin must either:
     - Create new TopologyDomain resource with same name, OR
-    - Remove `--topology-domain-name` argument and restart operator
+  - Remove `TopologyDomainName` field from OperatorConfiguration and restart operator
 
 **Case 4: Topology Features Enabled/Disabled**
 
-- **Enabled**: When `--topology-domain-name` provided and TopologyDomain exists
+- **Enabled**: When `OperatorConfiguration.TopologyDomainName` provided and TopologyDomain exists
     - Auto-optimization active for all workloads (preferred constraints generated)
     - User-specified `packDomain` validated and enforced as required constraints
-- **Disabled**: When `--topology-domain-name` argument not provided
+- **Disabled**: When `TopologyDomainName` field not provided in OperatorConfiguration
     - Topology constraints in workload CRDs ignored during scheduling
     - Workloads schedule without topology awareness
 - **Toggling**: Cannot enable/disable during runtime - requires operator restart with updated configuration
@@ -854,14 +788,14 @@ an ordered list of levels, where each level maps a friendly name (e.g., "rack", 
 e.g., "
 topology.kubernetes.io/rack"). This provides a clean, declarative API for topology configuration.
 
-**Q: Should we allow changes to cluster topology levels and mappings after creation?**
+    **Q: Should we allow changes to cluster topology levels and mappings after creation?**
 
 **A: No (Immutable)** - TopologyDomain and all TopologyConstraint fields are immutable after creation. This
 prevents unpredictable behavior with in-flight workloads and maintains scheduling consistency. To change topology
 configuration:
 
 1. Create a new TopologyDomain with updated configuration
-2. Update operator's `--topology-domain-name` argument to reference new TopologyDomain
+2. Update `OperatorConfiguration.TopologyDomainName` to reference new TopologyDomain
 3. Drain or migrate existing workloads
 4. Delete old TopologyDomain after all workloads are migrated
 
