@@ -1,8 +1,13 @@
 > [!NOTE]
 >
-> :construction_worker: `This project site is currently under active construction, keep watching for announcements as we approach alpha launch!`
+> :construction_worker: `This project site is currently under active construction, keep watching for announcements!`
 
 # Grove
+
+[![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
+[![GitHub Release](https://img.shields.io/github/v/release/ai-dynamo/grove)](https://github.com/ai-dynamo/grove/releases/latest)
+[![Discord](https://dcbadge.limes.pink/api/server/D92uqZRjCZ?style=flat)](https://discord.gg/D92uqZRjCZ)
+[![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/ai-dynamo/grove)
 
 Grove is a Kubernetes API purpose-built for orchestrating AI workloads on GPU clusters. The modern inference landscape spans a wide range of workload types — from traditional single-node deployments where each model instance runs in a single pod, to large-scale disaggregated systems where one model instance may include multiple components such as prefill and decode, each distributed across many pods and nodes. Grove is designed to unify this entire spectrum under a single API, allowing developers to declaratively represent any inference workload by composing as many components as their system requires — whether single-node or multi-node — within one cohesive custom resource.
 
@@ -78,4 +83,4 @@ Please feel free to start a [discussion thread](https://github.com/ai-dynamo/gro
 
 In case, you have run into any issue or would like a feature enhancement, please create a [GitHub Issue](https://github.com/ai-dynamo/grove/issues) with the appropriate tag.
 
-To directly reach out to the Grove user and developer community, please join the [Grove mailing list](https://groups.google.com/g/grove-k8s).
+To directly reach out to the Grove user and developer community, please join the [NVIDIA Dynamo Discord server](https://discord.gg/D92uqZRjCZ), or [Grove mailing list](https://groups.google.com/g/grove-k8s).
