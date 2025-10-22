@@ -20,7 +20,7 @@ REPO_ROOT       := $(shell dirname "$(MODULE_ROOT)")
 REPO_HACK_DIR   := $(REPO_ROOT)/hack
 KUBECONFIG_PATH := $(if $(KUBECONFIG),$(KUBECONFIG),$(MODULE_HACK_DIR)/kind/kubeconfig)
 # Path of the package that ld-flags writes to
-LD_PACKAGE_PATH := "github.com/NVIDIA/grove/operator/internal"
+LD_PACKAGE_PATH := "github.com/ai-dynamo/grove/operator/internal"
 OPERATOR_NAME   := "grove-operator"
 INITC_NAME      := "grove-initc"
 

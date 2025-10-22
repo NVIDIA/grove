@@ -74,8 +74,8 @@ Please read the [contribution guide](CONTRIBUTING.md) before creating you first 
 
 Grove is an open-source project and we welcome community engagement!
 
-Please feel free to start a [discussion thread](https://github.com/NVIDIA/grove/discussions) if you want to discuss a topic of interest.
+Please feel free to start a [discussion thread](https://github.com/ai-dynamo/grove/discussions) if you want to discuss a topic of interest.
 
-In case, you have run into any issue or would like a feature enhancement, please create a [GitHub Issue](https://github.com/NVIDIA/grove/issues) with the appropriate tag.
+In case, you have run into any issue or would like a feature enhancement, please create a [GitHub Issue](https://github.com/ai-dynamo/grove/issues) with the appropriate tag.
 
 To directly reach out to the Grove user and developer community, please join the [Grove mailing list](https://groups.google.com/g/grove-k8s).
