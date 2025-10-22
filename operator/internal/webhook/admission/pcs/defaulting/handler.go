@@ -21,7 +21,7 @@ import (
 	"fmt"
 
 	"github.com/ai-dynamo/grove/operator/api/core/v1alpha1"
-	k8sutils "github.com/NVIDIA/grove/operator/internal/utils/kubernetes"
+	k8sutils "github.com/ai-dynamo/grove/operator/internal/utils/kubernetes"
 
 	"github.com/go-logr/logr"
 	"k8s.io/apimachinery/pkg/runtime"

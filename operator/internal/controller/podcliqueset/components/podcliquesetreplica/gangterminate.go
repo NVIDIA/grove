@@ -26,9 +26,9 @@ import (
 	apicommon "github.com/ai-dynamo/grove/operator/api/common"
 	apiconstants "github.com/ai-dynamo/grove/operator/api/common/constants"
 	grovecorev1alpha1 "github.com/ai-dynamo/grove/operator/api/core/v1alpha1"
-	"github.com/NVIDIA/grove/operator/internal/constants"
-	componentutils "github.com/NVIDIA/grove/operator/internal/controller/common/component/utils"
-	"github.com/NVIDIA/grove/operator/internal/utils"
+	"github.com/ai-dynamo/grove/operator/internal/constants"
+	componentutils "github.com/ai-dynamo/grove/operator/internal/controller/common/component/utils"
+	"github.com/ai-dynamo/grove/operator/internal/utils"
 
 	"github.com/go-logr/logr"
 	"github.com/samber/lo"

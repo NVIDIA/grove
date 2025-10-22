@@ -23,10 +23,10 @@ import (
 	"syscall"
 
 	configv1alpha1 "github.com/ai-dynamo/grove/operator/api/config/v1alpha1"
-	"github.com/NVIDIA/grove/operator/initc/cmd/opts"
-	"github.com/NVIDIA/grove/operator/initc/internal"
-	"github.com/NVIDIA/grove/operator/internal/logger"
-	"github.com/NVIDIA/grove/operator/internal/version"
+	"github.com/ai-dynamo/grove/operator/initc/cmd/opts"
+	"github.com/ai-dynamo/grove/operator/initc/internal"
+	"github.com/ai-dynamo/grove/operator/internal/logger"
+	"github.com/ai-dynamo/grove/operator/internal/version"
 )
 
 var (

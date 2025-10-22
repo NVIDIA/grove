@@ -22,9 +22,9 @@ import (
 	"strconv"
 
 	grovecorev1alpha1 "github.com/ai-dynamo/grove/operator/api/core/v1alpha1"
-	ctrlcommon "github.com/NVIDIA/grove/operator/internal/controller/common"
-	componentutils "github.com/NVIDIA/grove/operator/internal/controller/common/component/utils"
-	k8sutils "github.com/NVIDIA/grove/operator/internal/utils/kubernetes"
+	ctrlcommon "github.com/ai-dynamo/grove/operator/internal/controller/common"
+	componentutils "github.com/ai-dynamo/grove/operator/internal/controller/common/component/utils"
+	k8sutils "github.com/ai-dynamo/grove/operator/internal/utils/kubernetes"
 
 	"github.com/go-logr/logr"
 	"github.com/samber/lo"

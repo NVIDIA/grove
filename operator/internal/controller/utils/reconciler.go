@@ -22,10 +22,10 @@ import (
 	"time"
 
 	"github.com/ai-dynamo/grove/operator/api/core/v1alpha1"
-	grovectrl "github.com/NVIDIA/grove/operator/internal/controller/common"
-	"github.com/NVIDIA/grove/operator/internal/controller/common/component"
-	groveerr "github.com/NVIDIA/grove/operator/internal/errors"
-	k8sutils "github.com/NVIDIA/grove/operator/internal/utils/kubernetes"
+	grovectrl "github.com/ai-dynamo/grove/operator/internal/controller/common"
+	"github.com/ai-dynamo/grove/operator/internal/controller/common/component"
+	groveerr "github.com/ai-dynamo/grove/operator/internal/errors"
+	k8sutils "github.com/ai-dynamo/grove/operator/internal/utils/kubernetes"
 
 	"github.com/go-logr/logr"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"

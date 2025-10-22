@@ -21,10 +21,10 @@ import (
 	"os"
 	"strings"
 
-	"github.com/NVIDIA/grove/operator/internal/constants"
-	authorizationwebhook "github.com/NVIDIA/grove/operator/internal/webhook/admission/pcs/authorization"
-	defaultingwebhook "github.com/NVIDIA/grove/operator/internal/webhook/admission/pcs/defaulting"
-	validatingwebhook "github.com/NVIDIA/grove/operator/internal/webhook/admission/pcs/validation"
+	"github.com/ai-dynamo/grove/operator/internal/constants"
+	authorizationwebhook "github.com/ai-dynamo/grove/operator/internal/webhook/admission/pcs/authorization"
+	defaultingwebhook "github.com/ai-dynamo/grove/operator/internal/webhook/admission/pcs/defaulting"
+	validatingwebhook "github.com/ai-dynamo/grove/operator/internal/webhook/admission/pcs/validation"
 
 	"github.com/go-logr/logr"
 	cert "github.com/open-policy-agent/cert-controller/pkg/rotator"

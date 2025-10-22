@@ -25,9 +25,9 @@ import (
 	"time"
 
 	configv1alpha1 "github.com/ai-dynamo/grove/operator/api/config/v1alpha1"
-	groveclientscheme "github.com/NVIDIA/grove/operator/internal/client"
-	"github.com/NVIDIA/grove/operator/internal/controller/cert"
-	"github.com/NVIDIA/grove/operator/internal/webhook"
+	groveclientscheme "github.com/ai-dynamo/grove/operator/internal/client"
+	"github.com/ai-dynamo/grove/operator/internal/controller/cert"
+	"github.com/ai-dynamo/grove/operator/internal/webhook"
 
 	"github.com/go-logr/logr"
 	"k8s.io/client-go/rest"

@@ -21,11 +21,11 @@ import (
 	"os"
 
 	configv1alpha1 "github.com/ai-dynamo/grove/operator/api/config/v1alpha1"
-	groveopts "github.com/NVIDIA/grove/operator/cmd/opts"
-	grovectrl "github.com/NVIDIA/grove/operator/internal/controller"
-	"github.com/NVIDIA/grove/operator/internal/controller/cert"
-	grovelogger "github.com/NVIDIA/grove/operator/internal/logger"
-	groveversion "github.com/NVIDIA/grove/operator/internal/version"
+	groveopts "github.com/ai-dynamo/grove/operator/cmd/opts"
+	grovectrl "github.com/ai-dynamo/grove/operator/internal/controller"
+	"github.com/ai-dynamo/grove/operator/internal/controller/cert"
+	grovelogger "github.com/ai-dynamo/grove/operator/internal/logger"
+	groveversion "github.com/ai-dynamo/grove/operator/internal/version"
 
 	"github.com/spf13/pflag"
 	ctrl "sigs.k8s.io/controller-runtime"

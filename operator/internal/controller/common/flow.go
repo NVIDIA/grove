@@ -21,7 +21,7 @@ import (
 	"errors"
 	"time"
 
-	"github.com/NVIDIA/grove/operator/internal/controller/common/component"
+	"github.com/ai-dynamo/grove/operator/internal/controller/common/component"
 
 	"github.com/go-logr/logr"
 	ctrl "sigs.k8s.io/controller-runtime"

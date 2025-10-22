@@ -20,7 +20,7 @@ import (
 	"errors"
 	"testing"
 
-	groveerr "github.com/NVIDIA/grove/operator/internal/errors"
+	groveerr "github.com/ai-dynamo/grove/operator/internal/errors"
 
 	"github.com/stretchr/testify/assert"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"

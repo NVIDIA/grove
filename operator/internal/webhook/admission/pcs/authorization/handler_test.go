@@ -26,7 +26,7 @@ import (
 	apicommon "github.com/ai-dynamo/grove/operator/api/common"
 	"github.com/ai-dynamo/grove/operator/api/common/constants"
 	groveconfigv1alpha1 "github.com/ai-dynamo/grove/operator/api/config/v1alpha1"
-	testutils "github.com/NVIDIA/grove/operator/test/utils"
+	testutils "github.com/ai-dynamo/grove/operator/test/utils"
 
 	"github.com/go-logr/logr"
 	"github.com/stretchr/testify/assert"

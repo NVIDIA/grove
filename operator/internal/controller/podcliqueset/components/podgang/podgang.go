@@ -22,10 +22,10 @@ import (
 
 	apicommon "github.com/ai-dynamo/grove/operator/api/common"
 	grovecorev1alpha1 "github.com/ai-dynamo/grove/operator/api/core/v1alpha1"
-	"github.com/NVIDIA/grove/operator/internal/controller/common/component"
-	componentutils "github.com/NVIDIA/grove/operator/internal/controller/common/component/utils"
-	groveerr "github.com/NVIDIA/grove/operator/internal/errors"
-	k8sutils "github.com/NVIDIA/grove/operator/internal/utils/kubernetes"
+	"github.com/ai-dynamo/grove/operator/internal/controller/common/component"
+	componentutils "github.com/ai-dynamo/grove/operator/internal/controller/common/component/utils"
+	groveerr "github.com/ai-dynamo/grove/operator/internal/errors"
+	k8sutils "github.com/ai-dynamo/grove/operator/internal/utils/kubernetes"
 
 	groveschedulerv1alpha1 "github.com/ai-dynamo/grove/scheduler/api/core/v1alpha1"
 	"github.com/go-logr/logr"

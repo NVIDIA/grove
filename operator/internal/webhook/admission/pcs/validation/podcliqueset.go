@@ -22,7 +22,7 @@ import (
 	"strings"
 
 	grovecorev1alpha1 "github.com/ai-dynamo/grove/operator/api/core/v1alpha1"
-	"github.com/NVIDIA/grove/operator/internal/utils"
+	"github.com/ai-dynamo/grove/operator/internal/utils"
 
 	"github.com/samber/lo"
 	admissionv1 "k8s.io/api/admission/v1"

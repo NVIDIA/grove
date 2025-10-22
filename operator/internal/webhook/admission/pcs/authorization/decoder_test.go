@@ -20,7 +20,7 @@ import (
 	"encoding/json"
 	"testing"
 
-	testutils "github.com/NVIDIA/grove/operator/test/utils"
+	testutils "github.com/ai-dynamo/grove/operator/test/utils"
 
 	"github.com/go-logr/logr"
 	"github.com/stretchr/testify/assert"

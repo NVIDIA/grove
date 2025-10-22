@@ -20,7 +20,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/NVIDIA/grove/operator/internal/utils"
+	"github.com/ai-dynamo/grove/operator/internal/utils"
 
 	"github.com/samber/lo"
 	"k8s.io/apimachinery/pkg/util/sets"

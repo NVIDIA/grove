@@ -17,7 +17,7 @@
 package kubernetes
 
 import (
-	"github.com/NVIDIA/grove/operator/internal/utils"
+	"github.com/ai-dynamo/grove/operator/internal/utils"
 
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"

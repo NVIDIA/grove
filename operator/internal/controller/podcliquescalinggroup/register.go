@@ -22,8 +22,8 @@ import (
 	apicommon "github.com/ai-dynamo/grove/operator/api/common"
 	"github.com/ai-dynamo/grove/operator/api/common/constants"
 	grovecorev1alpha1 "github.com/ai-dynamo/grove/operator/api/core/v1alpha1"
-	ctrlutils "github.com/NVIDIA/grove/operator/internal/controller/utils"
-	"github.com/NVIDIA/grove/operator/internal/utils"
+	ctrlutils "github.com/ai-dynamo/grove/operator/internal/controller/utils"
+	"github.com/ai-dynamo/grove/operator/internal/utils"
 
 	"github.com/samber/lo"
 	"sigs.k8s.io/controller-runtime/pkg/builder"

@@ -19,7 +19,7 @@ package kubernetes
 import (
 	"testing"
 
-	testutils "github.com/NVIDIA/grove/operator/test/utils"
+	testutils "github.com/ai-dynamo/grove/operator/test/utils"
 
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
