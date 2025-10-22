@@ -20,7 +20,7 @@ import (
 	configv1alpha1 "github.com/NVIDIA/grove/operator/api/config/v1alpha1"
 	grovecorev1alpha1 "github.com/NVIDIA/grove/operator/api/core/v1alpha1"
 
-	schedv1alpha1 "github.com/NVIDIA/grove/scheduler/api/core/v1alpha1"
+	schedv1alpha1 "github.com/ai-dynamo/grove/scheduler/api/core/v1alpha1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
