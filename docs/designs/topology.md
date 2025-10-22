@@ -4,7 +4,7 @@
 
 This document defines the design for supporting topology-aware scheduling in the Grove operator.
 
-**Motivation**: Topology-aware scheduling is critical for Grove's multinode inference workloads because these
+**Motivation**: Topology-aware scheduling is critical for Grove's multi-node inference workloads because these
 applications require:
 
 - **Network Locality**: Proximity improves high-bandwidth communication between leaders and their respective workers (
