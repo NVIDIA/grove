@@ -4975,7 +4975,7 @@ License Identifier: Apache-2.0
 
 ## Package dependencies
 
-The module github.com/NVIDIA/grove/scheduler/client depends on a number of Open Source Go packages. Direct
+The module github.com/ai-dynamo/grove/scheduler/client depends on a number of Open Source Go packages. Direct
 dependencies are listed in the ./go.mod file.
 Those direct package dependencies have some dependencies of their own (known as
 "transitive dependencies")

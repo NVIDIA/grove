@@ -1,4 +1,4 @@
-module github.com/NVIDIA/grove/scheduler/client
+module github.com/ai-dynamo/grove/scheduler/client
 
 go 1.24.0
 
