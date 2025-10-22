@@ -22,7 +22,7 @@ import (
 	context "context"
 	time "time"
 
-	apicorev1alpha1 "github.com/NVIDIA/grove/scheduler/api/core/v1alpha1"
+	apicorev1alpha1 "github.com/ai-dynamo/grove/scheduler/api/core/v1alpha1"
 	versioned "github.com/ai-dynamo/grove/scheduler/client/clientset/versioned"
 	internalinterfaces "github.com/ai-dynamo/grove/scheduler/client/informers/externalversions/internalinterfaces"
 	corev1alpha1 "github.com/ai-dynamo/grove/scheduler/client/listers/core/v1alpha1"

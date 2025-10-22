@@ -44,7 +44,7 @@ distributed. For any package *NOT* distributed under the terms of the Apache
 License version 2.0, we include the full text of the package's License below.
 
 * `github.com/NVIDIA/grove/operator/api`
-* `github.com/NVIDIA/grove/scheduler/api`
+* `github.com/ai-dynamo/grove/scheduler/api`
 * `github.com/go-logr/logr`
 * `github.com/open-policy-agent/cert-controller`
 * `github.com/samber/lo`
@@ -4301,7 +4301,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 ## Package dependencies
 
-The module github.com/NVIDIA/grove/scheduler/api depends on a number of Open Source Go packages. Direct
+The module github.com/ai-dynamo/grove/scheduler/api depends on a number of Open Source Go packages. Direct
 dependencies are listed in the ./go.mod file.
 Those direct package dependencies have some dependencies of their own (known as
 "transitive dependencies")
@@ -4985,7 +4985,7 @@ include an indication of the Open Source License under which that package is
 distributed. For any package *NOT* distributed under the terms of the Apache
 License version 2.0, we include the full text of the package's License below.
 
-* `github.com/NVIDIA/grove/scheduler/api`
+* `github.com/ai-dynamo/grove/scheduler/api`
 * `k8s.io/apimachinery`
 * `k8s.io/client-go`
 

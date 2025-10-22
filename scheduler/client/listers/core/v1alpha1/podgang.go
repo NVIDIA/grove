@@ -19,7 +19,7 @@ limitations under the License.
 package v1alpha1
 
 import (
-	corev1alpha1 "github.com/NVIDIA/grove/scheduler/api/core/v1alpha1"
+	corev1alpha1 "github.com/ai-dynamo/grove/scheduler/api/core/v1alpha1"
 	labels "k8s.io/apimachinery/pkg/labels"
 	listers "k8s.io/client-go/listers"
 	cache "k8s.io/client-go/tools/cache"
