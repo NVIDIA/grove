@@ -131,7 +131,14 @@ func (r _resource) computeExpectedPodGangs(sc *syncContext) error {
 	return nil
 }
 
-// getExpectedPodGangForPCSReplicas creates base PodGangs containing standalone and base-replica PCLQs.
+// getExpectedPodGangForPCSReplicas creates the BASE PodGangs for each PodCliqueSet replica.
+//
+// These are the foundational PodGangs that contain:
+// 1. Standalone PodCliques (not part of any scaling group)
+// 2. Base scaling group PodCliques (replicas 0 through minAvailable-1 of each scaling group)
+//
+// Scaled PodGangs (for scaling group replicas >= minAvailable) are handled
+// separately by getExpectedPodGangsForPCSG() and managed by the PodCliqueScalingGroup controller.
 func getExpectedPodGangForPCSReplicas(sc *syncContext) []podGangInfo {
 	expectedPodGangs := make([]podGangInfo, 0, int(sc.pcs.Spec.Replicas))
 	for pcsReplica := range sc.pcs.Spec.Replicas {
@@ -208,7 +215,18 @@ func identifyConstituentPCLQsForPCSBasePodGang(sc *syncContext, pcsReplica int32
 	return constituentPCLQs
 }
 
-// buildPCSGPodCliqueInfosForBasePodGang generates info for base PCSG replicas (0 to minAvailable-1).
+// buildPCSGPodCliqueInfosForBasePodGang generates PodClique info for the BASE PODGANG portion of a scaling group.
+//
+// IMPORTANT: This function only generates PodClique info for replicas 0 through (minAvailable-1).
+// These PodCliques will be grouped into the BASE PodGang, which represents the minimum viable
+// cluster that must be scheduled together as a gang.
+//
+// Scaled PodGangs (for replicas >= minAvailable) are generated separately by the
+// PodCliqueScalingGroup controller and get their own scaled PodGang resources.
+//
+// EXAMPLE with minAvailable=3:
+//   - This function creates PodCliques for replicas 0, 1, 2 → go into base PodGang "simple1-0"
+//   - PCSG controller creates PodCliques for replicas 3, 4 → get scaled PodGangs "simple1-0-sga-0", etc.
 func buildPCSGPodCliqueInfosForBasePodGang(sc *syncContext, pclqTemplateSpec *grovecorev1alpha1.PodCliqueTemplateSpec, pcsgConfig *grovecorev1alpha1.PodCliqueScalingGroupConfig, pcsReplica int32) []pclqInfo {
 	// MinAvailable should always be non-nil due to kubebuilder default and defaulting webhook
 	minAvailable := int(*pcsgConfig.MinAvailable)
