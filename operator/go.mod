@@ -76,7 +76,7 @@ require (
 
 replace (
 	github.com/NVIDIA/grove/operator/api => ./api
-	github.com/NVIDIA/grove/operator/client => ./client
+	github.com/ai-dynamo/grove/operator/client => ./client
 	github.com/ai-dynamo/grove/scheduler/api => ../scheduler/api
 
 	// These replacements are needed to ensure that only one version of sigs.k8s.io/structured-merge-diff/v4 is pulled in.

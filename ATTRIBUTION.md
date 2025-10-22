@@ -2812,7 +2812,7 @@ Subdependencies:
 
 ## Package dependencies
 
-The module github.com/NVIDIA/grove/operator/client depends on a number of Open Source Go packages. Direct
+The module github.com/ai-dynamo/grove/operator/client depends on a number of Open Source Go packages. Direct
 dependencies are listed in the ./go.mod file.
 Those direct package dependencies have some dependencies of their own (known as
 "transitive dependencies")

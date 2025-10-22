@@ -79,7 +79,7 @@ function generate_clientset() {
   kube::codegen::gen_client \
     --with-watch \
     --output-dir "${OPERATOR_ROOT}/client" \
-    --output-pkg "github.com/NVIDIA/grove/operator/client" \
+    --output-pkg "github.com/ai-dynamo/grove/operator/client" \
     --boilerplate "${REPO_HACK_DIR}/boilerplate.go.txt" \
     "${MODULE_ROOT}"
 }
