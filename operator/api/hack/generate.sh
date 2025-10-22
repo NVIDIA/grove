@@ -55,7 +55,7 @@ function generate_deepcopy_defaulter() {
 
 function generate_crds() {
   local output_dir="${MODULE_ROOT}/core/v1alpha1/crds"
-  local package="github.com/NVIDIA/grove/operator/api/core/v1alpha1"
+  local package="github.com/ai-dynamo/grove/operator/api/core/v1alpha1"
   local package_path="$(go list -f '{{.Dir}}' "${package}")"
 
   if [ -z "${package_path}" ]; then

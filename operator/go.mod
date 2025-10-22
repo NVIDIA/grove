@@ -3,7 +3,7 @@ module github.com/NVIDIA/grove/operator
 go 1.24.0
 
 require (
-	github.com/NVIDIA/grove/operator/api v0.0.0
+	github.com/ai-dynamo/grove/operator/api v0.0.0
 	github.com/ai-dynamo/grove/scheduler/api v0.0.0
 	github.com/go-logr/logr v1.4.3
 	github.com/open-policy-agent/cert-controller v0.14.0
@@ -75,7 +75,7 @@ require (
 )
 
 replace (
-	github.com/NVIDIA/grove/operator/api => ./api
+	github.com/ai-dynamo/grove/operator/api => ./api
 	github.com/ai-dynamo/grove/operator/client => ./client
 	github.com/ai-dynamo/grove/scheduler/api => ../scheduler/api
 
