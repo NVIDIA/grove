@@ -66,6 +66,40 @@ Grove implements topology-aware scheduling through three key components:
     - Users reference level names from TopologyDomain (e.g., `packDomain: "rack"`)
     - No direct TopologyDomain reference needed in workloads
 
+### Automatic Optimization
+
+**Out-of-Box Optimization:**
+
+- Operator automatically generates **preferred** constraints using strictest topology level (e.g., "host")
+- Applied at all three levels (PodGang, NetworkPackGroup, PodGroup) during translation to scheduler API
+- Users get optimal packing without configuration
+
+**User Control:**
+
+- Users can specify **required** constraints via `packDomain` for strict placement requirements
+- Required constraints validated and must be satisfied
+- Preferred constraints enable best-effort optimization with graceful fallback
+
+### Controller Responsibilities
+
+The TopologyDomain controller manages:
+
+- **Kueue Topology Generation**: Auto-creates Kueue Topology CRD for KAI scheduler integration
+- **Deletion Protection**: Prevents deletion while PodCliqueSet resources reference it
+
+## Out of Scope
+
+The following features are explicitly out of scope for this design:
+
+- **Spread Constraints**: ReplicaSpreadDomain for distributing replicas across domains for fault tolerance is not
+  supported
+- **Advanced Topology Constraints Per Replica**: RootDomain for constraining entire resource (all replicas) within a
+  topology domain is not supported
+- **Ratio Grouping Between Groups**: AffinityGroups with PackRatio for complex workload patterns (e.g., 2 Prefill + 1
+  Decode ratios) is not supported
+- **Workload-Based Auto Constraints**: Automatic constraint generation based on workload characteristics, patterns, and
+  inference requirements
+
 ## Design Details
 
 ### Architecture Overview
