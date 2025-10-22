@@ -36,7 +36,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-// reconcileStatus updates the PodClique status with current replica counts, conditions, and hash information
+// reconcileStatus updates the PodClique status
 func (r *Reconciler) reconcileStatus(ctx context.Context, logger logr.Logger, pclq *grovecorev1alpha1.PodClique) ctrlcommon.ReconcileStepResult {
 	pcsName := componentutils.GetPodCliqueSetName(pclq.ObjectMeta)
 	pclqObjectKey := client.ObjectKeyFromObject(pclq)
