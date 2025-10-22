@@ -104,6 +104,7 @@ func (r _resource) Sync(ctx context.Context, logger logr.Logger, pcs *grovecorev
 	return nil
 }
 
+// triggerDeletionOfExcessPCLQs deletes PodCliques that exceed the desired replica count.
 func (r _resource) triggerDeletionOfExcessPCLQs(ctx context.Context, logger logr.Logger, pcs *grovecorev1alpha1.PodCliqueSet, existingPCLQFQNs []string) error {
 	expectedPCLQFQNs := componentutils.GetPodCliqueFQNsForPCSNotInPCSG(pcs)
 	// Check if the number of existing PodCliques is greater than expected, if so, we need to delete the extra ones.
@@ -122,6 +123,7 @@ func (r _resource) triggerDeletionOfExcessPCLQs(ctx context.Context, logger logr
 	return nil
 }
 
+// createOrUpdatePCLQs creates or updates all expected PodCliques for the PodCliqueSet.
 func (r _resource) createOrUpdatePCLQs(ctx context.Context, logger logr.Logger, pcs *grovecorev1alpha1.PodCliqueSet, existingPCLQFQNs []string) error {
 	expectedPCLQNames, _ := componentutils.GetExpectedPCLQNamesGroupByOwner(pcs)
 	tasks := make([]utils.Task, 0, len(expectedPCLQNames))
@@ -152,6 +154,7 @@ func (r _resource) createOrUpdatePCLQs(ctx context.Context, logger logr.Logger, 
 	return nil
 }
 
+// triggerDeletionOfPodCliques executes deletion tasks for PodCliques.
 func (r _resource) triggerDeletionOfPodCliques(ctx context.Context, logger logr.Logger, pcsObjKey client.ObjectKey, deletionTasks []utils.Task) error {
 	if len(deletionTasks) == 0 {
 		return nil
@@ -167,6 +170,7 @@ func (r _resource) triggerDeletionOfPodCliques(ctx context.Context, logger logr.
 	return nil
 }
 
+// createDeleteTasks generates deletion tasks for the specified PodCliques.
 func (r _resource) createDeleteTasks(logger logr.Logger, pcs *grovecorev1alpha1.PodCliqueSet, targetPCLQNames []string) []utils.Task {
 	deletionTasks := make([]utils.Task, 0, len(targetPCLQNames))
 	for _, pclqName := range targetPCLQNames {
@@ -193,6 +197,7 @@ func (r _resource) createDeleteTasks(logger logr.Logger, pcs *grovecorev1alpha1.
 	return deletionTasks
 }
 
+// getPodCliqueNamesToDelete identifies PodCliques whose replica index exceeds the desired count.
 func getPodCliqueNamesToDelete(pcsName string, pcsReplicas int, existingPCLQNames []string) ([]string, error) {
 	pclqsToDelete := make([]string, 0, len(existingPCLQNames))
 	for _, pclqName := range existingPCLQNames {
@@ -251,6 +256,7 @@ func (r _resource) Delete(ctx context.Context, logger logr.Logger, pcsObjectMeta
 	return nil
 }
 
+// doCreateOrUpdate creates or updates a single PodClique resource.
 func (r _resource) doCreateOrUpdate(ctx context.Context, logger logr.Logger, pcs *grovecorev1alpha1.PodCliqueSet, pcsReplica int32, pclqObjectKey client.ObjectKey, pclqExists bool) error {
 	logger.Info("Running CreateOrUpdate PodClique", "pclqObjectKey", pclqObjectKey)
 	pclq := emptyPodClique(pclqObjectKey)
@@ -273,6 +279,7 @@ func (r _resource) doCreateOrUpdate(ctx context.Context, logger logr.Logger, pcs
 	return nil
 }
 
+// buildResource configures a PodClique with the desired state from the template.
 func (r _resource) buildResource(logger logr.Logger, pclq *grovecorev1alpha1.PodClique, pcs *grovecorev1alpha1.PodCliqueSet, pcsReplica int, pclqExists bool) error {
 	var err error
 	pclqObjectKey, pcsObjectKey := client.ObjectKeyFromObject(pclq), client.ObjectKeyFromObject(pcs)
@@ -315,6 +322,7 @@ func (r _resource) buildResource(logger logr.Logger, pclq *grovecorev1alpha1.Pod
 	return nil
 }
 
+// identifyFullyQualifiedStartupDependencyNames determines the PodClique startup dependencies based on StartupType.
 func identifyFullyQualifiedStartupDependencyNames(pcs *grovecorev1alpha1.PodCliqueSet, pclq *grovecorev1alpha1.PodClique, pcsReplicaIndex, foundAtIndex int) ([]string, error) {
 	cliqueStartupType := pcs.Spec.Template.StartupType
 	if cliqueStartupType == nil {
@@ -332,6 +340,7 @@ func identifyFullyQualifiedStartupDependencyNames(pcs *grovecorev1alpha1.PodCliq
 	}
 }
 
+// getInOrderStartupDependencies returns the previous clique as a dependency for in-order startup.
 func getInOrderStartupDependencies(pcs *grovecorev1alpha1.PodCliqueSet, pcsReplicaIndex, foundAtIndex int) []string {
 	if foundAtIndex == 0 {
 		return nil
@@ -340,6 +349,7 @@ func getInOrderStartupDependencies(pcs *grovecorev1alpha1.PodCliqueSet, pcsRepli
 	return componentutils.GenerateDependencyNamesForBasePodGang(pcs, pcsReplicaIndex, previousCliqueName)
 }
 
+// getExplicitStartupDependencies resolves explicitly declared startup dependencies.
 func getExplicitStartupDependencies(pcs *grovecorev1alpha1.PodCliqueSet, pcsReplicaIndex int, pclq *grovecorev1alpha1.PodClique) []string {
 	dependencies := make([]string, 0, len(pclq.Spec.StartsAfter))
 	for _, dependency := range pclq.Spec.StartsAfter {
@@ -348,6 +358,7 @@ func getExplicitStartupDependencies(pcs *grovecorev1alpha1.PodCliqueSet, pcsRepl
 	return dependencies
 }
 
+// getPodCliqueSelectorLabels returns labels for selecting all PodCliques of a PodCliqueSet.
 func getPodCliqueSelectorLabels(pcsObjectMeta metav1.ObjectMeta) map[string]string {
 	return lo.Assign(
 		apicommon.GetDefaultLabelsForPodCliqueSetManagedResources(pcsObjectMeta.Name),
@@ -357,6 +368,7 @@ func getPodCliqueSelectorLabels(pcsObjectMeta metav1.ObjectMeta) map[string]stri
 	)
 }
 
+// getLabels constructs labels for a PodClique resource including pod template hash.
 func getLabels(pcs *grovecorev1alpha1.PodCliqueSet, pcsReplica int, pclqObjectKey client.ObjectKey, pclqTemplateSpec *grovecorev1alpha1.PodCliqueTemplateSpec, podGangName string) map[string]string {
 	pclqComponentLabels := map[string]string{
 		apicommon.LabelAppNameKey:               pclqObjectKey.Name,
@@ -372,6 +384,7 @@ func getLabels(pcs *grovecorev1alpha1.PodCliqueSet, pcsReplica int, pclqObjectKe
 	)
 }
 
+// emptyPodClique creates an empty PodClique with only metadata set.
 func emptyPodClique(objKey client.ObjectKey) *grovecorev1alpha1.PodClique {
 	return &grovecorev1alpha1.PodClique{
 		ObjectMeta: metav1.ObjectMeta{

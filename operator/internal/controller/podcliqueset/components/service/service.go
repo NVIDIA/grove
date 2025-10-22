@@ -98,6 +98,7 @@ func (r _resource) Sync(ctx context.Context, logger logr.Logger, pcs *grovecorev
 	return nil
 }
 
+// Delete removes all headless Service resources for the PodCliqueSet.
 func (r _resource) Delete(ctx context.Context, logger logr.Logger, pgObjMeta metav1.ObjectMeta) error {
 	logger.Info("Deleting Headless Services")
 	if err := r.client.DeleteAllOf(ctx,
@@ -114,6 +115,7 @@ func (r _resource) Delete(ctx context.Context, logger logr.Logger, pgObjMeta met
 	return nil
 }
 
+// doCreateOrUpdate creates or updates a single headless Service.
 func (r _resource) doCreateOrUpdate(ctx context.Context, logger logr.Logger, pcs *grovecorev1alpha1.PodCliqueSet, pcsReplicaIndex int, svcObjectKey client.ObjectKey) error {
 	logger.Info("Running CreateOrUpdate PodCliqueSet Headless Service", "pcsReplicaIndex", pcsReplicaIndex, "objectKey", svcObjectKey)
 	svc := emptyService(svcObjectKey)
@@ -131,6 +133,7 @@ func (r _resource) doCreateOrUpdate(ctx context.Context, logger logr.Logger, pcs
 	return nil
 }
 
+// buildResource configures a headless Service for a PCS replica.
 func (r _resource) buildResource(svc *corev1.Service, pcs *grovecorev1alpha1.PodCliqueSet, pcsReplicaIndex int) error {
 	svc.Labels = getLabels(pcs.Name, client.ObjectKeyFromObject(svc), pcsReplicaIndex)
 	var publishNotReadyAddresses bool
@@ -150,6 +153,7 @@ func (r _resource) buildResource(svc *corev1.Service, pcs *grovecorev1alpha1.Pod
 	return nil
 }
 
+// getLabels constructs labels for a headless Service resource.
 func getLabels(pcsName string, svcObjectKey client.ObjectKey, pcsReplicaIndex int) map[string]string {
 	svcLabels := map[string]string{
 		apicommon.LabelAppNameKey:               svcObjectKey.Name,
@@ -162,6 +166,7 @@ func getLabels(pcsName string, svcObjectKey client.ObjectKey, pcsReplicaIndex in
 	)
 }
 
+// getLabelSelectorForPodsInAPodCliqueSetReplica returns pod selector labels for a PCS replica.
 func getLabelSelectorForPodsInAPodCliqueSetReplica(pcsName string, pcsReplicaIndex int) map[string]string {
 	return lo.Assign(
 		apicommon.GetDefaultLabelsForPodCliqueSetManagedResources(pcsName),
@@ -171,6 +176,7 @@ func getLabelSelectorForPodsInAPodCliqueSetReplica(pcsName string, pcsReplicaInd
 	)
 }
 
+// getSelectorLabelsForAllHeadlessServices returns labels for selecting all Services of a PodCliqueSet.
 func getSelectorLabelsForAllHeadlessServices(pcsName string) map[string]string {
 	svcMatchingLabels := map[string]string{
 		apicommon.LabelComponentKey: apicommon.LabelComponentNamePodCliqueSetReplicaHeadlessService,
@@ -181,6 +187,7 @@ func getSelectorLabelsForAllHeadlessServices(pcsName string) map[string]string {
 	)
 }
 
+// getObjectKeys constructs object keys for all headless Services across PCS replicas.
 func getObjectKeys(pcs *grovecorev1alpha1.PodCliqueSet) []client.ObjectKey {
 	objectKeys := make([]client.ObjectKey, 0, pcs.Spec.Replicas)
 	for replicaIndex := range pcs.Spec.Replicas {
@@ -193,6 +200,7 @@ func getObjectKeys(pcs *grovecorev1alpha1.PodCliqueSet) []client.ObjectKey {
 	return objectKeys
 }
 
+// emptyService creates an empty Service with only metadata set.
 func emptyService(objKey client.ObjectKey) *corev1.Service {
 	return &corev1.Service{
 		ObjectMeta: metav1.ObjectMeta{

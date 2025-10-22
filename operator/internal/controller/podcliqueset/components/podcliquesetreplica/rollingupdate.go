@@ -36,6 +36,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
+// orchestrateRollingUpdate manages the rolling update process for PodCliqueSet replicas.
 func (r _resource) orchestrateRollingUpdate(ctx context.Context, logger logr.Logger, pcs *grovecorev1alpha1.PodCliqueSet, pcsIndicesToTerminate, minAvailableBreachedPCSReplicaIndices []int) error {
 	updateWork, err := r.computePendingUpdateWork(ctx, pcs, pcsIndicesToTerminate)
 	if err != nil {
@@ -71,6 +72,7 @@ func (r _resource) orchestrateRollingUpdate(ctx context.Context, logger logr.Log
 	return nil
 }
 
+// computePendingUpdateWork identifies replicas that need updating and tracks current update progress.
 func (r _resource) computePendingUpdateWork(ctx context.Context, pcs *grovecorev1alpha1.PodCliqueSet, pcsIndicesToTerminate []int) (*pendingUpdateWork, error) {
 	replicaInfos, err := r.getPCSReplicaInfos(ctx, pcs, pcsIndicesToTerminate)
 	if err != nil {
@@ -94,6 +96,7 @@ func (r _resource) computePendingUpdateWork(ctx context.Context, pcs *grovecorev
 	return pendingWork, nil
 }
 
+// getPCSReplicaInfos fetches the PCLQs and PCSGs for each PCS replica.
 func (r _resource) getPCSReplicaInfos(ctx context.Context, pcs *grovecorev1alpha1.PodCliqueSet, pcsIndicesToTerminate []int) ([]pcsReplicaInfo, error) {
 	pcsObjectKey := client.ObjectKeyFromObject(pcs)
 	pclqsByPCSIndex, err := componentutils.GetPCLQsByOwnerReplicaIndex(ctx, r.client, constants.KindPodCliqueSet, client.ObjectKeyFromObject(pcs), apicommon.GetDefaultLabelsForPodCliqueSetManagedResources(pcs.Name))
@@ -127,6 +130,7 @@ func (r _resource) getPCSReplicaInfos(ctx context.Context, pcs *grovecorev1alpha
 	return replicaInfos, nil
 }
 
+// updatePCSWithReplicaUpdateProgress records the progress of the currently updating replica.
 func (r _resource) updatePCSWithReplicaUpdateProgress(ctx context.Context, logger logr.Logger, pcs *grovecorev1alpha1.PodCliqueSet, currentReplicaUpdateProgress replicaUpdateProgress) error {
 	// Set the updatedCliques
 	updatedCliqueFQNs := lo.Uniq(append(pcs.Status.RollingUpdateProgress.UpdatedPodCliques, currentReplicaUpdateProgress.updatedPCLQFQNs...))
@@ -158,6 +162,7 @@ func (r _resource) updatePCSWithReplicaUpdateProgress(ctx context.Context, logge
 	return nil
 }
 
+// updatePCSWithNextSelectedReplica initiates an update for the next replica or marks completion.
 func (r _resource) updatePCSWithNextSelectedReplica(ctx context.Context, logger logr.Logger, pcs *grovecorev1alpha1.PodCliqueSet, nextPCSReplicaToUpdate *int) error {
 	if nextPCSReplicaToUpdate == nil {
 		logger.Info("Rolling update has completed")
@@ -173,6 +178,7 @@ func (r _resource) updatePCSWithNextSelectedReplica(ctx context.Context, logger 
 	return r.updateRollingUpdateProgressStatus(ctx, logger, pcs)
 }
 
+// updateRollingUpdateProgressStatus persists rolling update progress to the PCS status.
 func (r _resource) updateRollingUpdateProgressStatus(ctx context.Context, logger logr.Logger, pcs *grovecorev1alpha1.PodCliqueSet) error {
 	if err := r.client.Status().Update(ctx, pcs); err != nil {
 		return groveerr.WrapError(
@@ -186,6 +192,7 @@ func (r _resource) updateRollingUpdateProgressStatus(ctx context.Context, logger
 	return nil
 }
 
+// orderPCSReplicaInfo returns a comparison function for prioritizing replica updates.
 func orderPCSReplicaInfo(pcs *grovecorev1alpha1.PodCliqueSet, minAvailableBreachedPCSReplicaIndices []int) func(a, b pcsReplicaInfo) int {
 	return func(a, b pcsReplicaInfo) int {
 		scheduledPodsInA, scheduledPodsInB := a.getNumScheduledPods(pcs), b.getNumScheduledPods(pcs)
@@ -233,6 +240,7 @@ type replicaUpdateProgress struct {
 	updatedPCSGFQNs []string
 }
 
+// getNextReplicaToUpdate selects the next replica to update based on priority.
 func (w *pendingUpdateWork) getNextReplicaToUpdate(pcs *grovecorev1alpha1.PodCliqueSet, minAvailableBreachedPCSReplicaIndices []int) *int {
 	slices.SortFunc(w.pendingUpdateReplicaInfos, orderPCSReplicaInfo(pcs, minAvailableBreachedPCSReplicaIndices))
 	if len(w.pendingUpdateReplicaInfos) > 0 {
@@ -241,6 +249,7 @@ func (w *pendingUpdateWork) getNextReplicaToUpdate(pcs *grovecorev1alpha1.PodCli
 	return nil
 }
 
+// computeUpdateProgress calculates update completion for a PCS replica.
 func (pri *pcsReplicaInfo) computeUpdateProgress(pcs *grovecorev1alpha1.PodCliqueSet) {
 	progress := replicaUpdateProgress{}
 	for _, pclq := range pri.pclqs {
@@ -258,8 +267,7 @@ func (pri *pcsReplicaInfo) computeUpdateProgress(pcs *grovecorev1alpha1.PodCliqu
 	pri.updateProgress = progress
 }
 
-// getNumScheduledPods returns a normalized value, which is a sum of number of pending pods
-// in individual PodCliques, and the number of pending pods of PodCliqueScalingGroup PodCliques.
+// getNumScheduledPods calculates total scheduled pods across PCLQs and PCSGs for a replica.
 func (pri *pcsReplicaInfo) getNumScheduledPods(pcs *grovecorev1alpha1.PodCliqueSet) int {
 	noScheduled := 0
 	for _, pclq := range pri.pclqs {
@@ -277,6 +285,7 @@ func (pri *pcsReplicaInfo) getNumScheduledPods(pcs *grovecorev1alpha1.PodCliqueS
 	return noScheduled
 }
 
+// isPCLQUpdateComplete checks if a PodClique has completed its update to the target generation.
 func isPCLQUpdateComplete(pclq *grovecorev1alpha1.PodClique, currentPCSGenerationHash string) bool {
 	if pclq.Status.CurrentPodCliqueSetGenerationHash != nil &&
 		*pclq.Status.CurrentPodCliqueSetGenerationHash == currentPCSGenerationHash &&
@@ -287,6 +296,7 @@ func isPCLQUpdateComplete(pclq *grovecorev1alpha1.PodClique, currentPCSGeneratio
 	return false
 }
 
+// isRollingUpdateInProgress checks if a rolling update is currently in progress.
 func isRollingUpdateInProgress(pcs *grovecorev1alpha1.PodCliqueSet) bool {
 	return pcs.Status.RollingUpdateProgress != nil && pcs.Status.RollingUpdateProgress.UpdateEndedAt == nil
 }

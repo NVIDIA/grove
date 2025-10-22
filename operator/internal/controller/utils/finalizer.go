@@ -59,6 +59,7 @@ type patchFn func(client.Object, ...client.MergeFromOption) client.Patch
 // mutateFn is a function that mutates the object with the given finalizer.
 type mutateFn func(client.Object, string) bool
 
+// patchFinalizer applies a finalizer mutation to an object and patches it.
 func patchFinalizer(ctx context.Context, writer client.Writer, obj client.Object, patchFunc patchFn, mutateFunc mutateFn, finalizer string) error {
 	beforePatch := obj.DeepCopyObject().(client.Object)
 	mutateFunc(obj, finalizer)

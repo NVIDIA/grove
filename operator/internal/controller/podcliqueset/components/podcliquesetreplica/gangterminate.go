@@ -54,14 +54,17 @@ type deletionWork struct {
 	minAvailableBreachedConstituents map[int][]string
 }
 
+// shouldRequeue returns true if there are constituents with MinAvailable breached but termination delay not expired.
 func (d deletionWork) shouldRequeue() bool {
 	return len(d.minAvailableBreachedConstituents) > 0
 }
 
+// hasPendingPCSReplicaDeletion returns true if there are replica deletion tasks ready to execute.
 func (d deletionWork) hasPendingPCSReplicaDeletion() bool {
 	return len(d.deletionTasks) > 0
 }
 
+// getPCSReplicaDeletionWork identifies PCS replicas that need termination due to MinAvailable breaches.
 func (r _resource) getPCSReplicaDeletionWork(ctx context.Context, logger logr.Logger, pcs *grovecorev1alpha1.PodCliqueSet) (*deletionWork, error) {
 	var (
 		now              = time.Now()
@@ -101,6 +104,7 @@ func (r _resource) getPCSReplicaDeletionWork(ctx context.Context, logger logr.Lo
 	return work, nil
 }
 
+// getMinAvailableBreachedPCSGs retrieves PCSGs that have breached MinAvailable for a PCS replica.
 func (r _resource) getMinAvailableBreachedPCSGs(ctx context.Context, pcsObjKey client.ObjectKey, pcsReplicaIndex int, terminationDelay time.Duration, since time.Time) ([]string, time.Duration, error) {
 	pcsgList := &grovecorev1alpha1.PodCliqueScalingGroupList{}
 	if err := r.client.List(ctx,
@@ -119,6 +123,7 @@ func (r _resource) getMinAvailableBreachedPCSGs(ctx context.Context, pcsObjKey c
 	return breachedPCSGNames, minWaitFor, nil
 }
 
+// getMinAvailableBreachedPCLQsNotInPCSG retrieves standalone PCLQs that have breached MinAvailable.
 func (r _resource) getMinAvailableBreachedPCLQsNotInPCSG(ctx context.Context, pcs *grovecorev1alpha1.PodCliqueSet, pcsReplicaIndex int, since time.Time) (breachedPCLQNames []string, minWaitFor time.Duration, skipPCSReplica bool, err error) {
 	pclqFQNsNotInPCSG := make([]string, 0, len(pcs.Spec.Template.Cliques))
 	for _, pclqTemplateSpec := range pcs.Spec.Template.Cliques {
@@ -207,6 +212,7 @@ func (r _resource) createPCSReplicaDeleteTask(logger logr.Logger, pcs *grovecore
 	}
 }
 
+// isPCLQInPCSG checks if a PodClique is part of any PCSG configuration.
 func isPCLQInPCSG(pclqName string, pcsgConfigs []grovecorev1alpha1.PodCliqueScalingGroupConfig) bool {
 	return lo.Reduce(pcsgConfigs, func(agg bool, pcsgConfig grovecorev1alpha1.PodCliqueScalingGroupConfig, _ int) bool {
 		return agg || slices.Contains(pcsgConfig.CliqueNames, pclqName)

@@ -78,6 +78,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	return reconcileSpecFlowResult.Result()
 }
 
+// reconcileDelete handles PodCliqueSet deletion when a deletion timestamp is set.
 func (r *Reconciler) reconcileDelete(ctx context.Context, logger logr.Logger, pcs *grovecorev1alpha1.PodCliqueSet) ctrlcommon.ReconcileStepResult {
 	if !pcs.DeletionTimestamp.IsZero() {
 		if !controllerutil.ContainsFinalizer(pcs, constants.FinalizerPodCliqueSet) {

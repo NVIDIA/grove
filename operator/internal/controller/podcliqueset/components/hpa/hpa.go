@@ -126,6 +126,7 @@ type hpaInfo struct {
 	scaleConfig             grovecorev1alpha1.AutoScalingConfig
 }
 
+// computeExpectedHPAs calculates the set of HPAs that should exist for the PodCliqueSet.
 func (r _resource) computeExpectedHPAs(pcs *grovecorev1alpha1.PodCliqueSet) []hpaInfo {
 	expectedHPAInfos := make([]hpaInfo, 0, (len(pcs.Spec.Template.Cliques)+len(pcs.Spec.Template.PodCliqueScalingGroupConfigs))*int(pcs.Spec.Replicas))
 	for replicaIndex := range pcs.Spec.Replicas {
@@ -166,6 +167,7 @@ func (r _resource) computeExpectedHPAs(pcs *grovecorev1alpha1.PodCliqueSet) []hp
 	return expectedHPAInfos
 }
 
+// createOrUpdateHPATasks generates tasks to create or update HPAs.
 func (r _resource) createOrUpdateHPATasks(logger logr.Logger, pcs *grovecorev1alpha1.PodCliqueSet, expectedHPAInfos []hpaInfo) []utils.Task {
 	createOrUpdateTasks := make([]utils.Task, 0, len(expectedHPAInfos))
 	for _, expectedHPAInfo := range expectedHPAInfos {
@@ -181,6 +183,7 @@ func (r _resource) createOrUpdateHPATasks(logger logr.Logger, pcs *grovecorev1al
 	return createOrUpdateTasks
 }
 
+// deleteExcessHPATasks generates tasks to delete HPAs that are no longer needed.
 func (r _resource) deleteExcessHPATasks(logger logr.Logger, pcs *grovecorev1alpha1.PodCliqueSet, existingHPANames []string, expectedHPAInfos []hpaInfo) []utils.Task {
 	deleteTasks := make([]utils.Task, 0)
 	expectedHPANames := lo.Map(expectedHPAInfos, func(h hpaInfo, _ int) string {
@@ -206,6 +209,7 @@ func (r _resource) deleteExcessHPATasks(logger logr.Logger, pcs *grovecorev1alph
 	return deleteTasks
 }
 
+// doCreateOrUpdateHPA creates or updates a single HPA resource.
 func (r _resource) doCreateOrUpdateHPA(ctx context.Context, logger logr.Logger, pcs *grovecorev1alpha1.PodCliqueSet, expectedHPAInfo hpaInfo) error {
 	logger.Info("Running CreateOrUpdate HPA", "targetScaleResourceKind", expectedHPAInfo.targetScaleResourceKind, "targetScaleResourceName", expectedHPAInfo.targetScaleResourceName, "hpaObjectKey", expectedHPAInfo.objectKey)
 	hpa := emptyHPA(expectedHPAInfo.objectKey)
@@ -223,6 +227,7 @@ func (r _resource) doCreateOrUpdateHPA(ctx context.Context, logger logr.Logger, 
 	return nil
 }
 
+// doDeleteHPA deletes a single HPA resource.
 func (r _resource) doDeleteHPA(ctx context.Context, logger logr.Logger, pcsObjectMeta metav1.ObjectMeta, objectKey client.ObjectKey) error {
 	logger.Info("Running Delete HPA", "hpaObjectKey", objectKey)
 	if err := r.client.Delete(ctx, emptyHPA(objectKey)); err != nil {
@@ -240,6 +245,7 @@ func (r _resource) doDeleteHPA(ctx context.Context, logger logr.Logger, pcsObjec
 	return nil
 }
 
+// buildResource configures an HPA with the desired state.
 func (r _resource) buildResource(pcs *grovecorev1alpha1.PodCliqueSet, hpa *autoscalingv2.HorizontalPodAutoscaler, expectedHPAInfo hpaInfo) error {
 	// MinReplicas is always set by defaulting webhook
 	hpa.Spec.MinReplicas = expectedHPAInfo.scaleConfig.MinReplicas
@@ -261,6 +267,7 @@ func (r _resource) buildResource(pcs *grovecorev1alpha1.PodCliqueSet, hpa *autos
 	return nil
 }
 
+// getLabels constructs labels for an HPA resource.
 func getLabels(pcsName, hpaName string) map[string]string {
 	hpaComponentLabels := map[string]string{
 		apicommon.LabelAppNameKey:   hpaName,
@@ -272,6 +279,7 @@ func getLabels(pcsName, hpaName string) map[string]string {
 	)
 }
 
+// getPodCliqueHPASelectorLabels returns labels for selecting all HPAs of a PodCliqueSet.
 func getPodCliqueHPASelectorLabels(pcsObjectMeta metav1.ObjectMeta) map[string]string {
 	return lo.Assign(
 		apicommon.GetDefaultLabelsForPodCliqueSetManagedResources(pcsObjectMeta.Name),
@@ -281,6 +289,7 @@ func getPodCliqueHPASelectorLabels(pcsObjectMeta metav1.ObjectMeta) map[string]s
 	)
 }
 
+// emptyHPA creates an empty HPA with only metadata set.
 func emptyHPA(objKey client.ObjectKey) *autoscalingv2.HorizontalPodAutoscaler {
 	return &autoscalingv2.HorizontalPodAutoscaler{
 		ObjectMeta: metav1.ObjectMeta{

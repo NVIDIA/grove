@@ -157,6 +157,7 @@ func (r _resource) Delete(ctx context.Context, logger logr.Logger, pcsObjMeta me
 	return nil
 }
 
+// doCreateOrUpdate creates or updates a single PCSG resource.
 func (r _resource) doCreateOrUpdate(ctx context.Context, logger logr.Logger, pcs *grovecorev1alpha1.PodCliqueSet, pcsReplica int, pcsgObjectKey client.ObjectKey, pcsgConfig grovecorev1alpha1.PodCliqueScalingGroupConfig, pcsgExists bool) error {
 	logger.Info("CreateOrUpdate PodCliqueScalingGroup", "objectKey", pcsgObjectKey)
 	pcsg := emptyPodCliqueScalingGroup(pcsgObjectKey)
@@ -180,6 +181,7 @@ func (r _resource) doCreateOrUpdate(ctx context.Context, logger logr.Logger, pcs
 	return nil
 }
 
+// doDelete deletes a single PCSG resource.
 func (r _resource) doDelete(ctx context.Context, logger logr.Logger, pcs *grovecorev1alpha1.PodCliqueSet, pcsgObjectKey client.ObjectKey) error {
 	logger.Info("Delete PodCliqueScalingGroup", "objectKey", pcsgObjectKey)
 	pcsg := emptyPodCliqueScalingGroup(pcsgObjectKey)
@@ -196,6 +198,7 @@ func (r _resource) doDelete(ctx context.Context, logger logr.Logger, pcs *grovec
 	return nil
 }
 
+// buildResource configures a PCSG with the desired state from the template.
 func (r _resource) buildResource(pcsg *grovecorev1alpha1.PodCliqueScalingGroup, pcs *grovecorev1alpha1.PodCliqueSet, pcsReplica int, pcsgConfig grovecorev1alpha1.PodCliqueScalingGroupConfig, pcsgExists bool) error {
 	if err := controllerutil.SetControllerReference(pcs, pcsg, r.scheme); err != nil {
 		return groveerr.WrapError(err,
@@ -213,6 +216,7 @@ func (r _resource) buildResource(pcsg *grovecorev1alpha1.PodCliqueScalingGroup, 
 	return nil
 }
 
+// getLabels constructs labels for a PodCliqueScalingGroup resource.
 func getLabels(pcs *grovecorev1alpha1.PodCliqueSet, pcsReplica int, pclqScalingGroupObjKey client.ObjectKey) map[string]string {
 	componentLabels := map[string]string{
 		apicommon.LabelAppNameKey:               pclqScalingGroupObjKey.Name,
@@ -225,6 +229,7 @@ func getLabels(pcs *grovecorev1alpha1.PodCliqueSet, pcsReplica int, pclqScalingG
 	)
 }
 
+// getPodCliqueScalingGroupSelectorLabels returns labels for selecting all PCSGs of a PodCliqueSet.
 func getPodCliqueScalingGroupSelectorLabels(pcsObjMeta metav1.ObjectMeta) map[string]string {
 	return lo.Assign(
 		apicommon.GetDefaultLabelsForPodCliqueSetManagedResources(pcsObjMeta.Name),
@@ -234,6 +239,7 @@ func getPodCliqueScalingGroupSelectorLabels(pcsObjMeta metav1.ObjectMeta) map[st
 	)
 }
 
+// emptyPodCliqueScalingGroup creates an empty PCSG with only metadata set.
 func emptyPodCliqueScalingGroup(objKey client.ObjectKey) *grovecorev1alpha1.PodCliqueScalingGroup {
 	return &grovecorev1alpha1.PodCliqueScalingGroup{
 		ObjectMeta: metav1.ObjectMeta{

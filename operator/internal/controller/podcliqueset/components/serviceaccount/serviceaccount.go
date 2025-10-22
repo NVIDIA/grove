@@ -98,6 +98,7 @@ func (r _resource) Sync(ctx context.Context, logger logr.Logger, pcs *v1alpha1.P
 	return nil
 }
 
+// Delete removes the ServiceAccount resource for the PodCliqueSet.
 func (r _resource) Delete(ctx context.Context, logger logr.Logger, pcsObjMeta metav1.ObjectMeta) error {
 	objectKey := getObjectKey(pcsObjMeta)
 	logger.Info("Triggering delete of ServiceAccount", "objectKey", objectKey)
@@ -116,6 +117,7 @@ func (r _resource) Delete(ctx context.Context, logger logr.Logger, pcsObjMeta me
 	return nil
 }
 
+// buildResource configures the ServiceAccount with automount enabled.
 func (r _resource) buildResource(pcs *v1alpha1.PodCliqueSet, sa *corev1.ServiceAccount) error {
 	sa.Labels = getLabels(pcs.ObjectMeta)
 	if err := controllerutil.SetControllerReference(pcs, sa, r.scheme); err != nil {
@@ -129,6 +131,7 @@ func (r _resource) buildResource(pcs *v1alpha1.PodCliqueSet, sa *corev1.ServiceA
 	return nil
 }
 
+// getLabels constructs labels for a ServiceAccount resource.
 func getLabels(pcsObjMeta metav1.ObjectMeta) map[string]string {
 	roleLabels := map[string]string{
 		apicommon.LabelComponentKey: apicommon.LabelComponentNamePodServiceAccount,
@@ -140,6 +143,7 @@ func getLabels(pcsObjMeta metav1.ObjectMeta) map[string]string {
 	)
 }
 
+// getObjectKey constructs the object key for the ServiceAccount resource.
 func getObjectKey(pcsObjMeta metav1.ObjectMeta) client.ObjectKey {
 	return client.ObjectKey{
 		Name:      apicommon.GeneratePodServiceAccountName(pcsObjMeta.Name),
@@ -147,6 +151,7 @@ func getObjectKey(pcsObjMeta metav1.ObjectMeta) client.ObjectKey {
 	}
 }
 
+// emptyServiceAccount creates an empty ServiceAccount with only metadata set.
 func emptyServiceAccount(objKey client.ObjectKey) *corev1.ServiceAccount {
 	return &corev1.ServiceAccount{
 		ObjectMeta: metav1.ObjectMeta{

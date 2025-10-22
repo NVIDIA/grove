@@ -63,6 +63,7 @@ func New(client client.Client, scheme *runtime.Scheme, eventRecorder record.Even
 	}
 }
 
+// GetExistingResourceNames returns the names of existing PodGang resources for the PodCliqueSet.
 func (r _resource) GetExistingResourceNames(ctx context.Context, logger logr.Logger, pcsObjMeta metav1.ObjectMeta) ([]string, error) {
 	logger.Info("Looking for existing PodGang resources created per replica of PodCliqueSet")
 	objMetaList := &metav1.PartialObjectMetadataList{}
@@ -81,6 +82,7 @@ func (r _resource) GetExistingResourceNames(ctx context.Context, logger logr.Log
 	return k8sutils.FilterMapOwnedResourceNames(pcsObjMeta, objMetaList.Items), nil
 }
 
+// Sync creates, updates, or deletes PodGang resources to match the desired state.
 func (r _resource) Sync(ctx context.Context, logger logr.Logger, pcs *grovecorev1alpha1.PodCliqueSet) error {
 	logger.Info("Syncing PodGang resources")
 	sc, err := r.prepareSyncFlow(ctx, logger, pcs)
@@ -100,6 +102,7 @@ func (r _resource) Sync(ctx context.Context, logger logr.Logger, pcs *grovecorev
 	return nil
 }
 
+// Delete removes all PodGang resources managed by the PodCliqueSet.
 func (r _resource) Delete(ctx context.Context, logger logr.Logger, pcsObjectMeta metav1.ObjectMeta) error {
 	logger.Info("Triggering deletion of PodGangs")
 	if err := r.client.DeleteAllOf(ctx,
@@ -116,6 +119,7 @@ func (r _resource) Delete(ctx context.Context, logger logr.Logger, pcsObjectMeta
 	return nil
 }
 
+// buildResource configures a PodGang with pod groups and priority.
 func (r _resource) buildResource(pcs *grovecorev1alpha1.PodCliqueSet, pgInfo podGangInfo, pg *groveschedulerv1alpha1.PodGang) error {
 	pg.Labels = getLabels(pcs.Name)
 	if err := controllerutil.SetControllerReference(pcs, pg, r.scheme); err != nil {
@@ -131,6 +135,7 @@ func (r _resource) buildResource(pcs *grovecorev1alpha1.PodCliqueSet, pgInfo pod
 	return nil
 }
 
+// getPodGangSelectorLabels returns labels for selecting all PodGangs of a PodCliqueSet.
 func getPodGangSelectorLabels(pcsObjMeta metav1.ObjectMeta) map[string]string {
 	return lo.Assign(
 		apicommon.GetDefaultLabelsForPodCliqueSetManagedResources(pcsObjMeta.Name),
@@ -139,6 +144,7 @@ func getPodGangSelectorLabels(pcsObjMeta metav1.ObjectMeta) map[string]string {
 		})
 }
 
+// emptyPodGang creates an empty PodGang with only metadata set.
 func emptyPodGang(objKey client.ObjectKey) *groveschedulerv1alpha1.PodGang {
 	return &groveschedulerv1alpha1.PodGang{
 		ObjectMeta: metav1.ObjectMeta{
@@ -148,6 +154,7 @@ func emptyPodGang(objKey client.ObjectKey) *groveschedulerv1alpha1.PodGang {
 	}
 }
 
+// getLabels constructs labels for a PodGang resource.
 func getLabels(pcsName string) map[string]string {
 	return lo.Assign(
 		apicommon.GetDefaultLabelsForPodCliqueSetManagedResources(pcsName),

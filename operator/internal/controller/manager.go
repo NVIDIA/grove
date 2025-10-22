@@ -80,6 +80,7 @@ func SetupHealthAndReadinessEndpoints(mgr ctrl.Manager, webhookCertsReadyCh chan
 	return nil
 }
 
+// createManagerOptions constructs controller-runtime Manager options from operator configuration.
 func createManagerOptions(operatorCfg *configv1alpha1.OperatorConfiguration) ctrl.Options {
 	opts := ctrl.Options{
 		Scheme:                  groveclientscheme.Scheme,
@@ -113,6 +114,7 @@ func createManagerOptions(operatorCfg *configv1alpha1.OperatorConfiguration) ctr
 	return opts
 }
 
+// getRestConfig creates a Kubernetes REST config with customized client connection settings.
 func getRestConfig(operatorCfg *configv1alpha1.OperatorConfiguration) *rest.Config {
 	restCfg := ctrl.GetConfigOrDie()
 	if operatorCfg != nil {

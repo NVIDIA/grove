@@ -112,6 +112,7 @@ func (r _resource) Sync(ctx context.Context, logger logr.Logger, pcs *grovecorev
 	return nil
 }
 
+// Delete removes the Role resource for the PodCliqueSet.
 func (r _resource) Delete(ctx context.Context, logger logr.Logger, pcsObjMeta metav1.ObjectMeta) error {
 	objectKey := getObjectKey(pcsObjMeta)
 	logger.Info("Triggering delete of Role", "objectKey", objectKey)
@@ -130,6 +131,7 @@ func (r _resource) Delete(ctx context.Context, logger logr.Logger, pcsObjMeta me
 	return nil
 }
 
+// buildResource configures the Role with pod access permissions.
 func (r _resource) buildResource(pcs *grovecorev1alpha1.PodCliqueSet, role *rbacv1.Role) error {
 	role.Labels = getLabels(pcs.ObjectMeta)
 	if err := controllerutil.SetControllerReference(pcs, role, r.scheme); err != nil {
@@ -149,6 +151,7 @@ func (r _resource) buildResource(pcs *grovecorev1alpha1.PodCliqueSet, role *rbac
 	return nil
 }
 
+// getLabels constructs labels for a Role resource.
 func getLabels(pcsObjMeta metav1.ObjectMeta) map[string]string {
 	roleLabels := map[string]string{
 		apicommon.LabelComponentKey: apicommon.LabelComponentNamePodRole,
@@ -160,6 +163,7 @@ func getLabels(pcsObjMeta metav1.ObjectMeta) map[string]string {
 	)
 }
 
+// getObjectKey constructs the object key for the Role resource.
 func getObjectKey(pcsObjMeta metav1.ObjectMeta) client.ObjectKey {
 	return client.ObjectKey{
 		Name:      apicommon.GeneratePodRoleName(pcsObjMeta.Name),
@@ -167,6 +171,7 @@ func getObjectKey(pcsObjMeta metav1.ObjectMeta) client.ObjectKey {
 	}
 }
 
+// emptyRole creates an empty Role with only metadata set.
 func emptyRole(objKey client.ObjectKey) *rbacv1.Role {
 	return &rbacv1.Role{
 		ObjectMeta: metav1.ObjectMeta{

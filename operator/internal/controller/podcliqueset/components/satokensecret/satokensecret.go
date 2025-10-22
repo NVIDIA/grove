@@ -56,6 +56,7 @@ func New(client client.Client, scheme *runtime.Scheme) component.Operator[grovec
 	}
 }
 
+// GetExistingResourceNames returns the names of existing service account token secrets.
 func (r _resource) GetExistingResourceNames(ctx context.Context, _ logr.Logger, pcsObjMeta metav1.ObjectMeta) ([]string, error) {
 	secretNames := make([]string, 0, 1)
 	objKey := getObjectKey(pcsObjMeta)
@@ -76,6 +77,7 @@ func (r _resource) GetExistingResourceNames(ctx context.Context, _ logr.Logger, 
 	return secretNames, nil
 }
 
+// Sync creates the service account token secret if it doesn't exist.
 func (r _resource) Sync(ctx context.Context, logger logr.Logger, pcs *grovecorev1alpha1.PodCliqueSet) error {
 	pcsObjKey := client.ObjectKeyFromObject(pcs)
 	existingSecretNames, err := r.GetExistingResourceNames(ctx, logger, pcs.ObjectMeta)
@@ -106,6 +108,7 @@ func (r _resource) Sync(ctx context.Context, logger logr.Logger, pcs *grovecorev
 	return nil
 }
 
+// Delete removes the service account token secret.
 func (r _resource) Delete(ctx context.Context, logger logr.Logger, pcsObjMeta metav1.ObjectMeta) error {
 	objectKey := getObjectKey(pcsObjMeta)
 	logger.Info("Triggering delete of Secret", "objectKey", objectKey)
@@ -124,6 +127,7 @@ func (r _resource) Delete(ctx context.Context, logger logr.Logger, pcsObjMeta me
 	return nil
 }
 
+// buildResource configures the Secret as a ServiceAccountToken type.
 func (r _resource) buildResource(pcs *grovecorev1alpha1.PodCliqueSet, secret *corev1.Secret) error {
 	secret.Labels = getLabels(pcs.Name, secret.Name)
 	if err := controllerutil.SetControllerReference(pcs, secret, r.scheme); err != nil {
@@ -140,6 +144,7 @@ func (r _resource) buildResource(pcs *grovecorev1alpha1.PodCliqueSet, secret *co
 	return nil
 }
 
+// getLabels constructs labels for a ServiceAccount token Secret resource.
 func getLabels(pcsName, secretName string) map[string]string {
 	secretLabels := map[string]string{
 		apicommon.LabelComponentKey: apicommon.LabelComponentNameServiceAccountTokenSecret,
@@ -151,6 +156,7 @@ func getLabels(pcsName, secretName string) map[string]string {
 	)
 }
 
+// getObjectKey constructs the object key for the ServiceAccount token Secret.
 func getObjectKey(pcsObjMeta metav1.ObjectMeta) client.ObjectKey {
 	return client.ObjectKey{
 		Name:      apicommon.GenerateInitContainerSATokenSecretName(pcsObjMeta.Name),
@@ -158,6 +164,7 @@ func getObjectKey(pcsObjMeta metav1.ObjectMeta) client.ObjectKey {
 	}
 }
 
+// emptySecret creates an empty Secret with only metadata set.
 func emptySecret(objKey client.ObjectKey) *corev1.Secret {
 	return &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{

@@ -114,6 +114,7 @@ func (r _resource) Sync(ctx context.Context, logger logr.Logger, pcs *grovecorev
 	return nil
 }
 
+// Delete removes the RoleBinding resource for the PodCliqueSet.
 func (r _resource) Delete(ctx context.Context, logger logr.Logger, pcsObjMeta metav1.ObjectMeta) error {
 	objectKey := getObjectKey(pcsObjMeta)
 	logger.Info("Triggering delete of RoleBinding", "objectKey", objectKey)
@@ -132,6 +133,7 @@ func (r _resource) Delete(ctx context.Context, logger logr.Logger, pcsObjMeta me
 	return nil
 }
 
+// buildResource configures the RoleBinding linking ServiceAccount to Role.
 func (r _resource) buildResource(pcs *grovecorev1alpha1.PodCliqueSet, roleBinding *rbacv1.RoleBinding) error {
 	roleBinding.Labels = getLabels(pcs.ObjectMeta)
 	if err := controllerutil.SetControllerReference(pcs, roleBinding, r.scheme); err != nil {
@@ -157,6 +159,7 @@ func (r _resource) buildResource(pcs *grovecorev1alpha1.PodCliqueSet, roleBindin
 	return nil
 }
 
+// getLabels constructs labels for a RoleBinding resource.
 func getLabels(pcsObjMeta metav1.ObjectMeta) map[string]string {
 	roleLabels := map[string]string{
 		apicommon.LabelComponentKey: apicommon.LabelComponentNamePodRoleBinding,
@@ -168,6 +171,7 @@ func getLabels(pcsObjMeta metav1.ObjectMeta) map[string]string {
 	)
 }
 
+// getObjectKey constructs the object key for the RoleBinding resource.
 func getObjectKey(pcsObjMeta metav1.ObjectMeta) client.ObjectKey {
 	return client.ObjectKey{
 		Name:      apicommon.GeneratePodRoleBindingName(pcsObjMeta.Name),
@@ -175,6 +179,7 @@ func getObjectKey(pcsObjMeta metav1.ObjectMeta) client.ObjectKey {
 	}
 }
 
+// emptyRoleBinding creates an empty RoleBinding with only metadata set.
 func emptyRoleBinding(objKey client.ObjectKey) *rbacv1.RoleBinding {
 	return &rbacv1.RoleBinding{
 		ObjectMeta: metav1.ObjectMeta{
