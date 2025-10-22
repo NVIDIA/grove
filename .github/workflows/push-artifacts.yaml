@@ -28,7 +28,7 @@ permissions:
   packages: write
 
 env:
-  DOCKER_REGISTRY: "ghcr.io/nvidia/grove"
+  DOCKER_REGISTRY: "ghcr.io/ai-dynamo/grove"
 
 jobs:
   build-and-push:
@@ -77,9 +77,9 @@ jobs:
 
       - name: Build Helm chart
         run: |
-          sed -i "s#repository: grove-operator#repository: ghcr.io/nvidia/grove/grove-operator#" operator/charts/values.yaml
+          sed -i "s#repository: grove-operator#repository: ghcr.io/ai-dynamo/grove/grove-operator#" operator/charts/values.yaml
           sed -i "s#tag:.*#tag: $PACKAGE_VERSION#" operator/charts/values.yaml
-          sed -i "s#value: grove-initc#value: ghcr.io/nvidia/grove/grove-initc#" operator/charts/values.yaml
+          sed -i "s#value: grove-initc#value: ghcr.io/ai-dynamo/grove/grove-initc#" operator/charts/values.yaml
           helm package ./operator/charts --app-version $PACKAGE_VERSION --version $PACKAGE_VERSION
 
       - name: Push Helm Chart
