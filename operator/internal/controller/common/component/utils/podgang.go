@@ -19,7 +19,7 @@ package utils
 import (
 	"context"
 
-	apicommon "github.com/NVIDIA/grove/operator/api/common"
+	apicommon "github.com/ai-dynamo/grove/operator/api/common"
 
 	groveschedulerv1alpha1 "github.com/ai-dynamo/grove/scheduler/api/core/v1alpha1"
 	"github.com/samber/lo"

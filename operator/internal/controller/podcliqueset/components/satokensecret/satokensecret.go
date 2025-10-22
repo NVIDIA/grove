@@ -20,8 +20,8 @@ import (
 	"context"
 	"fmt"
 
-	apicommon "github.com/NVIDIA/grove/operator/api/common"
-	grovecorev1alpha1 "github.com/NVIDIA/grove/operator/api/core/v1alpha1"
+	apicommon "github.com/ai-dynamo/grove/operator/api/common"
+	grovecorev1alpha1 "github.com/ai-dynamo/grove/operator/api/core/v1alpha1"
 	"github.com/NVIDIA/grove/operator/internal/controller/common/component"
 	groveerr "github.com/NVIDIA/grove/operator/internal/errors"
 	k8sutils "github.com/NVIDIA/grove/operator/internal/utils/kubernetes"

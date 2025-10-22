@@ -21,7 +21,7 @@ import (
 	"errors"
 	"time"
 
-	"github.com/NVIDIA/grove/operator/api/core/v1alpha1"
+	"github.com/ai-dynamo/grove/operator/api/core/v1alpha1"
 	grovectrl "github.com/NVIDIA/grove/operator/internal/controller/common"
 	"github.com/NVIDIA/grove/operator/internal/controller/common/component"
 	groveerr "github.com/NVIDIA/grove/operator/internal/errors"

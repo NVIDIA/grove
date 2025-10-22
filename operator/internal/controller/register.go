@@ -17,7 +17,7 @@
 package controller
 
 import (
-	configv1alpha1 "github.com/NVIDIA/grove/operator/api/config/v1alpha1"
+	configv1alpha1 "github.com/ai-dynamo/grove/operator/api/config/v1alpha1"
 	"github.com/NVIDIA/grove/operator/internal/controller/podclique"
 	"github.com/NVIDIA/grove/operator/internal/controller/podcliquescalinggroup"
 	"github.com/NVIDIA/grove/operator/internal/controller/podcliqueset"

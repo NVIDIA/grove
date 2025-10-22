@@ -20,7 +20,7 @@ import (
 	"context"
 	"fmt"
 
-	grovecorev1alpha1 "github.com/NVIDIA/grove/operator/api/core/v1alpha1"
+	grovecorev1alpha1 "github.com/ai-dynamo/grove/operator/api/core/v1alpha1"
 
 	"github.com/go-logr/logr"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"

@@ -17,7 +17,7 @@
 package components
 
 import (
-	"github.com/NVIDIA/grove/operator/api/core/v1alpha1"
+	"github.com/ai-dynamo/grove/operator/api/core/v1alpha1"
 	"github.com/NVIDIA/grove/operator/internal/controller/common/component"
 	"github.com/NVIDIA/grove/operator/internal/controller/podclique/components/pod"
 	"github.com/NVIDIA/grove/operator/internal/expect"

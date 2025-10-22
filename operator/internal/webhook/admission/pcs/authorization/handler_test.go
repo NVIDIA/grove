@@ -23,9 +23,9 @@ import (
 	"net/http"
 	"testing"
 
-	apicommon "github.com/NVIDIA/grove/operator/api/common"
-	"github.com/NVIDIA/grove/operator/api/common/constants"
-	groveconfigv1alpha1 "github.com/NVIDIA/grove/operator/api/config/v1alpha1"
+	apicommon "github.com/ai-dynamo/grove/operator/api/common"
+	"github.com/ai-dynamo/grove/operator/api/common/constants"
+	groveconfigv1alpha1 "github.com/ai-dynamo/grove/operator/api/config/v1alpha1"
 	testutils "github.com/NVIDIA/grove/operator/test/utils"
 
 	"github.com/go-logr/logr"

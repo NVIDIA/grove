@@ -19,8 +19,8 @@ package hpa
 import (
 	"testing"
 
-	"github.com/NVIDIA/grove/operator/api/common/constants"
-	grovecorev1alpha1 "github.com/NVIDIA/grove/operator/api/core/v1alpha1"
+	"github.com/ai-dynamo/grove/operator/api/common/constants"
+	grovecorev1alpha1 "github.com/ai-dynamo/grove/operator/api/core/v1alpha1"
 	testutils "github.com/NVIDIA/grove/operator/test/utils"
 
 	"github.com/stretchr/testify/assert"

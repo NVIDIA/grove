@@ -19,7 +19,7 @@ package logger
 import (
 	"fmt"
 
-	configv1alpha1 "github.com/NVIDIA/grove/operator/api/config/v1alpha1"
+	configv1alpha1 "github.com/ai-dynamo/grove/operator/api/config/v1alpha1"
 
 	"github.com/go-logr/logr"
 	"go.uber.org/zap/zapcore"

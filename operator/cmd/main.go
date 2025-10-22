@@ -20,7 +20,7 @@ import (
 	"flag"
 	"os"
 
-	configv1alpha1 "github.com/NVIDIA/grove/operator/api/config/v1alpha1"
+	configv1alpha1 "github.com/ai-dynamo/grove/operator/api/config/v1alpha1"
 	groveopts "github.com/NVIDIA/grove/operator/cmd/opts"
 	grovectrl "github.com/NVIDIA/grove/operator/internal/controller"
 	"github.com/NVIDIA/grove/operator/internal/controller/cert"

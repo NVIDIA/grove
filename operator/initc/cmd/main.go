@@ -22,7 +22,7 @@ import (
 	"os/signal"
 	"syscall"
 
-	configv1alpha1 "github.com/NVIDIA/grove/operator/api/config/v1alpha1"
+	configv1alpha1 "github.com/ai-dynamo/grove/operator/api/config/v1alpha1"
 	"github.com/NVIDIA/grove/operator/initc/cmd/opts"
 	"github.com/NVIDIA/grove/operator/initc/internal"
 	"github.com/NVIDIA/grove/operator/internal/logger"

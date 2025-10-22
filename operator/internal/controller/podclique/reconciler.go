@@ -19,9 +19,9 @@ package podclique
 import (
 	"context"
 
-	"github.com/NVIDIA/grove/operator/api/common/constants"
-	configv1alpha1 "github.com/NVIDIA/grove/operator/api/config/v1alpha1"
-	grovecorev1alpha1 "github.com/NVIDIA/grove/operator/api/core/v1alpha1"
+	"github.com/ai-dynamo/grove/operator/api/common/constants"
+	configv1alpha1 "github.com/ai-dynamo/grove/operator/api/config/v1alpha1"
+	grovecorev1alpha1 "github.com/ai-dynamo/grove/operator/api/core/v1alpha1"
 	ctrlcommon "github.com/NVIDIA/grove/operator/internal/controller/common"
 	"github.com/NVIDIA/grove/operator/internal/controller/common/component"
 	pclqcomponent "github.com/NVIDIA/grove/operator/internal/controller/podclique/components"

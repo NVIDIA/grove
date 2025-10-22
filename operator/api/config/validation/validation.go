@@ -19,7 +19,7 @@ package validation
 import (
 	"strings"
 
-	configv1alpha1 "github.com/NVIDIA/grove/operator/api/config/v1alpha1"
+	configv1alpha1 "github.com/ai-dynamo/grove/operator/api/config/v1alpha1"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/sets"

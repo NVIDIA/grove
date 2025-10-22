@@ -21,7 +21,7 @@ import (
 	"fmt"
 	"strconv"
 
-	apicommon "github.com/NVIDIA/grove/operator/api/common"
+	apicommon "github.com/ai-dynamo/grove/operator/api/common"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )

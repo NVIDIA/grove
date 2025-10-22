@@ -19,7 +19,7 @@ package common
 import (
 	"fmt"
 
-	"github.com/NVIDIA/grove/operator/api/core/v1alpha1"
+	"github.com/ai-dynamo/grove/operator/api/core/v1alpha1"
 )
 
 // ResourceNameReplica is a type that holds a resource name and its replica index.

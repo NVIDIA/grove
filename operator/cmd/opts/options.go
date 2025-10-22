@@ -20,8 +20,8 @@ import (
 	"fmt"
 	"os"
 
-	configv1alpha1 "github.com/NVIDIA/grove/operator/api/config/v1alpha1"
-	operatorvalidation "github.com/NVIDIA/grove/operator/api/config/validation"
+	configv1alpha1 "github.com/ai-dynamo/grove/operator/api/config/v1alpha1"
+	operatorvalidation "github.com/ai-dynamo/grove/operator/api/config/validation"
 
 	"github.com/spf13/pflag"
 	"k8s.io/apimachinery/pkg/runtime"

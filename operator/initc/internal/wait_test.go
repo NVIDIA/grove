@@ -19,7 +19,7 @@ package internal
 import (
 	"testing"
 
-	apicommon "github.com/NVIDIA/grove/operator/api/common"
+	apicommon "github.com/ai-dynamo/grove/operator/api/common"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"

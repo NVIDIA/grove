@@ -21,7 +21,7 @@ import (
 	"slices"
 	"strings"
 
-	grovecorev1alpha1 "github.com/NVIDIA/grove/operator/api/core/v1alpha1"
+	grovecorev1alpha1 "github.com/ai-dynamo/grove/operator/api/core/v1alpha1"
 	"github.com/NVIDIA/grove/operator/internal/utils"
 
 	"github.com/samber/lo"
