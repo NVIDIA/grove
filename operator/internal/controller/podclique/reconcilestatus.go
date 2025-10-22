@@ -173,7 +173,7 @@ func mutateMinAvailableBreachedCondition(pclq *grovecorev1alpha1.PodClique, numN
 	}
 }
 
-// computeMinAvailableBreachedCondition calculates the MinAvailableBreached condition status based on pod states
+// computeMinAvailableBreachedCondition calculates the MinAvailableBreached condition status based on pod availability
 func computeMinAvailableBreachedCondition(pclq *grovecorev1alpha1.PodClique, numPodsHavingAtleastOneContainerWithNonZeroExitCode, numPodsStartedButNotReady int) metav1.Condition {
 	if componentutils.IsPCLQUpdateInProgress(pclq) {
 		return metav1.Condition{
