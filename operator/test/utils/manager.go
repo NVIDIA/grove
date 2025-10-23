@@ -21,14 +21,16 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
+	"sigs.k8s.io/controller-runtime/pkg/webhook"
 )
 
 // FakeManager is a fake controller-runtime manager
 type FakeManager struct {
 	manager.Manager
-	Client client.Client
-	Scheme *runtime.Scheme
-	Logger logr.Logger
+	Client        client.Client
+	Scheme        *runtime.Scheme
+	Logger        logr.Logger
+	WebhookServer webhook.Server
 }
 
 // GetClient returns the client registered with the fake manager
@@ -44,4 +46,9 @@ func (f *FakeManager) GetLogger() logr.Logger {
 // GetScheme returns the scheme registered with the fake manager
 func (f FakeManager) GetScheme() *runtime.Scheme {
 	return f.Scheme
+}
+
+// GetWebhookServer returns the webhook server registered with the fake manager
+func (f *FakeManager) GetWebhookServer() webhook.Server {
+	return f.WebhookServer
 }
