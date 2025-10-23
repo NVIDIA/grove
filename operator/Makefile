@@ -85,9 +85,11 @@ cover-html: test-cover
 # Make targets for local development and testing
 # -------------------------------------------------------------
 # Starts a local k8s cluster using kind.
+# Usage: make kind-up [FAKE_NODES=<count>]
+# Example: make kind-up FAKE_NODES=20
 .PHONY: kind-up
 kind-up: $(KIND) $(YQ)
-	@$(MODULE_HACK_DIR)/kind-up.sh
+	@$(MODULE_HACK_DIR)/kind-up.sh $(if $(FAKE_NODES),--fake-nodes $(FAKE_NODES))
 
 # Stops the local k8s cluster.
 .PHONY: kind-down

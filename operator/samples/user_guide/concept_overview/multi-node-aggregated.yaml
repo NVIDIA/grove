@@ -1,0 +1,51 @@
+apiVersion: grove.io/v1alpha1
+kind: PodCliqueSet
+metadata:
+  name: multinode-aggregated
+  namespace: default
+spec:
+  replicas: 1
+  template:
+    cliques:
+    - name: leader
+      spec:
+        roleName: leader
+        replicas: 1
+        podSpec:
+          tolerations:
+          - key: fake-node
+            operator: Equal
+            value: "true"
+            effect: NoSchedule
+          containers:
+          - name: model-leader
+            image: nginx:latest
+            command: ["/bin/sh"]
+            args: ["-c", "echo 'Model Leader (Aggregated) on node:' && hostname && sleep 3600"]
+            resources:
+              requests:
+                cpu: "2"
+                memory: "4Gi"
+    - name: worker
+      spec:
+        roleName: worker
+        replicas: 3
+        podSpec:
+          tolerations:
+          - key: fake-node
+            operator: Equal
+            value: "true"
+            effect: NoSchedule
+          containers:
+          - name: model-worker
+            image: nginx:latest
+            command: ["/bin/sh"]
+            args: ["-c", "echo 'Model Worker (Aggregated) on node:' && hostname && sleep 3600"]
+            resources:
+              requests:
+                cpu: "4"
+                memory: "8Gi"
+    podCliqueScalingGroups:
+    - name: model-instance
+      cliqueNames: [leader, worker]
+      replicas: 2

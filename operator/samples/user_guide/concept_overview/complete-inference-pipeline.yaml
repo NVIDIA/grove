@@ -1,0 +1,132 @@
+apiVersion: grove.io/v1alpha1
+kind: PodCliqueSet
+metadata:
+  name: comp-inf-ppln
+  namespace: default
+spec:
+  replicas: 1
+  template:
+    cliques:
+    #single node components
+    - name: frontend
+      spec:
+        roleName: frontend
+        replicas: 2
+        podSpec:
+          tolerations:
+          - key: fake-node
+            operator: Equal
+            value: "true"
+            effect: NoSchedule
+          containers:
+          - name: frontend
+            image: nginx:latest
+            command: ["/bin/sh"]
+            args: ["-c", "echo 'Frontend Service on node:' && hostname && sleep 3600"]
+            resources:
+              requests:
+                cpu: "0.5"
+                memory: "1Gi"
+    - name: vision-encoder
+      spec:
+        roleName: vision-encoder
+        replicas: 1
+        podSpec:
+          tolerations:
+          - key: fake-node
+            operator: Equal
+            value: "true"
+            effect: NoSchedule
+          containers:
+          - name: vision-encoder
+            image: nginx:latest
+            command: ["/bin/sh"]
+            args: ["-c", "echo 'Vision Encoder on node:' && hostname && sleep 3600"]
+            resources:
+              requests:
+                cpu: "3"
+                memory: "6Gi"
+    # Multi-node components
+    - name: pleader
+      spec:
+        roleName: pleader
+        replicas: 1
+        podSpec:
+          tolerations:
+          - key: fake-node
+            operator: Equal
+            value: "true"
+            effect: NoSchedule
+          containers:
+          - name: prefill-leader
+            image: nginx:latest
+            command: ["/bin/sh"]
+            args: ["-c", "echo 'Prefill Leader on node:' && hostname && sleep 3600"]
+            resources:
+              requests:
+                cpu: "2"
+                memory: "4Gi"
+    - name: pworker
+      spec:
+        roleName: pworker
+        replicas: 4
+        podSpec:
+          tolerations:
+          - key: fake-node
+            operator: Equal
+            value: "true"
+            effect: NoSchedule
+          containers:
+          - name: prefill-worker
+            image: nginx:latest
+            command: ["/bin/sh"]
+            args: ["-c", "echo 'Prefill Worker on node:' && hostname && sleep 3600"]
+            resources:
+              requests:
+                cpu: "4"
+                memory: "8Gi"
+    - name: dleader
+      spec:
+        roleName: dleader
+        replicas: 1
+        podSpec:
+          tolerations:
+          - key: fake-node
+            operator: Equal
+            value: "true"
+            effect: NoSchedule
+          containers:
+          - name: decode-leader
+            image: nginx:latest
+            command: ["/bin/sh"]
+            args: ["-c", "echo 'Decode Leader on node:' && hostname && sleep 3600"]
+            resources:
+              requests:
+                cpu: "1"
+                memory: "2Gi"
+    - name: dworker
+      spec:
+        roleName: dworker
+        replicas: 2
+        podSpec:
+          tolerations:
+          - key: fake-node
+            operator: Equal
+            value: "true"
+            effect: NoSchedule
+          containers:
+          - name: decode-worker
+            image: nginx:latest
+            command: ["/bin/sh"]
+            args: ["-c", "echo 'Decode Worker on node:' && hostname && sleep 3600"]
+            resources:
+              requests:
+                cpu: "2"
+                memory: "4Gi"
+    podCliqueScalingGroups:
+    - name: prefill
+      cliqueNames: [pleader, pworker]
+      replicas: 1
+    - name: decode-cluster
+      cliqueNames: [dleader, dworker]
+      replicas: 1
