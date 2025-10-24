@@ -7,7 +7,7 @@ This tutorial provides a comprehensive overview of Grove's core concepts: **PodC
 Before starting this tutorial, ensure you have:
 - [A Grove demo cluster running.](../installation.md#developing-grove) Make sure to run `make kind-up FAKE_NODES=40`, set `KUBECONFIG` env variable as directed in the instructions, and run `make deploy`
 - [A Kubernetes cluster with Grove installed.](../installation.md#deploying-grove) If you choose this path make sure to adjust the tolerations in the example to fit your cluster
-- Basic understanding of Kubernetes concepts
+-  A basic understanding of Kubernetes concepts, [this is a good place to start](https://kubernetes.io/docs/tutorials/kubernetes-basics/). 
 
 
 ## Core Concepts Overview
