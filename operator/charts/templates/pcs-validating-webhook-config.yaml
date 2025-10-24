@@ -4,6 +4,10 @@ kind: ValidatingWebhookConfiguration
 metadata:
   name: podcliqueset-validating-webhook
   namespace: {{ .Release.Namespace }}
+  {{- if .Values.config.server.webhooks.certManagement.certManagerEnabled }}
+  annotations:
+    cert-manager.io/inject-ca-from: {{ .Release.Namespace }}/{{ .Values.config.server.webhooks.certManagement.secretName }}
+  {{- end }}
   labels:
 {{- include "operator.pcs.validating.webhook.labels" . | nindent 4 }}
 webhooks:

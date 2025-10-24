@@ -5,6 +5,10 @@ kind: ValidatingWebhookConfiguration
 metadata:
   name: authorizer-webhook
   namespace: {{ .Release.Namespace }}
+  {{- if .Values.config.server.webhooks.certManagement.certManagerEnabled }}
+  annotations:
+    cert-manager.io/inject-ca-from: {{ .Release.Namespace }}/{{ .Values.config.server.webhooks.certManagement.secretName }}
+  {{- end }}
   labels:
 {{- include "operator.authorizer.webhook.labels" . | nindent 4 }}
 webhooks:
