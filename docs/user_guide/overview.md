@@ -13,7 +13,7 @@ Before starting this tutorial, ensure you have:
 ## Core Concepts Overview
 
 ### PodClique: The Fundamental Unit
-A **PodClique** is the core building block in Grove. It represents a group of pods with the same exact configuration (similar to a Deployment) that can be used in a standalone manner to represent single-node components of your inference system, or can represent roles within a multi-node component such as leader and worker.
+A **PodClique** is the core building block in Grove. It represents a group of pods with the same exact configuration (similar to a Deployment) that can be used in a standalone manner to represent single components of your inference system, or can represent roles within a multi-node component such as leader and worker.
 
 ### PodCliqueScalingGroup: Multi-Node Coordination
 A **PodCliqueScalingGroup** coordinates multiple PodCliques that must scale together, preserving specified replica ratios across roles (e.g. leader/worker) in multi-node components.
