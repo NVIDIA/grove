@@ -6,7 +6,7 @@ Refer to [Overview](./overview.md) for instructions on how to run the examples i
 
 ## Example 1: Single-Node Aggregated Inference
 
-In this simplest scenario, each pod is a complete model instance that can service requests. This is mapped to a single standalone PodClique within the PodCliqueSet. The PodClique provides horizontal scaling capabilities at the model replica level similar to a Deployment, and the PodCliqueSet provides horizontal scaling capabilities at the system level (useful for things such as blue-green deployments and spreading across availability zones).
+In this simplest scenario, each pod is a complete model instance that can service requests. This is mapped to a single standalone PodClique within the PodCliqueSet. The PodClique provides horizontal scaling capabilities at the model replica level similar to a ReplicaSet (with gang termination behavior), and the PodCliqueSet provides horizontal scaling capabilities at the system level (useful for things such as canary deployments, A/B testing, and spreading across availability zones for high availability).
 
 ```yaml
 apiVersion: grove.io/v1alpha1
@@ -21,7 +21,7 @@ spec:
     - name: model-worker
       spec:
         replicas: 2
-        podSpec: # This is a standard Kubernetes PodSpec
+        podSpec:  # This is a standard Kubernetes PodSpec
           tolerations:
           - key: fake-node
             operator: Equal
@@ -61,7 +61,7 @@ single-node-aggregated-0-model-worker-zfhbb   1/1     Running   0          18m  
 The demo-cluster consists of fake nodes spawned by [KWOK](https://kwok.sigs.k8s.io/) so the pods won't have any logs, but if you deployed to a real cluster you should observe the echo command complete successfully. Note that the spawned pods have descriptive names. Grove intentionally aims to allow users to immediately be able to map pods to their specifications in the yaml. All pods are prefixed with `single-node-aggregated-0` to represent they are part of the first replica of the `single-node-aggregated` PodCliqueSet. After the PodCliqueSet identifier is `model-worker`, signifying that the pods belong to the `model-worker` PodClique.
 
 ### **Scaling**
-As mentioned earlier, you can scale the `model-worker` PodClique to get more model replicas similar to a Deployment. For instance run the following command to increase the replicas on `model-worker` from 2 to 4. `pclq` is short for PodClique and can be used to reference PodClique as a resource in kubectl commands. Note that the name of the PodClique provided to the scaling command is `single-node-aggregated-0-model-worker` and not just `model-worker`. This is necessary since the PodCliqueSet can be replicated (as we will see later) and therefore the name of PodCliques includes the PodCliqueSet replica they belong to.
+As mentioned earlier, you can scale the `model-worker` PodClique to get more model replicas similar to a ReplicaSet. For instance run the following command to increase the replicas on `model-worker` from 2 to 4. `pclq` is short for PodClique and can be used to reference PodClique as a resource in kubectl commands. Note that the name of the PodClique provided to the scaling command is `single-node-aggregated-0-model-worker` and not just `model-worker`. This is necessary since the PodCliqueSet can be replicated (as we will see later) and therefore the name of PodCliques includes the PodCliqueSet replica they belong to.
 ```bash
 kubectl scale pclq single-node-aggregated-0-model-worker --replicas=4
 ```
@@ -122,7 +122,7 @@ spec:
       spec:
         roleName: prefill
         replicas: 3
-        podSpec:
+        podSpec:  # This is a standard Kubernetes PodSpec
           tolerations:
           - key: fake-node
             operator: Equal
@@ -141,7 +141,7 @@ spec:
       spec:
         roleName: decode
         replicas: 2
-        podSpec:
+        podSpec:  # This is a standard Kubernetes PodSpec
           tolerations:
           - key: fake-node
             operator: Equal
@@ -185,7 +185,7 @@ Note how within the `single-node-disaggregated-0` PodCliqueSet replica there are
 ### **Scaling**
 You can scale the `prefill` and `decode` PodCliques the same way the [`model-worker` PodClique was scaled](#scaling) in the previous example. 
 
-Additionally, the `single-node-disaggregated` PodCliqueSet can be scaled the same way the `single-node-aggregated` PodCliqueSet was scaled in the previous example. We show an exampleto demonstrate how when PodCliqueSets are scaled, all constituent PodCliques are replicated, underscoring why scaling PodCliqueSets should be treated as scaling the entire system (usually for blue-green deployment or high availability across zones).
+Additionally, the `single-node-disaggregated` PodCliqueSet can be scaled the same way the `single-node-aggregated` PodCliqueSet was scaled in the previous example. We show an example to demonstrate how when PodCliqueSets are scaled, all constituent PodCliques are replicated, underscoring why scaling PodCliqueSets should be treated as scaling the entire system (useful for canary deployments, A/B testing, or high availability across zones).
 
 ```bash
 kubectl scale pcs single-node-aggregated --replicas=2

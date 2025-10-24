@@ -26,7 +26,7 @@ spec:
       spec:
         roleName: leader
         replicas: 1
-        podSpec:
+        podSpec:  # This is a standard Kubernetes PodSpec
           tolerations:
           - key: fake-node
             operator: Equal
@@ -45,7 +45,7 @@ spec:
       spec:
         roleName: worker
         replicas: 3
-        podSpec:
+        podSpec:  # This is a standard Kubernetes PodSpec
           tolerations:
           - key: fake-node
             operator: Equal
@@ -161,7 +161,9 @@ multinode-aggregated-0-model-instance-2-worker-qqnl8   1/1     Running   0      
 ```
 Note how there are now four pods belonging to `multinode-aggregated-0-model-instance-0-worker`
 
-Overall, you can scale the PodCliqueScalingGroup to scale a multi-node component and "super-pod", but you can also still scale the PodCliques that make up a PodCliqueScalingGroup (this will likely become more relevant ones inference frameworks have elastic world sizes)
+**When to scale what:**
+- **Scale the PodCliqueScalingGroup** (`kubectl scale pcsg ...`) when you want to add more complete model instances (e.g., adding a second leader+workers unit for more capacity)
+- **Scale individual PodCliques** (`kubectl scale pclq ...`) when you want to adjust the number of pods in a specific role within one instance (e.g., adding more workers to an existing leader-worker group as frameworks support elastic world sizes)
 
 ### Cleanup
 To teardown the example delete the `multinode-aggregated` PodCliqueSet, the operator will tear down all the constituent pieces
@@ -190,7 +192,7 @@ spec:
       spec:
         roleName: pleader
         replicas: 1
-        podSpec:
+        podSpec:  # This is a standard Kubernetes PodSpec
           tolerations:
           - key: fake-node
             operator: Equal
@@ -209,7 +211,7 @@ spec:
       spec:
         roleName: pworker
         replicas: 4
-        podSpec:
+        podSpec:  # This is a standard Kubernetes PodSpec
           tolerations:
           - key: fake-node
             operator: Equal
@@ -228,7 +230,7 @@ spec:
       spec:
         roleName: dleader
         replicas: 1
-        podSpec:
+        podSpec:  # This is a standard Kubernetes PodSpec
           tolerations:
           - key: fake-node
             operator: Equal
@@ -247,7 +249,7 @@ spec:
       spec:
         roleName: dworker
         replicas: 2
-        podSpec:
+        podSpec:  # This is a standard Kubernetes PodSpec
           tolerations:
           - key: fake-node
             operator: Equal

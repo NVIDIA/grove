@@ -13,12 +13,12 @@ Before starting this tutorial, ensure you have:
 ## Core Concepts Overview
 
 ### PodClique: The Fundamental Unit
-A **PodClique** is the core building block in Grove. It represents a group of pods with the same exact configuration (similar to a Deployment) that can be used in a standalone manner to represent single components of your inference system, or can represent roles within a multi-node component such as leader and worker.
+A **PodClique** is the core building block in Grove. It represents a group of pods with the same exact configuration (similar to a ReplicaSet, but with gang termination behavior) that can be used in a standalone manner to represent single components of your inference system, or can represent roles within a multi-node component such as leader and worker.
 
 ### PodCliqueScalingGroup: Multi-Node Coordination
 A **PodCliqueScalingGroup** coordinates multiple PodCliques that must scale together, preserving specified replica ratios across roles (e.g. leader/worker) in multi-node components.
 
 ### PodCliqueSet: The Inference Service Container
-A **PodCliqueSet** contains all the inference components for a complete service. It manages one or more PodCliques or PodCliqueScalingGroups that work together to provide inference capabilities. Can be replicated in order to provide blue-green deployment and spread across availability zones.
+A **PodCliqueSet** contains all the inference components for a complete service. It manages one or more PodCliques or PodCliqueScalingGroups that work together to provide inference capabilities. PodCliqueSet replicas enable system-level scaling use cases such as deploying multiple complete instances of your inference stack (e.g., for canary deployments, A/B testing, or spreading across availability zones for high availability).
 
 In the [next guide](./pcs_and_pclq_intro.md) we go through some examples showcasing PodCliqueSet and PodClique
