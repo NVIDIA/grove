@@ -31,7 +31,7 @@ make deploy
 # 3. Deploy your first workload
 kubectl apply -f samples/simple/simple1.yaml
 
-# 4. Watch it scale
+# 4. Fetch the resources created by grove
 kubectl get pcs,pclq,pcsg,pg,pod -owide
 ```
 
