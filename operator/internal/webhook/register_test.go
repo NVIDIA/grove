@@ -125,7 +125,9 @@ func TestRegisterWebhooks_WithAuthorizerMissingEnvVar(t *testing.T) {
 
 	// Ensure env var is not set
 	originalEnv := os.Getenv(constants.EnvVarServiceAccountName)
-	os.Unsetenv(constants.EnvVarServiceAccountName)
+	if err := os.Unsetenv(constants.EnvVarServiceAccountName); err != nil {
+		require.NoError(t, err)
+	}
 	defer func() {
 		if originalEnv != "" {
 			os.Setenv(constants.EnvVarServiceAccountName, originalEnv)
@@ -165,7 +167,7 @@ func TestRegisterWebhooks_WithAuthorizerMissingNamespaceFile(t *testing.T) {
 		if originalEnv != "" {
 			os.Setenv(constants.EnvVarServiceAccountName, originalEnv)
 		} else {
-			os.Unsetenv(constants.EnvVarServiceAccountName)
+			_ = os.Unsetenv(constants.EnvVarServiceAccountName)
 		}
 	}()
 
