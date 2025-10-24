@@ -4,10 +4,10 @@
 
 # Grove
 
+[![Go Report Card](https://goreportcard.com/badge/github.com/ai-dynamo/grove/operator)](https://goreportcard.com/report/github.com/NVIDIA/grove/operator)
 [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 [![GitHub Release](https://img.shields.io/github/v/release/ai-dynamo/grove)](https://github.com/ai-dynamo/grove/releases/latest)
 [![Discord](https://dcbadge.limes.pink/api/server/D92uqZRjCZ?style=flat)](https://discord.gg/GF45xZAX)
-[![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/ai-dynamo/grove)
 
 Grove is a Kubernetes API purpose-built for orchestrating AI workloads on GPU clusters. The modern inference landscape spans a wide range of workload types — from traditional single-node deployments where each model instance runs in a single pod, to large-scale disaggregated systems where one model instance may include multiple components such as prefill and decode, each distributed across many pods and nodes. Grove is designed to unify this entire spectrum under a single API, allowing developers to declaratively represent any inference workload by composing as many components as their system requires — whether single-node or multi-node — within one cohesive custom resource.
 
