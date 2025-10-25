@@ -46,6 +46,19 @@ config:
   server:
     webhooks:
       port: 9443
+      # certDir is the directory path where certificate files are located.
+      # The operator will look for tls.crt and tls.key in this directory.
+      # Default: /etc/grove-operator/webhook-certs
+      certDir: /etc/grove-operator/webhook-certs
+      certManagement:
+        # autoProvision enables automatic certificate generation and rotation.
+        # Set to false to use external certificates (e.g., cert-manager).
+        autoProvision: true
+        # secretName is the name of the secret containing the webhook certificate.
+        secretName: grove-webhook-server-cert
+        # certManagerEnabled adds cert-manager.io/inject-ca-from annotation to webhook configs.
+        # Requires cert-manager to be installed in the cluster.
+        certManagerEnabled: false
     healthProbes:
       enable: false
       port: 9444
@@ -133,6 +146,40 @@ webhookServerSecret:
     app.kubernetes.io/component: operator-webhook-server-secret
     app.kubernetes.io/name: grove-webhook-server-secret
     app.kubernetes.io/part-of: grove
+
+# Webhook server certificate volume configuration
+webhookServerCert:
+  # mountPath is where the certificate volume will be mounted in the container.
+  # This should typically match config.server.webhooks.certDir
+  mountPath: /etc/grove-operator/webhook-certs
+  
+  # volume defines the volume source for certificates.
+  # If not specified, defaults to using the Secret defined in config.server.webhooks.certManagement.secretName
+  # 
+  # Example 1 - Using hostPath (for local certificate files):
+  # volume:
+  #   hostPath:
+  #     path: /host/path/to/certs
+  #     type: Directory
+  #
+  # Example 2 - Using CSI driver (Vault):
+  # volume:
+  #   csi:
+  #     driver: secrets-store.csi.k8s.io
+  #     readOnly: true
+  #     volumeAttributes:
+  #       secretProviderClass: "grove-webhook-certs"
+  #
+  # Example 3 - Using ConfigMap (for testing only):
+  # volume:
+  #   configMap:
+  #     name: grove-webhook-certs
+  #
+  # Example 4 - Using emptyDir (for testing):
+  # volume:
+  #   emptyDir: {}
+  #
+  volume: null
 
 priorityClass:
   enabled: false

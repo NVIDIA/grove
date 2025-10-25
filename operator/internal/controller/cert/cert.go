@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/ai-dynamo/grove/operator/internal/constants"
 	authorizationwebhook "github.com/ai-dynamo/grove/operator/internal/webhook/admission/pcs/authorization"
@@ -39,16 +40,30 @@ const (
 )
 
 // ManageWebhookCerts registers the cert-controller with the manager which will be used to manage
-// webhook certificates.
-func ManageWebhookCerts(mgr ctrl.Manager, certDir string, authorizerEnabled bool, certsReadyCh chan struct{}) error {
+// webhook certificates. If autoProvision is false, it skips automatic certificate management
+// and only ensures that certificates are mounted from the provided Secret.
+func ManageWebhookCerts(mgr ctrl.Manager, certDir string, secretName string, authorizerEnabled bool, autoProvision bool, certsReadyCh chan struct{}) error {
 	namespace, err := getOperatorNamespace()
 	if err != nil {
 		return err
 	}
+
+	// If autoProvision is disabled, just verify certs exist and notify readiness
+	if !autoProvision {
+		logger := ctrl.Log.WithName("cert-external")
+		logger.Info("Automatic certificate provisioning is disabled, using external certificates",
+			"secretName", secretName, "certDir", certDir)
+
+		// Start a goroutine to wait for externally managed certificates
+		go waitForExternalCerts(logger, certDir, certsReadyCh)
+		return nil
+	}
+
+	// Auto-provision mode: use cert-controller
 	rotator := &cert.CertRotator{
 		SecretKey: types.NamespacedName{
 			Namespace: namespace,
-			Name:      "grove-webhook-server-cert",
+			Name:      secretName,
 		},
 		CertDir:        certDir,
 		CAName:         certificateAuthorityName,
@@ -108,4 +123,52 @@ func getOperatorNamespace() (string, error) {
 		return "", fmt.Errorf("operator namespace is empty")
 	}
 	return namespace, nil
+}
+
+// waitForExternalCerts waits for externally managed certificates to be available
+// in the specified directory. This is used when autoProvision is disabled.
+func waitForExternalCerts(logger logr.Logger, certDir string, certsReadyCh chan struct{}) {
+	const (
+		maxRetries    = 30
+		retryInterval = 2 * time.Second
+		certFileName  = "tls.crt"
+		keyFileName   = "tls.key"
+	)
+
+	certPath := fmt.Sprintf("%s/%s", certDir, certFileName)
+	keyPath := fmt.Sprintf("%s/%s", certDir, keyFileName)
+
+	for i := 0; i < maxRetries; i++ {
+		// Check if both certificate and key files exist
+		certExists := fileExists(certPath)
+		keyExists := fileExists(keyPath)
+
+		if certExists && keyExists {
+			logger.Info("External certificates found and ready",
+				"certPath", certPath, "keyPath", keyPath)
+			close(certsReadyCh)
+			return
+		}
+
+		if i < maxRetries-1 {
+			logger.Info("Waiting for external certificates to be mounted",
+				"attempt", i+1, "maxRetries", maxRetries,
+				"certExists", certExists, "keyExists", keyExists)
+			time.Sleep(retryInterval)
+		}
+	}
+
+	logger.Error(fmt.Errorf("timeout waiting for external certificates"),
+		"Failed to find certificates after maximum retries",
+		"certPath", certPath, "keyPath", keyPath)
+	// Don't close the channel - this will cause the readiness check to fail
+}
+
+// fileExists checks if a file exists and is not a directory
+func fileExists(path string) bool {
+	info, err := os.Stat(path)
+	if err != nil {
+		return false
+	}
+	return !info.IsDir()
 }
