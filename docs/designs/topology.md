@@ -7,32 +7,17 @@ This document defines the design for supporting topology-aware scheduling in the
 **Motivation**: Topology-aware scheduling is critical for Grove's multi-node inference workloads because these
 applications require:
 
-- **Network Locality**: Proximity improves high-bandwidth communication between leaders and their respective workers (
-  prefill and decode, etc.)
+- **Network Locality**: Proximity improves high-bandwidth communication between leaders and their respective workers
 - **Coordinated Placement**: Related components (e.g., model shards) perform better when co-located within the same
   topology domain
 - **Latency Optimization**: Minimizing network hops between interdependent inference components improves end-to-end
   performance
 
-**Design Approach**: This design introduces a flexible topology system with three main components:
-
-1. **TopologyDomain CRD**: Admin-configured cluster topology hierarchy mapping friendly names (e.g., rack, zone, host)
-   to node labels
-2. **Operator Configuration**: Selects active topology via `OperatorConfiguration.TopologyDomainName` field
-3. **TopologyConstraint**: User-specified packing requirements in workloads (PodCliqueSet, PodCliqueScalingGroup,
-   PodClique)
-
-**Key Feature**: Grove attempts automatic out-of-box topology optimization by generating preferred (best-effort) packing
-constraints at all levels, even without user configuration. This opportunistic packing may improve performance when
-cluster resources allow, but users should specify required constraints when strict placement is critical for their
-workload.
-
 ## Goals
 
 - Provide flexible, cluster-agnostic topology hierarchy definition via TopologyDomain CRD
 - Enable packing constraints for network locality across all Grove scalable resources
-- Support multiple topology configurations for different environments
-- Automatic Kueue Topology generation for KAI scheduler integration
+- Enforce singleton topology for cluster-wide consistency
 - Immutable topology configuration ensuring scheduling consistency
 - Hierarchical constraint validation (child stricter than parent)
 
@@ -46,59 +31,10 @@ workload.
 
 ## Proposal
 
-### High-Level Approach
-
-Grove implements topology-aware scheduling through three key components:
-
-1. **TopologyDomain CRD**: Cluster-scoped resource defining topology hierarchy
-    - Admin creates TopologyDomain with ordered list of topology levels
-    - Each level maps friendly name (e.g., "rack", "zone", "host") to node label key (e.g., "
-      topology.kubernetes.io/rack")
-    - Multiple TopologyDomains supported for different environments
-
-2. **Operator Configuration**: References TopologyDomain by name
-    - `OperatorConfiguration.TopologyDomainName: default` selects which TopologyDomain to use
-    - All workload validation performed against configured TopologyDomain
-    - Enables switching between topologies without changing workloads
-
-3. **Workload API (TopologyConstraint)**: Users specify packing requirements
-    - PodCliqueSet, PodCliqueScalingGroup, and PodClique each have TopologyConstraint field
-    - Users reference level names from TopologyDomain (e.g., `packDomain: "rack"`)
-    - No direct TopologyDomain reference needed in workloads
-
-### Automatic Optimization
-
-**Out-of-Box Optimization:**
-
-- Operator automatically generates **preferred** constraints using strictest topology level (e.g., "host")
-- Applied at all three levels (PodGang, NetworkPackGroup, PodGroup) during translation to scheduler API
-- Users get optimal packing without configuration
-
-**User Control:**
-
-- Users can specify **required** constraints via `packDomain` for strict placement requirements
-- Required constraints validated and must be satisfied
-- Preferred constraints enable best-effort optimization with graceful fallback
-
-### Controller Responsibilities
-
-The TopologyDomain controller manages:
-
-- **Kueue Topology Generation**: Auto-creates Kueue Topology CRD for KAI scheduler integration
-- **Deletion Protection**: Prevents deletion while PodCliqueSet resources reference it
-
-## Out of Scope
-
-The following features are explicitly out of scope for this design:
-
-- **Spread Constraints**: ReplicaSpreadDomain for distributing replicas across domains for fault tolerance is not
-  supported
-- **Advanced Topology Constraints Per Replica**: RootDomain for constraining entire resource (all replicas) within a
-  topology domain is not supported
-- **Ratio Grouping Between Groups**: AffinityGroups with PackRatio for complex workload patterns (e.g., 2 Prefill + 1
-  Decode ratios) is not supported
-- **Workload-Based Auto Constraints**: Automatic constraint generation based on workload characteristics, patterns, and
-  inference requirements
+Grove implements topology-aware scheduling through a singleton TopologyDomain CRD,
+operator configuration to enable/disable features, and user-specified TopologyConstraints in workloads.
+The operator automatically generates preferred constraints (lower bound) for optimization
+while allowing users to specify required constraints for strict placement (upper bound).
 
 ## Design Details
 
@@ -110,25 +46,20 @@ The following features are explicitly out of scope for this design:
 ├─────────────────────────────────────────────────────────────────────────┤
 │                                                                         │
 │  Admin Layer:                                                           │
-│  ┌──────────────────┐              ┌────────────────────┐               │
-│  │ TopologyDomain   │─────────────▶│ TopologyDomain     │               │
-│  │ CR               │              │ Controller         │               │
-│  │ (levels list)    │              └─────────┬──────────┘               │
-│  └──────────────────┘                        │                          │
-│         │                                    │                          │
-│         │                                    ▼                          │
-│         │                           ┌────────────────────┐              │
-│         │                           │ Kueue Topology     │              │
-│         │                           │ (auto-generated)   │              │
-│         │                           └────────────────────┘              │
-│         │                                                               │
-│  Operator Config: OperatorConfiguration.TopologyDomainName=default      │
-│         │                                                               │
-│         │ (validates against)                                           │
-├─────────┼───────────────────────────────────────────────────────────────┤
-│         │                                                               │
-│  User Layer:                                                            │
-│         ▼                                                               │
+│  ┌──────────────────────┐          ┌──────────────────────┐            │
+│  │ TopologyDomain       │          │ Kueue Topology       │            │
+│  │ "grove-topology"     │          │ "grove-topology"     │            │
+│  │ (singleton)          │          │ (manual creation)    │            │
+│  └──────────┬───────────┘          └───────────┬──────────┘            │
+│             │                                   │                       │
+│             │                                   │                       │
+│  Operator Config: OperatorConfiguration.EnableTopology=true            │
+│             │                                   │                       │
+│             │ (validates against)               │ (referenced by)       │
+├─────────────┼───────────────────────────────────┼───────────────────────┤
+│             │                                   │                       │
+│  User Layer:                                    │                       │
+│             ▼                                   │                       │
 │  ┌──────────────────┐              ┌────────────────────┐               │
 │  │ PodCliqueSet     │─────────────▶│ Grove Operator     │               │
 │  │ (packDomain)     │              │ (reconciles)       │               │
@@ -138,7 +69,8 @@ The following features are explicitly out of scope for this design:
 │                                              ▼                          │
 │                                    ┌────────────────────┐               │
 │                                    │ PodGang            │───────▶ KAI   │
-│                                    │ • TopologyRef      │     Scheduler │
+│                                    │ • Annotation:      │     Scheduler │
+│                                    │   topology-name    │               │
 │                                    │ • 3-level topology │               │
 │                                    │   (required+       │               │
 │                                    │    preferred)      │               │
@@ -154,19 +86,21 @@ The following features are explicitly out of scope for this design:
 TopologyDomain is a cluster-scoped CR that defines the topology hierarchy for scheduling. It maps friendly level names
 to Kubernetes node labels and establishes ordering from broadest to narrowest scope.
 
+*note: this CR is independent of Kueue Topology CRD, which must be manually created by admin to align with Grove's
+TopologyDomain for KAI scheduler usage.* (also named "grove-topology")
 **Characteristics:**
 
-- **Cluster-scoped**: Multiple TopologyDomains can exist
-- **Operator-selected**: Operator references one by name via `OperatorConfiguration.TopologyDomainName` field
+- **Cluster-scoped singleton**: Only one TopologyDomain allowed with enforced name "grove-topology"
 - **Immutable**: Once created, cannot be modified
 - **List-ordered hierarchy**: Index 0 = broadest (e.g., region), last = narrowest (e.g., host)
+- **Webhook-validated**: Webhook enforces singleton constraint and name validation
 
 **API Structure:**
 
 ```go
 // TopologyDomain defines the topology hierarchy for the cluster
 // This resource is immutable after creation
-// Multiple TopologyDomain resources can exist; Grove operator references one via OperatorConfiguration.TopologyDomainName field
+// Only one TopologyDomain can exist cluster-wide with enforced name "grove-topology"
 type TopologyDomain struct {
 metav1.TypeMeta   `json:",inline"`
 metav1.ObjectMeta `json:"metadata,omitempty"`
@@ -216,7 +150,7 @@ Description string `json:"description,omitempty"`
 apiVersion: grove.run.ai/v1alpha1
 kind: TopologyDomain
 metadata:
-  name: default
+  name: grove-topology
 spec:
   levels:
     - name: region
@@ -244,129 +178,48 @@ spec:
 
 **Creating TopologyDomain:**
 
-Steps:
-
-1. Install Grove: `helm install grove`
-2. Customize example above with your cluster's actual `topologyKey` values
-3. Create resource: `kubectl apply -f topologydomain.yaml`
-4. Configure operator with `OperatorConfiguration.TopologyDomainName` matching the resource name
-5. Create workloads with topology constraints
-
-Notes:
-
-- TopologyDomain becomes immutable after creation
-- Multiple TopologyDomains can exist; operator uses the one specified in its argument
-- Ensure node labels exist on cluster nodes before creating workloads
-- List order defines hierarchy: index 0 = broadest, last = narrowest
-- Example hierarchy: `region` (0) > `zone` (1) > `datacenter` (2) > `block` (3) > `rack` (4) > `host` (5) > `numa` (6)
+1. Customize example above with your cluster's actual `topologyKey` values
+2. Create resource: `kubectl apply -f topologydomain.yaml` (name MUST be "grove-topology")
+3. Configure operator with `OperatorConfiguration.EnableTopology: true`
+4. Manually create Kueue Topology with same name and aligned levels for KAI scheduler
 
 **Validation:**
 
-CRD-Level:
-
-- At least one level required (minimum 1, maximum 10)
-- Level `name` required (max 63 chars)
-- Level `topologyKey` required (max 316 chars)
-- Level `description` optional (max 1024 chars)
-- Entire levels list immutable after creation
-
-Webhook:
-
-- Each level `name` must be unique within the `levels` array of a single TopologyDomain
-- Each `topologyKey` must be unique within the `levels` array of a single TopologyDomain
-- Cannot modify any field after creation
-- Deletion protection via controller finalizer
-
-**Node Label Responsibility:**
-
-- Cluster administrators are responsible for ensuring that node labels specified in `topologyKey` fields exist on
-  cluster nodes
-- TopologyDomain creation succeeds even if labels don't exist yet (allows pre-configuration)
-- Workloads may fail to schedule if referenced topology labels are missing from nodes
-- Administrators should verify node labels match TopologyDomain configuration before creating workloads
+- Resource name MUST be "grove-topology" (webhook enforces singleton)
+- Only one TopologyDomain allowed cluster-wide
+- Each level `name` and `topologyKey` must be unique
+- Immutable after creation (webhook blocks updates)
 
 #### TopologyDomain Controller
 
-The TopologyDomain controller manages the TopologyDomain resource lifecycle with two primary responsibilities:
+The TopologyDomain controller manages the TopologyDomain resource lifecycle:
 
-**1. Kueue Topology Generation**
+**Deletion Protection**
 
-Automatically generates Kueue Topology CRD from the TopologyDomain.
-
-**Why Kueue Topology is Required:**
-
-Grove uses its own TopologyDomain CRD for user-friendly admin/user API, but KAI scheduler specifically requires Kueue's
-Topology CRD format for actual scheduling operations. The TopologyDomain controller bridges this gap by:
-
-- Reading Grove's TopologyDomain (user-friendly with level names like "rack", "zone")
-- Automatically generating Kueue Topology (KAI scheduler's required format with node labels only)
-- Maintaining consistency between both representations
-- Eliminating manual coordination for admins
-
-This separation allows Grove to provide better UX while maintaining compatibility with KAI scheduler requirements.
-
-Generation Process:
-
-1. Controller watches TopologyDomain specified in operator argument
-2. When TopologyDomain created, controller creates matching Kueue Topology
-3. Kueue Topology name matches TopologyDomain name
-4. Levels extracted from TopologyDomain.Spec.Levels using topologyKey field
-5. Order preserved from TopologyDomain list
-
-Example:
-
-From TopologyDomain `default` with levels zone/rack/host, controller generates:
-
-```yaml
-apiVersion: kueue.x-k8s.io/v1alpha1
-kind: Topology
-metadata:
-  name: default
-  ownerReferences:
-    - apiVersion: grove.run.ai/v1alpha1
-      kind: TopologyDomain
-      name: default
-      controller: true
-spec:
-  levels:
-    - nodeLabel: "topology.kubernetes.io/zone"
-    - nodeLabel: "topology.kubernetes.io/rack"
-    - nodeLabel: "kubernetes.io/hostname"
-```
-
-
-**Implementation Note:**
-
-To avoid importing the entire Kueue package with all its dependencies, the operator will use Kubernetes unstructured API
-to create and manage Kueue Topology CRDs. This approach is acceptable since the Kueue Topology CRD structure is simple (
-just a list of node label keys).
-
-**2. Deletion Protection**
-
-Prevents TopologyDomain deletion while PodCliqueSet resources reference it using Kubernetes finalizer.
+Prevents TopologyDomain deletion while any PodCliqueSet resources exist using Kubernetes finalizer.
 
 Deletion Workflow:
 
-1. Admin runs `kubectl delete topologydomain default`
-2. Kubernetes blocks deletion (finalizer `grove.run.ai/topology-protection` present)
+1. Admin runs `kubectl delete topologydomain grove-topology`
+2. Kubernetes blocks deletion (finalizer `grove.io/topologydomain` present)
 3. Controller reconciles:
     - Detects deletion request (deletion timestamp set)
-    - Scans cluster for any PodGang resources whose `Spec.TopologyRef` references this TopologyDomain by name
-    - If any PodGang references this TopologyDomain: Keeps finalizer, deletion blocked
-    - If no PodGang references this TopologyDomain: Removes finalizer, deletion proceeds
+   - Scans cluster for any PodCliqueSet resources
+   - If any PodCliqueSet exists: Keeps finalizer, deletion blocked
+   - If no PodCliqueSet exists: Removes finalizer, deletion proceeds
 4. Once finalizer removed, Kubernetes deletes TopologyDomain
-
 
 Key Points:
 
-- Admin must delete all PodCliqueSet whose PodGang references this TopologyDomain before deletion
-- Controller checks PodGang.Spec.TopologyRef field to determine references
+- Admin must delete all PodCliqueSet resources before deleting TopologyDomain
+- Controller checks if any PodCliqueSet exists (no need to check specific references)
+- Since topology is singleton, any PodCliqueSet potentially uses it
 - Controller continuously reconciles deletion requests
-- Prevents orphaned workloads with invalid topology references
+- Prevents orphaned workloads with invalid topology configuration
 
 #### Operator Configuration
 
-Operator references TopologyDomain by name via OperatorConfiguration manifest:
+Operator enables/disables topology features via OperatorConfiguration manifest:
 
 ```yaml
 apiVersion: grove.run.ai/v1alpha1
@@ -374,34 +227,19 @@ kind: OperatorConfiguration
 metadata:
   name: grove-operator-config
 spec:
-  # Specifies which TopologyDomain resource to use for validation
-  topologyDomainName: default
+  # Enables topology-aware scheduling features
+  enableTopology: true
 ```
 
-**Runtime Behavior:**
+**Startup Behavior:**
 
-When TopologyDomain is Missing or Deleted:
+- If `EnableTopology: true` but "grove-topology" doesn't exist: operator fails to start
+- Admin must create TopologyDomain "grove-topology" OR disable topology
 
-- **Startup**: If `OperatorConfiguration.TopologyDomainName` is configured but TopologyDomain doesn't exist at startup,
-  operator fails to
-  start
-    - Operator requires TopologyDomain to exist for auto-optimization (preferred constraints generation)
-    - This explicit failure prevents silent degradation of topology features
-  - Admin must create TopologyDomain or remove `TopologyDomainName` field before operator starts
+**Admin Responsibilities:**
 
-- **During Runtime**: If TopologyDomain is deleted while operator is running:
-    - Finalizer prevents deletion while any PodCliqueSet that reference it (using PodGang) exist
-    - If all PodCliqueSet resources are removed and TopologyDomain is deleted:
-        - Operator blocks creation of ALL new workloads (topology and non-topology)
-      - Admin must either create new TopologyDomain OR remove `TopologyDomainName` from OperatorConfiguration and
-        restart
-        - This explicit behavior prevents implicit edge cases and ensures topology configuration consistency
-
-**Multiple Topologies:**
-
-- Multiple TopologyDomain resources can exist (e.g., "aws-topology", "on-prem-topology")
-- OperatorConfiguration field selects which one to use
-- Enables different topology configurations per environment
+- Manually create Kueue Topology with name "grove-topology" for KAI scheduler
+- Ensure topology levels align between Grove TopologyDomain and Kueue Topology
 
 ### 2. Operator API Changes (Grove CRDs)
 
@@ -471,22 +309,12 @@ TopologyConstraint *TopologyConstraint `json:"topologyConstraint,omitempty"`
 
 #### Validation Webhook
 
-The validation webhook ensures topology configuration consistency:
-
-**TopologyDomain Reference:**
-
-- TopologyDomain specified in `OperatorConfiguration.TopologyDomainName` must exist
-- Referenced PackDomain name must exist in TopologyDomain.Spec.Levels
-- All validation performed against operator-configured TopologyDomain
-
 **Hierarchy Constraints:**
 
-- Child resource PackDomain must be equal to or stricter than parent
+- Child PackDomain must be equal to or stricter than parent (stricter = higher index in levels list)
 - PodCliqueSet → PodCliqueScalingGroup → PodClique hierarchy
-- Stricter = higher index (narrower scope) in TopologyDomain.Spec.Levels
-- Example: If parent uses "zone" (index 1), child can use "zone", "rack" (index 4), or "host" (index 5)
+- Referenced PackDomain name must exist in TopologyDomain.Spec.Levels
 - Validation applies on both CREATE and UPDATE operations
-- During updates, hierarchy constraints are re-validated to ensure child remains equal or stricter than parent
 
 ### 3. Scheduler API Changes (Contract with KAI)
 
@@ -501,11 +329,6 @@ KAI scheduler.
 type PodGangSpec struct {
 // PodGroups is a list of member pod groups in the PodGang
 PodGroups []PodGroup `json:"podgroups"`
-
-// TopologyRef references the Kueue Topology resource
-// Points to Kueue Topology CRD auto-generated by TopologyDomain controller
-// +optional
-TopologyRef *string `json:"topologyRef,omitempty"`
 
 // TopologyConstraint defines topology packing constraints for entire pod gang
 // Translated from PodCliqueSet.TopologyConstraint
@@ -523,6 +346,20 @@ NetworkPackGroupConfigs []NetworkPackGroupConfig `json:"networkPackGroupConfigs,
 PriorityClassName string `json:"priorityClassName,omitempty"`
 }
 ```
+
+**PodGang Metadata:**
+
+The operator adds topology information to PodGang metadata via annotation:
+
+```go
+// Annotation added to PodGang
+metadata:
+annotations:
+grove.run.ai/topology-name: "grove-topology"
+```
+
+This annotation allows the scheduler to locate the Kueue Topology resource without requiring a spec field, providing
+flexibility for future API changes.
 
 **NetworkPackGroupConfig:**
 
@@ -578,7 +415,9 @@ Preferred *PackConstraint `json:"preferred,omitempty"`
 }
 
 type PackConstraint struct {
-// PackDomain references a level name from TopologyDomain.Spec.Levels
+// PackDomain holds the topologyKey (not level name) for the topology constraint
+// Operator translates user's level name to the corresponding topologyKey from TopologyDomain
+// Example: "topology.kubernetes.io/rack" or "kubernetes.io/hostname"
 PackDomain string `json:"packDomain"`
 }
 ```
@@ -587,11 +426,14 @@ PackDomain string `json:"packDomain"`
 
 Fields Added:
 
-- `PodGangSpec.TopologyRef *string` - References Kueue Topology CRD (optional pointer)
 - `PodGangSpec.TopologyConstraint *TopologyConstraint` - PodGang-level packing from PodCliqueSet (optional pointer)
 - `NetworkPackGroupConfig.TopologyConstraint *TopologyConstraint` - PCSG-level packing from PodCliqueScalingGroup (
   optional pointer)
 - `PodGroup.TopologyConstraint *TopologyConstraint` - PodClique-level packing from PodClique (optional pointer)
+
+Annotations Added:
+
+- `grove.run.ai/topology-name: "grove-topology"` - Annotation on PodGang metadata referencing topology name
 
 Fields Removed:
 
@@ -603,43 +445,44 @@ Fields Removed:
 
 The operator translates Grove operator API to Grove Scheduler API with three-level topology constraint hierarchy:
 
-**TopologyRef Population:**
+**Topology Annotation:**
 
-- Set to Kueue Topology resource name (matches TopologyDomain name from operator config)
-- Example: `OperatorConfiguration.TopologyDomainName: default` → `TopologyRef.Name="default"`
-- KAI scheduler uses this to locate the Kueue Topology CRD
+- Operator adds annotation `grove.run.ai/topology-name: "grove-topology"` to PodGang metadata
+- KAI scheduler uses this annotation to locate the Kueue Topology CRD with name "grove-topology"
+- Annotation approach provides API flexibility for future changes without breaking spec
 
 **Constraint Translation (Required and Preferred):**
 
-The operator translates user's simple PackDomain into rich required/preferred structure in scheduler API:
+The operator translates user's level names to topologyKeys and builds required/preferred structure:
 
 **Required Constraints:**
 
-- If user specifies `packDomain: "rack"` → becomes `TopologyConstraint.Required.PackDomain = "rack"`
+- User specifies level name: `packDomain: "rack"`
+- Operator looks up topologyKey from TopologyDomain: `"topology.kubernetes.io/rack"`
+- Writes to PodGang: `TopologyConstraint.Required.PackDomain = "topology.kubernetes.io/rack"`
 - If user doesn't specify packDomain → `Required` is nil
-- Applied at the appropriate level (PodGang, NetworkPackGroup, or PodGroup)
 
 **Preferred Constraints (Auto-Generated):**
 
 - Operator ALWAYS generates preferred constraint at all three levels
-- Uses strictest/lowest level from TopologyDomain.Spec.Levels (e.g., "host")
+- Uses topologyKey of strictest level (e.g., `"kubernetes.io/hostname"` for "host" level)
 - Enables out-of-box optimization even without user configuration
 - Scheduler can fallback to less strict levels if preferred cannot be satisfied
 
 **Three-Level Translation:**
 
 1. **PodGang Level** (from PodCliqueSet):
-    - `PodGangSpec.TopologyConstraint.Required` ← user's `PodCliqueSet.TopologyConstraint.PackDomain` (if set)
-    - `PodGangSpec.TopologyConstraint.Preferred` ← auto-generated strictest level (e.g., "host")
+    - `PodGangSpec.TopologyConstraint.Required` ← topologyKey looked up from user's level name (if set)
+    - `PodGangSpec.TopologyConstraint.Preferred` ← topologyKey of strictest level (e.g., `"kubernetes.io/hostname"`)
 
 2. **NetworkPackGroup Level** (from PodCliqueScalingGroup):
     - For each PCSG with TopologyConstraint, create NetworkPackGroupConfig
-    - `NetworkPackGroupConfig.TopologyConstraint.Required` ← user's `PCSG.TopologyConstraint.PackDomain` (if set)
-    - `NetworkPackGroupConfig.TopologyConstraint.Preferred` ← auto-generated strictest level
+   - `NetworkPackGroupConfig.TopologyConstraint.Required` ← topologyKey looked up from PCSG level name (if set)
+   - `NetworkPackGroupConfig.TopologyConstraint.Preferred` ← topologyKey of strictest level
 
 3. **PodGroup Level** (from PodClique):
-    - `PodGroup.TopologyConstraint.Required` ← user's `PodClique.TopologyConstraint.PackDomain` (if set)
-    - `PodGroup.TopologyConstraint.Preferred` ← auto-generated strictest level
+    - `PodGroup.TopologyConstraint.Required` ← topologyKey looked up from PodClique level name (if set)
+    - `PodGroup.TopologyConstraint.Preferred` ← topologyKey of strictest level
 
 **Example Translation:**
 
@@ -649,7 +492,7 @@ User creates PodCliqueSet:
 spec:
   template:
     topologyConstraint:
-      packDomain: "rack"  # User specifies required constraint
+      packDomain: "rack"  # User specifies level NAME
 ```
 
 Operator translates to PodGang:
@@ -658,9 +501,9 @@ Operator translates to PodGang:
 spec:
   topologyConstraint:
     required:
-      packDomain: "rack"  # From user
+      packDomain: "topology.kubernetes.io/rack"  # Operator looks up topologyKEY
     preferred:
-      packDomain: "host"  # Auto-generated by operator
+      packDomain: "kubernetes.io/hostname"  # Auto-generated topologyKEY of strictest level
 ```
 
 **Hierarchy Validation:**
@@ -671,11 +514,9 @@ spec:
 
 **Mutable Topology Constraints:**
 
-- Users can update topology constraints at any time (PodCliqueSet, PodCliqueScalingGroup, PodClique levels)
-- Constraint changes only affect new or unscheduled pods
-- Already scheduled pods retain their current placement and are not rescheduled
-- Operator re-translates constraints to PodGang on each reconciliation triggered by updates
-- Useful for adjusting placement requirements when workloads fail to schedule due to resource constraints
+- Users can update topology constraints at any time
+- Changes only affect new or unscheduled pods (already scheduled pods retain placement)
+- Operator re-translates constraints to PodGang on each reconciliation
 
 ## Component Architecture
 
@@ -683,205 +524,33 @@ spec:
 
 When a PodCliqueSet is created or updated, the Grove Operator translates it into Grove Scheduler API (PodGang CRD):
 
-**Step-by-Step Translation:**
+**Translation Steps:**
 
-1. **PodCliqueSet Created/Updated**:
-    - User creates PodCliqueSet with optional `topologyConstraint.packDomain`
-    - Validation webhook validates against TopologyDomain
+1. User creates PodCliqueSet with optional `topologyConstraint.packDomain` (level name, e.g., "rack")
+2. Operator loads TopologyDomain "grove-topology" and builds PodGang:
+    - Looks up topologyKey for each user-specified level name (e.g., "rack" → "topology.kubernetes.io/rack")
+    - **PodGang level**: Required (topologyKey from PCS name) + Preferred (topologyKey of strictest level)
+    - **NetworkPackGroup level**: Required (topologyKey from PCSG name) + Preferred (topologyKey of strictest level)
+    - **PodGroup level**: Required (topologyKey from PodClique name) + Preferred (topologyKey of strictest level)
+    - Adds annotation `grove.run.ai/topology-name: "grove-topology"` to PodGang metadata
+3. KAI scheduler reads annotation, uses topologyKeys to apply three-level topology constraints
 
-2. **Operator Reconciles PodCliqueSet**:
-    - Operator detects PodCliqueSet creation/update
-   - Loads TopologyDomain specified in `OperatorConfiguration.TopologyDomainName`
-    - Prepares PodGang resource creation/update
+### End-to-End Flow
 
-3. **Build PodGang TopologyConstraint**:
-    - **Required**: From user's `PodCliqueSet.topologyConstraint.packDomain` (if specified)
-    - **Preferred**: Auto-generated using strictest/lowest level from TopologyDomain.Spec.Levels (e.g., "host")
-    - Populates `PodGangSpec.TopologyConstraint`
-
-4. **Build NetworkPackGroupConfigs**:
-    - For each PodCliqueScalingGroup with TopologyConstraint in PodCliqueSet
-    - Create NetworkPackGroupConfig entry with PodGroupNames from that PCSG
-    - **Required**: From `PCSG.topologyConstraint.packDomain` (if specified)
-    - **Preferred**: Auto-generated strictest level
-    - Populates `PodGangSpec.NetworkPackGroupConfigs`
-
-5. **Build PodGroups with TopologyConstraint**:
-    - For each PodClique in PodCliqueSet, create corresponding PodGroup
-    - **Required**: From `PodClique.topologyConstraint.packDomain` (if specified)
-    - **Preferred**: Auto-generated strictest level
-    - Populates `PodGroup.TopologyConstraint` for each PodGroup
-
-6. **Set TopologyRef**:
-    - References Kueue Topology by name (matches TopologyDomain name from operator config)
-   - Example: `OperatorConfiguration.TopologyDomainName: default` → `TopologyRef.Name="default"`
-    - KAI scheduler uses this to locate the Kueue Topology CRD
-
-7. **Create/Update PodGang in Scheduler API**:
-    - Operator calls Grove Scheduler API to create/update PodGang
-    - PodGang now has complete topology information at three levels
-    - KAI scheduler consumes PodGang and applies topology-aware scheduling
-
-**Key Points:**
-
-- Operator reconciliation performs translation
-- Preferred constraints auto-generated at reconciliation time for out-of-box optimization
-- Three-level hierarchy maintained: PodGang > NetworkPackGroup > PodGroup
-- TopologyRef connects PodGang to KAI scheduler's required Kueue Topology
-- All levels get both required (user-specified) and preferred (auto-generated) constraints
-
-### Topology-Aware Scheduling Flow
-
-High-level end-to-end flow:
-
-1. **Admin Setup**: Create TopologyDomain, configure operator
+1. **Admin Setup**: Create TopologyDomain "grove-topology", configure operator with `EnableTopology: true`, create
+   aligned Kueue Topology
 2. **User Creates Workload**: PodCliqueSet with optional topology constraints
-3. **Validation**: Webhooks validate against TopologyDomain
-4. **Translation**: Operator builds PodGang with three-level constraints
-5. **Scheduling**: KAI scheduler applies topology constraints with fallback
-
-### Sequence Diagram
-
-```
-┌──────────────┐    ┌──────────────────┐     ┌─────────────────┐    ┌─────────────────┐
-│ PodCliqueSet │    │  Grove Operator  │     │ Grove Scheduler │    │   Scheduler     │
-│              │    │                  │     │      API        │    │                 │
-└──────┬───────┘    └─────────┬────────┘     └────────┬────────┘    └────────┬────────┘
-       │                      │                       │                      │
-       │ CREATE/UPDATE        │                       │                      │
-       ├─────────────────────▶│                       │                      │
-       │                      │                       │                      │
-       │                      │ 1. Validation webhook │                      │
-       │                      │    validates against  │                      │
-       │                      │    TopologyDomain     │                      │
-       │                      │                       │                      │
-       │                      │ 2. Translate to       │                      │
-       │                      │    PodGang(s) spec    │                      │
-       │                      │                       │                      │
-       │                      │ CREATE/UPDATE PodGangs│                      │
-       │                      ├─────────────────────▶ │                      │
-       │                      │                       │                      │
-       │                      │                       │ SCHEDULE Pods        │
-       │                      │                       ├─────────────────────▶│
-       │                      │                       │                      │
-       │                      │                       │                      │ Apply topology
-       │                      │                       │                      │ using Kueue
-       │                      │                       │                      │ Topology CRD
-       │                      │                       │                      │
-```
-
-## Implementation Notes
-
-### Edge Cases
-
-**Case 1: TopologyDomain Not Configured**
-
-- If `OperatorConfiguration.TopologyDomainName` field not provided: topology features completely disabled
-- PodCliqueSet workloads without `packDomain` function normally
-- PodCliqueSet workloads with `packDomain` specified: validation webhook rejects creation (cannot validate without
-  TopologyDomain)
-- No auto-optimization (preferred constraints) applied
-
-**Case 2: TopologyDomain Configured but Missing at Startup**
-
-- If `OperatorConfiguration.TopologyDomainName` field provided but TopologyDomain resource doesn't exist: operator fails
-  to start
-- Operator requires TopologyDomain to exist for auto-optimization
-- Admin must either:
-    - Create the referenced TopologyDomain resource, OR
-  - Remove `TopologyDomainName` field from OperatorConfiguration
-
-**Case 3: TopologyDomain Deleted During Runtime**
-
-- Finalizer prevents deletion while any PodCliqueSet resources exist
-- If TopologyDomain deleted after all PodCliqueSet resources removed:
-    - Operator blocks creation of ALL new workloads (topology and non-topology)
-    - Existing workloads continue to function (already scheduled)
-- Admin must either:
-    - Create new TopologyDomain resource with same name, OR
-  - Remove `TopologyDomainName` field from OperatorConfiguration and restart operator
-
-**Case 4: Topology Features Enabled/Disabled**
-
-- **Enabled**: When `OperatorConfiguration.TopologyDomainName` provided and TopologyDomain exists
-    - Auto-optimization active for all workloads (preferred constraints generated)
-    - User-specified `packDomain` validated and enforced as required constraints
-- **Disabled**: When `TopologyDomainName` field not provided in OperatorConfiguration
-    - Topology constraints in workload CRDs ignored during scheduling
-    - Workloads schedule without topology awareness
-- **Toggling**: Cannot enable/disable during runtime - requires operator restart with updated configuration
-
-### Resolved Design Questions
-
-This section documents key design decisions and their resolutions.
-
-**Q: How will cluster admins map Grove topology constants to physical topology labels?**
-
-**A: The `TopologyDomain` CRD provides the mapping mechanism. Admins create a TopologyDomain resource with
-an ordered list of levels, where each level maps a friendly name (e.g., "rack", "zone", "host") to a node label key (
-e.g., "
-topology.kubernetes.io/rack"). This provides a clean, declarative API for topology configuration.
-
-    **Q: Should we allow changes to cluster topology levels and mappings after creation?**
-
-**A: No (Immutable)** - TopologyDomain and all TopologyConstraint fields are immutable after creation. This
-prevents unpredictable behavior with in-flight workloads and maintains scheduling consistency. To change topology
-configuration:
-
-1. Create a new TopologyDomain with updated configuration
-2. Update `OperatorConfiguration.TopologyDomainName` to reference new TopologyDomain
-3. Drain or migrate existing workloads
-4. Delete old TopologyDomain after all workloads are migrated
-
-**Q: If topology constraints cannot be satisfied, should workloads remain pending or schedule anyway?**
-
-**A: Remain Pending** - For gang-scheduled workloads with topology constraints:
-
-- **Required Constraints** (user-specified `packDomain`): Must be satisfied; entire gang remains pending if unsatisfied
-- **Preferred Constraints** (auto-generated): Best-effort optimization; scheduler can fall back to less strict levels
-- This behavior ensures workload integrity for tightly-coupled distributed inference workloads where partial scheduling
-  is ineffective
-- Users relying on strict placement should use required constraints; users wanting flexibility should rely on preferred
-  constraints
-
-**Q: How will domain-level packing be realized in KAI scheduler?**
-
-**A: Contract Defined** - The `PodGang` CRD serves as the API contract between Grove operator and KAI scheduler.
-Expected scheduler behavior:
-
-1. **Topology Resolution**: KAI Pod Grouper reads `PodGang.spec.topologyRef` to locate Kueue Topology CRD
-2. **Constraint Processing**: For each topology constraint (PodGang, NetworkPackGroup, PodGroup level):
-    - Process `required` constraints first (must satisfy)
-    - Apply `preferred` constraints as optimization hints (best-effort)
-3. **Domain Filtering**: Filter cluster nodes to find topology domains (e.g., single rack, single host) that satisfy:
-    - Resource requests for all pods in the constraint scope
-    - Required topology level specified in constraint
-4. **Placement**: Schedule all pods in the constraint scope within the chosen topology domain
-5. **Fallback**: For preferred constraints, fall back to less strict topology levels if preferred level cannot be
-   satisfied
-6. **Gang Semantics**: If required constraints cannot be satisfied, entire gang remains unscheduled (all-or-nothing)
-
-This contract ensures Grove workloads receive topology-aware placement while maintaining scheduler independence.
+3. **Validation**: Webhook validates against TopologyDomain
+4. **Translation**: Operator builds PodGang with three-level constraints (required + preferred)
+5. **Scheduling**: KAI scheduler reads annotation, applies topology constraints with fallback
 
 ## Security and RBAC
 
-The topology system requires careful RBAC configuration to ensure proper separation of concerns between cluster
-administrators and the operator.
-
-### ClusterRole: Grove Operator
-
-The Grove operator requires read access to TopologyDomain and full management of Kueue Topology:
+Grove operator requires read access to TopologyDomain and permission to manage finalizers:
 
 ```yaml
-apiVersion: rbac.authorization.k8s.io/v1
-kind: ClusterRole
-metadata:
-  name: grove-operator-topology
 rules:
   - apiGroups: [ "grove.run.ai" ]
-    resources: [ "topologydomains" ]
-    verbs: [ "get", "list", "watch" ]
-  - apiGroups: [ "kueue.x-k8s.io" ]
-    resources: [ "topologies" ]
-    verbs: [ "create", "delete", "get", "list", "watch", "update", "patch" ]
+    resources: [ "topologydomains", "topologydomains/finalizers" ]
+    verbs: [ "get", "list", "watch", "update" ]
 ```
