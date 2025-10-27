@@ -14,7 +14,7 @@
 // limitations under the License.
 // */
 
-package utils
+package setup
 
 import (
 	"context"
@@ -24,6 +24,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/ai-dynamo/grove/operator/e2e_testing/utils"
 	"github.com/docker/docker/api/types/container"
 	dockerclient "github.com/docker/docker/client"
 	"github.com/k3d-io/k3d/v5/pkg/client"
@@ -178,14 +179,14 @@ func SetupCompleteK3DCluster(ctx context.Context, cfg ClusterConfig, skaffoldYAM
 	}
 
 	// Wait for Grove pods to be ready
-	if err := WaitForPodsInNamespace(ctx, "grove-system", restConfig, defaultPollTimeout, defaultPollInterval, logger); err != nil {
+	if err := utils.WaitForPodsInNamespace(ctx, "grove-system", restConfig, defaultPollTimeout, defaultPollInterval, logger); err != nil {
 		cleanup()
 
 		return nil, nil, fmt.Errorf("grove pods not ready: %w", err)
 	}
 
 	// Wait for Kai Scheduler pods to be ready
-	if err := WaitForPodsInNamespace(ctx, kaiConfig.Namespace, kaiConfig.RestConfig, defaultPollTimeout, defaultPollInterval, kaiConfig.Logger); err != nil {
+	if err := utils.WaitForPodsInNamespace(ctx, kaiConfig.Namespace, kaiConfig.RestConfig, defaultPollTimeout, defaultPollInterval, kaiConfig.Logger); err != nil {
 		cleanup()
 		return nil, nil, fmt.Errorf("kai scheduler pods not ready: %w", err)
 	}
@@ -204,7 +205,7 @@ func SetupCompleteK3DCluster(ctx context.Context, cfg ClusterConfig, skaffoldYAM
 
 	// Nvidia Operator seems to take the longest to be ready, so we wait for it last
 	// to get the most done while waiting.
-	if err := WaitForPodsInNamespace(ctx, nvidiaConfig.Namespace, nvidiaConfig.RestConfig, defaultPollTimeout, defaultPollInterval, nvidiaConfig.Logger); err != nil {
+	if err := utils.WaitForPodsInNamespace(ctx, nvidiaConfig.Namespace, nvidiaConfig.RestConfig, defaultPollTimeout, defaultPollInterval, nvidiaConfig.Logger); err != nil {
 		cleanup()
 		return nil, nil, fmt.Errorf("NVIDIA GPU Operator not ready: %w", err)
 	}

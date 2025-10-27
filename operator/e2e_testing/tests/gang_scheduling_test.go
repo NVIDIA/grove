@@ -1,5 +1,3 @@
-//go:build e2e
-
 // /*
 // Copyright 2025 The Grove Authors.
 //

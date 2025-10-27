@@ -14,7 +14,7 @@
 // limitations under the License.
 // */
 
-package utils
+package setup
 
 import (
 	"context"
@@ -23,6 +23,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/ai-dynamo/grove/operator/e2e_testing/utils"
 	"github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/client"
 	"github.com/sirupsen/logrus"
@@ -163,7 +164,7 @@ func (scm *SharedClusterManager) PrepareForTest(ctx context.Context, requiredAge
 
 	// First, uncordon all nodes to reset state
 	for _, nodeName := range scm.agentNodes {
-		if err := CordonNode(ctx, scm.clientset, nodeName, false); err != nil {
+		if err := utils.CordonNode(ctx, scm.clientset, nodeName, false); err != nil {
 			return fmt.Errorf("failed to uncordon node %s: %w", nodeName, err)
 		}
 	}
@@ -172,7 +173,7 @@ func (scm *SharedClusterManager) PrepareForTest(ctx context.Context, requiredAge
 	if requiredAgents < len(scm.agentNodes) {
 		nodesToCordon := scm.agentNodes[requiredAgents:]
 		for _, nodeName := range nodesToCordon {
-			if err := CordonNode(ctx, scm.clientset, nodeName, true); err != nil {
+			if err := utils.CordonNode(ctx, scm.clientset, nodeName, true); err != nil {
 				return fmt.Errorf("failed to cordon node %s: %w", nodeName, err)
 			}
 		}
@@ -278,7 +279,7 @@ func (scm *SharedClusterManager) listRemainingPods(ctx context.Context, namespac
 // resetNodeStates uncordons all agent nodes to reset cluster state
 func (scm *SharedClusterManager) resetNodeStates(ctx context.Context) error {
 	for _, nodeName := range scm.agentNodes {
-		if err := CordonNode(ctx, scm.clientset, nodeName, false); err != nil {
+		if err := utils.CordonNode(ctx, scm.clientset, nodeName, false); err != nil {
 			scm.logger.Warnf("failed to uncordon node %s: %v", nodeName, err)
 			return fmt.Errorf("failed to uncordon node %s: %w", nodeName, err)
 		}

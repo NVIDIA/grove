@@ -14,7 +14,7 @@
 // limitations under the License.
 // */
 
-package utils
+package setup
 
 import (
 	"context"
@@ -24,6 +24,7 @@ import (
 	"runtime"
 	"time"
 
+	"github.com/ai-dynamo/grove/operator/e2e_testing/utils"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	apiextensionsclientset "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -101,7 +102,7 @@ func CreateDefaultKaiQueues(ctx context.Context, config *HelmInstallConfig) erro
 	}
 
 	// Apply the YAML content using the k8s client
-	appliedResources, err := ApplyYAMLContent(ctx, string(yamlContent), "", config.RestConfig, config.Logger)
+	appliedResources, err := utils.ApplyYAMLContent(ctx, string(yamlContent), "", config.RestConfig, config.Logger)
 	if err != nil {
 		return fmt.Errorf("failed to apply queues YAML: %w", err)
 	}
