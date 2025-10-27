@@ -205,7 +205,6 @@ require (
 	sigs.k8s.io/kustomize/api v0.20.1 // indirect
 	sigs.k8s.io/kustomize/kyaml v0.20.1 // indirect
 	sigs.k8s.io/randfill v1.0.0 // indirect
-	sigs.k8s.io/structured-merge-diff/v4 v4.6.0 // indirect
 	sigs.k8s.io/structured-merge-diff/v6 v6.3.0 // indirect
 	sigs.k8s.io/yaml v1.6.0 // indirect
 )
@@ -214,9 +213,4 @@ replace (
 	github.com/ai-dynamo/grove/operator/api => ./api
 	github.com/ai-dynamo/grove/operator/client => ./client
 	github.com/ai-dynamo/grove/scheduler/api => ../scheduler/api
-
-	// These replacements are needed to ensure that only one version of sigs.k8s.io/structured-merge-diff/v4 is pulled in.
-	// DO-NOT-REMOVE these dependencies till apimachinery moves to using v6.x.y of sigs.k8s.io/structured-merge-diff.
-	github.com/google/gnostic-models => github.com/google/gnostic-models v0.6.9
-	k8s.io/kube-openapi => k8s.io/kube-openapi v0.0.0-20250318190949-c8a335a9a2ff
 )
