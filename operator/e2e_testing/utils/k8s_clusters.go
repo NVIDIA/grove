@@ -41,6 +41,13 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 )
 
+const (
+	// defaultPollTimeout is the timeout for most polling conditions
+	defaultPollTimeout = 5 * time.Minute
+	// defaultPollInterval is the interval for most polling conditions
+	defaultPollInterval = 5 * time.Second
+)
+
 // NodeTaint represents a Kubernetes node taint
 type NodeTaint struct {
 	Key    string
@@ -171,14 +178,14 @@ func SetupCompleteK3DCluster(ctx context.Context, cfg ClusterConfig, skaffoldYAM
 	}
 
 	// Wait for Grove pods to be ready
-	if err := WaitForPodsInNamespace(ctx, "grove-system", restConfig, 5*time.Minute, 5*time.Second, logger); err != nil {
+	if err := WaitForPodsInNamespace(ctx, "grove-system", restConfig, defaultPollTimeout, defaultPollInterval, logger); err != nil {
 		cleanup()
 
 		return nil, nil, fmt.Errorf("grove pods not ready: %w", err)
 	}
 
 	// Wait for Kai Scheduler pods to be ready
-	if err := WaitForPodsInNamespace(ctx, kaiConfig.Namespace, kaiConfig.RestConfig, 5*time.Minute, 5*time.Second, kaiConfig.Logger); err != nil {
+	if err := WaitForPodsInNamespace(ctx, kaiConfig.Namespace, kaiConfig.RestConfig, defaultPollTimeout, defaultPollInterval, kaiConfig.Logger); err != nil {
 		cleanup()
 		return nil, nil, fmt.Errorf("kai scheduler pods not ready: %w", err)
 	}
@@ -197,7 +204,7 @@ func SetupCompleteK3DCluster(ctx context.Context, cfg ClusterConfig, skaffoldYAM
 
 	// Nvidia Operator seems to take the longest to be ready, so we wait for it last
 	// to get the most done while waiting.
-	if err := WaitForPodsInNamespace(ctx, nvidiaConfig.Namespace, nvidiaConfig.RestConfig, 5*time.Minute, 5*time.Second, nvidiaConfig.Logger); err != nil {
+	if err := WaitForPodsInNamespace(ctx, nvidiaConfig.Namespace, nvidiaConfig.RestConfig, defaultPollTimeout, defaultPollInterval, nvidiaConfig.Logger); err != nil {
 		cleanup()
 		return nil, nil, fmt.Errorf("NVIDIA GPU Operator not ready: %w", err)
 	}
