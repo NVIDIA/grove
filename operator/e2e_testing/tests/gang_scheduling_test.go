@@ -20,7 +20,6 @@ package tests
 
 import (
 	"context"
-	"fmt"
 	"testing"
 
 	"github.com/ai-dynamo/grove/operator/e2e_testing/utils"
@@ -87,64 +86,7 @@ func Test_GS1_GangSchedulingWithFullReplicas(t *testing.T) {
 	}
 
 	logger.Info("3. Verify all workload pods are pending due to insufficient resources")
-
-	// Poll until all pods have Unschedulable events from kai-scheduler (gang scheduling should prevent partial scheduling)
-	err = pollForCondition(ctx, defaultPollTimeout, defaultPollInterval, func() (bool, error) {
-		pods, err := clientset.CoreV1().Pods(workloadNamespace).List(ctx, metav1.ListOptions{
-			LabelSelector: "app.kubernetes.io/part-of=workload1",
-		})
-		if err != nil {
-			return false, err
-		}
-
-		// Verify all pods are still pending and have Unschedulable events
-		podsWithUnschedulableEvent := 0
-		for _, pod := range pods.Items {
-			// First check the pod is pending
-			if pod.Status.Phase != v1.PodPending {
-				return false, fmt.Errorf("expected pod %s to be pending, but it is %s", pod.Name, pod.Status.Phase)
-			}
-
-			// Check for Unschedulable event from kai-scheduler
-			events, err := clientset.CoreV1().Events(workloadNamespace).List(ctx, metav1.ListOptions{
-				FieldSelector: fmt.Sprintf("involvedObject.name=%s,involvedObject.kind=Pod", pod.Name),
-			})
-			if err != nil {
-				return false, err
-			}
-
-			// Find the most recent event, unfortunately the events are guaranteed to be sorted by timestamp
-			var mostRecentEvent *v1.Event
-			for i := range events.Items {
-				event := &events.Items[i]
-				if mostRecentEvent == nil || event.LastTimestamp.After(mostRecentEvent.LastTimestamp.Time) {
-					mostRecentEvent = event
-				}
-			}
-
-			// Check if the most recent event is Warning/Unschedulable from kai-scheduler
-			if mostRecentEvent != nil &&
-				mostRecentEvent.Type == v1.EventTypeWarning &&
-				mostRecentEvent.Reason == "Unschedulable" &&
-				mostRecentEvent.Source.Component == "kai-scheduler" {
-				logger.Debugf("Pod %s has Unschedulable event: %s", pod.Name, mostRecentEvent.Message)
-				podsWithUnschedulableEvent++
-			} else if mostRecentEvent != nil {
-				logger.Debugf("Pod %s most recent event is not Unschedulable: type=%s, reason=%s, component=%s",
-					pod.Name, mostRecentEvent.Type, mostRecentEvent.Reason, mostRecentEvent.Source.Component)
-			}
-
-		}
-
-		// Return true only when all pods have the Unschedulable event
-		if podsWithUnschedulableEvent == len(pods.Items) {
-			return true, nil
-		}
-
-		logger.Debugf("Waiting for all pods to have Unschedulable events: %d/%d", podsWithUnschedulableEvent, len(pods.Items))
-		return false, nil
-	})
-	if err != nil {
+	if err := verifyPodsArePendingWithUnschedulableEvents(ctx, clientset, workloadNamespace, "app.kubernetes.io/part-of=workload1", true, defaultPollTimeout, defaultPollInterval); err != nil {
 		t.Fatalf("Failed to verify all pods have Unschedulable events: %v", err)
 	}
 

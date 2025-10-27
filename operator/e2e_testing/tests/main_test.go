@@ -28,6 +28,7 @@ package tests
 
 import (
 	"context"
+	"encoding/json"
 	"flag"
 	"fmt"
 	"os"
@@ -38,6 +39,8 @@ import (
 	"github.com/sirupsen/logrus"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
@@ -201,5 +204,178 @@ func assertPodsOnDistinctNodes(t *testing.T, pods []v1.Pod) {
 			t.Fatalf("Pods %s and %s are scheduled on the same node %s; expected unique nodes", existingPod, pod.Name, nodeName)
 		}
 		assignedNodes[nodeName] = pod.Name
+	}
+}
+
+// verifyAllPodsArePending verifies that all pods matching the label selector are in pending state.
+// Returns an error if verification fails or timeout occurs.
+func verifyAllPodsArePending(ctx context.Context, clientset kubernetes.Interface, namespace, labelSelector string, timeout, interval time.Duration) error {
+	return pollForCondition(ctx, timeout, interval, func() (bool, error) {
+		pods, err := clientset.CoreV1().Pods(namespace).List(ctx, metav1.ListOptions{
+			LabelSelector: labelSelector,
+		})
+		if err != nil {
+			return false, err
+		}
+
+		// Check if all pods are pending
+		for _, pod := range pods.Items {
+			if pod.Status.Phase != v1.PodPending {
+				logger.Debugf("Pod %s is not pending: %s", pod.Name, pod.Status.Phase)
+				return false, nil
+			}
+		}
+
+		return true, nil
+	})
+}
+
+// verifyPodsArePendingWithUnschedulableEvents verifies that pods are pending with Unschedulable events from kai-scheduler.
+// If allPodsMustBePending is true, verifies ALL pods are pending; otherwise only checks pending pods for Unschedulable events.
+// Returns an error if verification fails, or nil if successful after finding Unschedulable events for all (pending) pods.
+func verifyPodsArePendingWithUnschedulableEvents(ctx context.Context, clientset kubernetes.Interface, namespace, labelSelector string, allPodsMustBePending bool, timeout, interval time.Duration) error {
+	// First verify all pods are pending if required
+	if allPodsMustBePending {
+		if err := verifyAllPodsArePending(ctx, clientset, namespace, labelSelector, timeout, interval); err != nil {
+			return fmt.Errorf("not all pods are pending: %w", err)
+		}
+	}
+
+	// Now verify that all pending pods have Unschedulable events
+	return pollForCondition(ctx, timeout, interval, func() (bool, error) {
+		pods, err := clientset.CoreV1().Pods(namespace).List(ctx, metav1.ListOptions{
+			LabelSelector: labelSelector,
+		})
+		if err != nil {
+			return false, err
+		}
+
+		// Track pods with Unschedulable events
+		podsWithUnschedulableEvent := 0
+		pendingCount := 0
+
+		for _, pod := range pods.Items {
+			// Check if pod is pending
+			if pod.Status.Phase == v1.PodPending {
+				pendingCount++
+
+				// Check for Unschedulable event from kai-scheduler
+				events, err := clientset.CoreV1().Events(namespace).List(ctx, metav1.ListOptions{
+					FieldSelector: fmt.Sprintf("involvedObject.name=%s,involvedObject.kind=Pod", pod.Name),
+				})
+				if err != nil {
+					return false, err
+				}
+
+				// Find the most recent event
+				var mostRecentEvent *v1.Event
+				for i := range events.Items {
+					event := &events.Items[i]
+					if mostRecentEvent == nil || event.LastTimestamp.After(mostRecentEvent.LastTimestamp.Time) {
+						mostRecentEvent = event
+					}
+				}
+
+				// Check if the most recent event is Warning/Unschedulable from kai-scheduler or Warning/PodGrouperWarning from pod-grouper
+				if mostRecentEvent != nil &&
+					mostRecentEvent.Type == v1.EventTypeWarning &&
+					((mostRecentEvent.Reason == "Unschedulable" && mostRecentEvent.Source.Component == "kai-scheduler") ||
+						(mostRecentEvent.Reason == "PodGrouperWarning" && mostRecentEvent.Source.Component == "pod-grouper")) {
+					logger.Debugf("Pod %s has Unschedulable event: %s", pod.Name, mostRecentEvent.Message)
+					podsWithUnschedulableEvent++
+				} else if mostRecentEvent != nil {
+					logger.Debugf("Pod %s most recent event is not Unschedulable: type=%s, reason=%s, component=%s",
+						pod.Name, mostRecentEvent.Type, mostRecentEvent.Reason, mostRecentEvent.Source.Component)
+				}
+			}
+		}
+
+		// Return true only when all pending pods have the Unschedulable event
+		if podsWithUnschedulableEvent == pendingCount {
+			return true, nil
+		}
+
+		logger.Debugf("Waiting for all pending pods to have Unschedulable events: %d/%d", podsWithUnschedulableEvent, pendingCount)
+		return false, nil
+	})
+}
+
+// waitForPodConditions polls until the expected pod state is reached or timeout occurs.
+// Returns the current state (total, running, pending) for logging purposes.
+func waitForPodConditions(ctx context.Context, clientset kubernetes.Interface, namespace, labelSelector string, expectedTotalPods, expectedPending int, timeout, interval time.Duration) (int, int, int, error) {
+	var lastTotal, lastRunning, lastPending int
+
+	err := pollForCondition(ctx, timeout, interval, func() (bool, error) {
+		pods, err := clientset.CoreV1().Pods(namespace).List(ctx, metav1.ListOptions{LabelSelector: labelSelector})
+		if err != nil {
+			return false, err
+		}
+
+		lastTotal = len(pods.Items)
+		lastRunning = 0
+		lastPending = 0
+		for _, pod := range pods.Items {
+			switch pod.Status.Phase {
+			case v1.PodRunning:
+				lastRunning++
+			case v1.PodPending:
+				lastPending++
+			}
+		}
+
+		// Check if conditions are met
+		return lastTotal == expectedTotalPods && lastPending == expectedPending, nil
+	})
+
+	return lastTotal, lastRunning, lastPending, err
+}
+
+// scalePCSGAndWait scales a PCSG and waits for the expected pod conditions to be reached.
+func scalePCSGAndWait(t *testing.T, ctx context.Context, clientset kubernetes.Interface, dynamicClient dynamic.Interface, namespace, labelSelector, pcsgName string, replicas int32, expectedTotalPods, expectedPending int) {
+	t.Helper()
+
+	pcsgGVR := schema.GroupVersionResource{Group: "grove.io", Version: "v1alpha1", Resource: "podcliquescalinggroups"}
+	patchBytes, err := json.Marshal(map[string]interface{}{
+		"spec": map[string]interface{}{
+			"replicas": replicas,
+		},
+	})
+	if err != nil {
+		t.Fatalf("Failed to marshal PCSG patch: %v", err)
+	}
+
+	if _, err := dynamicClient.Resource(pcsgGVR).Namespace(namespace).Patch(ctx, pcsgName, types.MergePatchType, patchBytes, metav1.PatchOptions{}); err != nil {
+		t.Fatalf("Failed to scale PodCliqueScalingGroup %s: %v", pcsgName, err)
+	}
+
+	totalPods, runningPods, pendingPods, err := waitForPodConditions(ctx, clientset, namespace, labelSelector, expectedTotalPods, expectedPending, 5*time.Minute, 5*time.Second)
+	if err != nil {
+		t.Fatalf("Failed to wait for expected pod conditions after PCSG scaling: %v. Final state: total=%d, running=%d, pending=%d (expected: total=%d, pending=%d)",
+			err, totalPods, runningPods, pendingPods, expectedTotalPods, expectedPending)
+	}
+}
+
+// scalePCSAndWait scales a PCS and waits for the expected pod conditions to be reached.
+func scalePCSAndWait(t *testing.T, ctx context.Context, clientset kubernetes.Interface, dynamicClient dynamic.Interface, namespace, labelSelector, pcsName string, replicas int32, expectedTotalPods, expectedPending int) {
+	t.Helper()
+
+	pcsGVR := schema.GroupVersionResource{Group: "grove.io", Version: "v1alpha1", Resource: "podcliquesets"}
+	patchBytes, err := json.Marshal(map[string]interface{}{
+		"spec": map[string]interface{}{
+			"replicas": replicas,
+		},
+	})
+	if err != nil {
+		t.Fatalf("Failed to marshal PCS patch: %v", err)
+	}
+
+	if _, err := dynamicClient.Resource(pcsGVR).Namespace(namespace).Patch(ctx, pcsName, types.MergePatchType, patchBytes, metav1.PatchOptions{}); err != nil {
+		t.Fatalf("Failed to scale PodCliqueSet %s: %v", pcsName, err)
+	}
+
+	totalPods, runningPods, pendingPods, err := waitForPodConditions(ctx, clientset, namespace, labelSelector, expectedTotalPods, expectedPending, 1*time.Minute, 1*time.Second)
+	if err != nil {
+		t.Fatalf("Failed to wait for expected pod conditions after PCS scaling: %v. Final state: total=%d, running=%d, pending=%d (expected: total=%d, pending=%d)",
+			err, totalPods, runningPods, pendingPods, expectedTotalPods, expectedPending)
 	}
 }
