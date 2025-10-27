@@ -58,21 +58,22 @@ type NodeTaint struct {
 
 // NodeLabel represents a Kubernetes node label with its target node filters
 type NodeLabel struct {
-	Key         string   // Label key
-	Value       string   // Label value
+	Key   string // Label key
+	Value string // Label value
+	// k3s refers to worker nodes as agent nodes
 	NodeFilters []string // Node filters (e.g., "server:*", "agent:*", "server:0", "agent:1")
 }
 
 // ClusterConfig holds configuration for creating a k3d cluster
 type ClusterConfig struct {
 	Name             string      // Name of the k3d cluster
-	Servers          int         // Number of server/non-worker nodes
-	Agents           int         // Number of agent/worker nodes
+	ServerNodes      int         // Number of server (non-worker) nodes
+	WorkerNodes      int         // Number of worker nodes (called agents in k3s terminology)
 	Image            string      // Docker image to use for k3d cluster (e.g., "rancher/k3s:v1.28.8-k3s1")
 	HostPort         string      // Port on host to expose Kubernetes API (e.g., "6550")
 	LoadBalancerPort string      // Load balancer port mapping in format "hostPort:containerPort" (e.g., "8080:80")
 	NodeLabels       []NodeLabel // Kubernetes labels to apply with specific node filters
-	AgentNodeTaints  []NodeTaint // Taints to apply to agent nodes
+	WorkerNodeTaints []NodeTaint // Taints to apply to worker nodes
 	WorkerMemory     string      // Memory allocation for worker/agent nodes (e.g., "150m")
 	EnableRegistry   bool        // Enable built-in Docker registry
 	RegistryPort     string      // Port for the Docker registry (e.g., "5001")
@@ -82,8 +83,8 @@ type ClusterConfig struct {
 func DefaultClusterConfig() ClusterConfig {
 	return ClusterConfig{
 		Name:             "test-k3d-cluster",
-		Servers:          1,
-		Agents:           2,
+		ServerNodes:      1,
+		WorkerNodes:      2,
 		Image:            "rancher/k3s:v1.28.8-k3s1",
 		HostPort:         "6550",
 		LoadBalancerPort: "8080:80",
@@ -126,8 +127,9 @@ func SetupCompleteK3DCluster(ctx context.Context, cfg ClusterConfig, skaffoldYAM
 		{
 			"key":      "node_role.e2e.grove.nvidia.com",
 			"operator": "Equal",
-			"value":    "agent",
-			"effect":   "NoSchedule",
+			// k3s refers to worker nodes as agent nodes
+			"value":  "agent",
+			"effect": "NoSchedule",
 		},
 	}
 
@@ -227,9 +229,10 @@ func SetupK3DCluster(ctx context.Context, cfg ClusterConfig, logger *logrus.Logg
 		ObjectMeta: types.ObjectMeta{
 			Name: cfg.Name,
 		},
-		Servers: cfg.Servers,
-		Agents:  cfg.Agents,
-		Image:   cfg.Image,
+		Servers: cfg.ServerNodes,
+		// k3s calls these agents, but we call them worker nodes
+		Agents: cfg.WorkerNodes,
+		Image:  cfg.Image,
 		ExposeAPI: v1alpha5.SimpleExposureOpts{
 			Host:     "0.0.0.0",
 			HostPort: cfg.HostPort,
@@ -242,6 +245,7 @@ func SetupK3DCluster(ctx context.Context, cfg ClusterConfig, logger *logrus.Logg
 		},
 		Options: v1alpha5.SimpleConfigOptions{
 			Runtime: v1alpha5.SimpleConfigOptionsRuntime{
+				// worker node memory
 				AgentsMemory: cfg.WorkerMemory,
 			},
 		},
@@ -258,12 +262,13 @@ func SetupK3DCluster(ctx context.Context, cfg ClusterConfig, logger *logrus.Logg
 		)
 	}
 
-	// Apply agent node taints if specified
-	for _, taint := range cfg.AgentNodeTaints {
+	// Apply worker node taints if specified
+	for _, taint := range cfg.WorkerNodeTaints {
 		clusterConfig.Options.K3sOptions.ExtraArgs = append(
 			clusterConfig.Options.K3sOptions.ExtraArgs,
 			v1alpha5.K3sArgWithNodeFilters{
-				Arg:         fmt.Sprintf("--node-taint=%s=%s:%s", taint.Key, taint.Value, taint.Effect),
+				Arg: fmt.Sprintf("--node-taint=%s=%s:%s", taint.Key, taint.Value, taint.Effect),
+				// k3s refers to worker nodes as agent nodes
 				NodeFilters: []string{"agent:*"},
 			},
 		)
@@ -297,8 +302,8 @@ func SetupK3DCluster(ctx context.Context, cfg ClusterConfig, logger *logrus.Logg
 	}
 
 	// Create cluster
-	logger.Debugf("🚀 Creating cluster '%s' with %d server(s) and %d agent(s)...",
-		k3dConfig.Name, cfg.Servers, cfg.Agents)
+	logger.Debugf("🚀 Creating cluster '%s' with %d server(s) and %d worker node(s)...",
+		k3dConfig.Name, cfg.ServerNodes, cfg.WorkerNodes)
 
 	if err := client.ClusterRun(ctx, runtimes.Docker, k3dConfig); err != nil {
 		return nil, cleanup, fmt.Errorf("failed to create cluster: %w", err)

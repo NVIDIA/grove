@@ -43,7 +43,7 @@ type SharedClusterManager struct {
 	cleanup                  func()
 	logger                   *logrus.Logger
 	isSetup                  bool
-	agentNodes               []string
+	workerNodes              []string
 	registryPort             string
 	relativeSkaffoldYAMLPath string
 }
@@ -70,11 +70,11 @@ func (scm *SharedClusterManager) Setup(ctx context.Context, testImages []string)
 		return nil
 	}
 
-	// Configuration for maximum cluster size needed (28 agents + 3 servers)
+	// Configuration for maximum cluster size needed (28 worker nodes + 3 server nodes)
 	customCfg := ClusterConfig{
 		Name:             "shared-e2e-test-cluster",
-		Servers:          3,
-		Agents:           28,     // Maximum needed across all tests
+		ServerNodes:      3,
+		WorkerNodes:      28,     // Maximum needed across all tests
 		WorkerMemory:     "150m", // 150m memory per agent node to fit one workload pod
 		Image:            "rancher/k3s:v1.33.5-k3s1",
 		HostPort:         "6560", // Use a different port to avoid conflicts
@@ -83,20 +83,23 @@ func (scm *SharedClusterManager) Setup(ctx context.Context, testImages []string)
 		RegistryPort:     "5001",
 		NodeLabels: []NodeLabel{
 			{
-				Key:         "node_role.e2e.grove.nvidia.com",
+				Key: "node_role.e2e.grove.nvidia.com",
+				// k3s refers to worker nodes as agent nodes
 				Value:       "agent",
 				NodeFilters: []string{"agent:*"},
 			},
 			// we currently don't want GPUs in e2e tests as validator is causing issues
 			{
-				Key:         "nvidia.com/gpu.deploy.operands",
-				Value:       "false",
+				Key:   "nvidia.com/gpu.deploy.operands",
+				Value: "false",
+				// k3s refers to worker nodes as agent nodes
 				NodeFilters: []string{"server:*", "agent:*"},
 			},
 		},
-		AgentNodeTaints: []NodeTaint{
+		WorkerNodeTaints: []NodeTaint{
 			{
-				Key:    "node_role.e2e.grove.nvidia.com",
+				Key: "node_role.e2e.grove.nvidia.com",
+				// k3s refers to worker nodes as agent nodes
 				Value:  "agent",
 				Effect: "NoSchedule",
 			},
@@ -137,41 +140,41 @@ func (scm *SharedClusterManager) Setup(ctx context.Context, testImages []string)
 		return fmt.Errorf("failed to setup registry test images: %w", err)
 	}
 
-	// Get list of agent nodes for cordoning management
+	// Get list of worker nodes for cordoning management
 	nodes, err := clientset.CoreV1().Nodes().List(ctx, metav1.ListOptions{})
 	if err != nil {
 		cleanup()
 		return fmt.Errorf("failed to list nodes: %w", err)
 	}
 
-	scm.agentNodes = make([]string, 0)
+	scm.workerNodes = make([]string, 0)
 	for _, node := range nodes.Items {
 		if _, isServer := node.Labels["node-role.kubernetes.io/control-plane"]; !isServer {
-			scm.agentNodes = append(scm.agentNodes, node.Name)
+			scm.workerNodes = append(scm.workerNodes, node.Name)
 		}
 	}
 
-	scm.logger.Infof("✅ Shared cluster setup complete with %d agent nodes", len(scm.agentNodes))
+	scm.logger.Infof("✅ Shared cluster setup complete with %d worker nodes", len(scm.workerNodes))
 	scm.isSetup = true
 	return nil
 }
 
 // PrepareForTest prepares the cluster for a specific test by cordoning the appropriate nodes
-func (scm *SharedClusterManager) PrepareForTest(ctx context.Context, requiredAgents int) error {
+func (scm *SharedClusterManager) PrepareForTest(ctx context.Context, requiredWorkerNodes int) error {
 	if !scm.isSetup {
 		return fmt.Errorf("shared cluster not setup")
 	}
 
 	// First, uncordon all nodes to reset state
-	for _, nodeName := range scm.agentNodes {
+	for _, nodeName := range scm.workerNodes {
 		if err := utils.CordonNode(ctx, scm.clientset, nodeName, false); err != nil {
 			return fmt.Errorf("failed to uncordon node %s: %w", nodeName, err)
 		}
 	}
 
 	// Cordon nodes that are not needed for this test
-	if requiredAgents < len(scm.agentNodes) {
-		nodesToCordon := scm.agentNodes[requiredAgents:]
+	if requiredWorkerNodes < len(scm.workerNodes) {
+		nodesToCordon := scm.workerNodes[requiredWorkerNodes:]
 		for _, nodeName := range nodesToCordon {
 			if err := utils.CordonNode(ctx, scm.clientset, nodeName, true); err != nil {
 				return fmt.Errorf("failed to cordon node %s: %w", nodeName, err)
@@ -276,9 +279,9 @@ func (scm *SharedClusterManager) listRemainingPods(ctx context.Context, namespac
 	}
 }
 
-// resetNodeStates uncordons all agent nodes to reset cluster state
+// resetNodeStates uncordons all worker nodes to reset cluster state
 func (scm *SharedClusterManager) resetNodeStates(ctx context.Context) error {
-	for _, nodeName := range scm.agentNodes {
+	for _, nodeName := range scm.workerNodes {
 		if err := utils.CordonNode(ctx, scm.clientset, nodeName, false); err != nil {
 			scm.logger.Warnf("failed to uncordon node %s: %v", nodeName, err)
 			return fmt.Errorf("failed to uncordon node %s: %w", nodeName, err)
@@ -406,9 +409,9 @@ func (scm *SharedClusterManager) GetRegistryPort() string {
 	return scm.registryPort
 }
 
-// GetAgentNodes returns the list of agent node names
-func (scm *SharedClusterManager) GetAgentNodes() []string {
-	return scm.agentNodes
+// GetWorkerNodes returns the list of worker node names
+func (scm *SharedClusterManager) GetWorkerNodes() []string {
+	return scm.workerNodes
 }
 
 // IsSetup returns whether the shared cluster is setup

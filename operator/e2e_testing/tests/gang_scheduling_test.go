@@ -41,20 +41,20 @@ func Test_GS1_GangSchedulingWithFullReplicas(t *testing.T) {
 	clientset, restConfig, _, cleanup, _ := setupTestCluster(ctx, t, 10)
 	defer cleanup()
 
-	// Get agent (worker) nodes for cordoning
-	agentNodes, err := getAgentNodes(ctx, clientset)
+	// Get worker nodes for cordoning
+	workerNodes, err := getWorkerNodes(ctx, clientset)
 	if err != nil {
-		t.Fatalf("Failed to get agent nodes: %v", err)
+		t.Fatalf("Failed to get worker nodes: %v", err)
 	}
 
-	if len(agentNodes) < 1 {
-		t.Fatalf("Need at least 1 agent node to cordon, but found %d", len(agentNodes))
+	if len(workerNodes) < 1 {
+		t.Fatalf("Need at least 1 worker node to cordon, but found %d", len(workerNodes))
 	}
 
-	agentNodeToCordon := agentNodes[0]
-	logger.Debugf("🚫 Cordoning agent node: %s", agentNodeToCordon)
-	if err := utils.CordonNode(ctx, clientset, agentNodeToCordon, true); err != nil {
-		t.Fatalf("Failed to cordon node %s: %v", agentNodeToCordon, err)
+	workerNodeToCordon := workerNodes[0]
+	logger.Debugf("🚫 Cordoning worker node: %s", workerNodeToCordon)
+	if err := utils.CordonNode(ctx, clientset, workerNodeToCordon, true); err != nil {
+		t.Fatalf("Failed to cordon node %s: %v", workerNodeToCordon, err)
 	}
 
 	logger.Info("2. Deploy workload WL1, and verify 10 newly created pods")
@@ -91,8 +91,8 @@ func Test_GS1_GangSchedulingWithFullReplicas(t *testing.T) {
 	}
 
 	logger.Info("4. Uncordon the node and verify all pods get scheduled")
-	if err := utils.CordonNode(ctx, clientset, agentNodeToCordon, false); err != nil {
-		t.Fatalf("Failed to uncordon node %s: %v", agentNodeToCordon, err)
+	if err := utils.CordonNode(ctx, clientset, workerNodeToCordon, false); err != nil {
+		t.Fatalf("Failed to uncordon node %s: %v", workerNodeToCordon, err)
 	}
 
 	// Wait for all pods to be scheduled and ready
@@ -108,7 +108,7 @@ func Test_GS1_GangSchedulingWithFullReplicas(t *testing.T) {
 		t.Fatalf("Failed to list workload pods: %v", err)
 	}
 
-	// Verify that each pod is scheduled on a unique node, agent nodes have 150m memory
+	// Verify that each pod is scheduled on a unique node, worker nodes have 150m memory
 	// and workload pods requests 80m memory, so only 1 should fit per node
 	assertPodsOnDistinctNodes(t, pods.Items)
 

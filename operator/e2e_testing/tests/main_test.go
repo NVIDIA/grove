@@ -104,10 +104,10 @@ func TestMain(m *testing.M) {
 }
 
 // setupTestCluster initializes a shared Kubernetes cluster for testing.
-// It creates the cluster if needed, ensures the required number of agent nodes are available,
+// It creates the cluster if needed, ensures the required number of worker nodes are available,
 // and returns K8s clients along with a cleanup function and registry port.
 // The cleanup function removes workloads and optionally tears down the cluster for individual test runs.
-func setupTestCluster(ctx context.Context, t *testing.T, requiredAgents int) (*kubernetes.Clientset, *rest.Config, dynamic.Interface, func(), string) {
+func setupTestCluster(ctx context.Context, t *testing.T, requiredWorkerNodes int) (*kubernetes.Clientset, *rest.Config, dynamic.Interface, func(), string) {
 	// Always use shared cluster approach
 	sharedCluster := setup.SharedCluster(logger, "../../skaffold.yaml")
 
@@ -118,7 +118,7 @@ func setupTestCluster(ctx context.Context, t *testing.T, requiredAgents int) (*k
 		}
 	}
 
-	if err := sharedCluster.PrepareForTest(ctx, requiredAgents); err != nil {
+	if err := sharedCluster.PrepareForTest(ctx, requiredWorkerNodes); err != nil {
 		t.Errorf("Failed to prepare shared cluster for test: %v", err)
 	}
 
@@ -139,22 +139,22 @@ func setupTestCluster(ctx context.Context, t *testing.T, requiredAgents int) (*k
 	return clientset, restConfig, dynamicClient, cleanup, sharedCluster.GetRegistryPort()
 }
 
-// getAgentNodes retrieves the names of all agent (worker) nodes in the cluster,
+// getWorkerNodes retrieves the names of all worker nodes in the cluster,
 // excluding control plane nodes. Returns an error if the node list cannot be retrieved.
-func getAgentNodes(ctx context.Context, clientset kubernetes.Interface) ([]string, error) {
+func getWorkerNodes(ctx context.Context, clientset kubernetes.Interface) ([]string, error) {
 	nodes, err := clientset.CoreV1().Nodes().List(ctx, metav1.ListOptions{})
 	if err != nil {
 		return nil, fmt.Errorf("failed to list nodes: %w", err)
 	}
 
-	agentNodes := make([]string, 0)
+	workerNodes := make([]string, 0)
 	for _, node := range nodes.Items {
 		if _, isServer := node.Labels["node-role.kubernetes.io/control-plane"]; !isServer {
-			agentNodes = append(agentNodes, node.Name)
+			workerNodes = append(workerNodes, node.Name)
 		}
 	}
 
-	return agentNodes, nil
+	return workerNodes, nil
 }
 
 // assertPodsOnDistinctNodes asserts that the pods are scheduled on distinct nodes and fails the test if not.
