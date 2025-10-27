@@ -68,13 +68,6 @@ func ApplyYAMLFile(ctx context.Context, yamlFilePath string, namespace string, r
 // WaitForPods waits for pods to be ready in the specified namespaces
 // labelSelector is optional (pass empty string for all pods), timeout of 0 defaults to 5 minutes, interval of 0 defaults to 5 seconds
 func WaitForPods(ctx context.Context, restConfig *rest.Config, namespaces []string, labelSelector string, timeout time.Duration, interval time.Duration, logger *logrus.Logger) error {
-	if timeout == 0 {
-		timeout = 5 * time.Minute
-	}
-	if interval == 0 {
-		interval = 5 * time.Second
-	}
-
 	clientset, err := kubernetes.NewForConfig(restConfig)
 	if err != nil {
 		return fmt.Errorf("failed to create clientset: %w", err)
