@@ -1,3 +1,5 @@
+//go:build e2e
+
 // /*
 // Copyright 2025 The Grove Authors.
 //
@@ -69,7 +71,7 @@ func Test_GS1_GangSchedulingWithFullReplicas(t *testing.T) {
 
 	// Poll until we have the expected number of pods created
 	var pods *v1.PodList
-	err = pollForCondition(ctx, defaultPollTimeout, defaultPollInterval, func() (bool, error) {
+	err = utils.PollForCondition(ctx, defaultPollTimeout, defaultPollInterval, func() (bool, error) {
 		var err error
 		pods, err = clientset.CoreV1().Pods(workloadNamespace).List(ctx, metav1.ListOptions{
 			LabelSelector: "app.kubernetes.io/part-of=workload1",

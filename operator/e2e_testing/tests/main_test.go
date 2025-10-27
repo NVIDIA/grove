@@ -139,37 +139,6 @@ func setupTestCluster(ctx context.Context, t *testing.T, requiredAgents int) (*k
 	return clientset, restConfig, dynamicClient, cleanup, sharedCluster.GetRegistryPort()
 }
 
-// pollForCondition repeatedly evaluates a condition function at the specified interval
-// until it returns true or the timeout is reached. Returns an error if the condition fails,
-// returns an error, or the timeout expires.
-func pollForCondition(ctx context.Context, timeout, interval time.Duration, condition func() (bool, error)) error {
-	timeoutCtx, cancel := context.WithTimeout(ctx, timeout)
-	defer cancel()
-
-	ticker := time.NewTicker(interval)
-	defer ticker.Stop()
-
-	// Check immediately first
-	if satisfied, err := condition(); err != nil {
-		return err
-	} else if satisfied {
-		return nil
-	}
-
-	for {
-		select {
-		case <-timeoutCtx.Done():
-			return fmt.Errorf("condition not met within timeout of %v", timeout)
-		case <-ticker.C:
-			if satisfied, err := condition(); err != nil {
-				return err
-			} else if satisfied {
-				return nil
-			}
-		}
-	}
-}
-
 // getAgentNodes retrieves the names of all agent (worker) nodes in the cluster,
 // excluding control plane nodes. Returns an error if the node list cannot be retrieved.
 func getAgentNodes(ctx context.Context, clientset kubernetes.Interface) ([]string, error) {
@@ -208,7 +177,7 @@ func assertPodsOnDistinctNodes(t *testing.T, pods []v1.Pod) {
 // verifyAllPodsArePending verifies that all pods matching the label selector are in pending state.
 // Returns an error if verification fails or timeout occurs.
 func verifyAllPodsArePending(ctx context.Context, clientset kubernetes.Interface, namespace, labelSelector string, timeout, interval time.Duration) error {
-	return pollForCondition(ctx, timeout, interval, func() (bool, error) {
+	return utils.PollForCondition(ctx, timeout, interval, func() (bool, error) {
 		pods, err := clientset.CoreV1().Pods(namespace).List(ctx, metav1.ListOptions{
 			LabelSelector: labelSelector,
 		})
@@ -240,7 +209,7 @@ func verifyPodsArePendingWithUnschedulableEvents(ctx context.Context, clientset 
 	}
 
 	// Now verify that all pending pods have Unschedulable events
-	return pollForCondition(ctx, timeout, interval, func() (bool, error) {
+	return utils.PollForCondition(ctx, timeout, interval, func() (bool, error) {
 		pods, err := clientset.CoreV1().Pods(namespace).List(ctx, metav1.ListOptions{
 			LabelSelector: labelSelector,
 		})
