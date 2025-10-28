@@ -1,3 +1,5 @@
+[![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/ai-dynamo/grove)
+
 > [!NOTE]
 >
 > :construction_worker: `This project site is currently under active construction, keep watching for announcements as we approach alpha launch!`
