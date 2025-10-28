@@ -1,14 +1,14 @@
 # Installation
 
-To get started with Grove, you can use the published Helm charts of Grove under the [GitHub packages section](https://github.com/orgs/NVIDIA/packages?repo_name=grove), and install Grove in your cluster.
+To get started with Grove, you can use the published Helm charts of Grove under the [GitHub packages section](https://github.com/orgs/ai-dynamo/packages?repo_name=grove), and install Grove in your cluster.
 You can also try out Grove locally on your machine using a [kind](https://kind.sigs.k8s.io/) cluster, using the make targets we provide as a part of the repository.
 
 ## Deploying Grove
 
-You can use the published [Helm `grove-charts` package](https://github.com/NVIDIA/grove/pkgs/container/grove%2Fgrove-charts), and install it in your cluster. Set the `KUBECONFIG` in your shell session, and run the following:
+You can use the published [Helm `grove-charts` package](https://github.com/ai-dynamo/grove/pkgs/container/grove%2Fgrove-charts), and install it in your cluster. Set the `KUBECONFIG` in your shell session, and run the following:
 
 ```bash
-helm upgrade -i grove oci://ghcr.io/nvidia/grove/grove-charts:<tag>
+helm upgrade -i grove oci://ghcr.io/ai-dynamo/grove/grove-charts:<tag>
 ```
 
 You could also deploy Grove to your cluster through the provided make targets, by following [remote cluster setup](#remote-cluster-set-up) and [installation using make targets](#installation-using-make-targets).

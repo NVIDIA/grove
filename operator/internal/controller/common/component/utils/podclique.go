@@ -22,11 +22,11 @@ import (
 	"slices"
 	"time"
 
-	apicommon "github.com/NVIDIA/grove/operator/api/common"
-	"github.com/NVIDIA/grove/operator/api/common/constants"
-	grovecorev1alpha1 "github.com/NVIDIA/grove/operator/api/core/v1alpha1"
-	"github.com/NVIDIA/grove/operator/internal/utils"
-	k8sutils "github.com/NVIDIA/grove/operator/internal/utils/kubernetes"
+	apicommon "github.com/ai-dynamo/grove/operator/api/common"
+	"github.com/ai-dynamo/grove/operator/api/common/constants"
+	grovecorev1alpha1 "github.com/ai-dynamo/grove/operator/api/core/v1alpha1"
+	"github.com/ai-dynamo/grove/operator/internal/utils"
+	k8sutils "github.com/ai-dynamo/grove/operator/internal/utils/kubernetes"
 
 	"github.com/samber/lo"
 	corev1 "k8s.io/api/core/v1"
@@ -128,6 +128,7 @@ func GetPodCliquesWithParentPCS(ctx context.Context, cl client.Client, pcsObjKey
 	return pclqList.Items, nil
 }
 
+// groupPCLQsByLabel groups PodCliques by the value of the specified label key
 func groupPCLQsByLabel(pclqs []grovecorev1alpha1.PodClique, labelKey string) map[string][]grovecorev1alpha1.PodClique {
 	grouped := make(map[string][]grovecorev1alpha1.PodClique)
 	for _, pclq := range pclqs {

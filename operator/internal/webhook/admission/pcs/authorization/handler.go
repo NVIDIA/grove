@@ -23,10 +23,10 @@ import (
 	"net/http"
 	"slices"
 
-	apicommon "github.com/NVIDIA/grove/operator/api/common"
-	apiconstants "github.com/NVIDIA/grove/operator/api/common/constants"
-	groveconfigv1alpha1 "github.com/NVIDIA/grove/operator/api/config/v1alpha1"
-	k8sutils "github.com/NVIDIA/grove/operator/internal/utils/kubernetes"
+	apicommon "github.com/ai-dynamo/grove/operator/api/common"
+	apiconstants "github.com/ai-dynamo/grove/operator/api/common/constants"
+	groveconfigv1alpha1 "github.com/ai-dynamo/grove/operator/api/config/v1alpha1"
+	k8sutils "github.com/ai-dynamo/grove/operator/internal/utils/kubernetes"
 
 	"github.com/go-logr/logr"
 	admissionv1 "k8s.io/api/admission/v1"

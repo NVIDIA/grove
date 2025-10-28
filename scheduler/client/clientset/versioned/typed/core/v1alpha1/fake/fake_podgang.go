@@ -19,8 +19,8 @@ limitations under the License.
 package fake
 
 import (
-	v1alpha1 "github.com/NVIDIA/grove/scheduler/api/core/v1alpha1"
-	corev1alpha1 "github.com/NVIDIA/grove/scheduler/client/clientset/versioned/typed/core/v1alpha1"
+	v1alpha1 "github.com/ai-dynamo/grove/scheduler/api/core/v1alpha1"
+	corev1alpha1 "github.com/ai-dynamo/grove/scheduler/client/clientset/versioned/typed/core/v1alpha1"
 	gentype "k8s.io/client-go/gentype"
 )
 

@@ -21,9 +21,9 @@ import (
 	"strconv"
 	"strings"
 
-	grovecorev1alpha1 "github.com/NVIDIA/grove/operator/api/core/v1alpha1"
-	groveerr "github.com/NVIDIA/grove/operator/internal/errors"
-	"github.com/NVIDIA/grove/operator/internal/version"
+	grovecorev1alpha1 "github.com/ai-dynamo/grove/operator/api/core/v1alpha1"
+	groveerr "github.com/ai-dynamo/grove/operator/internal/errors"
+	"github.com/ai-dynamo/grove/operator/internal/version"
 
 	"github.com/spf13/pflag"
 )

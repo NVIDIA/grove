@@ -21,13 +21,15 @@ import (
 	"fmt"
 	"strconv"
 
-	apicommon "github.com/NVIDIA/grove/operator/api/common"
+	apicommon "github.com/ai-dynamo/grove/operator/api/common"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 var (
-	errReplicaIndexIntConversion             = errors.New("failed to convert replica index to int")
+	// errReplicaIndexIntConversion indicates the replica index label value could not be converted to an integer.
+	errReplicaIndexIntConversion = errors.New("failed to convert replica index to int")
+	// errNotFoundPodCliqueSetReplicaIndexLabel indicates the PodCliqueSet replica index label is missing from the resource.
 	errNotFoundPodCliqueSetReplicaIndexLabel = fmt.Errorf("label %s not found on resource", apicommon.LabelPodCliqueSetReplicaIndex)
 )
 

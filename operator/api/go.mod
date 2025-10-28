@@ -1,4 +1,4 @@
-module github.com/NVIDIA/grove/operator/api
+module github.com/ai-dynamo/grove/operator/api
 
 go 1.24.0
 

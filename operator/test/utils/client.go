@@ -19,7 +19,7 @@ package utils
 import (
 	"context"
 
-	groveclientscheme "github.com/NVIDIA/grove/operator/internal/client"
+	groveclientscheme "github.com/ai-dynamo/grove/operator/internal/client"
 
 	"github.com/samber/lo"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"

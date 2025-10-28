@@ -2,7 +2,7 @@
 
 > [!NOTE]
 >
-> :construction_worker: `This project site is currently under active construction, keep watching for announcements as we approach alpha launch!`
+> :construction_worker: `This project site is currently under active construction, keep watching for announcements!`
 
 # Grove
 
@@ -13,13 +13,18 @@ Modern AI inference workloads need capabilities that Kubernetes doesn't provide 
 - **Startup ordering** - Different components in a workload which must start in an explicit ordering
 - **Topology-aware placement** - NVLink-connected GPUs or workloads shouldn't be scattered across nodes
 
-Grove is a Kubernetes API that provides a single declarative interface for orchestrating any AI inference workload — from simple, single-pod deployments to complex multi-node, disaggregated systems.
+Grove is a Kubernetes API that provides a single declarative interface for orchestrating any AI inference workload — from simple, single-pod deployments to complex multi-node, disaggregated systems. Grove lets you scale your multinode inference deployment from a single replica to data center scale, supporting tens of thousands of GPUs. It allows you to describe your whole inference serving system in Kubernetes - e.g. prefill, decode, routing or any other component - as a single Custom Resource Definition (CRD). From that one spec, the platform coordinates hierarchical gang scheduling, topology‑aware placement, multi-level autoscaling and explicit startup ordering. You get precise control of how the system behaves without stitching together scripts, YAML files, or custom controllers.
 
 **One API. Any inference architecture.**
 
 ## Quick Start
 
 Get Grove running in 5 minutes:
+[![Go Report Card](https://goreportcard.com/badge/github.com/ai-dynamo/grove/operator)](https://goreportcard.com/report/github.com/NVIDIA/grove/operator)
+[![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
+[![GitHub Release](https://img.shields.io/github/v/release/ai-dynamo/grove)](https://github.com/ai-dynamo/grove/releases/latest)
+[![Discord](https://dcbadge.limes.pink/api/server/D92uqZRjCZ?style=flat)](https://discord.gg/GF45xZAX)
+
 
 ```bash
 # 1. Create a local kind cluster
@@ -87,8 +92,8 @@ Please read the [contribution guide](CONTRIBUTING.md) before creating you first 
 
 Grove is an open-source project and we welcome community engagement!
 
-Please feel free to start a [discussion thread](https://github.com/NVIDIA/grove/discussions) if you want to discuss a topic of interest.
+Please feel free to start a [discussion thread](https://github.com/ai-dynamo/grove/discussions) if you want to discuss a topic of interest.
 
-In case, you have run into any issue or would like a feature enhancement, please create a [GitHub Issue](https://github.com/NVIDIA/grove/issues) with the appropriate tag.
+In case, you have run into any issue or would like a feature enhancement, please create a [GitHub Issue](https://github.com/ai-dynamo/grove/issues) with the appropriate tag.
 
-To directly reach out to the Grove user and developer community, please join the [Grove mailing list](https://groups.google.com/g/grove-k8s).
+To directly reach out to the Grove user and developer community, please join the [NVIDIA Dynamo Discord server](https://discord.gg/D92uqZRjCZ), or [Grove mailing list](https://groups.google.com/g/grove-k8s).

@@ -22,7 +22,7 @@ import (
 	"strconv"
 	"strings"
 
-	k8sutils "github.com/NVIDIA/grove/operator/internal/utils/kubernetes"
+	k8sutils "github.com/ai-dynamo/grove/operator/internal/utils/kubernetes"
 
 	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"

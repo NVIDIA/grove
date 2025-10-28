@@ -1,6 +1,6 @@
 # builder
 FROM --platform=$BUILDPLATFORM golang:1.24.5 AS builder
-WORKDIR /go/src/github.com/NVIDIA/grove
+WORKDIR /go/src/github.com/ai-dynamo/grove
 COPY ../. .
 
 # Reference: https://docs.docker.com/reference/dockerfile/#automatic-platform-args-in-the-global-scope
@@ -25,11 +25,11 @@ ARG VERSION
 
 LABEL org.opencontainers.image.title="Grove Init Container"
 LABEL org.opencontainers.image.description="Init Container to establish the correct startup order in a PodClique"
-LABEL org.opencontainers.image.source="https://github.com/NVIDIA/grove/tree/main/operator/initc"
+LABEL org.opencontainers.image.source="https://github.com/ai-dynamo/grove/tree/main/operator/initc"
 LABEL org.opencontainers.image.version=${VERSION}
 
 WORKDIR /
-COPY --from=builder /go/src/github.com/NVIDIA/grove/operator/bin/grove-initc /grove-initc
+COPY --from=builder /go/src/github.com/ai-dynamo/grove/operator/bin/grove-initc /grove-initc
 ENTRYPOINT ["/grove-initc"]
 
 # grove-operator
@@ -39,9 +39,9 @@ ARG VERSION
 
 LABEL org.opencontainers.image.title="Grove Operator"
 LABEL org.opencontainers.image.description="Kubernetes operator for PodGang and PodCliqueSet custom resources"
-LABEL org.opencontainers.image.source="https://github.com/NVIDIA/grove/tree/main/operator"
+LABEL org.opencontainers.image.source="https://github.com/ai-dynamo/grove/tree/main/operator"
 LABEL org.opencontainers.image.version=${VERSION}
 
 WORKDIR /
-COPY --from=builder /go/src/github.com/NVIDIA/grove/operator/bin/grove-operator /grove-operator
+COPY --from=builder /go/src/github.com/ai-dynamo/grove/operator/bin/grove-operator /grove-operator
 ENTRYPOINT ["/grove-operator"]

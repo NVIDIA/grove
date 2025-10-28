@@ -19,8 +19,8 @@ limitations under the License.
 package core
 
 import (
-	v1alpha1 "github.com/NVIDIA/grove/operator/client/informers/externalversions/core/v1alpha1"
-	internalinterfaces "github.com/NVIDIA/grove/operator/client/informers/externalversions/internalinterfaces"
+	v1alpha1 "github.com/ai-dynamo/grove/operator/client/informers/externalversions/core/v1alpha1"
+	internalinterfaces "github.com/ai-dynamo/grove/operator/client/informers/externalversions/internalinterfaces"
 )
 
 // Interface provides access to each of this group's versions.

@@ -21,11 +21,11 @@ import (
 	"fmt"
 	"testing"
 
-	grovecorev1alpha1 "github.com/NVIDIA/grove/operator/api/core/v1alpha1"
-	groveclientscheme "github.com/NVIDIA/grove/operator/internal/client"
-	"github.com/NVIDIA/grove/operator/internal/controller/common/component"
-	groveerr "github.com/NVIDIA/grove/operator/internal/errors"
-	testutils "github.com/NVIDIA/grove/operator/test/utils"
+	grovecorev1alpha1 "github.com/ai-dynamo/grove/operator/api/core/v1alpha1"
+	groveclientscheme "github.com/ai-dynamo/grove/operator/internal/client"
+	"github.com/ai-dynamo/grove/operator/internal/controller/common/component"
+	groveerr "github.com/ai-dynamo/grove/operator/internal/errors"
+	testutils "github.com/ai-dynamo/grove/operator/test/utils"
 
 	"github.com/go-logr/logr"
 	"github.com/stretchr/testify/assert"

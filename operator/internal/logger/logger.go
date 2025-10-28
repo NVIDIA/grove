@@ -19,7 +19,7 @@ package logger
 import (
 	"fmt"
 
-	configv1alpha1 "github.com/NVIDIA/grove/operator/api/config/v1alpha1"
+	configv1alpha1 "github.com/ai-dynamo/grove/operator/api/config/v1alpha1"
 
 	"github.com/go-logr/logr"
 	"go.uber.org/zap/zapcore"
@@ -34,6 +34,7 @@ func MustNewLogger(devMode bool, level configv1alpha1.LogLevel, format configv1a
 	return logzap.New(opts...)
 }
 
+// buildDefaultLoggerOpts constructs Zap logger options from the provided configuration.
 func buildDefaultLoggerOpts(devMode bool, level configv1alpha1.LogLevel, format configv1alpha1.LogFormat) ([]logzap.Opts, error) {
 	var opts []logzap.Opts
 	opts = append(opts, logzap.UseDevMode(devMode))
@@ -50,6 +51,7 @@ func buildDefaultLoggerOpts(devMode bool, level configv1alpha1.LogLevel, format 
 	return opts, nil
 }
 
+// createLogLevelOpts converts a LogLevel to Zap logger options.
 func createLogLevelOpts(level configv1alpha1.LogLevel) (logzap.Opts, error) {
 	var zapLevel zapcore.LevelEnabler
 	switch level {
@@ -65,6 +67,7 @@ func createLogLevelOpts(level configv1alpha1.LogLevel) (logzap.Opts, error) {
 	return logzap.Level(zapLevel), nil
 }
 
+// createLogFormatOpts converts a LogFormat to Zap logger options.
 func createLogFormatOpts(format configv1alpha1.LogFormat) (logzap.Opts, error) {
 	setCommonEncoderConfigOpts := func(encoderConfig *zapcore.EncoderConfig) {
 		encoderConfig.EncodeTime = zapcore.ISO8601TimeEncoder

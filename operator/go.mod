@@ -1,10 +1,10 @@
-module github.com/NVIDIA/grove/operator
+module github.com/ai-dynamo/grove/operator
 
 go 1.24.0
 
 require (
-	github.com/NVIDIA/grove/operator/api v0.0.0
-	github.com/NVIDIA/grove/scheduler/api v0.0.0
+	github.com/ai-dynamo/grove/operator/api v0.0.0
+	github.com/ai-dynamo/grove/scheduler/api v0.0.0
 	github.com/go-logr/logr v1.4.3
 	github.com/open-policy-agent/cert-controller v0.14.0
 	github.com/samber/lo v1.51.0
@@ -75,9 +75,9 @@ require (
 )
 
 replace (
-	github.com/NVIDIA/grove/operator/api => ./api
-	github.com/NVIDIA/grove/operator/client => ./client
-	github.com/NVIDIA/grove/scheduler/api => ../scheduler/api
+	github.com/ai-dynamo/grove/operator/api => ./api
+	github.com/ai-dynamo/grove/operator/client => ./client
+	github.com/ai-dynamo/grove/scheduler/api => ../scheduler/api
 
 	// These replacements are needed to ensure that only one version of sigs.k8s.io/structured-merge-diff/v4 is pulled in.
 	// DO-NOT-REMOVE these dependencies till apimachinery moves to using v6.x.y of sigs.k8s.io/structured-merge-diff.

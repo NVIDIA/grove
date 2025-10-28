@@ -21,11 +21,11 @@ import (
 	"log/slog"
 	"os"
 
-	configv1alpha1 "github.com/NVIDIA/grove/operator/api/config/v1alpha1"
-	"github.com/NVIDIA/grove/operator/internal/constants"
-	"github.com/NVIDIA/grove/operator/internal/webhook/admission/pcs/authorization"
-	"github.com/NVIDIA/grove/operator/internal/webhook/admission/pcs/defaulting"
-	"github.com/NVIDIA/grove/operator/internal/webhook/admission/pcs/validation"
+	configv1alpha1 "github.com/ai-dynamo/grove/operator/api/config/v1alpha1"
+	"github.com/ai-dynamo/grove/operator/internal/constants"
+	"github.com/ai-dynamo/grove/operator/internal/webhook/admission/pcs/authorization"
+	"github.com/ai-dynamo/grove/operator/internal/webhook/admission/pcs/defaulting"
+	"github.com/ai-dynamo/grove/operator/internal/webhook/admission/pcs/validation"
 
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 )

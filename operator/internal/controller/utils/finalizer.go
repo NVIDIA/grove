@@ -47,6 +47,7 @@ func RemoveAndPatchFinalizer(ctx context.Context, writer client.Writer, obj clie
 	)
 }
 
+// mergeFromWithOptimisticLock returns a client.Patch with the given client.Object as the base object and the optimistic lock option.
 func mergeFromWithOptimisticLock(obj client.Object, opts ...client.MergeFromOption) client.Patch {
 	return client.MergeFromWithOptions(obj, append(opts, client.MergeFromWithOptimisticLock{})...)
 }
@@ -58,6 +59,7 @@ type patchFn func(client.Object, ...client.MergeFromOption) client.Patch
 // mutateFn is a function that mutates the object with the given finalizer.
 type mutateFn func(client.Object, string) bool
 
+// patchFinalizer applies a finalizer mutation to an object and patches it.
 func patchFinalizer(ctx context.Context, writer client.Writer, obj client.Object, patchFunc patchFn, mutateFunc mutateFn, finalizer string) error {
 	beforePatch := obj.DeepCopyObject().(client.Object)
 	mutateFunc(obj, finalizer)

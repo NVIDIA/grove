@@ -20,8 +20,8 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/NVIDIA/grove/operator/api/core/v1alpha1"
-	"github.com/NVIDIA/grove/operator/internal/errors"
+	"github.com/ai-dynamo/grove/operator/api/core/v1alpha1"
+	"github.com/ai-dynamo/grove/operator/internal/errors"
 
 	"github.com/go-logr/logr"
 	admissionv1 "k8s.io/api/admission/v1"

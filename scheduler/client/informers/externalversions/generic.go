@@ -21,7 +21,7 @@ package externalversions
 import (
 	fmt "fmt"
 
-	v1alpha1 "github.com/NVIDIA/grove/scheduler/api/core/v1alpha1"
+	v1alpha1 "github.com/ai-dynamo/grove/scheduler/api/core/v1alpha1"
 	schema "k8s.io/apimachinery/pkg/runtime/schema"
 	cache "k8s.io/client-go/tools/cache"
 )

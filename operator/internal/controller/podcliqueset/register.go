@@ -20,11 +20,11 @@ import (
 	"context"
 	"reflect"
 
-	"github.com/NVIDIA/grove/operator/api/common/constants"
-	grovecorev1alpha1 "github.com/NVIDIA/grove/operator/api/core/v1alpha1"
-	componentutils "github.com/NVIDIA/grove/operator/internal/controller/common/component/utils"
-	grovectrlutils "github.com/NVIDIA/grove/operator/internal/controller/utils"
-	"github.com/NVIDIA/grove/operator/internal/utils"
+	"github.com/ai-dynamo/grove/operator/api/common/constants"
+	grovecorev1alpha1 "github.com/ai-dynamo/grove/operator/api/core/v1alpha1"
+	componentutils "github.com/ai-dynamo/grove/operator/internal/controller/common/component/utils"
+	grovectrlutils "github.com/ai-dynamo/grove/operator/internal/controller/utils"
+	"github.com/ai-dynamo/grove/operator/internal/utils"
 
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -64,6 +64,7 @@ func (r *Reconciler) RegisterWithManager(mgr manager.Manager) error {
 		Complete(r)
 }
 
+// mapPodCliqueToPodCliqueSet returns a function that maps PodClique events to their parent PodCliqueSet.
 func mapPodCliqueToPodCliqueSet() handler.MapFunc {
 	return func(_ context.Context, obj client.Object) []reconcile.Request {
 		pclq, ok := obj.(*grovecorev1alpha1.PodClique)
@@ -75,6 +76,7 @@ func mapPodCliqueToPodCliqueSet() handler.MapFunc {
 	}
 }
 
+// mapPodCliqueScaleGroupToPodCliqueSet returns a function that maps PCSG events to their parent PodCliqueSet.
 func mapPodCliqueScaleGroupToPodCliqueSet() handler.MapFunc {
 	return func(_ context.Context, obj client.Object) []reconcile.Request {
 		pcsg, ok := obj.(*grovecorev1alpha1.PodCliqueScalingGroup)
@@ -86,7 +88,7 @@ func mapPodCliqueScaleGroupToPodCliqueSet() handler.MapFunc {
 	}
 }
 
-// podCliquesPredicate returns a predicate that filters out PodClique resources that are not managed by Grove.
+// podCliquePredicate returns a predicate that filters PodClique events based on ownership and changes.
 func podCliquePredicate() predicate.Predicate {
 	return predicate.Funcs{
 		CreateFunc: func(_ event.CreateEvent) bool { return false },
@@ -101,6 +103,7 @@ func podCliquePredicate() predicate.Predicate {
 	}
 }
 
+// podCliqueScalingGroupPredicate returns a predicate that filters PCSG events for relevant status changes.
 func podCliqueScalingGroupPredicate() predicate.Predicate {
 	return predicate.Funcs{
 		CreateFunc: func(_ event.CreateEvent) bool { return false },
@@ -117,10 +120,12 @@ func podCliqueScalingGroupPredicate() predicate.Predicate {
 	}
 }
 
+// hasSpecChanged checks if the resource generation has changed.
 func hasSpecChanged(updateEvent event.UpdateEvent) bool {
 	return updateEvent.ObjectOld.GetGeneration() != updateEvent.ObjectNew.GetGeneration()
 }
 
+// hasStatusChanged checks if PodClique status fields have changed.
 func hasStatusChanged(updateEvent event.UpdateEvent) bool {
 	oldPCLQ, okOld := updateEvent.ObjectOld.(*grovecorev1alpha1.PodClique)
 	newPCLQ, okNew := updateEvent.ObjectNew.(*grovecorev1alpha1.PodClique)
@@ -131,12 +136,14 @@ func hasStatusChanged(updateEvent event.UpdateEvent) bool {
 		hasMinAvailableBreachedConditionChanged(oldPCLQ.Status.Conditions, newPCLQ.Status.Conditions)
 }
 
+// hasAnyStatusReplicasChanged checks if any replica count fields have changed.
 func hasAnyStatusReplicasChanged(oldPCLQStatus, newPCLQStatus grovecorev1alpha1.PodCliqueStatus) bool {
 	return oldPCLQStatus.Replicas != newPCLQStatus.Replicas ||
 		oldPCLQStatus.ReadyReplicas != newPCLQStatus.ReadyReplicas ||
 		oldPCLQStatus.ScheduleGatedReplicas != newPCLQStatus.ScheduleGatedReplicas
 }
 
+// hasMinAvailableBreachedConditionChanged checks if the MinAvailableBreached condition has changed.
 func hasMinAvailableBreachedConditionChanged(oldConditions, newConditions []metav1.Condition) bool {
 	oldMinAvailableBreachedCond := meta.FindStatusCondition(oldConditions, constants.ConditionTypeMinAvailableBreached)
 	newMinAvailableBreachedCond := meta.FindStatusCondition(newConditions, constants.ConditionTypeMinAvailableBreached)
@@ -149,6 +156,7 @@ func hasMinAvailableBreachedConditionChanged(oldConditions, newConditions []meta
 	return false
 }
 
+// hasRollingUpdateStatusChanged checks if PCSG rolling update progress has changed.
 func hasRollingUpdateStatusChanged(oldPCSGStatus, newPCSGStatus *grovecorev1alpha1.PodCliqueScalingGroupStatus) bool {
 	return !reflect.DeepEqual(oldPCSGStatus.RollingUpdateProgress, newPCSGStatus.RollingUpdateProgress)
 }

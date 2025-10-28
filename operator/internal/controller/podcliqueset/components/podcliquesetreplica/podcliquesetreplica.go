@@ -22,10 +22,10 @@ import (
 	"maps"
 	"slices"
 
-	grovecorev1alpha1 "github.com/NVIDIA/grove/operator/api/core/v1alpha1"
-	"github.com/NVIDIA/grove/operator/internal/controller/common/component"
-	groveerr "github.com/NVIDIA/grove/operator/internal/errors"
-	"github.com/NVIDIA/grove/operator/internal/utils"
+	grovecorev1alpha1 "github.com/ai-dynamo/grove/operator/api/core/v1alpha1"
+	"github.com/ai-dynamo/grove/operator/internal/controller/common/component"
+	groveerr "github.com/ai-dynamo/grove/operator/internal/errors"
+	"github.com/ai-dynamo/grove/operator/internal/utils"
 
 	"github.com/go-logr/logr"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -59,6 +59,7 @@ func (r _resource) GetExistingResourceNames(_ context.Context, _ logr.Logger, _ 
 	return []string{}, nil
 }
 
+// Sync orchestrates replica deletion and rolling updates for the PodCliqueSet.
 func (r _resource) Sync(ctx context.Context, logger logr.Logger, pcs *grovecorev1alpha1.PodCliqueSet) error {
 	pcsObjectKey := client.ObjectKeyFromObject(pcs)
 

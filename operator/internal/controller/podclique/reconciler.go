@@ -19,14 +19,14 @@ package podclique
 import (
 	"context"
 
-	"github.com/NVIDIA/grove/operator/api/common/constants"
-	configv1alpha1 "github.com/NVIDIA/grove/operator/api/config/v1alpha1"
-	grovecorev1alpha1 "github.com/NVIDIA/grove/operator/api/core/v1alpha1"
-	ctrlcommon "github.com/NVIDIA/grove/operator/internal/controller/common"
-	"github.com/NVIDIA/grove/operator/internal/controller/common/component"
-	pclqcomponent "github.com/NVIDIA/grove/operator/internal/controller/podclique/components"
-	ctrlutils "github.com/NVIDIA/grove/operator/internal/controller/utils"
-	"github.com/NVIDIA/grove/operator/internal/expect"
+	"github.com/ai-dynamo/grove/operator/api/common/constants"
+	configv1alpha1 "github.com/ai-dynamo/grove/operator/api/config/v1alpha1"
+	grovecorev1alpha1 "github.com/ai-dynamo/grove/operator/api/core/v1alpha1"
+	ctrlcommon "github.com/ai-dynamo/grove/operator/internal/controller/common"
+	"github.com/ai-dynamo/grove/operator/internal/controller/common/component"
+	pclqcomponent "github.com/ai-dynamo/grove/operator/internal/controller/podclique/components"
+	ctrlutils "github.com/ai-dynamo/grove/operator/internal/controller/utils"
+	"github.com/ai-dynamo/grove/operator/internal/expect"
 
 	"k8s.io/client-go/tools/record"
 	ctrl "sigs.k8s.io/controller-runtime"

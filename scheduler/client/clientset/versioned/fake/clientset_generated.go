@@ -19,9 +19,9 @@ limitations under the License.
 package fake
 
 import (
-	clientset "github.com/NVIDIA/grove/scheduler/client/clientset/versioned"
-	schedulerv1alpha1 "github.com/NVIDIA/grove/scheduler/client/clientset/versioned/typed/core/v1alpha1"
-	fakeschedulerv1alpha1 "github.com/NVIDIA/grove/scheduler/client/clientset/versioned/typed/core/v1alpha1/fake"
+	clientset "github.com/ai-dynamo/grove/scheduler/client/clientset/versioned"
+	schedulerv1alpha1 "github.com/ai-dynamo/grove/scheduler/client/clientset/versioned/typed/core/v1alpha1"
+	fakeschedulerv1alpha1 "github.com/ai-dynamo/grove/scheduler/client/clientset/versioned/typed/core/v1alpha1/fake"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/watch"

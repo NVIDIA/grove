@@ -20,11 +20,11 @@ import (
 	"context"
 	"fmt"
 
-	grovecorev1alpha1 "github.com/NVIDIA/grove/operator/api/core/v1alpha1"
-	"github.com/NVIDIA/grove/operator/internal/constants"
-	"github.com/NVIDIA/grove/operator/internal/controller/common/component"
-	groveerr "github.com/NVIDIA/grove/operator/internal/errors"
-	"github.com/NVIDIA/grove/operator/internal/utils"
+	grovecorev1alpha1 "github.com/ai-dynamo/grove/operator/api/core/v1alpha1"
+	"github.com/ai-dynamo/grove/operator/internal/constants"
+	"github.com/ai-dynamo/grove/operator/internal/controller/common/component"
+	groveerr "github.com/ai-dynamo/grove/operator/internal/errors"
+	"github.com/ai-dynamo/grove/operator/internal/utils"
 
 	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
@@ -98,6 +98,7 @@ func (r _resource) createPodDeletionTask(logger logr.Logger, pclq *grovecorev1al
 	}
 }
 
+// createPodDeletionTasks creates multiple deletion tasks for a batch of pods
 func (r _resource) createPodDeletionTasks(logger logr.Logger, pclq *grovecorev1alpha1.PodClique, podsToDelete []*corev1.Pod, pclqExpectationsKey string) []utils.Task {
 	deletionTasks := make([]utils.Task, 0, len(podsToDelete))
 	for _, podToDelete := range podsToDelete {

@@ -17,24 +17,24 @@
 package components
 
 import (
-	"github.com/NVIDIA/grove/operator/api/core/v1alpha1"
-	"github.com/NVIDIA/grove/operator/internal/controller/common/component"
-	"github.com/NVIDIA/grove/operator/internal/controller/podcliqueset/components/hpa"
-	"github.com/NVIDIA/grove/operator/internal/controller/podcliqueset/components/podclique"
-	"github.com/NVIDIA/grove/operator/internal/controller/podcliqueset/components/podcliquescalinggroup"
-	"github.com/NVIDIA/grove/operator/internal/controller/podcliqueset/components/podcliquesetreplica"
-	"github.com/NVIDIA/grove/operator/internal/controller/podcliqueset/components/podgang"
-	"github.com/NVIDIA/grove/operator/internal/controller/podcliqueset/components/role"
-	"github.com/NVIDIA/grove/operator/internal/controller/podcliqueset/components/rolebinding"
-	"github.com/NVIDIA/grove/operator/internal/controller/podcliqueset/components/satokensecret"
-	"github.com/NVIDIA/grove/operator/internal/controller/podcliqueset/components/service"
-	"github.com/NVIDIA/grove/operator/internal/controller/podcliqueset/components/serviceaccount"
+	"github.com/ai-dynamo/grove/operator/api/core/v1alpha1"
+	"github.com/ai-dynamo/grove/operator/internal/controller/common/component"
+	"github.com/ai-dynamo/grove/operator/internal/controller/podcliqueset/components/hpa"
+	"github.com/ai-dynamo/grove/operator/internal/controller/podcliqueset/components/podclique"
+	"github.com/ai-dynamo/grove/operator/internal/controller/podcliqueset/components/podcliquescalinggroup"
+	"github.com/ai-dynamo/grove/operator/internal/controller/podcliqueset/components/podcliquesetreplica"
+	"github.com/ai-dynamo/grove/operator/internal/controller/podcliqueset/components/podgang"
+	"github.com/ai-dynamo/grove/operator/internal/controller/podcliqueset/components/role"
+	"github.com/ai-dynamo/grove/operator/internal/controller/podcliqueset/components/rolebinding"
+	"github.com/ai-dynamo/grove/operator/internal/controller/podcliqueset/components/satokensecret"
+	"github.com/ai-dynamo/grove/operator/internal/controller/podcliqueset/components/service"
+	"github.com/ai-dynamo/grove/operator/internal/controller/podcliqueset/components/serviceaccount"
 
 	"k8s.io/client-go/tools/record"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 )
 
-// CreateOperatorRegistry initializes the operator registry for the PodCliqueSet reconciler.
+// CreateOperatorRegistry initializes the operator registry for the PodCliqueSet reconciler
 func CreateOperatorRegistry(mgr manager.Manager, eventRecorder record.EventRecorder) component.OperatorRegistry[v1alpha1.PodCliqueSet] {
 	cl := mgr.GetClient()
 	reg := component.NewOperatorRegistry[v1alpha1.PodCliqueSet]()

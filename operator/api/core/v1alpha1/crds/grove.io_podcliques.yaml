@@ -19,8 +19,7 @@ spec:
   - name: v1alpha1
     schema:
       openAPIV3Schema:
-        description: 'PodClique is a set of pods running the same image. TODO: @renormalize
-          expand on this.'
+        description: PodClique is a set of pods running the same image.
         properties:
           apiVersion:
             description: |-

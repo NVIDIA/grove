@@ -21,7 +21,7 @@ import (
 	"strconv"
 	"strings"
 
-	apicommon "github.com/NVIDIA/grove/operator/api/common"
+	apicommon "github.com/ai-dynamo/grove/operator/api/common"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -38,11 +38,9 @@ func GetPodCliqueSetReplicaIndexFromPodCliqueFQN(pcsName, pclqFQNName string) (i
 	return strconv.Atoi(pclqFQNName[replicaStartIndex:replicaEndIndex])
 }
 
-// GetPodCliqueNameFromPodCliqueFQN get unqualified PodClique name from FQN.
+// GetPodCliqueNameFromPodCliqueFQN extracts the unqualified PodClique name from a fully qualified name.
 func GetPodCliqueNameFromPodCliqueFQN(pclqObjectMeta metav1.ObjectMeta) (string, error) {
 	pclqObjectKey := client.ObjectKey{Name: pclqObjectMeta.Name, Namespace: pclqObjectMeta.Namespace}
-
-	// Check if the PodClique is part of a PodCliqueScalingGroup
 	pcsgName, ok := pclqObjectMeta.Labels[apicommon.LabelPodCliqueScalingGroup]
 	if ok {
 		// get the pcsg replica index
@@ -54,7 +52,6 @@ func GetPodCliqueNameFromPodCliqueFQN(pclqObjectMeta metav1.ObjectMeta) (string,
 		return pclqObjectMeta.Name[len(pclqNamePrefix):], nil
 	}
 
-	// If it is not part of PCSG then the PCLQ is a standalone PCLQ which is part of PCS
 	pcsName, ok := pclqObjectMeta.Labels[apicommon.LabelPartOfKey]
 	if !ok {
 		return "", fmt.Errorf("missing label %s on PodClique: %v", apicommon.LabelPartOfKey, pclqObjectKey)

@@ -23,9 +23,9 @@ import (
 	sync "sync"
 	time "time"
 
-	versioned "github.com/NVIDIA/grove/scheduler/client/clientset/versioned"
-	core "github.com/NVIDIA/grove/scheduler/client/informers/externalversions/core"
-	internalinterfaces "github.com/NVIDIA/grove/scheduler/client/informers/externalversions/internalinterfaces"
+	versioned "github.com/ai-dynamo/grove/scheduler/client/clientset/versioned"
+	core "github.com/ai-dynamo/grove/scheduler/client/informers/externalversions/core"
+	internalinterfaces "github.com/ai-dynamo/grove/scheduler/client/informers/externalversions/internalinterfaces"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	runtime "k8s.io/apimachinery/pkg/runtime"
 	schema "k8s.io/apimachinery/pkg/runtime/schema"

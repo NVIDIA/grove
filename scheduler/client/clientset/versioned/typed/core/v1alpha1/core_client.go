@@ -21,8 +21,8 @@ package v1alpha1
 import (
 	http "net/http"
 
-	corev1alpha1 "github.com/NVIDIA/grove/scheduler/api/core/v1alpha1"
-	scheme "github.com/NVIDIA/grove/scheduler/client/clientset/versioned/scheme"
+	corev1alpha1 "github.com/ai-dynamo/grove/scheduler/api/core/v1alpha1"
+	scheme "github.com/ai-dynamo/grove/scheduler/client/clientset/versioned/scheme"
 	rest "k8s.io/client-go/rest"
 )
 

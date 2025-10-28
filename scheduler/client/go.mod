@@ -1,9 +1,9 @@
-module github.com/NVIDIA/grove/scheduler/client
+module github.com/ai-dynamo/grove/scheduler/client
 
 go 1.24.0
 
 require (
-	github.com/NVIDIA/grove/scheduler/api v0.0.0
+	github.com/ai-dynamo/grove/scheduler/api v0.0.0
 	k8s.io/apimachinery v0.33.1
 	k8s.io/client-go v0.33.1
 )
@@ -48,4 +48,4 @@ require (
 	sigs.k8s.io/yaml v1.4.0 // indirect
 )
 
-replace github.com/NVIDIA/grove/scheduler/api => ../api
+replace github.com/ai-dynamo/grove/scheduler/api => ../api

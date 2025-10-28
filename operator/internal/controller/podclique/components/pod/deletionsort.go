@@ -33,6 +33,7 @@ func (s DeletionSorter) Swap(i, j int) {
 	s[i], s[j] = s[j], s[i]
 }
 
+// podPhaseToOrdinal maps pod phases to deletion priority order (lower values are deleted first)
 var podPhaseToOrdinal = map[corev1.PodPhase]int{corev1.PodPending: 0, corev1.PodUnknown: 1, corev1.PodRunning: 2}
 
 // Less compares two pods and returns true if the first one should be preferred for deletion.
@@ -63,6 +64,7 @@ func (s DeletionSorter) Less(i, j int) bool {
 	return s[i].CreationTimestamp.After(s[j].CreationTimestamp.Time)
 }
 
+// isPodReady checks if a pod is ready by looking for the PodReady condition with status True
 func isPodReady(pod *corev1.Pod) bool {
 	for _, condition := range pod.Status.Conditions {
 		if condition.Type == corev1.PodReady && condition.Status == corev1.ConditionTrue {

@@ -20,13 +20,13 @@ import (
 	"context"
 	"fmt"
 
-	apiconstants "github.com/NVIDIA/grove/operator/api/common/constants"
-	grovecorev1alpha1 "github.com/NVIDIA/grove/operator/api/core/v1alpha1"
-	"github.com/NVIDIA/grove/operator/internal/constants"
-	ctrlcommon "github.com/NVIDIA/grove/operator/internal/controller/common"
-	"github.com/NVIDIA/grove/operator/internal/controller/common/component"
-	ctrlutils "github.com/NVIDIA/grove/operator/internal/controller/utils"
-	k8sutils "github.com/NVIDIA/grove/operator/internal/utils/kubernetes"
+	apiconstants "github.com/ai-dynamo/grove/operator/api/common/constants"
+	grovecorev1alpha1 "github.com/ai-dynamo/grove/operator/api/core/v1alpha1"
+	"github.com/ai-dynamo/grove/operator/internal/constants"
+	ctrlcommon "github.com/ai-dynamo/grove/operator/internal/controller/common"
+	"github.com/ai-dynamo/grove/operator/internal/controller/common/component"
+	ctrlutils "github.com/ai-dynamo/grove/operator/internal/controller/utils"
+	k8sutils "github.com/ai-dynamo/grove/operator/internal/utils/kubernetes"
 
 	"github.com/go-logr/logr"
 	"github.com/samber/lo"
@@ -37,6 +37,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )
 
+// reconcileSpec performs the main reconciliation logic for PodCliqueSet spec changes
 func (r *Reconciler) reconcileSpec(ctx context.Context, logger logr.Logger, pcs *grovecorev1alpha1.PodCliqueSet) ctrlcommon.ReconcileStepResult {
 	rLog := logger.WithValues("operation", "spec-reconcile")
 	reconcileStepFns := []ctrlcommon.ReconcileStepFn[grovecorev1alpha1.PodCliqueSet]{
@@ -55,6 +56,7 @@ func (r *Reconciler) reconcileSpec(ctx context.Context, logger logr.Logger, pcs 
 	return ctrlcommon.ContinueReconcile()
 }
 
+// ensureFinalizer adds the PodCliqueSet finalizer if not already present.
 func (r *Reconciler) ensureFinalizer(ctx context.Context, logger logr.Logger, pcs *grovecorev1alpha1.PodCliqueSet) ctrlcommon.ReconcileStepResult {
 	if !controllerutil.ContainsFinalizer(pcs, apiconstants.FinalizerPodCliqueSet) {
 		logger.Info("Adding finalizer", "finalizerName", apiconstants.FinalizerPodCliqueSet)
@@ -98,11 +100,13 @@ func (r *Reconciler) processGenerationHashChange(ctx context.Context, logger log
 	return ctrlcommon.ContinueReconcile()
 }
 
+// isGenerationHashExpectationSatisfied checks if the current generation hash matches expectations.
 func (r *Reconciler) isGenerationHashExpectationSatisfied(pcsObjectName string, pcsGenerationHash *string) bool {
 	expectedGenerationHash, ok := r.pcsGenerationHashExpectations.Load(pcsObjectName)
 	return !ok || (pcsGenerationHash != nil && expectedGenerationHash.(string) == *pcsGenerationHash)
 }
 
+// computeGenerationHash calculates a hash of the PodCliqueSet pod template specifications.
 func computeGenerationHash(pcs *grovecorev1alpha1.PodCliqueSet) string {
 	podTemplateSpecs := lo.Map(pcs.Spec.Template.Cliques, func(pclqTemplateSpec *grovecorev1alpha1.PodCliqueTemplateSpec, _ int) *corev1.PodTemplateSpec {
 		podTemplateSpec := &corev1.PodTemplateSpec{
@@ -118,6 +122,7 @@ func computeGenerationHash(pcs *grovecorev1alpha1.PodCliqueSet) string {
 	return k8sutils.ComputeHash(podTemplateSpecs...)
 }
 
+// setGenerationHash updates the PodCliqueSet status with the new generation hash and stores the expectation.
 func (r *Reconciler) setGenerationHash(ctx context.Context, pcs *grovecorev1alpha1.PodCliqueSet, pcsObjectName, generationHash string) error {
 	pcs.Status.CurrentGenerationHash = &generationHash
 	if err := r.client.Status().Update(ctx, pcs); err != nil {
@@ -127,6 +132,7 @@ func (r *Reconciler) setGenerationHash(ctx context.Context, pcs *grovecorev1alph
 	return nil
 }
 
+// initRollingUpdateProgress initializes a new rolling update by resetting progress tracking.
 func (r *Reconciler) initRollingUpdateProgress(ctx context.Context, pcs *grovecorev1alpha1.PodCliqueSet, pcsObjectName, newGenerationHash string) error {
 	pcs.Status.RollingUpdateProgress = &grovecorev1alpha1.PodCliqueSetRollingUpdateProgress{
 		UpdateStartedAt: metav1.Now(),
@@ -140,6 +146,7 @@ func (r *Reconciler) initRollingUpdateProgress(ctx context.Context, pcs *groveco
 	return nil
 }
 
+// syncPodCliqueSetResources synchronizes all managed child resources in order.
 func (r *Reconciler) syncPodCliqueSetResources(ctx context.Context, logger logr.Logger, pcs *grovecorev1alpha1.PodCliqueSet) ctrlcommon.ReconcileStepResult {
 	continueReconcileAndRequeueKinds := make([]component.Kind, 0)
 	for _, kind := range getOrderedKindsForSync() {
@@ -168,6 +175,7 @@ func (r *Reconciler) syncPodCliqueSetResources(ctx context.Context, logger logr.
 	return ctrlcommon.ContinueReconcile()
 }
 
+// updateObservedGeneration updates the status to reflect the current observed generation.
 func (r *Reconciler) updateObservedGeneration(ctx context.Context, logger logr.Logger, pcs *grovecorev1alpha1.PodCliqueSet) ctrlcommon.ReconcileStepResult {
 	original := pcs.DeepCopy()
 	pcs.Status.ObservedGeneration = &pcs.Generation
@@ -179,6 +187,7 @@ func (r *Reconciler) updateObservedGeneration(ctx context.Context, logger logr.L
 	return ctrlcommon.ContinueReconcile()
 }
 
+// recordIncompleteReconcile records errors that occurred during reconciliation.
 func (r *Reconciler) recordIncompleteReconcile(ctx context.Context, logger logr.Logger, pcs *grovecorev1alpha1.PodCliqueSet, errResult *ctrlcommon.ReconcileStepResult) ctrlcommon.ReconcileStepResult {
 	if err := r.reconcileStatusRecorder.RecordErrors(ctx, pcs, errResult); err != nil {
 		logger.Error(err, "failed to record incomplete reconcile operation")
@@ -189,6 +198,7 @@ func (r *Reconciler) recordIncompleteReconcile(ctx context.Context, logger logr.
 	return *errResult
 }
 
+// getOrderedKindsForSync returns the ordered list of component kinds to synchronize.
 func getOrderedKindsForSync() []component.Kind {
 	return []component.Kind{
 		component.KindServiceAccount,

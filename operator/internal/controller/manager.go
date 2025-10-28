@@ -24,10 +24,10 @@ import (
 	"strconv"
 	"time"
 
-	configv1alpha1 "github.com/NVIDIA/grove/operator/api/config/v1alpha1"
-	groveclientscheme "github.com/NVIDIA/grove/operator/internal/client"
-	"github.com/NVIDIA/grove/operator/internal/controller/cert"
-	"github.com/NVIDIA/grove/operator/internal/webhook"
+	configv1alpha1 "github.com/ai-dynamo/grove/operator/api/config/v1alpha1"
+	groveclientscheme "github.com/ai-dynamo/grove/operator/internal/client"
+	"github.com/ai-dynamo/grove/operator/internal/controller/cert"
+	"github.com/ai-dynamo/grove/operator/internal/webhook"
 
 	"github.com/go-logr/logr"
 	"k8s.io/client-go/rest"
@@ -80,6 +80,7 @@ func SetupHealthAndReadinessEndpoints(mgr ctrl.Manager, webhookCertsReadyCh chan
 	return nil
 }
 
+// createManagerOptions constructs controller-runtime Manager options from operator configuration.
 func createManagerOptions(operatorCfg *configv1alpha1.OperatorConfiguration) ctrl.Options {
 	opts := ctrl.Options{
 		Scheme:                  groveclientscheme.Scheme,
@@ -113,6 +114,7 @@ func createManagerOptions(operatorCfg *configv1alpha1.OperatorConfiguration) ctr
 	return opts
 }
 
+// getRestConfig creates a Kubernetes REST config with customized client connection settings.
 func getRestConfig(operatorCfg *configv1alpha1.OperatorConfiguration) *rest.Config {
 	restCfg := ctrl.GetConfigOrDie()
 	if operatorCfg != nil {

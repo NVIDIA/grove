@@ -22,7 +22,7 @@ import (
 	fmt "fmt"
 	http "net/http"
 
-	grovev1alpha1 "github.com/NVIDIA/grove/operator/client/clientset/versioned/typed/core/v1alpha1"
+	grovev1alpha1 "github.com/ai-dynamo/grove/operator/client/clientset/versioned/typed/core/v1alpha1"
 	discovery "k8s.io/client-go/discovery"
 	rest "k8s.io/client-go/rest"
 	flowcontrol "k8s.io/client-go/util/flowcontrol"

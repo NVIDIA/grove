@@ -19,8 +19,8 @@ package common
 import (
 	"context"
 
-	grovecorev1alpha1 "github.com/NVIDIA/grove/operator/api/core/v1alpha1"
-	groveerr "github.com/NVIDIA/grove/operator/internal/errors"
+	grovecorev1alpha1 "github.com/ai-dynamo/grove/operator/api/core/v1alpha1"
+	groveerr "github.com/ai-dynamo/grove/operator/internal/errors"
 
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -51,6 +51,7 @@ func NewReconcileErrorRecorder(client client.Client) ReconcileErrorRecorder {
 	}
 }
 
+// RecordErrors updates the target object's LastErrors status field with any errors from the reconcile step result
 func (r *recorder) RecordErrors(ctx context.Context, obj ReconciledObject, result *ReconcileStepResult) error {
 	var lastErrors []grovecorev1alpha1.LastError
 	if result != nil && result.HasErrors() {

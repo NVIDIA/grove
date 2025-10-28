@@ -17,10 +17,10 @@
 package controller
 
 import (
-	configv1alpha1 "github.com/NVIDIA/grove/operator/api/config/v1alpha1"
-	"github.com/NVIDIA/grove/operator/internal/controller/podclique"
-	"github.com/NVIDIA/grove/operator/internal/controller/podcliquescalinggroup"
-	"github.com/NVIDIA/grove/operator/internal/controller/podcliqueset"
+	configv1alpha1 "github.com/ai-dynamo/grove/operator/api/config/v1alpha1"
+	"github.com/ai-dynamo/grove/operator/internal/controller/podclique"
+	"github.com/ai-dynamo/grove/operator/internal/controller/podcliquescalinggroup"
+	"github.com/ai-dynamo/grove/operator/internal/controller/podcliqueset"
 
 	ctrl "sigs.k8s.io/controller-runtime"
 )

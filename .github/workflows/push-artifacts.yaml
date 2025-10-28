@@ -27,9 +27,6 @@ permissions:
   contents: read
   packages: write
 
-env:
-  DOCKER_REGISTRY: "ghcr.io/nvidia/grove"
-
 jobs:
   build-and-push:
     name: Build & Push
@@ -67,6 +64,11 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
+      - name: Set Docker Registry
+        run: |
+          DOCKER_REGISTRY=$(echo 'ghcr.io/${{ github.repository }}' | tr '[:upper:]' '[:lower:]')
+          echo "DOCKER_REGISTRY=$DOCKER_REGISTRY" >> $GITHUB_ENV
+
       - name: Docker build & push
         run: |
           make --directory=operator docker-build PLATFORM=linux/amd64,linux/arm64 VERSION=$PACKAGE_VERSION REGISTRY=$DOCKER_REGISTRY DOCKER_BUILD_ADDITIONAL_ARGS=--push
@@ -77,11 +79,11 @@ jobs:
 
       - name: Build Helm chart
         run: |
-          sed -i "s#repository: grove-operator#repository: ghcr.io/nvidia/grove/grove-operator#" operator/charts/values.yaml
+          sed -i "s#repository: grove-operator#repository: $DOCKER_REGISTRY/grove-operator#" operator/charts/values.yaml
           sed -i "s#tag:.*#tag: $PACKAGE_VERSION#" operator/charts/values.yaml
-          sed -i "s#value: grove-initc#value: ghcr.io/nvidia/grove/grove-initc#" operator/charts/values.yaml
+          sed -i "s#value: grove-initc#value: $DOCKER_REGISTRY/grove-initc#" operator/charts/values.yaml
           helm package ./operator/charts --app-version $PACKAGE_VERSION --version $PACKAGE_VERSION
 
       - name: Push Helm Chart
         run: |
-          helm push ./grove-charts-$PACKAGE_VERSION.tgz oci://${{ env.DOCKER_REGISTRY }}
+          helm push ./grove-charts-$PACKAGE_VERSION.tgz oci://$DOCKER_REGISTRY

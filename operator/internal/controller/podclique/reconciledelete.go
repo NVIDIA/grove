@@ -20,17 +20,18 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/NVIDIA/grove/operator/api/common/constants"
-	grovecorev1alpha1 "github.com/NVIDIA/grove/operator/api/core/v1alpha1"
-	ctrlcommon "github.com/NVIDIA/grove/operator/internal/controller/common"
-	ctrlutils "github.com/NVIDIA/grove/operator/internal/controller/utils"
-	"github.com/NVIDIA/grove/operator/internal/utils"
+	"github.com/ai-dynamo/grove/operator/api/common/constants"
+	grovecorev1alpha1 "github.com/ai-dynamo/grove/operator/api/core/v1alpha1"
+	ctrlcommon "github.com/ai-dynamo/grove/operator/internal/controller/common"
+	ctrlutils "github.com/ai-dynamo/grove/operator/internal/controller/utils"
+	"github.com/ai-dynamo/grove/operator/internal/utils"
 
 	"github.com/go-logr/logr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )
 
+// triggerDeletionFlow handles the deletion of a PodClique and its managed resources
 func (r *Reconciler) triggerDeletionFlow(ctx context.Context, logger logr.Logger, pclq *grovecorev1alpha1.PodClique) ctrlcommon.ReconcileStepResult {
 	dLog := logger.WithValues("operation", "delete")
 	deleteStepFns := []ctrlcommon.ReconcileStepFn[grovecorev1alpha1.PodClique]{
@@ -47,6 +48,7 @@ func (r *Reconciler) triggerDeletionFlow(ctx context.Context, logger logr.Logger
 	return ctrlcommon.DoNotRequeue()
 }
 
+// deletePodCliqueResources triggers concurrent deletion of all resources managed by the PodClique operators
 func (r *Reconciler) deletePodCliqueResources(ctx context.Context, logger logr.Logger, pclq *grovecorev1alpha1.PodClique) ctrlcommon.ReconcileStepResult {
 	operators := r.operatorRegistry.GetAllOperators()
 	deleteTasks := make([]utils.Task, 0, len(operators))
@@ -67,10 +69,12 @@ func (r *Reconciler) deletePodCliqueResources(ctx context.Context, logger logr.L
 	return ctrlcommon.ContinueReconcile()
 }
 
+// verifyNoResourcesAwaitsCleanup ensures all managed resources have been fully deleted before allowing finalizer removal
 func (r *Reconciler) verifyNoResourcesAwaitsCleanup(ctx context.Context, logger logr.Logger, pclq *grovecorev1alpha1.PodClique) ctrlcommon.ReconcileStepResult {
 	return ctrlutils.VerifyNoResourceAwaitsCleanup(ctx, logger, r.operatorRegistry, pclq.ObjectMeta)
 }
 
+// removeFinalizer removes the PodClique finalizer to allow Kubernetes to complete the deletion
 func (r *Reconciler) removeFinalizer(ctx context.Context, logger logr.Logger, pclq *grovecorev1alpha1.PodClique) ctrlcommon.ReconcileStepResult {
 	if !controllerutil.ContainsFinalizer(pclq, constants.FinalizerPodClique) {
 		logger.Info("Finalizer not found", "PodClique", pclq)

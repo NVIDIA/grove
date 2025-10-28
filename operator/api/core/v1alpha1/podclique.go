@@ -29,7 +29,7 @@ import (
 // +kubebuilder:subresource:scale:specpath=.spec.replicas,statuspath=.status.replicas,selectorpath=.status.hpaPodSelector
 // +kubebuilder:resource:shortName={pclq}
 
-// PodClique is a set of pods running the same image. TODO: @renormalize expand on this.
+// PodClique is a set of pods running the same image.
 type PodClique struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`

@@ -19,8 +19,8 @@ package utils
 import (
 	"context"
 
-	apicommon "github.com/NVIDIA/grove/operator/api/common"
-	grovecorev1alpha1 "github.com/NVIDIA/grove/operator/api/core/v1alpha1"
+	apicommon "github.com/ai-dynamo/grove/operator/api/common"
+	grovecorev1alpha1 "github.com/ai-dynamo/grove/operator/api/core/v1alpha1"
 
 	"github.com/samber/lo"
 	corev1 "k8s.io/api/core/v1"

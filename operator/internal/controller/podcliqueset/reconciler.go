@@ -20,13 +20,13 @@ import (
 	"context"
 	"sync"
 
-	"github.com/NVIDIA/grove/operator/api/common/constants"
-	configv1alpha1 "github.com/NVIDIA/grove/operator/api/config/v1alpha1"
-	grovecorev1alpha1 "github.com/NVIDIA/grove/operator/api/core/v1alpha1"
-	ctrlcommon "github.com/NVIDIA/grove/operator/internal/controller/common"
-	"github.com/NVIDIA/grove/operator/internal/controller/common/component"
-	pcscomponent "github.com/NVIDIA/grove/operator/internal/controller/podcliqueset/components"
-	ctrlutils "github.com/NVIDIA/grove/operator/internal/controller/utils"
+	"github.com/ai-dynamo/grove/operator/api/common/constants"
+	configv1alpha1 "github.com/ai-dynamo/grove/operator/api/config/v1alpha1"
+	grovecorev1alpha1 "github.com/ai-dynamo/grove/operator/api/core/v1alpha1"
+	ctrlcommon "github.com/ai-dynamo/grove/operator/internal/controller/common"
+	"github.com/ai-dynamo/grove/operator/internal/controller/common/component"
+	pcscomponent "github.com/ai-dynamo/grove/operator/internal/controller/podcliqueset/components"
+	ctrlutils "github.com/ai-dynamo/grove/operator/internal/controller/utils"
 
 	"github.com/go-logr/logr"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -78,6 +78,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	return reconcileSpecFlowResult.Result()
 }
 
+// reconcileDelete handles PodCliqueSet deletion when a deletion timestamp is set.
 func (r *Reconciler) reconcileDelete(ctx context.Context, logger logr.Logger, pcs *grovecorev1alpha1.PodCliqueSet) ctrlcommon.ReconcileStepResult {
 	if !pcs.DeletionTimestamp.IsZero() {
 		if !controllerutil.ContainsFinalizer(pcs, constants.FinalizerPodCliqueSet) {
