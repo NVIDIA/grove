@@ -74,10 +74,8 @@ spec:
 
 ### **Deploy:**
 ```bash
-# actual multi-node-aggregated.yaml file is in samples/user_guide/concept_overview, change path accordingly
-kubectl apply -f [multi-node-aggregated.yaml](../../operator/samples/user_guide/concept_overview/multi-node-aggregated.yaml)
+kubectl apply -f samples/user_guide/concept_overview/multi-node-aggregated.yaml
 kubectl get pods -l app.kubernetes.io/part-of=multinode-aggregated -o wide
-```
 After running you should observe
 
 ```
