@@ -149,10 +149,8 @@ spec:
 
 **Deploy and explore:**
 ```bash
-# Actual complete-inference-pipeline.yaml is under /operator/samples/user_guide/concept_overview, adjust path accordingly
-kubectl apply -f [complete-inference-pipeline.yaml](../../operator/samples/user_guide/concept_overview/complete-inference-pipeline.yaml)
+kubectl apply -f samples/user_guide/concept_overview/complete-inference-pipeline.yaml
 kubectl get pods -l app.kubernetes.io/part-of=comp-inf-ppln -o wide
-```
 After running you will observe
 ```
 rohanv@rohanv-mlt operator % kubectl get pods -l app.kubernetes.io/part-of=comp-inf-ppln -o wide
