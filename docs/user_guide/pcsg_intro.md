@@ -281,10 +281,8 @@ spec:
 
 ### **Deploy**
 ```bash
-# actual multi-node-disaggregated.yaml is under /operator/samples/user_guide/concept_overview. Adjust paths accordingly
-kubectl apply -f [multi-node-disaggregated.yaml](../../operator/samples/user_guide/concept_overview/multi-node-disaggregated.yaml)
+kubectl apply -f samples/user_guide/concept_overview/multi-node-disaggregated.yaml
 kubectl get pods -l app.kubernetes.io/part-of=multinode-disaggregated -o wide
-```
 After running you will observe
 ```
 rohanv@rohanv-mlt operator % kubectl get pods -l app.kubernetes.io/part-of=multinode-disaggregated -o wide
