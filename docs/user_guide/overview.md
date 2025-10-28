@@ -21,4 +21,14 @@ A **PodCliqueScalingGroup** coordinates multiple PodCliques that must scale toge
 ### PodCliqueSet: The Inference Service Container
 A **PodCliqueSet** contains all the inference components for a complete service. It manages one or more PodCliques or PodCliqueScalingGroups that work together to provide inference capabilities. PodCliqueSet replicas enable system-level scaling use cases such as deploying multiple complete instances of your inference stack (e.g., for canary deployments, A/B testing, or spreading across availability zones for high availability).
 
+### Understanding Scaling Levels
+
+Grove provides three levels of scaling to match different operational needs:
+
+- **Scale PodCliqueSet replicas** (`kubectl scale pcs ...`) - Replicate your entire inference service with all its components. Use this for system-level operations like canary deployments, A/B testing, or spreading across availability zones for high availability.
+
+- **Scale PodCliqueScalingGroup replicas** (`kubectl scale pcsg ...`) - Add more instances of a multi-node component within your service. Use this when you need more capacity of a specific multi-node component (e.g., add another leader+workers unit).
+
+- **Scale PodClique replicas** (`kubectl scale pclq ...`) - Adjust the number of pods in a specific role. Use this for fine-tuning individual components (e.g., add more workers to an existing leader-worker group).
+
 In the [next guide](./pcs_and_pclq_intro.md) we go through some examples showcasing PodCliqueSet and PodClique
