@@ -24,7 +24,6 @@ Get Grove running in 5 minutes:
 cd operator && make kind-up
 
 # 2. Deploy Grove
-kind get kubeconfig --name grove-test-cluster > hack/kind/kubeconfig
 export KUBECONFIG=$(pwd)/hack/kind/kubeconfig
 make deploy
 
