@@ -21,7 +21,7 @@ spec:
     - name: model-worker
       spec:
         replicas: 2
-        podSpec:
+        podSpec: # This is a standard Kubernetes PodSpec
           tolerations:
           - key: fake-node
             operator: Equal
