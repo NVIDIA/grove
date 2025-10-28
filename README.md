@@ -24,7 +24,6 @@ Get Grove running in 5 minutes:
 cd operator && make kind-up
 
 # 2. Deploy Grove
-export KUBECONFIG=$(pwd)/hack/kind/kubeconfig
 make deploy
 
 # 3. Deploy your first workload
