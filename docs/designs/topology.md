@@ -94,7 +94,7 @@ TopologyDomain for KAI scheduler usage.* (also named "grove-topology")
 - **Default name**: "grove-topology" used when topologyDomainName not specified in operator config
 - **Immutable**: Once created, cannot be modified
 - **List-ordered hierarchy**: Index 0 = broadest (e.g., region), last = narrowest (e.g., host)
-- **Predefined ordering**: Region > Zone > DataCenter > Block > SubBlock > Rack > Host > Numa (broadest to narrowest)
+- **Predefined ordering**: Region > Zone > DataCenter > Block > Rack > Host > Numa (broadest to narrowest)
 - **Webhook-validated**: Webhook enforces singleton constraint (any name allowed)
 
 **TopologyLevelName Definitions:**
@@ -103,7 +103,6 @@ TopologyDomain for KAI scheduler usage.* (also named "grove-topology")
 - **Zone**: Network local to a CSP availability-zone within a region
 - **DataCenter**: Network local to a data-center within a CSP availability-zone
 - **Block**: Network local to a switching block unit within a data-center
-- **SubBlock**: Sub-switching block unit within a larger block
 - **Rack**: First-level network grouping of compute hosts (includes NVLink domains as logical racks)
 - **Host**: Individual compute host
 - **Numa**: NUMA node (processor and memory locality domain) within a compute host
@@ -119,14 +118,13 @@ TopologyLevelRegion     TopologyLevelName = "region"
 TopologyLevelZone       TopologyLevelName = "zone"
 TopologyLevelDataCenter TopologyLevelName = "datacenter"
 TopologyLevelBlock      TopologyLevelName = "block"
-TopologyLevelSubBlock   TopologyLevelName = "subblock"
 TopologyLevelRack       TopologyLevelName = "rack"
 TopologyLevelHost       TopologyLevelName = "host"
 TopologyLevelNuma       TopologyLevelName = "numa"
 )
 
 // Topology ordering (broadest to narrowest):
-// Region > Zone > DataCenter > Block > SubBlock > Rack > Host > Numa
+// Region > Zone > DataCenter > Block > Rack > Host > Numa
 
 // TopologyDomain defines the topology hierarchy for the cluster
 // This resource is immutable after creation
@@ -150,9 +148,9 @@ Levels []TopologyLevel `json:"levels"`
 
 type TopologyLevel struct {
 // Name is the predefined level identifier used in TopologyConstraint references
-// Must be one of: region, zone, datacenter, block, subblock, rack, host, numa
+// Must be one of: region, zone, datacenter, block, rack, host, numa
 // +kubebuilder:validation:Required
-// +kubebuilder:validation:Enum=region;zone;datacenter;block;subblock;rack;host;numa
+// +kubebuilder:validation:Enum=region;zone;datacenter;block;rack;host;numa
 Name TopologyLevelName `json:"name"`
 
 // TopologyKey is the node label key that identifies this topology domain
@@ -183,8 +181,6 @@ spec:
       topologyKey: "topology.kubernetes.io/datacenter"
     - name: block
       topologyKey: "topology.kubernetes.io/block"
-    - name: subblock
-      topologyKey: "topology.kubernetes.io/subblock"
     - name: rack
       topologyKey: "topology.kubernetes.io/rack"
     - name: host
@@ -206,10 +202,10 @@ spec:
 **Validation:**
 
 - Only one TopologyDomain allowed cluster-wide (webhook enforces singleton, any name allowed)
-- Level names must be from predefined set: region, zone, datacenter, block, subblock, rack, host, numa (enum validation)
+- Level names must be from predefined set: region, zone, datacenter, block, rack, host, numa (enum validation)
 - Each level `name` and `topologyKey` must be unique
 - Mutation webhook automatically reorders levels to match predefined ordering (Region > Zone > DataCenter > Block >
-  SubBlock > Rack > Host > Numa)
+  Rack > Host > Numa)
 - Admins can skip intermediate levels (e.g., define only region, rack, host)
 - Immutable after creation (webhook blocks updates)
 - Deletion protection via controller finalizer (blocks deletion while PodCliqueSet resources exist)
@@ -278,11 +274,11 @@ spec:
 type TopologyConstraint struct {
 // PackLevel specifies the topology level name for grouping replicas
 // Controls placement constraint for EACH individual replica instance
-// Must be one of: region, zone, datacenter, block, subblock, rack, host, numa
+// Must be one of: region, zone, datacenter, block, rack, host, numa
 // Example: "rack" means each replica independently placed within one rack
 // Note: Does NOT constrain all replicas to the same rack together
 // Different replicas can be in different topology domains
-// +kubebuilder:validation:Enum=region;zone;datacenter;block;subblock;rack;host;numa
+// +kubebuilder:validation:Enum=region;zone;datacenter;block;rack;host;numa
 PackLevel *TopologyLevelName `json:"packLevel,omitempty"`
 }
 ```
