@@ -53,7 +53,7 @@ while allowing users to specify required constraints for strict placement (upper
 │  └──────────┬───────────┘          └───────────┬──────────┘            │
 │             │                                   │                       │
 │             │                                   │                       │
-│  Operator Config: OperatorConfiguration.EnableTopology=true            │
+│  Operator Config: topology.enabled=true                                │
 │             │                                   │                       │
 │             │ (validates against)               │ (referenced by)       │
 ├─────────────┼───────────────────────────────────┼───────────────────────┤
@@ -196,7 +196,7 @@ spec:
    - Use custom name (e.g., "my-cluster-topology") OR
    - Use default name "grove-topology" (no config needed)
 3. Create resource: `kubectl apply -f topologydomain.yaml`
-4. If using custom name: configure operator with topology name in OperatorConfiguration
+4. If using custom name: configure operator with topology name in operator config
 5. Manually create Kueue Topology with same name and aligned levels for KAI scheduler
 
 **Validation:**
@@ -239,17 +239,12 @@ Key Points:
 
 #### Operator Configuration
 
-Operator enables/disables topology features via OperatorConfiguration manifest:
+Operator enables/disables topology features via operator config:
 
 ```yaml
-apiVersion: grove.io/v1alpha1
-kind: OperatorConfiguration
-metadata:
-  name: grove-operator-config
-spec:
-   topology:
-      enabled: true
-      topologyDomainName: "my-cluster-topology"  # Optional, defaults to "grove-topology"
+topology:
+  enabled: true
+  topologyDomainName: "my-cluster-topology"  # Optional, defaults to "grove-topology"
 ```
 
 **Startup Behavior:**
@@ -259,7 +254,7 @@ spec:
    - Operator looks for TopologyDomain with configured name (defaults to "grove-topology")
    - If TopologyDomain with that name doesn't exist → operator fails to start
 - If `topology.enabled: false`: topology features disabled
-- Admin must create TopologyDomain with matching name OR disable topology
+- Admin must create TopologyDomain with matching name OR disable topology in operator config
 
 **Admin Responsibilities:**
 
@@ -384,7 +379,7 @@ The operator adds topology information to PodGang metadata via annotation:
 // Annotation added to PodGang
 metadata:
 annotations:
-grove.run.ai/topology-name: "<user-configured-name>"
+grove.io/topology-name: "<user-configured-name>"
 ```
 
 This annotation allows the scheduler to locate the Kueue Topology resource without requiring a spec field, providing
@@ -464,7 +459,7 @@ Fields Added:
 
 Annotations Added:
 
-- `grove.run.ai/topology-name: "<user-configured-name>"` - Annotation on PodGang metadata referencing topology name
+- `grove.io/topology-name: "<user-configured-name>"` - Annotation on PodGang metadata referencing topology name
 
 Fields Removed:
 
@@ -478,7 +473,7 @@ The operator translates Grove operator API to Grove Scheduler API with three-lev
 
 **Topology Annotation:**
 
-- Operator adds annotation `grove.run.ai/topology-name: "<topology-name>"` to PodGang metadata
+- Operator adds annotation `grove.io/topology-name: "<topology-name>"` to PodGang metadata
 - Annotation value matches the TopologyDomain name from operator configuration
 - KAI scheduler uses this annotation to locate the corresponding Kueue Topology CRD
 - Annotation approach provides API flexibility for future changes without breaking spec
@@ -575,7 +570,7 @@ When a PodCliqueSet is created or updated, the Grove Operator translates it into
    - **NetworkPackGroup level**: PackConstraint with Required (topologyKey from PCSG) + Preferred (strictest
      topologyKey)
    - **PodGroup level**: PackConstraint with Required (topologyKey from PodClique) + Preferred (strictest topologyKey)
-    - Adds annotation `grove.run.ai/topology-name: "grove-topology"` to PodGang metadata
+   - Adds annotation `grove.io/topology-name: "grove-topology"` to PodGang metadata
 3. KAI scheduler reads annotation, uses packConstraints to apply three-level topology constraints
 
 ### End-to-End Flow
