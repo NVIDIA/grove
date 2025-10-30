@@ -93,7 +93,7 @@ TopologyDomain for KAI scheduler usage.* (also named "grove-topology")
 - **Cluster-scoped singleton**: Only one TopologyDomain allowed cluster-wide, user chooses name
 - **Default name**: "grove-topology" used when topologyDomainName not specified in operator config
 - **Immutable**: Once created, cannot be modified
-- **List-ordered hierarchy**: Index 0 = broadest (e.g., region), last = narrowest (e.g., host)
+- **List-ordered hierarchy**: Index 0 represents the broadest category (e.g., region), and the final index represents the narrowest (e.g., host).
 - **Predefined ordering**: Region > Zone > DataCenter > Block > Rack > Host > Numa (broadest to narrowest)
 - **Webhook-validated**: Webhook enforces singleton constraint (any name allowed)
 
