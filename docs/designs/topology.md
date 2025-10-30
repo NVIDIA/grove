@@ -83,18 +83,19 @@ while allowing users to specify required constraints for strict placement (upper
 
 #### TopologyDomain CR
 
-TopologyDomain is a cluster-scoped CR that defines the topology hierarchy for scheduling. It maps friendly level names
-to Kubernetes node labels and establishes ordering from broadest to narrowest scope.
+TopologyDomain is a cluster-scoped CR that defines consistent naming for cluster topology hierarchy to be used by
+workload designers. It maps topology level domains to Kubernetes node labels and establishes ordering from broadest to
+narrowest scope.
 
 *note: this CR is independent of Kueue Topology CRD, which must be manually created by admin to align with Grove's
 TopologyDomain for KAI scheduler usage.* (also named "grove-topology")
 **Characteristics:**
 
-- **Cluster-scoped singleton**: Only one TopologyDomain allowed cluster-wide, user chooses name
-- **Default name**: "grove-topology" used when topologyDomainName not specified in operator config
+- **Cluster-scoped singleton**: Only one TopologyDomain allowed cluster-wide
+- **Default name**: In operator configuration, topologyDomainName defaults to "grove-topology" when not specified
 - **Immutable**: Once created, cannot be modified
 - **List-ordered hierarchy**: Index 0 represents the broadest category (e.g., region), and the final index represents the narrowest (e.g., host).
-- **Predefined ordering**: Region > Zone > DataCenter > Block > Rack > Host > Numa (broadest to narrowest)
+- **Supported topology levels**: Region > Zone > DataCenter > Block > Rack > Host > Numa (broadest to narrowest)
 - **Webhook-validated**: Webhook enforces singleton constraint (any name allowed)
 
 **TopologyLevelName Definitions:**
