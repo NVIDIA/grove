@@ -66,31 +66,31 @@ type NodeLabel struct {
 
 // ClusterConfig holds configuration for creating a k3d cluster
 type ClusterConfig struct {
-	Name             string      // Name of the k3d cluster
-	ServerNodes      int         // Number of server (non-worker) nodes
-	WorkerNodes      int         // Number of worker nodes (called agents in k3s terminology)
-	Image            string      // Docker image to use for k3d cluster (e.g., "rancher/k3s:v1.28.8-k3s1")
-	HostPort         string      // Port on host to expose Kubernetes API (e.g., "6550")
-	LoadBalancerPort string      // Load balancer port mapping in format "hostPort:containerPort" (e.g., "8080:80")
-	NodeLabels       []NodeLabel // Kubernetes labels to apply with specific node filters
-	WorkerNodeTaints []NodeTaint // Taints to apply to worker nodes
-	WorkerMemory     string      // Memory allocation for worker/agent nodes (e.g., "150m")
-	EnableRegistry   bool        // Enable built-in Docker registry
-	RegistryPort     string      // Port for the Docker registry (e.g., "5001")
+	Name              string      // Name of the k3d cluster
+	ControlPlaneNodes int         // Number of Control Plane Nodes (k3s calls these server nodes)
+	WorkerNodes       int         // Number of worker nodes (called agents in k3s terminology)
+	Image             string      // Docker image to use for k3d cluster (e.g., "rancher/k3s:v1.28.8-k3s1")
+	HostPort          string      // Port on host to expose Kubernetes API (e.g., "6550")
+	LoadBalancerPort  string      // Load balancer port mapping in format "hostPort:containerPort" (e.g., "8080:80")
+	NodeLabels        []NodeLabel // Kubernetes labels to apply with specific node filters
+	WorkerNodeTaints  []NodeTaint // Taints to apply to worker nodes
+	WorkerMemory      string      // Memory allocation for worker/agent nodes (e.g., "150m")
+	EnableRegistry    bool        // Enable built-in Docker registry
+	RegistryPort      string      // Port for the Docker registry (e.g., "5001")
 }
 
 // DefaultClusterConfig returns a sensible default cluster configuration
 func DefaultClusterConfig() ClusterConfig {
 	return ClusterConfig{
-		Name:             "test-k3d-cluster",
-		ServerNodes:      1,
-		WorkerNodes:      2,
-		Image:            "rancher/k3s:v1.28.8-k3s1",
-		HostPort:         "6550",
-		LoadBalancerPort: "8080:80",
-		WorkerMemory:     "150m",
-		EnableRegistry:   false,
-		RegistryPort:     "5001",
+		Name:              "test-k3d-cluster",
+		ControlPlaneNodes: 1,
+		WorkerNodes:       2,
+		Image:             "rancher/k3s:v1.28.8-k3s1",
+		HostPort:          "6550",
+		LoadBalancerPort:  "8080:80",
+		WorkerMemory:      "150m",
+		EnableRegistry:    false,
+		RegistryPort:      "5001",
 	}
 }
 
@@ -230,7 +230,7 @@ func SetupK3DCluster(ctx context.Context, cfg ClusterConfig, logger *utils.Logge
 		ObjectMeta: types.ObjectMeta{
 			Name: cfg.Name,
 		},
-		Servers: cfg.ServerNodes,
+		Servers: cfg.ControlPlaneNodes,
 		// k3s calls these agents, but we call them worker nodes
 		Agents: cfg.WorkerNodes,
 		Image:  cfg.Image,
@@ -304,7 +304,7 @@ func SetupK3DCluster(ctx context.Context, cfg ClusterConfig, logger *utils.Logge
 
 	// Create cluster
 	logger.Debugf("🚀 Creating cluster '%s' with %d server(s) and %d worker node(s)...",
-		k3dConfig.Name, cfg.ServerNodes, cfg.WorkerNodes)
+		k3dConfig.Name, cfg.ControlPlaneNodes, cfg.WorkerNodes)
 
 	if err := client.ClusterRun(ctx, runtimes.Docker, k3dConfig); err != nil {
 		return nil, cleanup, fmt.Errorf("failed to create cluster: %w", err)
