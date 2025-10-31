@@ -1,0 +1,95 @@
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.17.3
+  name: topologydomains.grove.io
+spec:
+  group: grove.io
+  names:
+    kind: TopologyDomain
+    listKind: TopologyDomainList
+    plural: topologydomains
+    shortNames:
+    - td
+    singular: topologydomain
+  scope: Cluster
+  versions:
+  - name: v1alpha1
+    schema:
+      openAPIV3Schema:
+        description: |-
+          TopologyDomain defines the topology hierarchy for the cluster.
+          This resource is immutable after creation.
+          Only one TopologyDomain can exist cluster-wide (enforced by webhook).
+        properties:
+          apiVersion:
+            description: |-
+              APIVersion defines the versioned schema of this representation of an object.
+              Servers should convert recognized schemas to the latest internal value, and
+              may reject unrecognized values.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
+            type: string
+          kind:
+            description: |-
+              Kind is a string value representing the REST resource this object represents.
+              Servers may infer this from the endpoint the client submits requests to.
+              Cannot be updated.
+              In CamelCase.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
+            type: string
+          metadata:
+            type: object
+          spec:
+            description: Spec defines the topology hierarchy specification.
+            properties:
+              levels:
+                description: |-
+                  Levels is an ordered list of topology levels from broadest to narrowest scope.
+                  The order in this list defines the hierarchy (index 0 = broadest level).
+                  This field is immutable after creation.
+                items:
+                  description: TopologyLevel defines a single level in the topology
+                    hierarchy.
+                  properties:
+                    name:
+                      description: |-
+                        Name is the predefined level identifier used in TopologyConstraint references.
+                        Must be one of: region, zone, datacenter, block, rack, host, numa
+                      enum:
+                      - region
+                      - zone
+                      - datacenter
+                      - block
+                      - rack
+                      - host
+                      - numa
+                      type: string
+                    topologyKey:
+                      description: |-
+                        TopologyKey is the node label key that identifies this topology domain.
+                        Must be a valid Kubernetes label key (qualified name).
+                        Examples: "topology.kubernetes.io/zone", "kubernetes.io/hostname"
+                      maxLength: 316
+                      minLength: 1
+                      pattern: ^([a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*/)?(([A-Za-z0-9][-A-Za-z0-9_.]*)?[A-Za-z0-9])$
+                      type: string
+                  required:
+                  - name
+                  - topologyKey
+                  type: object
+                maxItems: 7
+                minItems: 1
+                type: array
+                x-kubernetes-validations:
+                - message: levels list is immutable
+                  rule: self == oldSelf
+            required:
+            - levels
+            type: object
+        required:
+        - spec
+        type: object
+    served: true
+    storage: true

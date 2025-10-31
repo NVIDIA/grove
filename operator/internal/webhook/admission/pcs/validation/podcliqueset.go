@@ -92,7 +92,6 @@ func (v *pcsValidator) validatePodGangTemplateSpec(fldPath *field.Path) ([]strin
 	if len(errs) != 0 {
 		allErrs = append(allErrs, errs...)
 	}
-	allErrs = append(allErrs, v.validatePodGangSchedulingPolicyConfig(v.pcs.Spec.Template.SchedulingPolicyConfig, fldPath.Child("schedulingPolicyConfig"))...)
 	allErrs = append(allErrs, v.validatePodCliqueScalingGroupConfigs(fldPath.Child("podCliqueScalingGroups"))...)
 	allErrs = append(allErrs, v.validateTerminationDelay(fldPath.Child("terminationDelay"))...)
 
@@ -171,18 +170,6 @@ func validateStandalonePodClique(fldPath *field.Path, v *pcsValidator, cliqueTem
 		// add error to each of filed paths that compose the podName in case of a PodCliqueTemplateSpec
 		allErrs = append(allErrs, field.Invalid(fldPath.Child("name"), cliqueTemplateSpec.Name, err.Error()))
 		allErrs = append(allErrs, field.Invalid(field.NewPath("metadata").Child("name"), v.pcs.Name, err.Error()))
-	}
-	return allErrs
-}
-
-// validatePodGangSchedulingPolicyConfig validates the scheduling policy configuration including network pack group configurations.
-func (v *pcsValidator) validatePodGangSchedulingPolicyConfig(schedulingPolicyConfig *grovecorev1alpha1.SchedulingPolicyConfig, fldPath *field.Path) field.ErrorList {
-	allErrs := field.ErrorList{}
-	if schedulingPolicyConfig == nil {
-		return allErrs
-	}
-	if len(schedulingPolicyConfig.NetworkPackGroupConfigs) > 0 {
-		allErrs = append(allErrs, v.validateNetworkPackGroupConfigs(fldPath.Child("networkPackGroupConfigs"))...)
 	}
 	return allErrs
 }
@@ -310,54 +297,6 @@ func validateCliqueDependencies(cliques []*grovecorev1alpha1.PodCliqueTemplateSp
 		allErrs = append(allErrs, field.Invalid(fldPath, cycles, "clique must not have circular dependencies"))
 	}
 
-	return allErrs
-}
-
-// validateNetworkPackGroupConfigs validates network pack group configurations for duplicates and partial scaling group inclusions.
-func (v *pcsValidator) validateNetworkPackGroupConfigs(fldPath *field.Path) field.ErrorList {
-	allErrs := field.ErrorList{}
-	allErrs = append(allErrs, v.checkNetworkPackGroupConfigsForDuplicates(fldPath)...)
-	allErrs = append(allErrs, v.checkNetworkPackGroupConfigsForPartialPCSGInclusions(fldPath)...)
-	return allErrs
-}
-
-// checkNetworkPackGroupConfigsForDuplicates ensures that each PodClique belongs to at most one NetworkPackGroupConfig.
-func (v *pcsValidator) checkNetworkPackGroupConfigsForDuplicates(fldPath *field.Path) field.ErrorList {
-	allErrs := field.ErrorList{}
-
-	networkPackGroupConfigs := v.pcs.Spec.Template.SchedulingPolicyConfig.NetworkPackGroupConfigs
-	var allCliqueNames []string
-	for _, nwPackGrpConfig := range networkPackGroupConfigs {
-		allCliqueNames = append(allCliqueNames, nwPackGrpConfig.CliqueNames...)
-	}
-
-	// validate that a clique cannot be present in more than one NetworkPackGroupConfig.
-	allErrs = append(allErrs, sliceMustHaveUniqueElements(allCliqueNames, fldPath.Child("cliqueNames"), "A PodClique cannot belong to more than one NetworkPackGroupConfig")...)
-
-	return allErrs
-}
-
-// checkNetworkPackGroupConfigsForPartialPCSGInclusions ensures that NetworkPackGroupConfigs either include all cliques from a scaling group or none.
-func (v *pcsValidator) checkNetworkPackGroupConfigsForPartialPCSGInclusions(fldPath *field.Path) field.ErrorList {
-	allErrs := field.ErrorList{}
-	pcsgConfigs := v.pcs.Spec.Template.PodCliqueScalingGroupConfigs
-	if len(pcsgConfigs) == 0 {
-		return allErrs
-	}
-	for _, nwPackGrpConfig := range v.pcs.Spec.Template.SchedulingPolicyConfig.NetworkPackGroupConfigs {
-		for _, cliqueName := range nwPackGrpConfig.CliqueNames {
-			matchingPCSG, ok := lo.Find(pcsgConfigs, func(pcsg grovecorev1alpha1.PodCliqueScalingGroupConfig) bool {
-				return slices.Contains(pcsg.CliqueNames, cliqueName)
-			})
-			if !ok {
-				continue
-			}
-			absentPCSGCliqueNames, _ := lo.Difference(nwPackGrpConfig.CliqueNames, matchingPCSG.CliqueNames)
-			if len(absentPCSGCliqueNames) > 0 {
-				return append(allErrs, field.Invalid(fldPath.Child("cliqueName"), strings.Join(absentPCSGCliqueNames, ","), "NetworkPackGroupConfig cannot partially include PodCliques that are a part of a PodCliqueScalingGroup"))
-			}
-		}
-	}
 	return allErrs
 }
 
@@ -489,7 +428,6 @@ func (v *pcsValidator) validatePodSpec(spec corev1.PodSpec, fldPath *field.Path)
 func (v *pcsValidator) validateUpdate(oldPCS *grovecorev1alpha1.PodCliqueSet) error {
 	allErrs := field.ErrorList{}
 	fldPath := field.NewPath("spec")
-	allErrs = append(allErrs, apivalidation.ValidateImmutableField(v.pcs.Spec.ReplicaSpreadConstraints, oldPCS.Spec.ReplicaSpreadConstraints, fldPath.Child("replicaSpreadConstraints"))...)
 	allErrs = append(allErrs, validatePodCliqueSetSpecUpdate(&v.pcs.Spec, &oldPCS.Spec, fldPath)...)
 	return allErrs.ToAggregate()
 }
@@ -507,16 +445,8 @@ func validatePodGangTemplateSpecUpdate(newSpec, oldSpec *grovecorev1alpha1.PodCl
 
 	allErrs = append(allErrs, validatePodCliqueUpdate(newSpec.Cliques, oldSpec.Cliques, newSpec.StartupType, fldPath.Child("cliques"))...)
 	allErrs = append(allErrs, apivalidation.ValidateImmutableField(newSpec.StartupType, oldSpec.StartupType, fldPath.Child("cliqueStartupType"))...)
-	allErrs = append(allErrs, validatePodGangSchedulingPolicyConfigUpdate(newSpec.SchedulingPolicyConfig, newSpec.SchedulingPolicyConfig, fldPath.Child("schedulingPolicyConfig"))...)
 	allErrs = append(allErrs, validatePodCliqueScalingGroupConfigsUpdate(newSpec.PodCliqueScalingGroupConfigs, oldSpec.PodCliqueScalingGroupConfigs, fldPath.Child("podCliqueScalingGroups"))...)
 
-	return allErrs
-}
-
-// validatePodGangSchedulingPolicyConfigUpdate validates that scheduling policy configuration remains immutable.
-func validatePodGangSchedulingPolicyConfigUpdate(newConfig, oldConfig *grovecorev1alpha1.SchedulingPolicyConfig, fldPath *field.Path) field.ErrorList {
-	allErrs := field.ErrorList{}
-	allErrs = append(allErrs, apivalidation.ValidateImmutableField(newConfig, oldConfig, fldPath.Child("networkPackStrategy"))...)
 	return allErrs
 }
 

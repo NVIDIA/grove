@@ -41,3 +41,7 @@ type PodCliqueSetListerExpansion interface{}
 // PodCliqueSetNamespaceListerExpansion allows custom methods to be added to
 // PodCliqueSetNamespaceLister.
 type PodCliqueSetNamespaceListerExpansion interface{}
+
+// TopologyDomainListerExpansion allows custom methods to be added to
+// TopologyDomainLister.
+type TopologyDomainListerExpansion interface{}

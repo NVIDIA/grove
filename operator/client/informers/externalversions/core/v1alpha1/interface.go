@@ -30,6 +30,8 @@ type Interface interface {
 	PodCliqueScalingGroups() PodCliqueScalingGroupInformer
 	// PodCliqueSets returns a PodCliqueSetInformer.
 	PodCliqueSets() PodCliqueSetInformer
+	// TopologyDomains returns a TopologyDomainInformer.
+	TopologyDomains() TopologyDomainInformer
 }
 
 type version struct {
@@ -56,4 +58,9 @@ func (v *version) PodCliqueScalingGroups() PodCliqueScalingGroupInformer {
 // PodCliqueSets returns a PodCliqueSetInformer.
 func (v *version) PodCliqueSets() PodCliqueSetInformer {
 	return &podCliqueSetInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
+}
+
+// TopologyDomains returns a TopologyDomainInformer.
+func (v *version) TopologyDomains() TopologyDomainInformer {
+	return &topologyDomainInformer{factory: v.factory, tweakListOptions: v.tweakListOptions}
 }
