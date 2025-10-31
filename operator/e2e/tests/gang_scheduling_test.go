@@ -22,7 +22,7 @@ import (
 	"context"
 	"testing"
 
-	"github.com/ai-dynamo/grove/operator/e2e_testing/utils"
+	"github.com/ai-dynamo/grove/operator/e2e/utils"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )

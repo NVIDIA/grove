@@ -24,7 +24,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/sirupsen/logrus"
+	"github.com/ai-dynamo/grove/operator/e2e/utils"
 	"helm.sh/helm/v3/pkg/action"
 	"helm.sh/helm/v3/pkg/chart/loader"
 	"helm.sh/helm/v3/pkg/cli"
@@ -57,7 +57,7 @@ type HelmInstallConfig struct {
 	// HelmLoggerFunc is called for Helm operation logging.
 	HelmLoggerFunc func(format string, v ...interface{})
 	// Logger is the full logger for component operations.
-	Logger *logrus.Logger
+	Logger *utils.Logger
 	// RepoURL is the base URL of the Helm repository (optional, for direct chart downloads).
 	RepoURL string
 }

@@ -1,5 +1,7 @@
 //go:build e2e
 
+package tests
+
 // /*
 // Copyright 2025 The Grove Authors.
 //
@@ -16,27 +18,15 @@
 // limitations under the License.
 // */
 
-// Package tests contains end-to-end tests for the Grove operator.
-//
-// These tests are disabled by default due to the 'e2e' build tag above.
-// To run these tests, use:
-//
-//	go test -tags=e2e ./e2e_testing/tests/...
-//
-// Without the -tags=e2e flag, these tests will be skipped entirely.
-package tests
-
 import (
 	"context"
 	"flag"
 	"fmt"
-	"os"
 	"testing"
 	"time"
 
-	"github.com/ai-dynamo/grove/operator/e2e_testing/setup"
-	"github.com/ai-dynamo/grove/operator/e2e_testing/utils"
-	"github.com/sirupsen/logrus"
+	"github.com/ai-dynamo/grove/operator/e2e/setup"
+	"github.com/ai-dynamo/grove/operator/e2e/utils"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/dynamic"
@@ -50,7 +40,7 @@ var (
 	isRunningFullSuite bool
 
 	// logger for the tests
-	logger *logrus.Logger
+	logger *utils.Logger
 
 	// testImages are the Docker images to push to the test registry
 	testImages = []string{"nginx:alpine-slim"}
@@ -70,7 +60,7 @@ func init() {
 	}
 
 	// increase logger verbosity for debugging
-	logger = utils.NewTestLogger(logrus.InfoLevel)
+	logger = utils.NewTestLogger(utils.InfoLevel)
 }
 
 const (
@@ -80,36 +70,13 @@ const (
 	defaultPollInterval = 5 * time.Second
 )
 
-// TestMain manages the lifecycle of the shared cluster for all tests
-func TestMain(m *testing.M) {
-	ctx := context.Background()
-
-	// Mark that we're running the full test suite
-	isRunningFullSuite = true
-
-	// Setup shared cluster once for all tests
-	sharedCluster := setup.SharedCluster(logger, "../../skaffold.yaml")
-	if err := sharedCluster.Setup(ctx, testImages); err != nil {
-		logger.Errorf("failed to setup shared cluster: %s", err)
-		os.Exit(1)
-	}
-
-	// Run all tests
-	code := m.Run()
-
-	// Teardown shared cluster
-	sharedCluster.Teardown()
-
-	os.Exit(code)
-}
-
 // setupTestCluster initializes a shared Kubernetes cluster for testing.
 // It creates the cluster if needed, ensures the required number of worker nodes are available,
 // and returns K8s clients along with a cleanup function and registry port.
 // The cleanup function removes workloads and optionally tears down the cluster for individual test runs.
 func setupTestCluster(ctx context.Context, t *testing.T, requiredWorkerNodes int) (*kubernetes.Clientset, *rest.Config, dynamic.Interface, func(), string) {
 	// Always use shared cluster approach
-	sharedCluster := setup.SharedCluster(logger, "../../skaffold.yaml")
+	sharedCluster := setup.SharedCluster(logger)
 
 	// Setup shared cluster if not already done
 	if !sharedCluster.IsSetup() {

@@ -1,6 +1,6 @@
 module github.com/ai-dynamo/grove/operator
 
-go 1.24.4
+go 1.24.0
 
 toolchain go1.24.5
 
@@ -9,6 +9,7 @@ require (
 	github.com/ai-dynamo/grove/scheduler/api v0.0.0
 	github.com/docker/docker v28.2.2+incompatible
 	github.com/go-logr/logr v1.4.3
+	github.com/go-logr/zapr v1.3.0
 	github.com/k3d-io/k3d/v5 v5.8.3
 	github.com/open-policy-agent/cert-controller v0.14.0
 	github.com/samber/lo v1.51.0
@@ -72,7 +73,6 @@ require (
 	github.com/go-errors/errors v1.4.2 // indirect
 	github.com/go-gorp/gorp/v3 v3.1.0 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
-	github.com/go-logr/zapr v1.3.0 // indirect
 	github.com/go-openapi/jsonpointer v0.21.2 // indirect
 	github.com/go-openapi/jsonreference v0.21.0 // indirect
 	github.com/go-openapi/swag v0.23.1 // indirect

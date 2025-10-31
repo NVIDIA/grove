@@ -23,10 +23,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/ai-dynamo/grove/operator/e2e_testing/utils"
+	"github.com/ai-dynamo/grove/operator/e2e/utils"
 	"github.com/docker/docker/api/types/image"
-	"github.com/docker/docker/client"
-	"github.com/sirupsen/logrus"
+	dockerclient "github.com/docker/docker/client"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -35,17 +34,23 @@ import (
 	"k8s.io/client-go/rest"
 )
 
+const (
+	// relativeSkaffoldYAMLPath is the path to the skaffold.yaml file relative to the e2e/tests directory
+	relativeSkaffoldYAMLPath = "../../skaffold.yaml"
+
+	defaulPollInterval = 1 * time.Second
+)
+
 // SharedClusterManager manages a shared (singleton) k3d cluster for E2E tests
 type SharedClusterManager struct {
-	clientset                *kubernetes.Clientset
-	restConfig               *rest.Config
-	dynamicClient            dynamic.Interface
-	cleanup                  func()
-	logger                   *logrus.Logger
-	isSetup                  bool
-	workerNodes              []string
-	registryPort             string
-	relativeSkaffoldYAMLPath string
+	clientset     *kubernetes.Clientset
+	restConfig    *rest.Config
+	dynamicClient dynamic.Interface
+	cleanup       func()
+	logger        *utils.Logger
+	isSetup       bool
+	workerNodes   []string
+	registryPort  string
 }
 
 var (
@@ -54,11 +59,10 @@ var (
 )
 
 // SharedCluster returns the singleton shared cluster manager
-func SharedCluster(logger *logrus.Logger, skaffoldYAMLPath string) *SharedClusterManager {
+func SharedCluster(logger *utils.Logger) *SharedClusterManager {
 	once.Do(func() {
 		sharedCluster = &SharedClusterManager{
-			logger:                   logger,
-			relativeSkaffoldYAMLPath: skaffoldYAMLPath,
+			logger: logger,
 		}
 	})
 	return sharedCluster
@@ -110,7 +114,7 @@ func (scm *SharedClusterManager) Setup(ctx context.Context, testImages []string)
 
 	scm.logger.Info("🚀 Setting up shared k3d cluster for all e2e tests...")
 
-	restConfig, cleanup, err := SetupCompleteK3DCluster(ctx, customCfg, scm.relativeSkaffoldYAMLPath, scm.logger)
+	restConfig, cleanup, err := SetupCompleteK3DCluster(ctx, customCfg, relativeSkaffoldYAMLPath, scm.logger)
 	if err != nil {
 		return fmt.Errorf("failed to setup shared k3d cluster: %w", err)
 	}
@@ -198,8 +202,8 @@ func (scm *SharedClusterManager) CleanupWorkloads(ctx context.Context) error {
 		scm.logger.Warnf("failed to delete PodCliqueSets: %v", err)
 	}
 
-	// Step 2: Poll for all resources and pods to be cleaned up (max 15 seconds)
-	if err := scm.waitForAllResourcesAndPodsDeleted(ctx, 15*time.Second); err != nil {
+	// Step 2: Poll for all resources and pods to be cleaned up
+	if err := scm.waitForAllResourcesAndPodsDeleted(ctx, defaulPollInterval); err != nil {
 		scm.logger.Warnf("timeout waiting for resources and pods to be deleted: %v", err)
 		// List remaining resources and pods for debugging
 		scm.listRemainingResources(ctx)
@@ -292,9 +296,6 @@ func (scm *SharedClusterManager) resetNodeStates(ctx context.Context) error {
 
 // waitForAllResourcesAndPodsDeleted waits for all Grove resources and pods to be deleted
 func (scm *SharedClusterManager) waitForAllResourcesAndPodsDeleted(ctx context.Context, timeout time.Duration) error {
-	timeoutCtx, cancel := context.WithTimeout(ctx, timeout)
-	defer cancel()
-
 	// Define all resource types to check
 	resourceTypes := []struct {
 		group    string
@@ -308,59 +309,53 @@ func (scm *SharedClusterManager) waitForAllResourcesAndPodsDeleted(ctx context.C
 		{"scheduler.grove.io", "v1alpha1", "podgangs", "PodGangs"},
 	}
 
-	ticker := time.NewTicker(1 * time.Second)
-	defer ticker.Stop()
+	return utils.PollForCondition(ctx, timeout, defaulPollInterval, func() (bool, error) {
+		allResourcesDeleted := true
+		totalResources := 0
 
-	for {
-		select {
-		case <-timeoutCtx.Done():
-			return fmt.Errorf("timeout waiting for resources and pods to be deleted")
-		case <-ticker.C:
-			allResourcesDeleted := true
-			totalResources := 0
-
-			// Check Grove resources
-			for _, rt := range resourceTypes {
-				gvr := schema.GroupVersionResource{
-					Group:    rt.group,
-					Version:  rt.version,
-					Resource: rt.resource,
-				}
-
-				resourceList, err := scm.dynamicClient.Resource(gvr).List(ctx, metav1.ListOptions{})
-				if err != nil {
-					// If we can't list the resource type, assume it doesn't exist or is being deleted
-					continue
-				}
-
-				if len(resourceList.Items) > 0 {
-					allResourcesDeleted = false
-					totalResources += len(resourceList.Items)
-				}
+		// Check Grove resources
+		for _, rt := range resourceTypes {
+			gvr := schema.GroupVersionResource{
+				Group:    rt.group,
+				Version:  rt.version,
+				Resource: rt.resource,
 			}
 
-			// Check pods
-			allPodsDeleted := true
-			nonSystemPods := 0
-			pods, err := scm.clientset.CoreV1().Pods("default").List(ctx, metav1.ListOptions{})
-			if err == nil {
-				for _, pod := range pods.Items {
-					if !isSystemPod(&pod) {
-						allPodsDeleted = false
-						nonSystemPods++
-					}
-				}
+			resourceList, err := scm.dynamicClient.Resource(gvr).List(ctx, metav1.ListOptions{})
+			if err != nil {
+				// If we can't list the resource type, assume it doesn't exist or is being deleted
+				continue
 			}
 
-			if allResourcesDeleted && allPodsDeleted {
-				return nil
-			}
-
-			if totalResources > 0 || nonSystemPods > 0 {
-				scm.logger.Debugf("⏳ Waiting for %d Grove resources and %d pods to be deleted...", totalResources, nonSystemPods)
+			if len(resourceList.Items) > 0 {
+				allResourcesDeleted = false
+				totalResources += len(resourceList.Items)
 			}
 		}
-	}
+
+		// Check pods
+		allPodsDeleted := true
+		nonSystemPods := 0
+		pods, err := scm.clientset.CoreV1().Pods("default").List(ctx, metav1.ListOptions{})
+		if err == nil {
+			for _, pod := range pods.Items {
+				if !isSystemPod(&pod) {
+					allPodsDeleted = false
+					nonSystemPods++
+				}
+			}
+		}
+
+		if allResourcesDeleted && allPodsDeleted {
+			return true, nil
+		}
+
+		if totalResources > 0 || nonSystemPods > 0 {
+			scm.logger.Debugf("⏳ Waiting for %d Grove resources and %d pods to be deleted...", totalResources, nonSystemPods)
+		}
+
+		return false, nil
+	})
 }
 
 // listRemainingResources lists remaining Grove resources for debugging
@@ -436,7 +431,7 @@ func setupRegistryTestImages(registryPort string, images []string) error {
 	ctx := context.Background()
 
 	// Initialize Docker client
-	cli, err := client.NewClientWithOpts(client.FromEnv, client.WithAPIVersionNegotiation())
+	cli, err := dockerclient.NewClientWithOpts(dockerclient.FromEnv, dockerclient.WithAPIVersionNegotiation())
 	if err != nil {
 		return fmt.Errorf("failed to create Docker client: %w", err)
 	}

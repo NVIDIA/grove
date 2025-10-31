@@ -24,7 +24,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/sirupsen/logrus"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
@@ -53,7 +52,7 @@ type AppliedResource struct {
 
 // ApplyYAMLFile applies a YAML file containing Kubernetes resources
 // namespace parameter is optional - pass empty string to use namespace from YAML
-func ApplyYAMLFile(ctx context.Context, yamlFilePath string, namespace string, restConfig *rest.Config, logger *logrus.Logger) ([]AppliedResource, error) {
+func ApplyYAMLFile(ctx context.Context, yamlFilePath string, namespace string, restConfig *rest.Config, logger *Logger) ([]AppliedResource, error) {
 	logger.Debugf("📄 Applying resources from %s...\n", yamlFilePath)
 
 	// Read the YAML file
@@ -67,7 +66,7 @@ func ApplyYAMLFile(ctx context.Context, yamlFilePath string, namespace string, r
 
 // WaitForPods waits for pods to be ready in the specified namespaces
 // labelSelector is optional (pass empty string for all pods), timeout of 0 defaults to 5 minutes, interval of 0 defaults to 5 seconds
-func WaitForPods(ctx context.Context, restConfig *rest.Config, namespaces []string, labelSelector string, timeout time.Duration, interval time.Duration, logger *logrus.Logger) error {
+func WaitForPods(ctx context.Context, restConfig *rest.Config, namespaces []string, labelSelector string, timeout time.Duration, interval time.Duration, logger *Logger) error {
 	clientset, err := kubernetes.NewForConfig(restConfig)
 	if err != nil {
 		return fmt.Errorf("failed to create clientset: %w", err)
@@ -120,14 +119,8 @@ func WaitForPods(ctx context.Context, restConfig *rest.Config, namespaces []stri
 	})
 }
 
-// ApplyYAMLContent applies YAML content directly to Kubernetes
-func ApplyYAMLContent(ctx context.Context, yamlContent string, namespace string, restConfig *rest.Config, logger *logrus.Logger) ([]AppliedResource, error) {
-	logger.Debug("📄 Applying YAML content...")
-	return applyYAMLData(ctx, []byte(yamlContent), namespace, restConfig, logger)
-}
-
 // applyYAMLData is the common function that applies YAML data to Kubernetes
-func applyYAMLData(ctx context.Context, yamlData []byte, namespace string, restConfig *rest.Config, logger *logrus.Logger) ([]AppliedResource, error) {
+func applyYAMLData(ctx context.Context, yamlData []byte, namespace string, restConfig *rest.Config, logger *Logger) ([]AppliedResource, error) {
 	dynamicClient, restMapper, err := createKubernetesClients(restConfig)
 	if err != nil {
 		return nil, err
@@ -291,7 +284,7 @@ func updateResource(ctx context.Context, dynamicClient dynamic.Interface, gvr sc
 }
 
 // WaitForPodsInNamespace waits for all pods in a namespace to be ready
-func WaitForPodsInNamespace(ctx context.Context, namespace string, restConfig *rest.Config, timeout time.Duration, interval time.Duration, logger *logrus.Logger) error {
+func WaitForPodsInNamespace(ctx context.Context, namespace string, restConfig *rest.Config, timeout time.Duration, interval time.Duration, logger *Logger) error {
 	return WaitForPods(ctx, restConfig, []string{namespace}, "", timeout, interval, logger)
 }
 

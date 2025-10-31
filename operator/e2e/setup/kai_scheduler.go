@@ -19,12 +19,11 @@ package setup
 import (
 	"context"
 	"fmt"
-	"os"
 	"path/filepath"
 	"runtime"
 	"time"
 
-	"github.com/ai-dynamo/grove/operator/e2e_testing/utils"
+	"github.com/ai-dynamo/grove/operator/e2e/utils"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	apiextensionsclientset "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -95,14 +94,8 @@ func CreateDefaultKaiQueues(ctx context.Context, config *HelmInstallConfig) erro
 	_, currentFile, _, _ := runtime.Caller(0)
 	queuesPath := filepath.Join(filepath.Dir(currentFile), "../yaml/queues.yaml")
 
-	// Read the queues YAML file content
-	yamlContent, err := os.ReadFile(queuesPath)
-	if err != nil {
-		return fmt.Errorf("failed to read queues YAML file %s: %w", queuesPath, err)
-	}
-
-	// Apply the YAML content using the k8s client
-	appliedResources, err := utils.ApplyYAMLContent(ctx, string(yamlContent), "", config.RestConfig, config.Logger)
+	// Apply the YAML file using the k8s client
+	appliedResources, err := utils.ApplyYAMLFile(ctx, queuesPath, "", config.RestConfig, config.Logger)
 	if err != nil {
 		return fmt.Errorf("failed to apply queues YAML: %w", err)
 	}

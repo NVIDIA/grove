@@ -24,7 +24,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/ai-dynamo/grove/operator/e2e_testing/utils"
+	"github.com/ai-dynamo/grove/operator/e2e/utils"
 	"github.com/docker/docker/api/types/container"
 	dockerclient "github.com/docker/docker/client"
 	"github.com/k3d-io/k3d/v5/pkg/client"
@@ -95,7 +95,7 @@ func DefaultClusterConfig() ClusterConfig {
 }
 
 // SetupCompleteK3DCluster creates a complete k3d cluster with Grove, Kai Scheduler, and NVIDIA GPU Operator
-func SetupCompleteK3DCluster(ctx context.Context, cfg ClusterConfig, skaffoldYAMLPath string, logger *logrus.Logger) (*rest.Config, func(), error) {
+func SetupCompleteK3DCluster(ctx context.Context, cfg ClusterConfig, skaffoldYAMLPath string, logger *utils.Logger) (*rest.Config, func(), error) {
 	restConfig, cleanup, err := SetupK3DCluster(ctx, cfg, logger)
 	if err != nil {
 		return nil, cleanup, err
@@ -216,9 +216,10 @@ func SetupCompleteK3DCluster(ctx context.Context, cfg ClusterConfig, skaffoldYAM
 }
 
 // SetupK3DCluster creates a k3d cluster and returns a REST config
-func SetupK3DCluster(ctx context.Context, cfg ClusterConfig, logger *logrus.Logger) (*rest.Config, func(), error) {
+func SetupK3DCluster(ctx context.Context, cfg ClusterConfig, logger *utils.Logger) (*rest.Config, func(), error) {
 	// k3d is very verbose, we don't want the INFO level logs unless the logger is set to DEBUG
-	if logger.GetLevel() == logrus.DebugLevel {
+	// k3d uses logrus internally, so we need to convert our level to logrus level
+	if logger.GetLevel() == utils.DebugLevel {
 		k3dlogger.Log().SetLevel(logrus.DebugLevel)
 	} else {
 		k3dlogger.Log().SetLevel(logrus.ErrorLevel)
@@ -336,7 +337,7 @@ func SetupK3DCluster(ctx context.Context, cfg ClusterConfig, logger *logrus.Logg
 }
 
 // InstallCoreComponents installs the core components (Grove via Skaffold, Kai Scheduler and NVIDIA GPU Operator via Helm)
-func InstallCoreComponents(ctx context.Context, restConfig *rest.Config, kaiConfig *HelmInstallConfig, nvidiaConfig *HelmInstallConfig, skaffoldYAMLPath string, registryPort string, logger *logrus.Logger) error {
+func InstallCoreComponents(ctx context.Context, restConfig *rest.Config, kaiConfig *HelmInstallConfig, nvidiaConfig *HelmInstallConfig, skaffoldYAMLPath string, registryPort string, logger *utils.Logger) error {
 	// use wait group to wait for all installations to complete
 	var wg sync.WaitGroup
 
@@ -443,7 +444,7 @@ func InstallCoreComponents(ctx context.Context, restConfig *rest.Config, kaiConf
 }
 
 // retryInstallation retries an installation function up to maxRetries times with a delay between attempts
-func retryInstallation(installFunc func() error, componentName string, maxRetries int, retryDelay time.Duration, logger *logrus.Logger) error {
+func retryInstallation(installFunc func() error, componentName string, maxRetries int, retryDelay time.Duration, logger *utils.Logger) error {
 	var lastErr error
 
 	for attempt := 1; attempt <= maxRetries; attempt++ {
@@ -481,7 +482,7 @@ func retryInstallation(installFunc func() error, componentName string, maxRetrie
 // 3. Deletes the not ready node from Kubernetes
 // 4. Finds and restarts the corresponding Docker container (node names match container names exactly)
 // 5. The restarted container will rejoin the cluster as a new node
-func StartNodeMonitoring(ctx context.Context, clientset *kubernetes.Clientset, logger *logrus.Logger) func() {
+func StartNodeMonitoring(ctx context.Context, clientset *kubernetes.Clientset, logger *utils.Logger) func() {
 	logger.Debug("🔍 Starting node monitoring for not ready nodes...")
 
 	// Create a context that can be cancelled to stop the monitoring
@@ -512,7 +513,7 @@ func StartNodeMonitoring(ctx context.Context, clientset *kubernetes.Clientset, l
 }
 
 // checkAndReplaceNotReadyNodes checks for nodes that are not ready and replaces them
-func checkAndReplaceNotReadyNodes(ctx context.Context, clientset *kubernetes.Clientset, logger *logrus.Logger) error {
+func checkAndReplaceNotReadyNodes(ctx context.Context, clientset *kubernetes.Clientset, logger *utils.Logger) error {
 	// List all nodes
 	nodes, err := clientset.CoreV1().Nodes().List(ctx, metav1.ListOptions{})
 	if err != nil {
@@ -554,7 +555,7 @@ func isNodeReady(node *v1.Node) bool {
 }
 
 // replaceNotReadyNode handles the process of replacing a not ready node
-func replaceNotReadyNode(ctx context.Context, node *v1.Node, clientset *kubernetes.Clientset, logger *logrus.Logger) error {
+func replaceNotReadyNode(ctx context.Context, node *v1.Node, clientset *kubernetes.Clientset, logger *utils.Logger) error {
 	nodeName := node.Name
 
 	// Step 1: Delete the node from Kubernetes
@@ -573,7 +574,7 @@ func replaceNotReadyNode(ctx context.Context, node *v1.Node, clientset *kubernet
 }
 
 // restartNodeContainer finds and restarts the Docker container corresponding to a k3d node
-func restartNodeContainer(ctx context.Context, nodeName string, logger *logrus.Logger) error {
+func restartNodeContainer(ctx context.Context, nodeName string, logger *utils.Logger) error {
 	// Create Docker client
 	dockerClient, err := dockerclient.NewClientWithOpts(dockerclient.FromEnv, dockerclient.WithAPIVersionNegotiation())
 	if err != nil {
