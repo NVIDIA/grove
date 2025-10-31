@@ -5,21 +5,21 @@ This tutorial provides a comprehensive overview of Grove's core concepts: **PodC
 ## Prerequisites
 
 Before starting this tutorial, ensure you have:
-- [A Grove demo cluster running.](../installation.md#developing-grove) Make sure to run `make kind-up FAKE_NODES=40`, set `KUBECONFIG` env variable as directed in the instructions, and run `make deploy`
-- [A Kubernetes cluster with Grove installed.](../installation.md#deploying-grove) If you choose this path make sure to adjust the tolerations in the example to fit your cluster
+- [A Grove demo cluster running.](../../installation.md#developing-grove) Make sure to run `make kind-up FAKE_NODES=40`, set `KUBECONFIG` env variable as directed in the instructions, and run `make deploy`
+- [A Kubernetes cluster with Grove installed.](../../installation.md#deploying-grove) If you choose this path make sure to adjust the tolerations in the example to fit your cluster
 -  A basic understanding of Kubernetes concepts, [this is a good place to start](https://kubernetes.io/docs/tutorials/kubernetes-basics/). 
 
 
 ## Core Concepts Overview
 
 ### PodClique: The Fundamental Unit
-A **PodClique** is the core building block in Grove. It represents a group of pods with the same exact configuration (similar to a ReplicaSet, but with gang termination behavior) that can be used in a standalone manner to represent single components of your inference system, or can represent roles within a multi-node component such as leader and worker.
+A **PodClique** is the core building block in Grove. It represents a group of pods with the same exact configuration - similar to a ReplicaSet, but with gang termination behavior. It can be used in a standalone manner to represent single-node components (components where each instance fits within one node and can be represented by one pod) of your system, or can represent roles within a multi-node component such as leader and worker.
 
 ### PodCliqueScalingGroup: Multi-Node Coordination
-A **PodCliqueScalingGroup** coordinates multiple PodCliques that must scale together, preserving specified replica ratios across roles (e.g. leader/worker) in multi-node components.
+A **PodCliqueScalingGroup** coordinates multiple PodCliques that must scale together, preserving specified replica ratios across roles (e.g. leader/worker) in multi-node components (components where each instance spans multiple pods often on different nodes).
 
 ### PodCliqueSet: The Inference Service Container
-A **PodCliqueSet** contains all the inference components for a complete service. It manages one or more PodCliques or PodCliqueScalingGroups that work together to provide inference capabilities. PodCliqueSet replicas enable system-level scaling use cases such as deploying multiple complete instances of your inference stack (e.g., for canary deployments, A/B testing, or spreading across availability zones for high availability).
+A **PodCliqueSet** contains all the components for a complete service. It manages one or more PodCliques or PodCliqueScalingGroups that work together to form a functional system. PodCliqueSet replicas enable system-level scaling use cases such as deploying multiple complete instances of your inference stack (e.g., for canary deployments, A/B testing, or spreading across availability zones for high availability).
 
 ### Understanding Scaling Levels
 

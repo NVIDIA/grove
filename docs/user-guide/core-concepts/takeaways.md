@@ -149,7 +149,7 @@ spec:
 
 **Deploy and explore:**
 ```bash
-kubectl apply -f samples/user_guide/concept_overview/complete-inference-pipeline.yaml
+kubectl apply -f samples/user-guide/concept-overview/complete-inference-pipeline.yaml
 kubectl get pods -l app.kubernetes.io/part-of=comp-inf-ppln -o wide
 After running you will observe
 ```

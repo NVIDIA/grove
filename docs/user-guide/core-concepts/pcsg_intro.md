@@ -74,7 +74,7 @@ spec:
 
 ### **Deploy:**
 ```bash
-kubectl apply -f samples/user_guide/concept_overview/multi-node-aggregated.yaml
+kubectl apply -f samples/user-guide/concept-overview/multi-node-aggregated.yaml
 kubectl get pods -l app.kubernetes.io/part-of=multinode-aggregated -o wide
 After running you should observe
 
@@ -283,7 +283,7 @@ spec:
 
 ### **Deploy**
 ```bash
-kubectl apply -f samples/user_guide/concept_overview/multi-node-disaggregated.yaml
+kubectl apply -f samples/user-guide/concept-overview/multi-node-disaggregated.yaml
 kubectl get pods -l app.kubernetes.io/part-of=multinode-disaggregated -o wide
 After running you will observe
 ```
