@@ -11,7 +11,7 @@ You can use the published [Helm `grove-charts` package](https://github.com/ai-dy
 helm upgrade -i grove oci://ghcr.io/ai-dynamo/grove/grove-charts:<tag>
 ```
 
-You could also deploy Grove to your cluster through the provided make targets, by following [installation using make targets](#installation-using-make-targets).
+You could also deploy Grove to your cluster through the provided make targets, by following [remote cluster setup](#remote-cluster-set-up) and [installation using make targets](#installation-using-make-targets).
 
 ## Developing Grove
 
@@ -23,10 +23,32 @@ All grove operator Make targets are located in [Operator Makefile](../operator/M
 
 In case you wish to develop Grove using a local kind cluster, please do the following:
 
-- To set up a KIND cluster with local docker registry run the following command:
+- **Navigate to the operator directory:**
+
+  ```bash
+  cd operator
+  ```
+
+- **Set up a KIND cluster with local docker registry:**
 
   ```bash
   make kind-up
+  ```
+
+- **Optional**: To create a KIND cluster with fake nodes for testing at scale, specify the number of fake nodes:
+
+  ```bash
+  # Create a cluster with 20 fake nodes
+  make kind-up FAKE_NODES=20
+  ```
+
+  This will automatically install [KWOK](https://kwok.sigs.k8s.io/) (Kubernetes WithOut Kubelet) and create the specified number of fake nodes. These fake nodes are tainted with `fake-node=true:NoSchedule`, so you'll need to add the following toleration to your pod specs to schedule on them:
+
+  ```yaml
+  tolerations:
+  - key: fake-node
+    operator: Exists
+    effect: NoSchedule
   ```
 
 - Specify the `KUBECONFIG` environment variable in your shell session to the path printed out at the end of the previous step:
@@ -57,10 +79,16 @@ If you wish to use your own Kubernetes cluster instead of the KIND cluster, foll
 
 ### Installation using make targets
 
+> **Important:** All commands in this section must be run from the `operator/` directory.
+
 ```bash
-# If you wish to deploy all Grove Operator resources in a custom namespace then set the `NAMESPACE` environment variable
+# Navigate to the operator directory (if not already there)
+cd operator
+
+# Optional: Deploy to a custom namespace
 export NAMESPACE=custom-ns
-# if `NAMESPACE` environment variable is set then `make deploy` target will use this namespace to deploy all Grove operator resources
+
+# Deploy Grove operator and all resources
 make deploy
 ```
 
@@ -75,6 +103,8 @@ This make target leverages Grove [Helm](https://helm.sh/) charts and [Skaffold](
 - All Grove operator resources defined as a part of [Grove Helm chart templates](../operator/charts/templates).
 
 ## Deploy a `PodCliqueSet`
+
+> **Important:** Ensure you're in the `operator/` directory for the relative path to work.
 
 - Deploy one of the samples present in the [samples](../operator/samples/simple) directory.
 
@@ -127,7 +157,7 @@ As specified in the [README.md](../README.md) and the [docs](../docs), there are
 - Let's try scaling the `PodCliqueScalingGroup` from 1 to 2 replicas:
 
   ```bash
-  kubectl scale pcsg simple1-0-pcsg --replicas=2
+  kubectl scale pcsg simple1-0-sga --replicas=2
   ```
 
   This will create new pods that associate with cliques that belong to this scaling group, and their associated `PodGang`s.
@@ -176,7 +206,7 @@ As specified in the [README.md](../README.md) and the [docs](../docs), there are
   Similarly, the `PodCliqueScalingGroup` can be scaled back in to 1 replicas like so:
 
   ```bash
-  kubectl scale pcsg simple1-0-pcsg --replicas=1
+  kubectl scale pcsg simple1-0-sga --replicas=1
   ```
 
 - Scaling can also be triggered at the `PodCliqueSet` level, as can be seen here:
@@ -235,6 +265,94 @@ As specified in the [README.md](../README.md) and the [docs](../docs), there are
   ```bash
   kubectl scale pcs simple1 --replicas=1
   ```
+
+## Troubleshooting
+
+### Deployment Issues
+
+#### `make deploy` fails with "No rule to make target 'deploy'"
+
+**Cause:** You're running the command from the wrong directory.
+
+**Solution:** Ensure you're in the `operator/` directory:
+```bash
+cd operator
+make deploy
+```
+
+#### `make deploy` fails with "unable to connect to Kubernetes"
+
+**Cause:** The `KUBECONFIG` environment variable is not set correctly.
+
+**Solution:** Export the kubeconfig for your kind cluster:
+```bash
+kind get kubeconfig --name grove-test-cluster > hack/kind/kubeconfig
+export KUBECONFIG=$(pwd)/hack/kind/kubeconfig
+make deploy
+```
+
+#### Grove operator pod is in `CrashLoopBackOff`
+
+**Cause:** Check the operator logs for specific errors.
+
+**Solution:**
+```bash
+kubectl logs -l app.kubernetes.io/name=grove-operator
+```
+
+### Runtime Issues
+
+#### Pods stuck in `Pending` state
+
+**Cause:** Gang scheduling requirements might not be met, or there aren't enough resources.
+
+**Solution:**
+1. Check PodGang status:
+   ```bash
+   kubectl get pg -o yaml
+   ```
+2. Check if MinAvailable requirements can be satisfied by your cluster resources
+3. Check node resources:
+   ```bash
+   kubectl describe nodes
+   ```
+
+#### `kubectl scale` command fails with "not found"
+
+**Cause:** The resource name might be incorrect.
+
+**Solution:** List the actual resource names first:
+```bash
+# For PodCliqueScalingGroups
+kubectl get pcsg
+
+# For PodCliqueSets
+kubectl get pcs
+```
+
+Then use the exact name from the output.
+
+#### PodCliqueScalingGroup not auto-scaling
+
+**Cause:** HPA might not be created or metrics-server might be missing.
+
+**Solution:**
+1. Verify HPA exists:
+   ```bash
+   kubectl get hpa
+   ```
+2. Check if metrics-server is running (required for HPA):
+   ```bash
+   kubectl get deployment metrics-server -n kube-system
+   ```
+3. For kind clusters, you may need to install metrics-server separately.
+
+### Getting Help
+
+If you encounter issues not covered here:
+1. Check the [GitHub Issues](https://github.com/NVIDIA/grove/issues) for similar problems
+2. Join the [Grove mailing list](https://groups.google.com/g/grove-k8s)
+3. Start a [discussion thread](https://github.com/NVIDIA/grove/discussions)
 
 ## Supported Schedulers
 
