@@ -15,9 +15,8 @@ applications require:
 
 ## Goals
 
-- Provide flexible, cluster-agnostic topology hierarchy definition via TopologyDomain CRD
+- Provide flexible, cluster-agnostic topology hierarchy definition via ClusterTopology CRD
 - Enable packing constraints for network locality across all Grove scalable resources
-- Enforce singleton topology for cluster-wide consistency
 - Immutable topology configuration ensuring scheduling consistency
 - Hierarchical constraint validation (child stricter than parent)
 
@@ -31,7 +30,7 @@ applications require:
 
 ## Proposal
 
-Grove implements topology-aware scheduling through a singleton TopologyDomain CRD,
+Grove implements topology-aware scheduling through a ClusterTopology CRD,
 operator configuration to enable/disable features, and user-specified TopologyConstraints in workloads.
 The operator automatically generates preferred constraints (lower bound) for optimization
 while allowing users to specify required constraints for strict placement (upper bound).
@@ -47,9 +46,9 @@ while allowing users to specify required constraints for strict placement (upper
 │                                                                         │
 │  Admin Layer:                                                           │
 │  ┌──────────────────────┐          ┌──────────────────────┐            │
-│  │ TopologyDomain       │          │ Kueue Topology       │            │
+│  │ ClusterTopology      │          │ Kueue Topology       │            │
 │  │ "grove-topology"     │          │ "grove-topology"     │            │
-│  │ (singleton)          │          │ (manual creation)    │            │
+│  │                      │          │ (manual creation)    │            │
 │  └──────────┬───────────┘          └───────────┬──────────┘            │
 │             │                                   │                       │
 │             │                                   │                       │
@@ -79,26 +78,26 @@ while allowing users to specify required constraints for strict placement (upper
 └─────────────────────────────────────────────────────────────────────────┘
 ```
 
-### 1. TopologyDomain Infrastructure
+### 1. ClusterTopology Infrastructure
 
-#### TopologyDomain CR
+#### ClusterTopology CR
 
-TopologyDomain is a cluster-scoped CR that defines consistent naming for cluster topology hierarchy to be used by
+ClusterTopology is a cluster-scoped CR that defines consistent naming for cluster topology hierarchy to be used by
 workload designers. It maps topology level domains to Kubernetes node labels and establishes ordering from broadest to
 narrowest scope.
 
 *note: this CR is independent of Kueue Topology CRD, which must be manually created by admin to align with Grove's
-TopologyDomain for KAI scheduler usage.* (also named "grove-topology")
+ClusterTopology for KAI scheduler usage.*
 **Characteristics:**
 
-- **Cluster-scoped singleton**: Only one TopologyDomain allowed cluster-wide
-- **Default name**: In operator configuration, topologyDomainName defaults to "grove-topology" when not specified
+- **Cluster-scoped resource**: Can have multiple ClusterTopology resources defined
+- **Default name**: In operator configuration, clusterTopologyName defaults to "grove-topology" when not specified
 - **Immutable**: Once created, cannot be modified
 - **List-ordered hierarchy**: Index 0 represents the broadest category (e.g., region), and the final index represents the narrowest (e.g., host).
 - **Supported topology levels**: Region > Zone > DataCenter > Block > Rack > Host > Numa (broadest to narrowest)
-- **Webhook-validated**: Webhook enforces singleton constraint (any name allowed)
+- **Webhook-validated**: Webhook validates constraint hierarchy and immutability
 
-**TopologyLevelName Definitions:**
+**TopologyDomain Definitions:**
 
 - **Region**: Network local to a CSP region
 - **Zone**: Network local to a CSP availability-zone within a region
@@ -111,33 +110,32 @@ TopologyDomain for KAI scheduler usage.* (also named "grove-topology")
 **API Structure:**
 
 ```go
-// TopologyLevelName represents a predefined topology level in the hierarchy
-type TopologyLevelName string
+// TopologyDomain represents a predefined topology level in the hierarchy
+type TopologyDomain string
 
 const (
-TopologyLevelRegion     TopologyLevelName = "region"
-TopologyLevelZone       TopologyLevelName = "zone"
-TopologyLevelDataCenter TopologyLevelName = "datacenter"
-TopologyLevelBlock      TopologyLevelName = "block"
-TopologyLevelRack       TopologyLevelName = "rack"
-TopologyLevelHost       TopologyLevelName = "host"
-TopologyLevelNuma       TopologyLevelName = "numa"
+TopologyDomainRegion     TopologyDomain = "region"
+TopologyDomainZone       TopologyDomain = "zone"
+TopologyDomainDataCenter TopologyDomain = "datacenter"
+TopologyDomainBlock      TopologyDomain = "block"
+TopologyDomainRack       TopologyDomain = "rack"
+TopologyDomainHost       TopologyDomain = "host"
+TopologyDomainNuma       TopologyDomain = "numa"
 )
 
 // Topology ordering (broadest to narrowest):
 // Region > Zone > DataCenter > Block > Rack > Host > Numa
 
-// TopologyDomain defines the topology hierarchy for the cluster
+// ClusterTopology defines the topology hierarchy for the cluster
 // This resource is immutable after creation
-// Only one TopologyDomain can exist cluster-wide with enforced name "grove-topology"
-type TopologyDomain struct {
+type ClusterTopology struct {
 metav1.TypeMeta   `json:",inline"`
 metav1.ObjectMeta `json:"metadata,omitempty"`
 
-Spec TopologyDomainSpec `json:"spec,omitempty"`
+Spec ClusterTopologySpec `json:"spec,omitempty"`
 }
 
-type TopologyDomainSpec struct {
+type ClusterTopologySpec struct {
 // Levels is an ordered list of topology levels from broadest to narrowest scope
 // The order in this list defines the hierarchy (index 0 = highest level)
 // This field is immutable after creation
@@ -148,51 +146,50 @@ Levels []TopologyLevel `json:"levels"`
 }
 
 type TopologyLevel struct {
-// Name is the predefined level identifier used in TopologyConstraint references
+// Domain is the predefined level identifier used in TopologyConstraint references
 // Must be one of: region, zone, datacenter, block, rack, host, numa
 // +kubebuilder:validation:Required
 // +kubebuilder:validation:Enum=region;zone;datacenter;block;rack;host;numa
-Name TopologyLevelName `json:"name"`
+Domain TopologyDomain `json:"domain"`
 
-// TopologyKey is the node label key that identifies this topology domain
+// Key is the node label key that identifies this topology domain
 // Must be a valid Kubernetes label key (qualified name)
 // Examples: "topology.kubernetes.io/zone", "kubernetes.io/hostname"
 // +kubebuilder:validation:Required
 // +kubebuilder:validation:MinLength=1
-// +kubebuilder:validation:MaxLength=316
-// +kubebuilder:validation:Pattern=`^([a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*/)?(([A-Za-z0-9][-A-Za-z0-9_.]*)?[A-Za-z0-9])$`
-TopologyKey string `json:"topologyKey"`
+// +kubebuilder:validation:MaxLength=64
+Key string `json:"key"`
 }
 ```
 
-**Example TopologyDomain:**
+**Example ClusterTopology:**
 
 ```yaml
 apiVersion: grove.io/v1alpha1
-kind: TopologyDomain
+kind: ClusterTopology
 metadata:
    name: my-cluster-topology  # User chooses name
 spec:
   levels:
-    - name: region
-      topologyKey: "topology.kubernetes.io/region"
-    - name: zone
-      topologyKey: "topology.kubernetes.io/zone"
-    - name: datacenter
-      topologyKey: "topology.kubernetes.io/datacenter"
-    - name: block
-      topologyKey: "topology.kubernetes.io/block"
-    - name: rack
-      topologyKey: "topology.kubernetes.io/rack"
-    - name: host
-      topologyKey: "kubernetes.io/hostname"
-    - name: numa
-      topologyKey: "topology.kubernetes.io/numa"
+    - domain: region
+      key: "topology.kubernetes.io/region"
+    - domain: zone
+      key: "topology.kubernetes.io/zone"
+    - domain: datacenter
+      key: "topology.kubernetes.io/datacenter"
+    - domain: block
+      key: "topology.kubernetes.io/block"
+    - domain: rack
+      key: "topology.kubernetes.io/rack"
+    - domain: host
+      key: "kubernetes.io/hostname"
+    - domain: numa
+      key: "topology.kubernetes.io/numa"
 ```
 
-**Creating TopologyDomain:**
+**Creating ClusterTopology:**
 
-1. Customize example above with your cluster's actual `topologyKey` values
+1. Customize example above with your cluster's actual `key` values
 2. Choose a name for your topology:
    - Use custom name (e.g., "my-cluster-topology") OR
    - Use default name "grove-topology" (no config needed)
@@ -202,22 +199,21 @@ spec:
 
 **Validation:**
 
-- Only one TopologyDomain allowed cluster-wide (webhook enforces singleton, any name allowed)
 - Level names must be from predefined set: region, zone, datacenter, block, rack, host, numa (enum validation)
-- Each level `name` and `topologyKey` must be unique
+- Each level `domain` and `key` must be unique
 - Mutation webhook automatically reorders levels to match predefined ordering (Region > Zone > DataCenter > Block >
   Rack > Host > Numa)
 - Admins can skip intermediate levels (e.g., define only region, rack, host)
 - Immutable after creation (webhook blocks updates)
 - Deletion protection via controller finalizer (blocks deletion while PodCliqueSet resources exist)
 
-#### TopologyDomain Controller
+#### ClusterTopology Controller
 
-The TopologyDomain controller manages the TopologyDomain resource lifecycle:
+The ClusterTopology controller manages the ClusterTopology resource lifecycle:
 
 **Deletion Protection**
 
-Prevents TopologyDomain deletion while any PodCliqueSet resources exist using Kubernetes finalizer.
+Prevents ClusterTopology deletion while any PodCliqueSet resources exist using Kubernetes finalizer.
 
 Deletion Workflow:
 
@@ -228,13 +224,12 @@ Deletion Workflow:
    - Scans cluster for any PodCliqueSet resources
    - If any PodCliqueSet exists: Keeps finalizer, deletion blocked
    - If no PodCliqueSet exists: Removes finalizer, deletion proceeds
-4. Once finalizer removed, Kubernetes deletes TopologyDomain
+4. Once finalizer removed, Kubernetes deletes ClusterTopology
 
 Key Points:
 
-- Admin must delete all PodCliqueSet resources before deleting TopologyDomain
-- Controller checks if any PodCliqueSet exists (no need to check specific references)
-- Since topology is singleton, any PodCliqueSet potentially uses it
+- Admin must delete all PodCliqueSet resources that reference this ClusterTopology before deletion
+- Controller checks if any PodCliqueSet references this specific ClusterTopology
 - Controller continuously reconciles deletion requests
 - Prevents orphaned workloads with invalid topology configuration
 
@@ -252,15 +247,15 @@ topology:
 
 - If `topology.enabled: true`:
    - `topologyDomainName` not specified → defaults to "grove-topology"
-   - Operator looks for TopologyDomain with configured name (defaults to "grove-topology")
-   - If TopologyDomain with that name doesn't exist → operator fails to start
+  - Operator looks for ClusterTopology with configured name (defaults to "grove-topology")
+  - If ClusterTopology with that name doesn't exist → operator fails to start
 - If `topology.enabled: false`: topology features disabled
-- Admin must create TopologyDomain with matching name OR disable topology in operator config
+- Admin must create ClusterTopology with matching name OR disable topology in operator config
 
 **Admin Responsibilities:**
 
-- Manually create Kueue Topology with same name as Grove TopologyDomain for KAI scheduler
-- Ensure topology levels align between Grove TopologyDomain and Kueue Topology
+- Manually create Kueue Topology with same name as Grove ClusterTopology for KAI scheduler
+- Ensure topology levels align between Grove ClusterTopology and Kueue Topology
 
 ### 2. Operator API Changes (Grove CRDs)
 
@@ -268,14 +263,14 @@ topology:
 
 ```go
 type TopologyConstraint struct {
-// PackLevel specifies the topology level name for grouping replicas
+// PackDomain specifies the topology level name for grouping replicas
 // Controls placement constraint for EACH individual replica instance
 // Must be one of: region, zone, datacenter, block, rack, host, numa
 // Example: "rack" means each replica independently placed within one rack
 // Note: Does NOT constrain all replicas to the same rack together
 // Different replicas can be in different topology domains
 // +kubebuilder:validation:Enum=region;zone;datacenter;block;rack;host;numa
-PackLevel *TopologyLevelName `json:"packLevel,omitempty"`
+PackDomain *TopologyDomain `json:"packDomain,omitempty"`
 }
 ```
 
@@ -336,9 +331,9 @@ TopologyConstraint *TopologyConstraint `json:"topologyConstraint,omitempty"`
 
 **Hierarchy Constraints:**
 
-- Child PackLevel must be equal to or stricter than parent (stricter = higher index in levels list)
+- Child PackDomain must be equal to or stricter than parent (stricter = higher index in levels list)
 - PodCliqueSet → PodCliqueScalingGroup → PodClique hierarchy
-- Referenced PackLevel name must exist in TopologyDomain.Spec.Levels
+- Referenced PackDomain name must exist in ClusterTopology.Spec.Levels
 - Validation applies on both CREATE and UPDATE operations
 
 ### 3. Scheduler API Changes (Contract with KAI)
@@ -428,20 +423,20 @@ TopologyConstraint *TopologyConstraint `json:"topologyConstraint,omitempty"`
 ```go
 type TopologyConstraint struct {
 // PackConstraint defines topology packing constraint with required and preferred levels
-// Operator translates user's level name to corresponding topologyKeys
+// Operator translates user's level name to corresponding keys
 // +optional
 PackConstraint *TopologyPackConstraint `json:"packConstraint,omitempty"`
 }
 
 type TopologyPackConstraint struct {
 // Required defines topology constraint that must be satisfied
-// Holds topologyKey (not level name) translated from user's packLevel specification
+// Holds key (not level name) translated from user's packDomain specification
 // Example: "topology.kubernetes.io/rack"
 // +optional
 Required *string `json:"required,omitempty"`
 
 // Preferred defines best-effort topology constraint
-// Auto-generated by operator using strictest level topologyKey for optimization
+// Auto-generated by operator using strictest level key for optimization
 // Scheduler can fallback to less strict levels if preferred cannot be satisfied
 // Example: "kubernetes.io/hostname"
 // +optional
@@ -475,25 +470,25 @@ The operator translates Grove operator API to Grove Scheduler API with three-lev
 **Topology Annotation:**
 
 - Operator adds annotation `grove.io/topology-name: "<topology-name>"` to PodGang metadata
-- Annotation value matches the TopologyDomain name from operator configuration
+- Annotation value matches the ClusterTopology name from operator configuration
 - KAI scheduler uses this annotation to locate the corresponding Kueue Topology CRD
 - Annotation approach provides API flexibility for future changes without breaking spec
 
 **Constraint Translation (Required and Preferred):**
 
-The operator translates user's level names to topologyKeys and builds required/preferred structure:
+The operator translates user's level names to keys and builds required/preferred structure:
 
 **Required Constraints:**
 
-- User specifies level name: `packLevel: "rack"`
-- Operator looks up topologyKey from TopologyDomain: `"topology.kubernetes.io/rack"`
+- User specifies level name: `packDomain: "rack"`
+- Operator looks up key from ClusterTopology: `"topology.kubernetes.io/rack"`
 - Writes to PodGang: `TopologyConstraint.PackConstraint.Required = "topology.kubernetes.io/rack"`
-- If user doesn't specify packLevel → `PackConstraint.Required` is nil
+- If user doesn't specify packDomain → `PackConstraint.Required` is nil
 
 **Preferred Constraints (Auto-Generated):**
 
 - Operator ALWAYS generates preferred constraint at all three levels
-- Uses topologyKey of strictest level (e.g., `"kubernetes.io/hostname"` for "host" level)
+- Uses key of strictest level (e.g., `"kubernetes.io/hostname"` for "host" level)
 - Writes to PodGang: `TopologyConstraint.PackConstraint.Preferred = "kubernetes.io/hostname"`
 - Enables out-of-box optimization even without user configuration
 - Scheduler can fallback to less strict levels if preferred cannot be satisfied
@@ -501,19 +496,19 @@ The operator translates user's level names to topologyKeys and builds required/p
 **Three-Level Translation:**
 
 1. **PodGang Level** (from PodCliqueSet):
-    - `PodGangSpec.TopologyConstraint.PackConstraint.Required` ← topologyKey looked up from user's level name (if set)
-    - `PodGangSpec.TopologyConstraint.PackConstraint.Preferred` ← topologyKey of strictest level (e.g.,
+    - `PodGangSpec.TopologyConstraint.PackConstraint.Required` ← key looked up from user's level name (if set)
+    - `PodGangSpec.TopologyConstraint.PackConstraint.Preferred` ← key of strictest level (e.g.,
      `"kubernetes.io/hostname"`)
 
 2. **TopologyConstraintGroup Level** (from PodCliqueScalingGroup):
    - For each PCSG with TopologyConstraint, create TopologyConstraintGroupConfig
-   - `TopologyConstraintGroupConfig.TopologyConstraint.PackConstraint.Required` ← topologyKey looked up from PCSG level
+   - `TopologyConstraintGroupConfig.TopologyConstraint.PackConstraint.Required` ← key looked up from PCSG level
      name (if set)
-   - `TopologyConstraintGroupConfig.TopologyConstraint.PackConstraint.Preferred` ← topologyKey of strictest level
+   - `TopologyConstraintGroupConfig.TopologyConstraint.PackConstraint.Preferred` ← key of strictest level
 
 3. **PodGroup Level** (from PodClique):
-    - `PodGroup.TopologyConstraint.PackConstraint.Required` ← topologyKey looked up from PodClique level name (if set)
-    - `PodGroup.TopologyConstraint.PackConstraint.Preferred` ← topologyKey of strictest level
+    - `PodGroup.TopologyConstraint.PackConstraint.Required` ← key looked up from PodClique level name (if set)
+    - `PodGroup.TopologyConstraint.PackConstraint.Preferred` ← key of strictest level
 
 **Example Translation:**
 
@@ -524,7 +519,7 @@ spec:
    replicas: 3
   template:
     topologyConstraint:
-       packLevel: "rack"  # User specifies level NAME (per-replica constraint)
+      packDomain: "rack"  # User specifies level NAME (per-replica constraint)
 ```
 
 Operator translates to PodGang:
@@ -564,28 +559,28 @@ When a PodCliqueSet is created or updated, the Grove Operator translates it into
 
 **Translation Steps:**
 
-1. User creates PodCliqueSet with optional `topologyConstraint.packLevel` (level name, e.g., "rack")
-2. Operator loads TopologyDomain "grove-topology" and builds PodGang:
-    - Looks up topologyKey for each user-specified level name (e.g., "rack" → "topology.kubernetes.io/rack")
-   - **PodGang level**: PackConstraint with Required (topologyKey from PCS) + Preferred (strictest topologyKey)
-   - **NetworkPackGroup level**: PackConstraint with Required (topologyKey from PCSG) + Preferred (strictest
-     topologyKey)
-   - **PodGroup level**: PackConstraint with Required (topologyKey from PodClique) + Preferred (strictest topologyKey)
+1. User creates PodCliqueSet with optional `topologyConstraint.packDomain` (level name, e.g., "rack")
+2. Operator loads ClusterTopology "grove-topology" and builds PodGang:
+    - Looks up key for each user-specified level name (e.g., "rack" → "topology.kubernetes.io/rack")
+    - **PodGang level**: PackConstraint with Required (key from PCS) + Preferred (strictest key)
+    - **TopologyConstraintGroupConfig level**: PackConstraint with Required (key from PCSG) + Preferred (strictest
+      key)
+    - **PodGroup level**: PackConstraint with Required (key from PodClique) + Preferred (strictest key)
    - Adds annotation `grove.io/topology-name: "grove-topology"` to PodGang metadata
 3. KAI scheduler reads annotation, uses packConstraints to apply three-level topology constraints
 
 ### End-to-End Flow
 
-1. **Admin Setup**: Create TopologyDomain "grove-topology", configure operator with `EnableTopology: true`, create
+1. **Admin Setup**: Create ClusterTopology "grove-topology", configure operator with `EnableTopology: true`, create
    aligned Kueue Topology
 2. **User Creates Workload**: PodCliqueSet with optional topology constraints
-3. **Validation**: Webhook validates against TopologyDomain
+3. **Validation**: Webhook validates against ClusterTopology
 4. **Translation**: Operator builds PodGang with three-level constraints (required + preferred)
 5. **Scheduling**: KAI scheduler reads annotation, applies topology constraints with fallback
 
 ## Security and RBAC
 
-Grove operator requires read access to TopologyDomain and permission to manage finalizers:
+Grove operator requires read access to ClusterTopology and permission to manage finalizers:
 
 ```yaml
 rules:
