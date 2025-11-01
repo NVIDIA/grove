@@ -18,6 +18,7 @@ package setup
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"path/filepath"
 	"strings"
@@ -26,6 +27,7 @@ import (
 
 	"github.com/ai-dynamo/grove/operator/e2e/utils"
 	"github.com/docker/docker/api/types/container"
+	"github.com/docker/docker/api/types/filters"
 	dockerclient "github.com/docker/docker/client"
 	"github.com/k3d-io/k3d/v5/pkg/client"
 	"github.com/k3d-io/k3d/v5/pkg/config"
@@ -92,6 +94,64 @@ func DefaultClusterConfig() ClusterConfig {
 		EnableRegistry:   false,
 		RegistryPort:     "5001",
 	}
+}
+
+// ensureClusterDoesNotExist removes any stale k3d cluster with the same name from previous runs.
+func ensureClusterDoesNotExist(ctx context.Context, clusterName string, logger *utils.Logger) error {
+	cluster := &k3d.Cluster{Name: clusterName}
+
+	existingCluster, err := client.ClusterGet(ctx, runtimes.Docker, cluster)
+	if err != nil {
+		if errors.Is(err, client.ClusterGetNoNodesFoundError) {
+			return nil
+		}
+		return fmt.Errorf("failed to inspect existing k3d cluster %s: %w", clusterName, err)
+	}
+
+	logger.Warnf("🧹 Removing stale k3d cluster '%s' before setup", clusterName)
+	if err := client.ClusterDelete(ctx, runtimes.Docker, existingCluster, k3d.ClusterDeleteOpts{}); err != nil {
+		return fmt.Errorf("failed to delete existing k3d cluster %s: %w", clusterName, err)
+	}
+
+	return nil
+}
+
+// ensureRegistryDoesNotExist removes any stale k3d registry container from previous runs.
+func ensureRegistryDoesNotExist(ctx context.Context, clusterName string, logger *utils.Logger) error {
+	registryContainerName := fmt.Sprintf("k3d-%s-registry", clusterName)
+
+	dockerClient, err := dockerclient.NewClientWithOpts(dockerclient.FromEnv, dockerclient.WithAPIVersionNegotiation())
+	if err != nil {
+		return fmt.Errorf("failed to create Docker client: %w", err)
+	}
+	defer dockerClient.Close()
+
+	filterArgs := filters.NewArgs()
+	filterArgs.Add("name", registryContainerName)
+
+	containers, err := dockerClient.ContainerList(ctx, container.ListOptions{All: true, Filters: filterArgs})
+	if err != nil {
+		return fmt.Errorf("failed to list Docker containers: %w", err)
+	}
+
+	if len(containers) == 0 {
+		return nil
+	}
+
+	for _, c := range containers {
+		displayName := registryContainerName
+		if len(c.Names) > 0 {
+			displayName = strings.TrimPrefix(c.Names[0], "/")
+		}
+
+		logger.Warnf("🧹 Removing stale k3d registry container %s (%s) before cluster setup", displayName, c.ID[:12])
+
+		if err := dockerClient.ContainerRemove(ctx, c.ID, container.RemoveOptions{Force: true, RemoveVolumes: true}); err != nil {
+			return fmt.Errorf("failed to remove existing registry container %s: %w", displayName, err)
+		}
+	}
+
+	return nil
 }
 
 // SetupCompleteK3DCluster creates a complete k3d cluster with Grove, Kai Scheduler, and NVIDIA GPU Operator
@@ -290,6 +350,16 @@ func SetupK3DCluster(ctx context.Context, cfg ClusterConfig, logger *utils.Logge
 	k3dConfig, err := config.TransformSimpleToClusterConfig(ctx, runtimes.Docker, clusterConfig, "")
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to transform config: %w", err)
+	}
+
+	if err := ensureClusterDoesNotExist(ctx, k3dConfig.Name, logger); err != nil {
+		return nil, nil, err
+	}
+
+	if cfg.EnableRegistry {
+		if err := ensureRegistryDoesNotExist(ctx, cfg.Name, logger); err != nil {
+			return nil, nil, err
+		}
 	}
 
 	// this is the cleanup function, we always return it now so the caller can decide to use it or not
