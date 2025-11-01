@@ -200,12 +200,20 @@ spec:
 
 - Level names must be from predefined set: region, zone, datacenter, block, rack, host, numa (enum validation)
 - Each level `domain` and `key` must be unique
-- Mutation webhook automatically reorders levels to match predefined ordering (Region > Zone > DataCenter > Block >
-  Rack > Host > Numa)
 - Admins can skip intermediate levels (e.g., define only region, rack, host)
 - Partially immutable after creation (see Characteristics above for details)
 - Deletion protection via controller finalizer (blocks deletion while PodCliqueSet resources reference this topology OR
   topology is enabled)
+
+**Mutation Webhook:**
+
+The mutation webhook automatically modifies ClusterTopology resources on CREATE operations:
+
+- **Level Reordering**: Automatically reorders levels to match predefined ordering (Region > Zone > DataCenter > Block >
+  Rack > Host > Numa)
+- **Subset Support**: Admins can define any subset of levels; webhook reorders only the levels provided
+- **Consistency**: Ensures all ClusterTopology resources follow the same ordering convention across the cluster
+- **Example**: If admin defines levels as `[host, rack, region]`, webhook reorders to `[region, rack, host]`
 
 #### ClusterTopology Controller
 
@@ -276,7 +284,7 @@ topology:
     - Workloads without topology constraints: no impact (checked via label presence)
 6. For new workloads:
     - Topology constraints validated against ClusterTopology CR
-    - Mutation webhook adds `grove.io/topology-name` label to PodCliqueSet
+   - Mutation webhook adds `grove.io/topology-name` label to PodCliqueSet (see Mutation Webhook section)
 
 **Disabling Topology (topology.enabled: true → false):**
 
@@ -299,7 +307,7 @@ topology:
 5. Restart operator
 6. Operator reconciles existing workloads with updated topology configuration
 
-*note: in future, we may support dynamic updates to ClusterTopology without disabling topology first.*
+*note: in the future, we may support dynamic updates to ClusterTopology without disabling topology first.*
 
 ### 2. Operator API Changes (Grove CRDs)
 
@@ -371,6 +379,17 @@ TopologyConstraint *TopologyConstraint `json:"topologyConstraint,omitempty"`
 }
 ```
 
+#### Mutation Webhook
+
+The mutation webhook automatically modifies PodCliqueSet resources on CREATE operations:
+
+- **Label Addition**: Automatically adds `grove.io/topology-name` label to PodCliqueSet
+- **Label Value**: Set to the configured ClusterTopology name from operator config (e.g., "grove-topology")
+- **Condition**: Label only added when `topology.enabled: true` in operator configuration
+- **Purpose**: Enables workload-to-topology mapping for controller lifecycle management and deletion protection
+- **Immutability**: Once set, label cannot be changed (enforced by validation webhook)
+- **No Topology**: If topology disabled (`topology.enabled: false`), no label is added
+
 #### Validation Webhook
 
 **Hierarchy Constraints:**
@@ -389,7 +408,7 @@ TopologyConstraint *TopologyConstraint `json:"topologyConstraint,omitempty"`
 **Label Immutability:**
 
 - Webhook rejects changes to `grove.io/topology-name` label on PodCliqueSet after creation
-- Label can only be set during PodCliqueSet creation (via mutation webhook when topology enabled)
+- Label can only be set during PodCliqueSet creation (see Mutation Webhook section above)
 - Ensures topology reference remains consistent throughout resource lifecycle
 
 ### 3. Scheduler API Changes (Contract with KAI)
@@ -606,17 +625,6 @@ spec:
 - Changes only affect new or unscheduled pods (already scheduled pods retain placement)
 - Operator re-translates constraints to PodGang on each reconciliation
 
-## Component Architecture
-
-### End-to-End Flow
-
-1. **Admin Setup**: Create ClusterTopology "grove-topology", configure operator with `EnableTopology: true`, create
-   aligned Kueue Topology
-2. **User Creates Workload**: PodCliqueSet with optional topology constraints
-3. **Validation**: Webhook validates against ClusterTopology
-4. **Translation**: Operator builds PodGang with three-level constraints (required + preferred)
-5. **Scheduling**: KAI scheduler reads annotation, applies topology constraints with fallback
-
 ## Security and RBAC
 
 Grove operator requires read access to ClusterTopology and permission to manage finalizers:
@@ -624,6 +632,6 @@ Grove operator requires read access to ClusterTopology and permission to manage 
 ```yaml
 rules:
    - apiGroups: [ "grove.io" ]
-    resources: [ "topologydomains", "topologydomains/finalizers" ]
+   resources: [ "clustertopologies", "clustertopologies/finalizers" ]
     verbs: [ "get", "list", "watch", "update" ]
 ```
