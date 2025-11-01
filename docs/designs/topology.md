@@ -92,7 +92,8 @@ ClusterTopology for KAI scheduler usage.*
 
 - **Cluster-scoped resource**: Can have multiple ClusterTopology resources defined
 - **Default name**: In operator configuration, clusterTopologyName defaults to "grove-topology" when not specified
-- **Immutable**: Once created, cannot be modified
+- **Partially immutable**: After creation, only `key` field values can be updated; `domain` fields and level ordering
+  are immutable
 - **List-ordered hierarchy**: Index 0 represents the broadest category (e.g., region), and the final index represents the narrowest (e.g., host).
 - **Supported topology levels**: Region > Zone > DataCenter > Block > Rack > Host > Numa (broadest to narrowest)
 - **Webhook-validated**: Webhook validates constraint hierarchy and immutability
@@ -204,8 +205,11 @@ spec:
 - Mutation webhook automatically reorders levels to match predefined ordering (Region > Zone > DataCenter > Block >
   Rack > Host > Numa)
 - Admins can skip intermediate levels (e.g., define only region, rack, host)
-- Immutable after creation (webhook blocks updates)
-- Deletion protection via controller finalizer (blocks deletion while PodCliqueSet resources exist)
+- Partially immutable after creation: webhook allows updates to `key` field values only, blocks updates to `domain`
+  fields and level ordering
+- PodCliqueSet label `grove.io/topology-name` is immutable after creation (webhook blocks label changes)
+- Deletion protection via controller finalizer (blocks deletion while PodCliqueSet resources reference this topology OR
+  topology is enabled)
 
 #### ClusterTopology Controller
 
@@ -213,25 +217,29 @@ The ClusterTopology controller manages the ClusterTopology resource lifecycle:
 
 **Deletion Protection**
 
-Prevents ClusterTopology deletion while any PodCliqueSet resources exist using Kubernetes finalizer.
+Prevents ClusterTopology deletion while in use, requiring both conditions for deletion using Kubernetes finalizer.
 
 Deletion Workflow:
 
-1. Admin runs `kubectl delete topologydomain <name>`
-2. Kubernetes blocks deletion (finalizer `grove.io/topologydomain` present)
+1. Admin runs `kubectl delete clustertopology <name>`
+2. Kubernetes blocks deletion (finalizer `grove.io/clustertopology` present)
 3. Controller reconciles:
     - Detects deletion request (deletion timestamp set)
-   - Scans cluster for any PodCliqueSet resources
-   - If any PodCliqueSet exists: Keeps finalizer, deletion blocked
-   - If no PodCliqueSet exists: Removes finalizer, deletion proceeds
+   - Checks if any PodCliqueSet (in any namespace) references this ClusterTopology (via `grove.io/topology-name` label)
+   - Checks if topology is enabled in operator config (`topology.enabled: true`)
+   - If ANY PodCliqueSet references this topology OR topology is enabled: Keeps finalizer, deletion blocked
+   - If NO PodCliqueSet references this topology AND topology is disabled: Removes finalizer, deletion proceeds
 4. Once finalizer removed, Kubernetes deletes ClusterTopology
 
 Key Points:
 
-- Admin must delete all PodCliqueSet resources that reference this ClusterTopology before deletion
-- Controller checks if any PodCliqueSet references this specific ClusterTopology
+- Admin must satisfy BOTH conditions before deletion:
+    - Delete all PodCliqueSet resources that reference this ClusterTopology (check `grove.io/topology-name` label)
+    - Disable TAS in operator config (`topology.enabled: false`) and restart operator
+- Controller checks both conditions before allowing deletion
 - Controller continuously reconciles deletion requests
 - Prevents orphaned workloads with invalid topology configuration
+- Prevents accidental deletion of active topology configurations
 
 #### Operator Configuration
 
@@ -245,10 +253,12 @@ topology:
 
 **Startup Behavior:**
 
+- Topology configuration loaded only at operator startup
+- Changes to `topology.enabled` or `topologyDomainName` require operator restart to take effect
 - If `topology.enabled: true`:
    - `topologyDomainName` not specified → defaults to "grove-topology"
   - Operator looks for ClusterTopology with configured name (defaults to "grove-topology")
-  - If ClusterTopology with that name doesn't exist → operator fails to start
+  - If ClusterTopology with that name doesn't exist → operator exits with ENOENT and crashloops
 - If `topology.enabled: false`: topology features disabled
 - Admin must create ClusterTopology with matching name OR disable topology in operator config
 
@@ -256,6 +266,44 @@ topology:
 
 - Manually create Kueue Topology with same name as Grove ClusterTopology for KAI scheduler
 - Ensure topology levels align between Grove ClusterTopology and Kueue Topology
+
+#### Enable/Disable Behavior
+
+**Enabling Topology (topology.enabled: false → true):**
+
+1. Admin creates ClusterTopology CR with desired topology hierarchy
+2. Admin updates operator config: `topology.enabled: true`
+3. Admin restarts operator (topology config loaded only at startup)
+4. Operator validates ClusterTopology CR exists (exits with ENOENT if not found)
+5. For existing workloads:
+    - Workloads with topology constraints: operator uses topology from PodCliqueSet label (`grove.io/topology-name`)
+    - Workloads without topology constraints: no impact (checked via label presence)
+6. For new workloads:
+    - Topology constraints validated against ClusterTopology CR
+    - Mutation webhook adds `grove.io/topology-name` label to PodCliqueSet
+
+**Disabling Topology (topology.enabled: true → false):**
+
+1. Admin updates operator config: `topology.enabled: false`
+2. Admin restarts operator
+3. For existing workloads:
+    - Workloads with topology constraints: all topology constraints removed from PodGang, status updated
+    - Workloads without topology constraints: no impact
+4. For new workloads:
+    - Workloads with topology constraints: validation webhook rejects with error "topology support is not enabled in the
+      operator"
+    - Workloads without topology constraints: no impact
+
+**Updating ClusterTopology CR:**
+
+1. Admin disables topology per above workflow
+2. Restart operator
+2. Admin edits ClusterTopology CR (only `key` field values can be changed; `domain` fields immutable)
+3. Admin enables topology per above workflow
+4. Restart operator
+4. Operator reconciles existing workloads with updated topology configuration
+
+*note: in future, we may support dynamic updates to ClusterTopology without disabling topology first.*
 
 ### 2. Operator API Changes (Grove CRDs)
 
@@ -335,6 +383,18 @@ TopologyConstraint *TopologyConstraint `json:"topologyConstraint,omitempty"`
 - PodCliqueSet → PodCliqueScalingGroup → PodClique hierarchy
 - Referenced PackDomain name must exist in ClusterTopology.Spec.Levels
 - Validation applies on both CREATE and UPDATE operations
+
+**Topology Enablement Validation:**
+
+- Webhook rejects PodCliqueSet with topology constraints when `topology.enabled: false`
+- Error message: "topology support is not enabled in the operator"
+- Prevents workload admission failure when topology is disabled
+
+**Label Immutability:**
+
+- Webhook rejects changes to `grove.io/topology-name` label on PodCliqueSet after creation
+- Label can only be set during PodCliqueSet creation (via mutation webhook when topology enabled)
+- Ensures topology reference remains consistent throughout resource lifecycle
 
 ### 3. Scheduler API Changes (Contract with KAI)
 
