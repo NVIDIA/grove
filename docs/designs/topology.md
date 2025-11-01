@@ -86,8 +86,6 @@ ClusterTopology is a cluster-scoped CR that defines consistent naming for cluste
 workload designers. It maps topology level domains to Kubernetes node labels and establishes ordering from broadest to
 narrowest scope.
 
-*note: this CR is independent of Kueue Topology CRD, which must be manually created by admin to align with Grove's
-ClusterTopology for KAI scheduler usage.*
 **Characteristics:**
 
 - **Cluster-scoped resource**: Can have multiple ClusterTopology resources defined
@@ -194,9 +192,9 @@ spec:
 2. Choose a name for your topology:
    - Use custom name (e.g., "my-cluster-topology") OR
    - Use default name "grove-topology" (no config needed)
-3. Create resource: `kubectl apply -f topologydomain.yaml`
+3. Create resource: `kubectl apply -f clustertopology.yaml`
 4. If using custom name: configure operator with topology name in operator config
-5. Manually create Kueue Topology with same name and aligned levels for KAI scheduler
+5. See Admin Responsibilities section for additional setup requirements
 
 **Validation:**
 
@@ -205,9 +203,7 @@ spec:
 - Mutation webhook automatically reorders levels to match predefined ordering (Region > Zone > DataCenter > Block >
   Rack > Host > Numa)
 - Admins can skip intermediate levels (e.g., define only region, rack, host)
-- Partially immutable after creation: webhook allows updates to `key` field values only, blocks updates to `domain`
-  fields and level ordering
-- PodCliqueSet label `grove.io/topology-name` is immutable after creation (webhook blocks label changes)
+- Partially immutable after creation (see Characteristics above for details)
 - Deletion protection via controller finalizer (blocks deletion while PodCliqueSet resources reference this topology OR
   topology is enabled)
 
@@ -248,15 +244,15 @@ Operator enables/disables topology features via operator config:
 ```yaml
 topology:
   enabled: true
-  topologyDomainName: "my-cluster-topology"  # Optional, defaults to "grove-topology"
+  name: "my-cluster-topology"  # Optional, defaults to "grove-topology"
 ```
 
 **Startup Behavior:**
 
 - Topology configuration loaded only at operator startup
-- Changes to `topology.enabled` or `topologyDomainName` require operator restart to take effect
+- Changes to `topology.enabled` or `name` require operator restart to take effect
 - If `topology.enabled: true`:
-   - `topologyDomainName` not specified → defaults to "grove-topology"
+    - `name` not specified → defaults to "grove-topology"
   - Operator looks for ClusterTopology with configured name (defaults to "grove-topology")
   - If ClusterTopology with that name doesn't exist → operator exits with ENOENT and crashloops
 - If `topology.enabled: false`: topology features disabled
@@ -273,8 +269,8 @@ topology:
 
 1. Admin creates ClusterTopology CR with desired topology hierarchy
 2. Admin updates operator config: `topology.enabled: true`
-3. Admin restarts operator (topology config loaded only at startup)
-4. Operator validates ClusterTopology CR exists (exits with ENOENT if not found)
+3. Admin restarts operator (see Startup Behavior section for details)
+4. Operator validates ClusterTopology CR exists
 5. For existing workloads:
     - Workloads with topology constraints: operator uses topology from PodCliqueSet label (`grove.io/topology-name`)
     - Workloads without topology constraints: no impact (checked via label presence)
@@ -298,10 +294,10 @@ topology:
 
 1. Admin disables topology per above workflow
 2. Restart operator
-2. Admin edits ClusterTopology CR (only `key` field values can be changed; `domain` fields immutable)
-3. Admin enables topology per above workflow
-4. Restart operator
-4. Operator reconciles existing workloads with updated topology configuration
+3. Admin edits ClusterTopology CR (only `key` field values can be changed; `domain` fields immutable)
+4. Admin enables topology per above workflow
+5. Restart operator
+6. Operator reconciles existing workloads with updated topology configuration
 
 *note: in future, we may support dynamic updates to ClusterTopology without disabling topology first.*
 
@@ -417,7 +413,7 @@ PodGroups []PodGroup `json:"podgroups"`
 TopologyConstraint *TopologyConstraint `json:"topologyConstraint,omitempty"`
 
 // TopologyConstraintGroupConfigs defines groups of PodGroups for topology-aware placement
-// Enhanced with topology constraints for PCSG-level packing
+// Enhanced with topology constraints for PodCliqueScalingGroup (PCSG) level packing
 // Updated by operator on each reconciliation when PCSG topology constraints change
 // +optional
 TopologyConstraintGroupConfigs []TopologyConstraintGroupConfig `json:"topologyConstraintGroupConfigs,omitempty"`
@@ -601,9 +597,8 @@ spec:
 
 **Hierarchy Validation:**
 
-- Child required constraints must be equal or stricter than parent required constraints
-- Preferred constraints always use strictest level at all levels
-- PodGang > NetworkPackGroup > PodGroup hierarchy maintained
+- Maintains hierarchy validation rules (see Validation Webhook section)
+- PodGang > TopologyConstraintGroupConfig > PodGroup hierarchy maintained
 
 **Mutable Topology Constraints:**
 
@@ -612,22 +607,6 @@ spec:
 - Operator re-translates constraints to PodGang on each reconciliation
 
 ## Component Architecture
-
-### Operator to Scheduler API Flow
-
-When a PodCliqueSet is created or updated, the Grove Operator translates it into Grove Scheduler API (PodGang CRD):
-
-**Translation Steps:**
-
-1. User creates PodCliqueSet with optional `topologyConstraint.packDomain` (level name, e.g., "rack")
-2. Operator loads ClusterTopology "grove-topology" and builds PodGang:
-    - Looks up key for each user-specified level name (e.g., "rack" → "topology.kubernetes.io/rack")
-    - **PodGang level**: PackConstraint with Required (key from PCS) + Preferred (strictest key)
-    - **TopologyConstraintGroupConfig level**: PackConstraint with Required (key from PCSG) + Preferred (strictest
-      key)
-    - **PodGroup level**: PackConstraint with Required (key from PodClique) + Preferred (strictest key)
-   - Adds annotation `grove.io/topology-name: "grove-topology"` to PodGang metadata
-3. KAI scheduler reads annotation, uses packConstraints to apply three-level topology constraints
 
 ### End-to-End Flow
 
