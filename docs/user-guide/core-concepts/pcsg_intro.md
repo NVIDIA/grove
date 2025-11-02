@@ -74,7 +74,8 @@ spec:
 
 ### **Deploy:**
 ```bash
-kubectl apply -f samples/user-guide/concept-overview/multi-node-aggregated.yaml
+# **Note:** The following commands assume you are in the `/grove/operator` directory, where `/grove` is the root of your cloned Grove repository.
+kubectl apply -f [/samples/user-guide/concept-overview/multi-node-aggregated.yaml](../../operator/samples/user-guide/concept-overview/multi-node-aggregated.yaml)
 kubectl get pods -l app.kubernetes.io/part-of=multinode-aggregated -o wide
 After running you should observe
 
@@ -283,7 +284,8 @@ spec:
 
 ### **Deploy**
 ```bash
-kubectl apply -f samples/user-guide/concept-overview/multi-node-disaggregated.yaml
+# **Note:** The following commands assume you are in the `/grove/operator` directory, where `/grove` is the root of your cloned Grove repository.
+kubectl apply -f [/samples/user-guide/concept-overview/multi-node-disaggregated.yaml](../../operator/samples/user-guide/concept-overview/multi-node-disaggregated.yaml)
 kubectl get pods -l app.kubernetes.io/part-of=multinode-disaggregated -o wide
 After running you will observe
 ```

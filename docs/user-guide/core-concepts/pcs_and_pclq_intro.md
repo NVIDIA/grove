@@ -46,8 +46,8 @@ spec:
 
 ### **Deploy:**
 ```bash
-# actual single-node-aggregated.yaml file is in samples/user-guide/concept-overview, change path accordingly
-kubectl apply -f [single-node-aggregated.yaml](../../operator/samples/user-guide/concept-overview/single-node-aggregated.yaml)
+# **Note:** The following commands assume you are in the `/grove/operator` directory, where `/grove` is the root of your cloned Grove repository.
+kubectl apply -f [/samples/user-guide/concept-overview/single-node-aggregated.yaml](../../operator/samples/user-guide/concept-overview/single-node-aggregated.yaml)
 kubectl get pods -l app.kubernetes.io/part-of=single-node-aggregated -o wide
 ```
 
@@ -165,8 +165,8 @@ spec:
 
 ### **Deploy**
 ```bash
-# actual single-node-disaggregated.yaml file is in samples/user-guide/concept-overview, change path accordingly
-kubectl apply -f [single-node-disaggregated.yaml](../../operator/samples/user-guide/concept-overview/single-node-disaggregated.yaml)
+# **Note:** The following commands assume you are in the `/grove/operator` directory, where `/grove` is the root of your cloned Grove repository.
+kubectl apply -f [/samples/user-guide/concept-overview/single-node-disaggregated.yaml](../../operator/samples/user-guide/concept-overview/single-node-disaggregated.yaml)
 kubectl get pods -l app.kubernetes.io/part-of=single-node-disaggregated -o wide
 ```
 After running you will observe
