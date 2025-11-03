@@ -894,7 +894,11 @@ func verifyRegistryImages(images []string, registryPort string, logger *utils.Lo
 			dockerClient.Close()
 			return fmt.Errorf("failed to verify %s in registry: %w", imagePath, err)
 		}
-		io.Copy(io.Discard, reader)
+		if _, err := io.Copy(io.Discard, reader); err != nil {
+			reader.Close()
+			dockerClient.Close()
+			return fmt.Errorf("failed to drain image pull response: %w", err)
+		}
 		reader.Close()
 		dockerClient.Close()
 
