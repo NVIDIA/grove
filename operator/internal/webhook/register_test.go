@@ -125,7 +125,8 @@ func TestRegisterWebhooks_WithAuthorizerMissingEnvVar(t *testing.T) {
 
 	// Ensure env var is not set
 	originalEnv := os.Getenv(constants.EnvVarServiceAccountName)
-	os.Unsetenv(constants.EnvVarServiceAccountName)
+	err := os.Unsetenv(constants.EnvVarServiceAccountName)
+	require.NoError(t, err)
 	defer func() {
 		if originalEnv != "" {
 			os.Setenv(constants.EnvVarServiceAccountName, originalEnv)
@@ -137,7 +138,7 @@ func TestRegisterWebhooks_WithAuthorizerMissingEnvVar(t *testing.T) {
 		Enabled: true,
 	}
 
-	err := RegisterWebhooks(mgr, authorizerConfig)
+	err = RegisterWebhooks(mgr, authorizerConfig)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), constants.EnvVarServiceAccountName)
 }
@@ -165,7 +166,8 @@ func TestRegisterWebhooks_WithAuthorizerMissingNamespaceFile(t *testing.T) {
 		if originalEnv != "" {
 			os.Setenv(constants.EnvVarServiceAccountName, originalEnv)
 		} else {
-			os.Unsetenv(constants.EnvVarServiceAccountName)
+			err := os.Unsetenv(constants.EnvVarServiceAccountName)
+			require.NoError(t, err)
 		}
 	}()
 
@@ -202,7 +204,8 @@ func TestRegisterWebhooks_WithAuthorizerSuccess(t *testing.T) {
 		if originalEnv != "" {
 			os.Setenv(constants.EnvVarServiceAccountName, originalEnv)
 		} else {
-			os.Unsetenv(constants.EnvVarServiceAccountName)
+			err := os.Unsetenv(constants.EnvVarServiceAccountName)
+			require.NoError(t, err)
 		}
 	}()
 
