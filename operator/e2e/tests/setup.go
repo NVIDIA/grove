@@ -36,9 +36,6 @@ import (
 )
 
 var (
-	// isRunningFullSuite tracks whether we're running the full test suite via TestMain
-	isRunningFullSuite bool
-
 	// logger for the tests
 	logger *utils.Logger
 
@@ -70,40 +67,31 @@ const (
 	defaultPollInterval = 5 * time.Second
 )
 
-// setupTestCluster initializes a shared Kubernetes cluster for testing.
-// It creates the cluster if needed, ensures the required number of worker nodes are available,
-// and returns K8s clients along with a cleanup function and registry port.
-// The cleanup function removes workloads and optionally tears down the cluster for individual test runs.
-func setupTestCluster(ctx context.Context, t *testing.T, requiredWorkerNodes int) (*kubernetes.Clientset, *rest.Config, dynamic.Interface, func(), string) {
-	// Always use shared cluster approach
+// prepareTestCluster is a helper function that prepares the shared cluster for a test
+// with the specified number of worker nodes and returns the necessary clients and a cleanup function.
+// The cleanup function will fatally fail the test if workload cleanup fails.
+func prepareTestCluster(ctx context.Context, t *testing.T, requiredWorkerNodes int) (*kubernetes.Clientset, *rest.Config, dynamic.Interface, func()) {
+	t.Helper()
+
+	// Get the shared cluster instance
 	sharedCluster := setup.SharedCluster(logger)
 
-	// Setup shared cluster if not already done
-	if !sharedCluster.IsSetup() {
-		if err := sharedCluster.Setup(ctx, testImages); err != nil {
-			t.Errorf("Failed to setup shared cluster: %v", err)
-		}
-	}
-
+	// Prepare cluster with required worker nodes
 	if err := sharedCluster.PrepareForTest(ctx, requiredWorkerNodes); err != nil {
-		t.Errorf("Failed to prepare shared cluster for test: %v", err)
+		t.Fatalf("Failed to prepare shared cluster: %v", err)
 	}
 
+	// Get clients from shared cluster
 	clientset, restConfig, dynamicClient := sharedCluster.GetClients()
 
-	// Cleanup function cleans workloads and handles teardown for individual tests
+	// Create cleanup function
 	cleanup := func() {
 		if err := sharedCluster.CleanupWorkloads(ctx); err != nil {
-			t.Logf("Warning: failed to cleanup workloads: %v", err)
-		}
-
-		// If running individual test (not full suite), teardown the cluster completely
-		if !isRunningFullSuite {
-			sharedCluster.Teardown()
+			t.Fatalf("Failed to cleanup workloads: %v", err)
 		}
 	}
 
-	return clientset, restConfig, dynamicClient, cleanup, sharedCluster.GetRegistryPort()
+	return clientset, restConfig, dynamicClient, cleanup
 }
 
 // getWorkerNodes retrieves the names of all worker nodes in the cluster,

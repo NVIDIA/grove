@@ -23,6 +23,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/ai-dynamo/grove/operator/api/common"
 	"github.com/ai-dynamo/grove/operator/e2e/utils"
 	"github.com/docker/docker/api/types/image"
 	dockerclient "github.com/docker/docker/client"
@@ -49,12 +50,23 @@ type resourceType struct {
 	name     string
 }
 
-// resourceTypes defines all Grove CRD types that need to be tracked for cleanup
-var resourceTypes = []resourceType{
+// groveManagedResourceTypes defines all resource types managed by Grove operator that need to be tracked for cleanup
+var groveManagedResourceTypes = []resourceType{
+	// Grove CRDs
 	{"grove.io", "v1alpha1", "podcliquesets", "PodCliqueSets"},
 	{"grove.io", "v1alpha1", "podcliquescalinggroups", "PodCliqueScalingGroups"},
 	{"grove.io", "v1alpha1", "podgangsets", "PodGangSets"},
 	{"scheduler.grove.io", "v1alpha1", "podgangs", "PodGangs"},
+	{"grove.io", "v1alpha1", "podcliques", "PodCliques"},
+	// Kubernetes core resources
+	{"", "v1", "services", "Services"},
+	{"", "v1", "serviceaccounts", "ServiceAccounts"},
+	{"", "v1", "secrets", "Secrets"},
+	// RBAC resources
+	{"rbac.authorization.k8s.io", "v1", "roles", "Roles"},
+	{"rbac.authorization.k8s.io", "v1", "rolebindings", "RoleBindings"},
+	// Autoscaling resources
+	{"autoscaling", "v2", "horizontalpodautoscalers", "HorizontalPodAutoscalers"},
 }
 
 // SharedClusterManager manages a shared (singleton) k3d cluster for E2E tests
@@ -89,6 +101,9 @@ func (scm *SharedClusterManager) Setup(ctx context.Context, testImages []string)
 	if scm.isSetup {
 		return nil
 	}
+
+	// Track whether setup completed successfully
+	var setupSuccessful bool
 
 	// Configuration for maximum cluster size needed (28 worker nodes + 3 server nodes)
 	customCfg := ClusterConfig{
@@ -138,6 +153,14 @@ func (scm *SharedClusterManager) Setup(ctx context.Context, testImages []string)
 	scm.restConfig = restConfig
 	scm.cleanup = cleanup
 
+	// Defer cleanup on error - only call if setup was not successful and we have a cleanup function
+	defer func() {
+		if !setupSuccessful && cleanup != nil {
+			scm.logger.Error("⚠️ Setup failed, cleaning up cluster...")
+			cleanup()
+		}
+	}()
+
 	// Create clientset from restConfig
 	clientset, err := kubernetes.NewForConfig(restConfig)
 	if err != nil {
@@ -172,6 +195,7 @@ func (scm *SharedClusterManager) Setup(ctx context.Context, testImages []string)
 
 	scm.logger.Infof("✅ Shared cluster setup complete with %d worker nodes", len(scm.workerNodes))
 	scm.isSetup = true
+	setupSuccessful = true
 	return nil
 }
 
@@ -210,10 +234,10 @@ func (scm *SharedClusterManager) CleanupWorkloads(ctx context.Context) error {
 	}
 
 	// Step 2: Poll for all resources and pods to be cleaned up
-	if err := scm.waitForAllResourcesAndPodsDeleted(ctx, defaulPollInterval); err != nil {
+	if err := scm.waitForAllGroveManagedResourcesAndPodsDeleted(ctx, defaulPollInterval); err != nil {
 		scm.logger.Warnf("timeout waiting for resources and pods to be deleted: %v", err)
 		// List remaining resources and pods for debugging
-		scm.listRemainingResources(ctx)
+		scm.listRemainingGroveManagedResources(ctx)
 		scm.listRemainingPods(ctx, "default")
 	}
 
@@ -301,23 +325,26 @@ func (scm *SharedClusterManager) resetNodeStates(ctx context.Context) error {
 	return nil
 }
 
-// waitForAllResourcesAndPodsDeleted waits for all Grove resources and pods to be deleted
-func (scm *SharedClusterManager) waitForAllResourcesAndPodsDeleted(ctx context.Context, timeout time.Duration) error {
-	resourceTypes := resourceTypes
-
+// waitForAllGroveManagedResourcesAndPodsDeleted waits for all Grove resources and pods to be deleted
+func (scm *SharedClusterManager) waitForAllGroveManagedResourcesAndPodsDeleted(ctx context.Context, timeout time.Duration) error {
 	return utils.PollForCondition(ctx, timeout, defaulPollInterval, func() (bool, error) {
 		allResourcesDeleted := true
 		totalResources := 0
 
+		// Create label selector for Grove-managed resources
+		labelSelector := fmt.Sprintf("%s=%s", common.LabelManagedByKey, common.LabelManagedByValue)
+
 		// Check Grove resources
-		for _, rt := range resourceTypes {
+		for _, rt := range groveManagedResourceTypes {
 			gvr := schema.GroupVersionResource{
 				Group:    rt.group,
 				Version:  rt.version,
 				Resource: rt.resource,
 			}
 
-			resourceList, err := scm.dynamicClient.Resource(gvr).List(ctx, metav1.ListOptions{})
+			resourceList, err := scm.dynamicClient.Resource(gvr).List(ctx, metav1.ListOptions{
+				LabelSelector: labelSelector,
+			})
 			if err != nil {
 				// If we can't list the resource type, assume it doesn't exist or is being deleted
 				continue
@@ -354,18 +381,21 @@ func (scm *SharedClusterManager) waitForAllResourcesAndPodsDeleted(ctx context.C
 	})
 }
 
-// listRemainingResources lists remaining Grove resources for debugging
-func (scm *SharedClusterManager) listRemainingResources(ctx context.Context) {
-	resourceTypes := resourceTypes
+// listRemainingGroveManagedResources lists remaining Grove resources for debugging
+func (scm *SharedClusterManager) listRemainingGroveManagedResources(ctx context.Context) {
+	// Create label selector for Grove-managed resources
+	labelSelector := fmt.Sprintf("%s=%s", common.LabelManagedByKey, common.LabelManagedByValue)
 
-	for _, rt := range resourceTypes {
+	for _, rt := range groveManagedResourceTypes {
 		gvr := schema.GroupVersionResource{
 			Group:    rt.group,
 			Version:  rt.version,
 			Resource: rt.resource,
 		}
 
-		resourceList, err := scm.dynamicClient.Resource(gvr).List(ctx, metav1.ListOptions{})
+		resourceList, err := scm.dynamicClient.Resource(gvr).List(ctx, metav1.ListOptions{
+			LabelSelector: labelSelector,
+		})
 		if err != nil {
 			scm.logger.Warnf("Failed to list %s: %v", rt.name, err)
 			continue

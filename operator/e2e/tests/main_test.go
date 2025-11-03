@@ -38,9 +38,6 @@ import (
 func TestMain(m *testing.M) {
 	ctx := context.Background()
 
-	// Mark that we're running the full test suite
-	isRunningFullSuite = true
-
 	// Setup shared cluster once for all tests
 	sharedCluster := setup.SharedCluster(logger)
 	if err := sharedCluster.Setup(ctx, testImages); err != nil {
@@ -48,7 +45,7 @@ func TestMain(m *testing.M) {
 		os.Exit(1)
 	}
 
-	// Run all tests
+	// Run tests
 	code := m.Run()
 
 	// Teardown shared cluster
