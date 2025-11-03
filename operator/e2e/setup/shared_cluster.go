@@ -146,20 +146,18 @@ func (scm *SharedClusterManager) Setup(ctx context.Context, testImages []string)
 	scm.logger.Info("🚀 Setting up shared k3d cluster for all e2e tests...")
 
 	restConfig, cleanup, err := SetupCompleteK3DCluster(ctx, customCfg, relativeSkaffoldYAMLPath, scm.logger)
+	// Defer cleanup on error - only call if setup was not successful and we have a cleanup function
+	defer func() {
+		if !setupSuccessful && cleanup != nil {
+			cleanup()
+		}
+	}()
 	if err != nil {
 		return fmt.Errorf("failed to setup shared k3d cluster: %w", err)
 	}
 
 	scm.restConfig = restConfig
 	scm.cleanup = cleanup
-
-	// Defer cleanup on error - only call if setup was not successful and we have a cleanup function
-	defer func() {
-		if !setupSuccessful && cleanup != nil {
-			scm.logger.Error("⚠️ Setup failed, cleaning up cluster...")
-			cleanup()
-		}
-	}()
 
 	// Create clientset from restConfig
 	clientset, err := kubernetes.NewForConfig(restConfig)
