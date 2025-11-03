@@ -24,6 +24,8 @@ import (
 
 // Interface provides access to all the informers in this group version.
 type Interface interface {
+	// ClusterTopologies returns a ClusterTopologyInformer.
+	ClusterTopologies() ClusterTopologyInformer
 	// PodCliques returns a PodCliqueInformer.
 	PodCliques() PodCliqueInformer
 	// PodCliqueScalingGroups returns a PodCliqueScalingGroupInformer.
@@ -41,6 +43,11 @@ type version struct {
 // New returns a new Interface.
 func New(f internalinterfaces.SharedInformerFactory, namespace string, tweakListOptions internalinterfaces.TweakListOptionsFunc) Interface {
 	return &version{factory: f, namespace: namespace, tweakListOptions: tweakListOptions}
+}
+
+// ClusterTopologies returns a ClusterTopologyInformer.
+func (v *version) ClusterTopologies() ClusterTopologyInformer {
+	return &clusterTopologyInformer{factory: v.factory, tweakListOptions: v.tweakListOptions}
 }
 
 // PodCliques returns a PodCliqueInformer.

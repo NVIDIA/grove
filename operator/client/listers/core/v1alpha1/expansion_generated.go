@@ -18,6 +18,10 @@ limitations under the License.
 
 package v1alpha1
 
+// ClusterTopologyListerExpansion allows custom methods to be added to
+// ClusterTopologyLister.
+type ClusterTopologyListerExpansion interface{}
+
 // PodCliqueListerExpansion allows custom methods to be added to
 // PodCliqueLister.
 type PodCliqueListerExpansion interface{}

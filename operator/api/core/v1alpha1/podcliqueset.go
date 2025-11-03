@@ -17,7 +17,6 @@
 package v1alpha1
 
 import (
-	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -56,9 +55,6 @@ type PodCliqueSetSpec struct {
 	Replicas int32 `json:"replicas,omitempty"`
 	// Template describes the template spec for PodGangs that will be created in the PodCliqueSet.
 	Template PodCliqueSetTemplateSpec `json:"template"`
-	// ReplicaSpreadConstraints defines the constraints for spreading each replica of PodCliqueSet across domains identified by a topology key.
-	// +optional
-	ReplicaSpreadConstraints []corev1.TopologySpreadConstraint `json:"replicaSpreadConstraints,omitempty"`
 }
 
 // PodCliqueSetStatus defines the status of a PodCliqueSet.
@@ -144,11 +140,9 @@ type PodCliqueSetTemplateSpec struct {
 	// If present, create headless service for each PodGang.
 	// +optional
 	HeadlessServiceConfig *HeadlessServiceConfig `json:"headlessServiceConfig,omitempty"`
-	// SchedulingPolicyConfig defines the scheduling policy configuration for the PodGang.
-	// Defaulting only works for optional fields.
-	// See https://github.com/kubernetes-sigs/controller-tools/issues/893#issuecomment-1991256368
+	// TopologyConstraint defines topology placement requirements for PodCliqueSet.
 	// +optional
-	SchedulingPolicyConfig *SchedulingPolicyConfig `json:"schedulingPolicyConfig,omitempty"`
+	TopologyConstraint *TopologyConstraint `json:"topologyConstraint,omitempty"`
 	// TerminationDelay is the delay after which the gang termination will be triggered.
 	// A gang is a candidate for termination if number of running pods fall below a threshold for any PodClique.
 	// If a PodGang remains a candidate past TerminationDelay then it will be terminated. This allows additional time
@@ -179,26 +173,26 @@ type PodCliqueTemplateSpec struct {
 	// More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/annotations
 	// +optional
 	Annotations map[string]string `json:"annotations,omitempty"`
+	// TopologyConstraint defines topology placement requirements for PodClique.
+	// Must be equal to or stricter than parent resource constraints.
+	// +optional
+	TopologyConstraint *TopologyConstraint `json:"topologyConstraint,omitempty"`
 	// Specification of the desired behavior of a PodClique.
 	// More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#spec-and-status
 	Spec PodCliqueSpec `json:"spec"`
 }
 
-// SchedulingPolicyConfig defines the scheduling policy configuration for the PodGang.
-type SchedulingPolicyConfig struct {
-	// NetworkPackGroupConfigs is a list of NetworkPackGroupConfig's that define how the pods in the PodCliqueSet are optimally packaged w.r.t cluster's network topology.
-	// PodCliques that are not part of any NetworkPackGroupConfig are scheduled with best-effort network packing strategy.
-	// Exercise caution when defining NetworkPackGroupConfig. Some of the downsides include:
-	// 1. Scheduling may be delayed until optimal placement is available.
-	// 2. Pods created due to scale-out or rolling upgrades is not guaranteed optimal placement.
-	NetworkPackGroupConfigs []NetworkPackGroupConfig `json:"networkPackGroupConfigs,omitempty"`
-}
-
-// NetworkPackGroupConfig indicates that all the Pods belonging to the constituent PodCliques should be optimally placed w.r.t cluster's network topology.
-// If a constituent PodClique belongs to a PodCliqueScalingGroup then ensure that all constituent PodCliques of that PodCliqueScalingGroup are also part of the NetworkPackGroupConfig.
-type NetworkPackGroupConfig struct {
-	// CliqueNames is the list of PodClique names that are part of the network pack group.
-	CliqueNames []string `json:"cliqueNames"`
+// TopologyConstraint defines topology placement requirements.
+type TopologyConstraint struct {
+	// PackDomain specifies the topology domain for grouping replicas.
+	// Controls placement constraint for EACH individual replica instance.
+	// Must be one of: region, zone, datacenter, block, rack, host, numa
+	// Example: "rack" means each replica independently placed within one rack.
+	// Note: Does NOT constrain all replicas to the same rack together.
+	// Different replicas can be in different topology domains.
+	// +kubebuilder:validation:Enum=region;zone;datacenter;block;rack;host;numa
+	// +optional
+	PackDomain *TopologyDomain `json:"packDomain,omitempty"`
 }
 
 // PodCliqueScalingGroupConfig is a group of PodClique's that are scaled together.
@@ -232,6 +226,10 @@ type PodCliqueScalingGroupConfig struct {
 	// ScaleConfig is the horizontal pod autoscaler configuration for the pod clique scaling group.
 	// +optional
 	ScaleConfig *AutoScalingConfig `json:"scaleConfig,omitempty"`
+	// TopologyConstraint defines topology placement requirements for PodCliqueScalingGroup.
+	// Must be equal to or stricter than parent PodCliqueSet constraints.
+	// +optional
+	TopologyConstraint *TopologyConstraint `json:"topologyConstraint,omitempty"`
 }
 
 // HeadlessServiceConfig defines the config options for the headless service.

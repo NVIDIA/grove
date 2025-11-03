@@ -9,6 +9,7 @@
 
 
 ### Resource Types
+- [ClusterTopology](#clustertopology)
 - [PodClique](#podclique)
 - [PodCliqueScalingGroup](#podcliquescalinggroup)
 - [PodCliqueSet](#podcliqueset)
@@ -51,6 +52,41 @@ _Appears in:_
 | `CliqueStartupTypeAnyOrder` | CliqueStartupTypeAnyOrder defines that the cliques can be started in any order. This allows for concurrent starts of cliques.<br />This is the default CliqueStartupType.<br /> |
 | `CliqueStartupTypeInOrder` | CliqueStartupTypeInOrder defines that the cliques should be started in the order they are defined in the PodGang Cliques slice.<br /> |
 | `CliqueStartupTypeExplicit` | CliqueStartupTypeExplicit defines that the cliques should be started after the cliques defined in PodClique.StartsAfter have started.<br /> |
+
+
+#### ClusterTopology
+
+
+
+ClusterTopology defines the topology hierarchy for the cluster.
+This resource is immutable after creation.
+
+
+
+
+
+| Field | Description | Default | Validation |
+| --- | --- | --- | --- |
+| `apiVersion` _string_ | `grove.io/v1alpha1` | | |
+| `kind` _string_ | `ClusterTopology` | | |
+| `metadata` _[ObjectMeta](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.33/#objectmeta-v1-meta)_ | Refer to Kubernetes API documentation for fields of `metadata`. |  |  |
+| `spec` _[ClusterTopologySpec](#clustertopologyspec)_ | Spec defines the topology hierarchy specification. |  |  |
+
+
+#### ClusterTopologySpec
+
+
+
+ClusterTopologySpec defines the topology hierarchy specification.
+
+
+
+_Appears in:_
+- [ClusterTopology](#clustertopology)
+
+| Field | Description | Default | Validation |
+| --- | --- | --- | --- |
+| `levels` _[TopologyLevel](#topologylevel) array_ | Levels is an ordered list of topology levels from broadest to narrowest scope.<br />The order in this list defines the hierarchy (index 0 = broadest level).<br />This field is immutable after creation. |  | MaxItems: 7 <br />MinItems: 1 <br /> |
 
 
 #### ErrorCode
@@ -139,23 +175,6 @@ _Appears in:_
 | `Delete` | LastOperationTypeDelete indicates that the last operation was a delete operation.<br /> |
 
 
-#### NetworkPackGroupConfig
-
-
-
-NetworkPackGroupConfig indicates that all the Pods belonging to the constituent PodCliques should be optimally placed w.r.t cluster's network topology.
-If a constituent PodClique belongs to a PodCliqueScalingGroup then ensure that all constituent PodCliques of that PodCliqueScalingGroup are also part of the NetworkPackGroupConfig.
-
-
-
-_Appears in:_
-- [SchedulingPolicyConfig](#schedulingpolicyconfig)
-
-| Field | Description | Default | Validation |
-| --- | --- | --- | --- |
-| `cliqueNames` _string array_ | CliqueNames is the list of PodClique names that are part of the network pack group. |  |  |
-
-
 #### PodClique
 
 
@@ -235,6 +254,7 @@ _Appears in:_
 | `replicas` _integer_ | Replicas is the desired number of replicas for the scaling group at template level.<br />This allows one to control the replicas of the scaling group at startup.<br />If not specified, it defaults to 1. | 1 |  |
 | `minAvailable` _integer_ | MinAvailable serves two purposes:<br />Gang Scheduling:<br />It defines the minimum number of replicas that are guaranteed to be gang scheduled.<br />Gang Termination:<br />It defines the minimum requirement of available replicas for a PodCliqueScalingGroup.<br />Violation of this threshold for a duration beyond TerminationDelay will result in termination of the PodCliqueSet replica that it belongs to.<br />Default: If not specified, it defaults to 1.<br />Constraints:<br />MinAvailable cannot be greater than Replicas.<br />If ScaleConfig is defined then its MinAvailable should not be less than ScaleConfig.MinReplicas. | 1 |  |
 | `scaleConfig` _[AutoScalingConfig](#autoscalingconfig)_ | ScaleConfig is the horizontal pod autoscaler configuration for the pod clique scaling group. |  |  |
+| `topologyConstraint` _[TopologyConstraint](#topologyconstraint)_ | TopologyConstraint defines topology placement requirements for PodCliqueScalingGroup.<br />Must be equal to or stricter than parent PodCliqueSet constraints. |  |  |
 
 
 #### PodCliqueScalingGroupReplicaRollingUpdateProgress
@@ -388,7 +408,6 @@ _Appears in:_
 | --- | --- | --- | --- |
 | `replicas` _integer_ | Replicas is the number of desired replicas of the PodGang. | 0 |  |
 | `template` _[PodCliqueSetTemplateSpec](#podcliquesettemplatespec)_ | Template describes the template spec for PodGangs that will be created in the PodCliqueSet. |  |  |
-| `replicaSpreadConstraints` _[TopologySpreadConstraint](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.33/#topologyspreadconstraint-v1-core) array_ | ReplicaSpreadConstraints defines the constraints for spreading each replica of PodCliqueSet across domains identified by a topology key. |  |  |
 
 
 #### PodCliqueSetStatus
@@ -437,7 +456,7 @@ _Appears in:_
 | `cliqueStartupType` _[CliqueStartupType](#cliquestartuptype)_ | StartupType defines the type of startup dependency amongst the cliques within a PodGang.<br />If it is not defined then default of CliqueStartupTypeAnyOrder is used. | CliqueStartupTypeAnyOrder | Enum: [CliqueStartupTypeAnyOrder CliqueStartupTypeInOrder CliqueStartupTypeExplicit] <br /> |
 | `priorityClassName` _string_ | PriorityClassName is the name of the PriorityClass to be used for the PodCliqueSet.<br />If specified, indicates the priority of the PodCliqueSet. "system-node-critical" and<br />"system-cluster-critical" are two special keywords which indicate the<br />highest priorities with the former being the highest priority. Any other<br />name must be defined by creating a PriorityClass object with that name.<br />If not specified, the pod priority will be default or zero if there is no default. |  |  |
 | `headlessServiceConfig` _[HeadlessServiceConfig](#headlessserviceconfig)_ | HeadlessServiceConfig defines the config options for the headless service.<br />If present, create headless service for each PodGang. |  |  |
-| `schedulingPolicyConfig` _[SchedulingPolicyConfig](#schedulingpolicyconfig)_ | SchedulingPolicyConfig defines the scheduling policy configuration for the PodGang.<br />Defaulting only works for optional fields.<br />See https://github.com/kubernetes-sigs/controller-tools/issues/893#issuecomment-1991256368 |  |  |
+| `topologyConstraint` _[TopologyConstraint](#topologyconstraint)_ | TopologyConstraint defines topology placement requirements for PodCliqueSet. |  |  |
 | `terminationDelay` _[Duration](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.33/#duration-v1-meta)_ | TerminationDelay is the delay after which the gang termination will be triggered.<br />A gang is a candidate for termination if number of running pods fall below a threshold for any PodClique.<br />If a PodGang remains a candidate past TerminationDelay then it will be terminated. This allows additional time<br />to the kube-scheduler to re-schedule sufficient pods in the PodGang that will result in having the total number of<br />running pods go above the threshold.<br />Defaults to 4 hours. |  |  |
 | `podCliqueScalingGroups` _[PodCliqueScalingGroupConfig](#podcliquescalinggroupconfig) array_ | PodCliqueScalingGroupConfigs is a list of scaling groups for the PodCliqueSet. |  |  |
 
@@ -507,6 +526,7 @@ _Appears in:_
 | `name` _string_ | Name must be unique within a PodCliqueSet and is used to denote a role.<br />Once set it cannot be updated.<br />More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names#names |  |  |
 | `labels` _object (keys:string, values:string)_ | Labels is a map of string keys and values that can be used to organize and categorize<br />(scope and select) objects. May match selectors of replication controllers<br />and services.<br />More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/labels |  |  |
 | `annotations` _object (keys:string, values:string)_ | Annotations is an unstructured key value map stored with a resource that may be<br />set by external tools to store and retrieve arbitrary metadata. They are not<br />queryable and should be preserved when modifying objects.<br />More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/annotations |  |  |
+| `topologyConstraint` _[TopologyConstraint](#topologyconstraint)_ | TopologyConstraint defines topology placement requirements for PodClique.<br />Must be equal to or stricter than parent resource constraints. |  |  |
 | `spec` _[PodCliqueSpec](#podcliquespec)_ | Specification of the desired behavior of a PodClique.<br />More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#spec-and-status |  |  |
 
 
@@ -566,20 +586,64 @@ _Appears in:_
 | `completed` _string array_ | Completed captures the pod names that have already been updated. |  |  |
 
 
-#### SchedulingPolicyConfig
+#### TopologyConstraint
 
 
 
-SchedulingPolicyConfig defines the scheduling policy configuration for the PodGang.
+TopologyConstraint defines topology placement requirements.
 
 
 
 _Appears in:_
+- [PodCliqueScalingGroupConfig](#podcliquescalinggroupconfig)
 - [PodCliqueSetTemplateSpec](#podcliquesettemplatespec)
+- [PodCliqueTemplateSpec](#podcliquetemplatespec)
 
 | Field | Description | Default | Validation |
 | --- | --- | --- | --- |
-| `networkPackGroupConfigs` _[NetworkPackGroupConfig](#networkpackgroupconfig) array_ | NetworkPackGroupConfigs is a list of NetworkPackGroupConfig's that define how the pods in the PodCliqueSet are optimally packaged w.r.t cluster's network topology.<br />PodCliques that are not part of any NetworkPackGroupConfig are scheduled with best-effort network packing strategy.<br />Exercise caution when defining NetworkPackGroupConfig. Some of the downsides include:<br />1. Scheduling may be delayed until optimal placement is available.<br />2. Pods created due to scale-out or rolling upgrades is not guaranteed optimal placement. |  |  |
+| `packDomain` _[TopologyDomain](#topologydomain)_ | PackDomain specifies the topology domain for grouping replicas.<br />Controls placement constraint for EACH individual replica instance.<br />Must be one of: region, zone, datacenter, block, rack, host, numa<br />Example: "rack" means each replica independently placed within one rack.<br />Note: Does NOT constrain all replicas to the same rack together.<br />Different replicas can be in different topology domains. |  | Enum: [region zone datacenter block rack host numa] <br /> |
+
+
+#### TopologyDomain
+
+_Underlying type:_ _string_
+
+TopologyDomain represents a predefined topology level in the hierarchy.
+Topology ordering (broadest to narrowest):
+Region > Zone > DataCenter > Block > Rack > Host > Numa
+
+
+
+_Appears in:_
+- [TopologyConstraint](#topologyconstraint)
+- [TopologyLevel](#topologylevel)
+
+| Field | Description |
+| --- | --- |
+| `region` | TopologyDomainRegion represents the region level in the topology hierarchy.<br /> |
+| `zone` | TopologyDomainZone represents the zone level in the topology hierarchy.<br /> |
+| `datacenter` | TopologyDomainDataCenter represents the datacenter level in the topology hierarchy.<br /> |
+| `block` | TopologyDomainBlock represents the block level in the topology hierarchy.<br /> |
+| `rack` | TopologyDomainRack represents the rack level in the topology hierarchy.<br /> |
+| `host` | TopologyDomainHost represents the host level in the topology hierarchy.<br /> |
+| `numa` | TopologyDomainNuma represents the numa level in the topology hierarchy.<br /> |
+
+
+#### TopologyLevel
+
+
+
+TopologyLevel defines a single level in the topology hierarchy.
+
+
+
+_Appears in:_
+- [ClusterTopologySpec](#clustertopologyspec)
+
+| Field | Description | Default | Validation |
+| --- | --- | --- | --- |
+| `domain` _[TopologyDomain](#topologydomain)_ | Domain is the predefined level identifier used in TopologyConstraint references.<br />Must be one of: region, zone, datacenter, block, rack, host, numa |  | Enum: [region zone datacenter block rack host numa] <br />Required: \{\} <br /> |
+| `key` _string_ | Key is the node label key that identifies this topology domain.<br />Must be a valid Kubernetes label key (qualified name).<br />Examples: "topology.kubernetes.io/zone", "kubernetes.io/hostname" |  | MaxLength: 63 <br />MinLength: 1 <br />Required: \{\} <br /> |
 
 
 

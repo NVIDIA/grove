@@ -28,6 +28,7 @@ import (
 
 type GroveV1alpha1Interface interface {
 	RESTClient() rest.Interface
+	ClusterTopologiesGetter
 	PodCliquesGetter
 	PodCliqueScalingGroupsGetter
 	PodCliqueSetsGetter
@@ -36,6 +37,10 @@ type GroveV1alpha1Interface interface {
 // GroveV1alpha1Client is used to interact with features provided by the grove.io group.
 type GroveV1alpha1Client struct {
 	restClient rest.Interface
+}
+
+func (c *GroveV1alpha1Client) ClusterTopologies() ClusterTopologyInterface {
+	return newClusterTopologies(c)
 }
 
 func (c *GroveV1alpha1Client) PodCliques(namespace string) PodCliqueInterface {
