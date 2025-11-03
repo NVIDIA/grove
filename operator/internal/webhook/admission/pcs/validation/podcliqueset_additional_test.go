@@ -222,4 +222,3 @@ func TestValidateScaleConfig(t *testing.T) {
 		})
 	}
 }
-

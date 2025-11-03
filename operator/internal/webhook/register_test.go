@@ -91,7 +91,7 @@ func TestRegisterWebhooks_WithoutAuthorizer(t *testing.T) {
 		Scheme: cl.Scheme(),
 		Logger: logr.Discard(),
 	}
-	
+
 	// Create a real webhook server
 	server := webhook.NewServer(webhook.Options{
 		Port: 9443,

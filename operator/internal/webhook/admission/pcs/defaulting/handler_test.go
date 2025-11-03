@@ -152,8 +152,8 @@ func TestDefault(t *testing.T) {
 			},
 		},
 		{
-			name:          "wrong object type returns error",
-			obj:           &corev1.Pod{},
+			name: "wrong object type returns error",
+			obj:  &corev1.Pod{},
 			setupContext: func(ctx context.Context) context.Context {
 				return admission.NewContextWithRequest(ctx, admission.Request{
 					AdmissionRequest: admissionv1.AdmissionRequest{
