@@ -20,6 +20,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"path/filepath"
 	"strings"
 	"sync"
@@ -28,8 +29,9 @@ import (
 	"github.com/ai-dynamo/grove/operator/e2e/utils"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/filters"
+	"github.com/docker/docker/api/types/image"
 	dockerclient "github.com/docker/docker/client"
-	"github.com/k3d-io/k3d/v5/pkg/client"
+	k3dclient "github.com/k3d-io/k3d/v5/pkg/client"
 	"github.com/k3d-io/k3d/v5/pkg/config"
 	"github.com/k3d-io/k3d/v5/pkg/config/types"
 	"github.com/k3d-io/k3d/v5/pkg/config/v1alpha5"
@@ -49,6 +51,22 @@ const (
 	defaultPollTimeout = 5 * time.Minute
 	// defaultPollInterval is the interval for most polling conditions
 	defaultPollInterval = 5 * time.Second
+)
+
+var (
+	// imagesToPrepull are the images that will be pre-pulled to speed up cluster startup on slow networks
+	// we warn if any images differ from this prepull list so as help keep the list up to date
+	imagesToPrepull = []string{
+		"registry.k8s.io/nfd/node-feature-discovery:v0.17.3",
+		"nvcr.io/nvidia/gpu-operator:v25.3.4",
+		"ghcr.io/nvidia/kai-scheduler/admission:v0.9.3",
+		"ghcr.io/nvidia/kai-scheduler/binder:v0.9.3",
+		"ghcr.io/nvidia/kai-scheduler/operator:v0.9.3",
+		"ghcr.io/nvidia/kai-scheduler/podgroupcontroller:v0.9.3",
+		"ghcr.io/nvidia/kai-scheduler/podgrouper:v0.9.3",
+		"ghcr.io/nvidia/kai-scheduler/queuecontroller:v0.9.3",
+		"ghcr.io/nvidia/kai-scheduler/scheduler:v0.9.3",
+	}
 )
 
 // NodeTaint represents a Kubernetes node taint
@@ -100,16 +118,16 @@ func DefaultClusterConfig() ClusterConfig {
 func ensureClusterDoesNotExist(ctx context.Context, clusterName string, logger *utils.Logger) error {
 	cluster := &k3d.Cluster{Name: clusterName}
 
-	existingCluster, err := client.ClusterGet(ctx, runtimes.Docker, cluster)
+	existingCluster, err := k3dclient.ClusterGet(ctx, runtimes.Docker, cluster)
 	if err != nil {
-		if errors.Is(err, client.ClusterGetNoNodesFoundError) {
+		if errors.Is(err, k3dclient.ClusterGetNoNodesFoundError) {
 			return nil
 		}
 		return fmt.Errorf("failed to inspect existing k3d cluster %s: %w", clusterName, err)
 	}
 
 	logger.Warnf("🧹 Removing stale k3d cluster '%s' before setup", clusterName)
-	if err := client.ClusterDelete(ctx, runtimes.Docker, existingCluster, k3d.ClusterDeleteOpts{}); err != nil {
+	if err := k3dclient.ClusterDelete(ctx, runtimes.Docker, existingCluster, k3d.ClusterDeleteOpts{}); err != nil {
 		return fmt.Errorf("failed to delete existing k3d cluster %s: %w", clusterName, err)
 	}
 
@@ -178,6 +196,19 @@ func SetupCompleteK3DCluster(ctx context.Context, cfg ClusterConfig, skaffoldYAM
 		cleanup()
 	}
 
+	// Pre-pull and push images to local registry if enabled
+	if cfg.EnableRegistry {
+		if err := prepullImages(ctx, imagesToPrepull, cfg.RegistryPort, logger); err != nil {
+			logger.Warnf("⚠️  Failed to pre-load images (cluster will still work, but slower startup): %v", err)
+			// Don't fail the cluster creation if image pre-loading fails - cluster will still work
+		} else {
+			// Verify images are accessible from the registry
+			if err := verifyRegistryImages(imagesToPrepull, cfg.RegistryPort, logger); err != nil {
+				logger.Warnf("⚠️  Registry images verification failed: %v", err)
+			}
+		}
+	}
+
 	tolerations := []map[string]interface{}{
 		{
 			"key":      "node-role.kubernetes.io/control-plane",
@@ -210,7 +241,7 @@ func SetupCompleteK3DCluster(ctx context.Context, cfg ClusterConfig, skaffoldYAM
 		Logger:         logger,
 	}
 
-	nvidiaConfig := &HelmInstallConfig{
+	gpuOperatorConfig := &HelmInstallConfig{
 		ReleaseName:     "nvidia-gpu-operator",
 		ChartRef:        "gpu-operator",
 		ChartVersion:    "v25.3.4",
@@ -235,7 +266,7 @@ func SetupCompleteK3DCluster(ctx context.Context, cfg ClusterConfig, skaffoldYAM
 	}
 
 	logger.Info("🚀 Installing Grove, Kai Scheduler, and NVIDIA GPU Operator...")
-	if err := InstallCoreComponents(ctx, restConfig, kaiConfig, nvidiaConfig, skaffoldYAMLPath, cfg.RegistryPort, logger); err != nil {
+	if err := InstallCoreComponents(ctx, restConfig, kaiConfig, gpuOperatorConfig, skaffoldYAMLPath, cfg.RegistryPort, logger); err != nil {
 		cleanup()
 		return nil, nil, fmt.Errorf("component installation failed: %w", err)
 	}
@@ -267,9 +298,23 @@ func SetupCompleteK3DCluster(ctx context.Context, cfg ClusterConfig, skaffoldYAM
 
 	// Nvidia Operator seems to take the longest to be ready, so we wait for it last
 	// to get the most done while waiting.
-	if err := utils.WaitForPodsInNamespace(ctx, nvidiaConfig.Namespace, nvidiaConfig.RestConfig, defaultPollTimeout, defaultPollInterval, nvidiaConfig.Logger); err != nil {
+	if err := utils.WaitForPodsInNamespace(ctx, gpuOperatorConfig.Namespace, gpuOperatorConfig.RestConfig, defaultPollTimeout, defaultPollInterval, gpuOperatorConfig.Logger); err != nil {
 		cleanup()
 		return nil, nil, fmt.Errorf("NVIDIA GPU Operator not ready: %w", err)
+	}
+
+	// Find any deployed images that are not in the prepull list
+	namespacesToCheck := []string{kaiConfig.Namespace, gpuOperatorConfig.Namespace}
+	missingImages := findMissingImages(ctx, clientset, namespacesToCheck, logger)
+
+	// Warn about missing images to help keep the prepull list up to date
+	if len(missingImages) > 0 {
+		logger.Warnf("⚠️  Found %d images not in prepull list. Consider adding these to imagesToPrepull in e2e/setup/k8s_clusters.go:", len(missingImages))
+		for _, img := range missingImages {
+			logger.Warnf("    - %s", img)
+		}
+	} else {
+		logger.Debug("✅ All deployed images are in prepull list")
 	}
 
 	return restConfig, enhancedCleanup, nil
@@ -337,12 +382,30 @@ func SetupK3DCluster(ctx context.Context, cfg ClusterConfig, logger *utils.Logge
 
 	// Configure registry if enabled
 	if cfg.EnableRegistry {
+		// Create registries.yaml config for k3s to mirror registries to local registry
+		// This allows the cluster to pull images from the local registry automatically
+		// Note: The registry listens on port 5000 INSIDE the Docker network,
+		// even though it's exposed as cfg.RegistryPort to the host
+		registriesYAML := `mirrors:
+  registry.k8s.io:
+    endpoint:
+      - http://registry:5000
+  nvcr.io:
+    endpoint:
+      - http://registry:5000
+configs:
+  registry:5000:
+    tls:
+      insecure_skip_verify: true
+`
+
 		clusterConfig.Registries = v1alpha5.SimpleConfigRegistries{
 			Create: &v1alpha5.SimpleConfigRegistryCreateConfig{
 				Name:     "registry",
 				Host:     "0.0.0.0",
 				HostPort: cfg.RegistryPort,
 			},
+			Config: registriesYAML,
 		}
 	}
 
@@ -365,7 +428,7 @@ func SetupK3DCluster(ctx context.Context, cfg ClusterConfig, logger *utils.Logge
 	// this is the cleanup function, we always return it now so the caller can decide to use it or not
 	cleanup := func() {
 		logger.Debug("🗑️ Deleting cluster...")
-		if err := client.ClusterDelete(ctx, runtimes.Docker, &k3dConfig.Cluster, k3d.ClusterDeleteOpts{}); err != nil {
+		if err := k3dclient.ClusterDelete(ctx, runtimes.Docker, &k3dConfig.Cluster, k3d.ClusterDeleteOpts{}); err != nil {
 			logger.Errorf("Failed to delete cluster: %v", err)
 		} else {
 			logger.Info("✅ Cluster deleted successfully")
@@ -376,18 +439,18 @@ func SetupK3DCluster(ctx context.Context, cfg ClusterConfig, logger *utils.Logge
 	logger.Debugf("🚀 Creating cluster '%s' with %d server(s) and %d worker node(s)...",
 		k3dConfig.Name, cfg.ControlPlaneNodes, cfg.WorkerNodes)
 
-	if err := client.ClusterRun(ctx, runtimes.Docker, k3dConfig); err != nil {
+	if err := k3dclient.ClusterRun(ctx, runtimes.Docker, k3dConfig); err != nil {
 		return nil, cleanup, fmt.Errorf("failed to create cluster: %w", err)
 	}
 
 	// Get kubeconfig
 	logger.Debug("📄 Fetching kubeconfig...")
-	cluster, err := client.ClusterGet(ctx, runtimes.Docker, &k3dConfig.Cluster)
+	cluster, err := k3dclient.ClusterGet(ctx, runtimes.Docker, &k3dConfig.Cluster)
 	if err != nil {
 		return nil, cleanup, fmt.Errorf("could not get cluster: %w", err)
 	}
 
-	kubeconfig, err := client.KubeconfigGet(ctx, runtimes.Docker, cluster)
+	kubeconfig, err := k3dclient.KubeconfigGet(ctx, runtimes.Docker, cluster)
 	if err != nil {
 		return nil, cleanup, fmt.Errorf("failed to get kubeconfig: %w", err)
 	}
@@ -690,4 +753,235 @@ func restartNodeContainer(ctx context.Context, nodeName string, logger *utils.Lo
 
 	logger.Debugf("  ✅ Container restarted successfully: %s", targetContainer.ID[:12])
 	return nil
+}
+
+// prepullImages pre-pulls container images and pushes them to the local k3d registry
+// This significantly speeds up cluster startup by avoiding image pull delays during pod creation.
+// Note: Using the registry is much faster than k3d's image import which creates tar archives.
+func prepullImages(ctx context.Context, images []string, registryPort string, logger *utils.Logger) error {
+	logger.Info("📦 Pre-pulling and pushing container images to local registry...")
+
+	// Create Docker client
+	dockerClient, err := dockerclient.NewClientWithOpts(dockerclient.FromEnv, dockerclient.WithAPIVersionNegotiation())
+	if err != nil {
+		return fmt.Errorf("failed to create Docker client: %w", err)
+	}
+	defer dockerClient.Close()
+
+	// Process all images in parallel
+	var wg sync.WaitGroup
+	errChan := make(chan error, len(images))
+
+	for _, imageName := range images {
+		wg.Add(1)
+		go func(img string) {
+			defer wg.Done()
+
+			logger.Debugf("  🔄 Pulling image: %s", img)
+
+			// Pull the image using Docker API
+			pullReader, err := dockerClient.ImagePull(ctx, img, image.PullOptions{})
+			if err != nil {
+				errChan <- fmt.Errorf("failed to pull %s: %w", img, err)
+				return
+			}
+
+			// We need to read the output to ensure the pull completes
+			if logger.GetLevel() == utils.DebugLevel {
+				_, err = io.Copy(logger.WriterLevel(utils.DebugLevel), pullReader)
+			} else {
+				_, err = io.Copy(io.Discard, pullReader)
+			}
+			pullReader.Close()
+			if err != nil {
+				errChan <- fmt.Errorf("failed to read pull output for %s: %w", img, err)
+				return
+			}
+
+			logger.Debugf("  ✅ Successfully pulled: %s", img)
+
+			// Extract the image path WITHOUT the registry domain for storage in local registry
+			// When k3s uses a mirror, it strips the registry domain from the path
+			// e.g., "registry.k8s.io/nfd/node-feature-discovery:v0.17.3" -> "nfd/node-feature-discovery:v0.17.3"
+			// So when k3s pulls from mirror, it looks for "http://registry:5001/nfd/node-feature-discovery:v0.17.3"
+			parts := strings.SplitN(img, "/", 2)
+			var imagePath string
+			if len(parts) == 2 && (strings.Contains(parts[0], ".") || strings.Contains(parts[0], ":")) {
+				// First part looks like a domain (has . or :), so strip it
+				imagePath = parts[1]
+			} else {
+				// No registry domain, use full path
+				imagePath = img
+			}
+
+			registryImage := fmt.Sprintf("localhost:%s/%s", registryPort, imagePath)
+
+			logger.Debugf("  🏷️  Tagging image for local registry: %s (from %s)", registryImage, img)
+
+			// Tag the image for the local registry
+			if err := dockerClient.ImageTag(ctx, img, registryImage); err != nil {
+				errChan <- fmt.Errorf("failed to tag image %s as %s: %w", img, registryImage, err)
+				return
+			}
+
+			logger.Debugf("  📤 Pushing to local registry: %s", registryImage)
+
+			// Push the image to the local registry
+			pushReader, err := dockerClient.ImagePush(ctx, registryImage, image.PushOptions{})
+			if err != nil {
+				errChan <- fmt.Errorf("failed to push %s: %w", registryImage, err)
+				return
+			}
+
+			// Consume the push output
+			if logger.GetLevel() == utils.DebugLevel {
+				_, err = io.Copy(logger.WriterLevel(utils.DebugLevel), pushReader)
+			} else {
+				_, err = io.Copy(io.Discard, pushReader)
+			}
+			pushReader.Close()
+			if err != nil {
+				errChan <- fmt.Errorf("failed to read push output for %s: %w", registryImage, err)
+				return
+			}
+
+			logger.Debugf("  ✅ Successfully pushed to registry: %s -> %s", img, imagePath)
+		}(imageName)
+	}
+
+	// Wait for all operations to complete
+	wg.Wait()
+	close(errChan)
+
+	// Check for errors
+	for err := range errChan {
+		return err
+	}
+
+	logger.Info("✅ Container images pre-loaded into local registry")
+	return nil
+}
+
+// verifyRegistryImages verifies that images are accessible in the registry
+func verifyRegistryImages(images []string, registryPort string, logger *utils.Logger) error {
+	logger.Debug("🔍 Verifying images are in registry...")
+
+	for _, img := range images {
+		// Extract the image path WITHOUT the registry domain (same logic as prepullImages)
+		parts := strings.SplitN(img, "/", 2)
+		var imagePath string
+		if len(parts) == 2 && (strings.Contains(parts[0], ".") || strings.Contains(parts[0], ":")) {
+			// First part looks like a domain (has . or :), so strip it
+			imagePath = parts[1]
+		} else {
+			// No registry domain, use full path
+			imagePath = img
+		}
+
+		// Try to pull from local registry to verify it exists
+		registryImage := fmt.Sprintf("localhost:%s/%s", registryPort, imagePath)
+		logger.Debugf("  Checking: %s (original: %s)", registryImage, img)
+
+		// Create Docker client
+		dockerClient, err := dockerclient.NewClientWithOpts(dockerclient.FromEnv, dockerclient.WithAPIVersionNegotiation())
+		if err != nil {
+			return fmt.Errorf("failed to create Docker client: %w", err)
+		}
+
+		ctx := context.Background()
+		reader, err := dockerClient.ImagePull(ctx, registryImage, image.PullOptions{})
+		if err != nil {
+			dockerClient.Close()
+			return fmt.Errorf("failed to verify %s in registry: %w", imagePath, err)
+		}
+		io.Copy(io.Discard, reader)
+		reader.Close()
+		dockerClient.Close()
+
+		logger.Debugf("  ✅ Verified: %s", imagePath)
+	}
+
+	return nil
+}
+
+// findMissingImages finds all images used in the specified namespaces that are not in the
+// imagesToPrepull list. Returns a slice of missing image names.
+func findMissingImages(ctx context.Context, clientset *kubernetes.Clientset, namespaces []string, logger *utils.Logger) []string {
+	logger.Info("🔍 Checking deployed images against prepull list...")
+
+	// Get all images from all specified namespaces
+	deployedImages := make(map[string]bool)
+
+	// Check each namespace
+	for _, namespace := range namespaces {
+		images, err := collectImagesFromNamespace(ctx, clientset, namespace, logger)
+		if err != nil {
+			logger.Warnf("Failed to collect images from %s namespace: %v", namespace, err)
+			return nil
+		}
+		// Add images to the set
+		for _, img := range images {
+			deployedImages[img] = true
+		}
+	}
+
+	// Create a set of prepulled images for quick lookup
+	prepulledImages := make(map[string]bool)
+	for _, img := range imagesToPrepull {
+		prepulledImages[img] = true
+	}
+
+	// Check if any deployed images are missing from prepull list
+	var missingImages []string
+	for image := range deployedImages {
+		if !prepulledImages[image] {
+			missingImages = append(missingImages, image)
+			logger.Debugf("  ❌ Image not in prepull list: %s", image)
+		} else {
+			logger.Debugf("  ✅ Image found in prepull list: %s", image)
+		}
+	}
+
+	return missingImages
+}
+
+// collectImagesFromNamespace collects all container and init container images from pods in a namespace
+// and returns them as a slice of unique image names.
+func collectImagesFromNamespace(ctx context.Context, clientset *kubernetes.Clientset, namespace string, logger *utils.Logger) ([]string, error) {
+	logger.Debugf("  Collecting images from namespace: %s", namespace)
+
+	pods, err := clientset.CoreV1().Pods(namespace).List(ctx, metav1.ListOptions{})
+	if err != nil {
+		return nil, fmt.Errorf("failed to list pods in namespace %s: %w", namespace, err)
+	}
+
+	// Use a map to track unique images
+	imageSet := make(map[string]bool)
+
+	for _, pod := range pods.Items {
+		// Collect images from init containers
+		for _, container := range pod.Spec.InitContainers {
+			if container.Image != "" {
+				imageSet[container.Image] = true
+				logger.Debugf("    Found init container image: %s (pod: %s)", container.Image, pod.Name)
+			}
+		}
+
+		// Collect images from regular containers
+		for _, container := range pod.Spec.Containers {
+			if container.Image != "" {
+				imageSet[container.Image] = true
+				logger.Debugf("    Found container image: %s (pod: %s)", container.Image, pod.Name)
+			}
+		}
+	}
+
+	// Convert map to slice
+	images := make([]string, 0, len(imageSet))
+	for img := range imageSet {
+		images = append(images, img)
+	}
+
+	logger.Debugf("  Found %d unique images in namespace %s", len(images), namespace)
+	return images, nil
 }
