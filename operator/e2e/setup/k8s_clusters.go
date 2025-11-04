@@ -114,6 +114,22 @@ func DefaultClusterConfig() ClusterConfig {
 	}
 }
 
+// stripRegistryDomain extracts the image path WITHOUT the registry domain.
+// When k3s uses a mirror, it strips the registry domain from the path.
+// Examples:
+//   - "registry.k8s.io/nfd/node-feature-discovery:v0.17.3" -> "nfd/node-feature-discovery:v0.17.3"
+//   - "nvcr.io/nvidia/gpu-operator:v25.3.4" -> "nvidia/gpu-operator:v25.3.4"
+//   - "ubuntu:latest" -> "ubuntu:latest" (no domain to strip)
+func stripRegistryDomain(img string) string {
+	parts := strings.SplitN(img, "/", 2)
+	if len(parts) == 2 && (strings.Contains(parts[0], ".") || strings.Contains(parts[0], ":")) {
+		// First part looks like a domain (has . or :), so strip it
+		return parts[1]
+	}
+	// No registry domain, use full path
+	return img
+}
+
 // ensureClusterDoesNotExist removes any stale k3d cluster with the same name from previous runs.
 func ensureClusterDoesNotExist(ctx context.Context, clusterName string, logger *utils.Logger) error {
 	cluster := &k3d.Cluster{Name: clusterName}
@@ -798,23 +814,15 @@ func prepullImages(ctx context.Context, images []string, registryPort string, lo
 				return
 			}
 
-			logger.Debugf("  ✅ Successfully pulled: %s", img)
+		logger.Debugf("  ✅ Successfully pulled: %s", img)
 
-			// Extract the image path WITHOUT the registry domain for storage in local registry
-			// When k3s uses a mirror, it strips the registry domain from the path
-			// e.g., "registry.k8s.io/nfd/node-feature-discovery:v0.17.3" -> "nfd/node-feature-discovery:v0.17.3"
-			// So when k3s pulls from mirror, it looks for "http://registry:5001/nfd/node-feature-discovery:v0.17.3"
-			parts := strings.SplitN(img, "/", 2)
-			var imagePath string
-			if len(parts) == 2 && (strings.Contains(parts[0], ".") || strings.Contains(parts[0], ":")) {
-				// First part looks like a domain (has . or :), so strip it
-				imagePath = parts[1]
-			} else {
-				// No registry domain, use full path
-				imagePath = img
-			}
+		// Extract the image path WITHOUT the registry domain for storage in local registry
+		// When k3s uses a mirror, it strips the registry domain from the path
+		// e.g., "registry.k8s.io/nfd/node-feature-discovery:v0.17.3" -> "nfd/node-feature-discovery:v0.17.3"
+		// So when k3s pulls from mirror, it looks for "http://registry:5001/nfd/node-feature-discovery:v0.17.3"
+		imagePath := stripRegistryDomain(img)
 
-			registryImage := fmt.Sprintf("localhost:%s/%s", registryPort, imagePath)
+		registryImage := fmt.Sprintf("localhost:%s/%s", registryPort, imagePath)
 
 			logger.Debugf("  🏷️  Tagging image for local registry: %s (from %s)", registryImage, img)
 
@@ -868,15 +876,7 @@ func verifyRegistryImages(images []string, registryPort string, logger *utils.Lo
 
 	for _, img := range images {
 		// Extract the image path WITHOUT the registry domain (same logic as prepullImages)
-		parts := strings.SplitN(img, "/", 2)
-		var imagePath string
-		if len(parts) == 2 && (strings.Contains(parts[0], ".") || strings.Contains(parts[0], ":")) {
-			// First part looks like a domain (has . or :), so strip it
-			imagePath = parts[1]
-		} else {
-			// No registry domain, use full path
-			imagePath = img
-		}
+		imagePath := stripRegistryDomain(img)
 
 		// Try to pull from local registry to verify it exists
 		registryImage := fmt.Sprintf("localhost:%s/%s", registryPort, imagePath)
