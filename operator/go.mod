@@ -7,7 +7,7 @@ toolchain go1.24.5
 require (
 	github.com/ai-dynamo/grove/operator/api v0.0.0
 	github.com/ai-dynamo/grove/scheduler/api v0.0.0
-	github.com/docker/docker v28.2.2+incompatible
+	github.com/docker/docker v28.3.3+incompatible
 	github.com/go-logr/logr v1.4.3
 	github.com/go-logr/zapr v1.3.0
 	github.com/k3d-io/k3d/v5 v5.8.3
