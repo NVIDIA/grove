@@ -203,7 +203,7 @@ spec:
 - Admins can skip intermediate levels (e.g., define only region, rack, host)
 - Partially immutable after creation (see Characteristics above for details)
 - Deletion protection via controller finalizer (blocks deletion while PodCliqueSet resources reference this topology OR
-  topology is enabled)
+  this topology is enabled)
 
 **Mutation Webhook:**
 
@@ -228,17 +228,17 @@ Deletion Workflow:
 1. Admin runs `kubectl delete clustertopology <name>`
 2. Kubernetes blocks deletion (finalizer `grove.io/clustertopology` present)
 3. Controller reconciles:
-    - Detects deletion request (deletion timestamp set)
-   - Checks if any PodCliqueSet (in any namespace) references this ClusterTopology (via `grove.io/cluster-topology-name` label)
-   - Checks if topology is enabled in operator config (`clusterTopology.enabled: true`)
-   - If ANY PodCliqueSet references this topology OR topology is enabled: Keeps finalizer, deletion blocked
-   - If NO PodCliqueSet references this topology AND topology is disabled: Removes finalizer, deletion proceeds
+   - Detects deletion request (deletion timestamp set)
+   - Checks if any PodCliqueSet (in any namespace) references this ClusterTopology (via `grove.io/topology-name` label)
+   - Checks if topology is enabled in operator config (`clusterTopology.enabled: true`) and this specific topology is configured (considering both the default topology name and the `clusterTopology.name` setting)
+   - If ANY PodCliqueSet references this topology OR topology is enabled and set to this topology: Keeps finalizer, deletion blocked
+   - If NO PodCliqueSet references this topology AND topology is disabled or not set to this topology: Removes finalizer, deletion proceeds
 4. Once finalizer removed, Kubernetes deletes ClusterTopology
 
 Key Points:
 
 - Admin must satisfy BOTH conditions before deletion:
-    - Delete all PodCliqueSet resources that reference this ClusterTopology (check `grove.io/cluster-topology-name` label)
+    - Delete all PodCliqueSet resources that reference this ClusterTopology (check `grove.io/topology-name` label)
     - Disable TAS in operator config (`clusterTopology.enabled: false`) and restart operator
 - Controller checks both conditions before allowing deletion
 - Controller continuously reconciles deletion requests
@@ -280,11 +280,11 @@ topology:
 3. Admin restarts operator (see Startup Behavior section for details)
 4. Operator validates ClusterTopology CR exists
 5. For existing workloads:
-    - Workloads with topology constraints: operator uses topology from PodCliqueSet label (`grove.io/cluster-topology-name`)
+    - Workloads with topology constraints: operator uses topology from PodCliqueSet label (`grove.io/topology-name`)
     - Workloads without topology constraints: no impact (checked via label presence)
 6. For new workloads:
     - Topology constraints validated against ClusterTopology CR
-   - Mutation webhook adds `grove.io/cluster-topology-name` label to PodCliqueSet (see Mutation Webhook section)
+   - Mutation webhook adds `grove.io/topology-name` label to PodCliqueSet (see Mutation Webhook section)
 
 **Disabling Topology (clusterTopology.enabled: true → false):**
 
@@ -383,7 +383,7 @@ type PodCliqueTemplateSpec struct {
 
 The mutation webhook automatically modifies PodCliqueSet resources on CREATE operations:
 
-- **Label Addition**: Automatically adds `grove.io/cluster-topology-name` label to PodCliqueSet
+- **Label Addition**: Automatically adds `grove.io/topology-name` label to PodCliqueSet
 - **Label Value**: Set to the configured ClusterTopology name from operator config (e.g., "grove-topology")
 - **Condition**: Label only added when `clusterTopology.enabled: true` in operator configuration
 - **Purpose**: Enables workload-to-topology mapping for controller lifecycle management and deletion protection
@@ -407,7 +407,7 @@ The mutation webhook automatically modifies PodCliqueSet resources on CREATE ope
 
 **Label Immutability:**
 
-- Webhook rejects changes to `grove.io/cluster-topology-name` label on PodCliqueSet after creation
+- Webhook rejects changes to `grove.io/topology-name` label on PodCliqueSet after creation
 - Label can only be set during PodCliqueSet creation (see Mutation Webhook section above)
 - Ensures topology reference remains consistent throughout resource lifecycle
 
