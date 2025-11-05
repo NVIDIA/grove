@@ -26,6 +26,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/ai-dynamo/grove/operator/e2e"
 	"github.com/ai-dynamo/grove/operator/e2e/utils"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/filters"
@@ -51,22 +52,6 @@ const (
 	defaultPollTimeout = 5 * time.Minute
 	// defaultPollInterval is the interval for most polling conditions
 	defaultPollInterval = 5 * time.Second
-)
-
-var (
-	// imagesToPrepull are the images that will be pre-pulled to speed up cluster startup on slow networks
-	// we warn if any images differ from this prepull list so as help keep the list up to date
-	imagesToPrepull = []string{
-		"registry.k8s.io/nfd/node-feature-discovery:v0.17.3",
-		"nvcr.io/nvidia/gpu-operator:v25.3.4",
-		"ghcr.io/nvidia/kai-scheduler/admission:v0.9.3",
-		"ghcr.io/nvidia/kai-scheduler/binder:v0.9.3",
-		"ghcr.io/nvidia/kai-scheduler/operator:v0.9.3",
-		"ghcr.io/nvidia/kai-scheduler/podgroupcontroller:v0.9.3",
-		"ghcr.io/nvidia/kai-scheduler/podgrouper:v0.9.3",
-		"ghcr.io/nvidia/kai-scheduler/queuecontroller:v0.9.3",
-		"ghcr.io/nvidia/kai-scheduler/scheduler:v0.9.3",
-	}
 )
 
 // NodeTaint represents a Kubernetes node taint
@@ -212,6 +197,13 @@ func SetupCompleteK3DCluster(ctx context.Context, cfg ClusterConfig, skaffoldYAM
 		cleanup()
 	}
 
+	// Load dependencies for image pre-pulling and helm charts
+	deps, err := e2e.GetDependencies()
+	if err != nil {
+		return nil, enhancedCleanup, fmt.Errorf("failed to load dependencies: %w", err)
+	}
+	imagesToPrepull := deps.GetImagesToPrepull()
+
 	// Pre-pull and push images to local registry if enabled
 	if cfg.EnableRegistry {
 		if err := prepullImages(ctx, imagesToPrepull, cfg.RegistryPort, logger); err != nil {
@@ -240,11 +232,12 @@ func SetupCompleteK3DCluster(ctx context.Context, cfg ClusterConfig, skaffoldYAM
 		},
 	}
 
+	// Use Kai Scheduler configuration from dependencies
 	kaiConfig := &HelmInstallConfig{
-		ReleaseName:     "kai-scheduler",
-		ChartRef:        "oci://ghcr.io/nvidia/kai-scheduler/kai-scheduler",
-		ChartVersion:    "v0.9.3",
-		Namespace:       "kai-scheduler",
+		ReleaseName:     deps.HelmCharts.KaiScheduler.ReleaseName,
+		ChartRef:        deps.HelmCharts.KaiScheduler.ChartRef,
+		ChartVersion:    deps.HelmCharts.KaiScheduler.Version,
+		Namespace:       deps.HelmCharts.KaiScheduler.Namespace,
 		RestConfig:      restConfig,
 		CreateNamespace: true,
 		Wait:            false,
@@ -257,16 +250,17 @@ func SetupCompleteK3DCluster(ctx context.Context, cfg ClusterConfig, skaffoldYAM
 		Logger:         logger,
 	}
 
+	// Use GPU Operator configuration from dependencies
 	gpuOperatorConfig := &HelmInstallConfig{
-		ReleaseName:     "nvidia-gpu-operator",
-		ChartRef:        "gpu-operator",
-		ChartVersion:    "v25.3.4",
-		Namespace:       "gpu-operator",
+		ReleaseName:     deps.HelmCharts.GPUOperator.ReleaseName,
+		ChartRef:        deps.HelmCharts.GPUOperator.ChartRef,
+		ChartVersion:    deps.HelmCharts.GPUOperator.Version,
+		Namespace:       deps.HelmCharts.GPUOperator.Namespace,
 		RestConfig:      restConfig,
 		CreateNamespace: true,
 		Wait:            false,
 		GenerateName:    false,
-		RepoURL:         "https://helm.ngc.nvidia.com/nvidia",
+		RepoURL:         deps.HelmCharts.GPUOperator.RepoURL,
 		Values: map[string]interface{}{
 			"tolerations":        tolerations,
 			"driver":             map[string]interface{}{"enabled": false},
@@ -321,11 +315,11 @@ func SetupCompleteK3DCluster(ctx context.Context, cfg ClusterConfig, skaffoldYAM
 
 	// Find any deployed images that are not in the prepull list
 	namespacesToCheck := []string{kaiConfig.Namespace, gpuOperatorConfig.Namespace}
-	missingImages := findMissingImages(ctx, clientset, namespacesToCheck, logger)
+	missingImages := findMissingImages(ctx, clientset, namespacesToCheck, imagesToPrepull, logger)
 
 	// Warn about missing images to help keep the prepull list up to date
 	if len(missingImages) > 0 {
-		logger.Warnf("⚠️  Found %d images not in prepull list. Consider adding these to imagesToPrepull in e2e/setup/k8s_clusters.go:", len(missingImages))
+		logger.Warnf("⚠️  Found %d images not in prepull list. Consider adding these to e2e/dependencies.yaml:", len(missingImages))
 		for _, img := range missingImages {
 			logger.Warnf("    - %s", img)
 		}
@@ -814,15 +808,15 @@ func prepullImages(ctx context.Context, images []string, registryPort string, lo
 				return
 			}
 
-		logger.Debugf("  ✅ Successfully pulled: %s", img)
+			logger.Debugf("  ✅ Successfully pulled: %s", img)
 
-		// Extract the image path WITHOUT the registry domain for storage in local registry
-		// When k3s uses a mirror, it strips the registry domain from the path
-		// e.g., "registry.k8s.io/nfd/node-feature-discovery:v0.17.3" -> "nfd/node-feature-discovery:v0.17.3"
-		// So when k3s pulls from mirror, it looks for "http://registry:5001/nfd/node-feature-discovery:v0.17.3"
-		imagePath := stripRegistryDomain(img)
+			// Extract the image path WITHOUT the registry domain for storage in local registry
+			// When k3s uses a mirror, it strips the registry domain from the path
+			// e.g., "registry.k8s.io/nfd/node-feature-discovery:v0.17.3" -> "nfd/node-feature-discovery:v0.17.3"
+			// So when k3s pulls from mirror, it looks for "http://registry:5001/nfd/node-feature-discovery:v0.17.3"
+			imagePath := stripRegistryDomain(img)
 
-		registryImage := fmt.Sprintf("localhost:%s/%s", registryPort, imagePath)
+			registryImage := fmt.Sprintf("localhost:%s/%s", registryPort, imagePath)
 
 			logger.Debugf("  🏷️  Tagging image for local registry: %s (from %s)", registryImage, img)
 
@@ -910,7 +904,7 @@ func verifyRegistryImages(images []string, registryPort string, logger *utils.Lo
 
 // findMissingImages finds all images used in the specified namespaces that are not in the
 // imagesToPrepull list. Returns a slice of missing image names.
-func findMissingImages(ctx context.Context, clientset *kubernetes.Clientset, namespaces []string, logger *utils.Logger) []string {
+func findMissingImages(ctx context.Context, clientset *kubernetes.Clientset, namespaces []string, imagesToPrepull []string, logger *utils.Logger) []string {
 	logger.Info("🔍 Checking deployed images against prepull list...")
 
 	// Get all images from all specified namespaces
