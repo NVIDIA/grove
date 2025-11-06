@@ -63,7 +63,7 @@ kubectl apply -f samples/simple/simple1.yaml
 Watch as Grove creates and schedules all resources:
 
 ```bash
-kubectl get pcs,pclq,pcsg,pg,pod -owide
+kubectl get pcs,pclq,pcsg,pg,pod -o wide
 ```
 
 Expected output:
@@ -108,7 +108,7 @@ kubectl scale pcsg simple1-0-sga --replicas=2
 
 Observe the new resources:
 ```bash
-kubectl get pcs,pclq,pcsg,pg,pod -owide
+kubectl get pcs,pclq,pcsg,pg,pod -o wide
 ```
 
 **What happened?**
@@ -132,7 +132,7 @@ kubectl scale pcs simple1 --replicas=2
 
 Check the resources:
 ```bash
-kubectl get pcs,pclq,pcsg,pg,pod -owide
+kubectl get pcs,pclq,pcsg,pg,pod -o wide
 ```
 
 **What happened?**
@@ -186,11 +186,10 @@ Only the Grove operator pod should remain.
 
 Now that you understand the basics, explore:
 
-- **[Installation Guide](installation.md)** - Learn about remote cluster deployment
+- **[Installation Guide](installation.md)** - Learn more about local and remote cluster deployment
+- **[Core Concepts Tutorial](user-guide/core-concepts/overview.md)** - Step-by-step hands-on tutorial on Grove application development
 - **[API Reference](api-reference/operator-api.md)** - Deep dive into all configuration options
-- **[Samples](../operator/samples/)** - Explore more complex examples
-- **Auto-scaling** - Trigger CPU-based auto-scaling by generating load
-- **Startup Ordering** - Define dependencies between components
+- **[Samples](../operator/samples/)** - Explore more examples
 
 ## Key Concepts Recap
 

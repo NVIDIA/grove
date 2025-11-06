@@ -1,6 +1,6 @@
 # PodCliqueSet and PodClique
 
-In this guide we go over some hands-on examples showcasing how to use PodCliqueSet and PodClique
+In this guide we go over some hands-on examples showcasing how to use a PodCliqueSet and PodCliques.
 
 Refer to [Overview](./overview.md) for instructions on how to run the examples in this guide.
 

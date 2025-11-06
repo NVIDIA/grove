@@ -1,6 +1,6 @@
 # PodCliqueScalingGroup
 
-In the [previous guide](./pcs_and_pclq_intro.md) we covered some hands on examples on how to use PodCliqueSet and PodCliqueScalingGroup. In this guide we go over some hands-on exampels on how to use PodCliqueScalingGroup to represent multinode components.
+In the [previous guide](./pcs_and_pclq_intro.md) we covered some hands on examples on how to use PodCliqueSet and PodCliques. In this guide we go over some hands-on examples on how to use PodCliqueScalingGroup to represent multinode components.
 
 Refer to [Overview](./overview.md) for instructions on how to run the examples in this guide.
 
