@@ -1,11 +1,11 @@
 # Grove
 
-Modern AI inference workloads need capabilities that Kubernetes doesn't provide out-of-the-box:
+Modern AI inference workloads need capabilities that Kubernetes natively doesn't provide out-of-the-box:
 
-- **Gang scheduling** - Prefill and decode pods must start together or not at all
-- **Grouped scaling** - Tightly-coupled components that need to scale as a unit
-- **Startup ordering** - Different components in a workload which must start in an explicit ordering
-- **Topology-aware placement** - NVLink-connected GPUs or workloads shouldn't be scattered across nodes
+- **Gang scheduling** - Disaggregated inference requires all-or-nothing semantics for prefill and decode component pods
+- **Scaling groups** - Multiple tightly-coupled component groups that need to scale as individual units
+- **Startup ordering** - Different components in a workload which must be scheduled together but start in an explicit ordering
+- **Topology-aware placement** - Network optimized placement, e.g. NVLink domains, will minimize communication costs and maximize inference performance
 
 Grove is a Kubernetes API that provides a single declarative interface for orchestrating any AI inference workload — from simple, single-pod deployments to complex multi-node, disaggregated systems. Grove lets you scale your multinode inference deployment from a single replica to data center scale, supporting tens of thousands of GPUs. It allows you to describe your whole inference serving system in Kubernetes - e.g. prefill, decode, routing or any other component - as a single Custom Resource (CR). From that one spec, the platform coordinates hierarchical gang scheduling, topology‑aware placement, multi-level autoscaling and explicit startup ordering. You get precise control of how the system behaves without stitching together scripts, YAML files, or custom controllers.
 
