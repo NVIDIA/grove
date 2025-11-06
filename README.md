@@ -30,13 +30,13 @@ make deploy
 kubectl apply -f samples/simple/simple1.yaml
 
 # 4. Fetch the resources created by grove
-kubectl get pcs,pclq,pcsg,pg,pod -owide
+kubectl get pcs,pclq,pcsg,pg,pod -o wide
 ```
 
 Follow along with this example in the
 **→ [Quickstart Doc](docs/quickstart.md)**
  
-To install Grove in a remote K8s cluster, see the
+For more install options including local and remote K8s clusters, see the
 **→ [Installation Docs](docs/installation.md)**
 
 ## How It Works
