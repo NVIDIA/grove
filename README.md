@@ -4,16 +4,9 @@
 [![GitHub Release](https://img.shields.io/github/v/release/ai-dynamo/grove)](https://github.com/ai-dynamo/grove/releases/latest)
 [![Discord](https://dcbadge.limes.pink/api/server/D92uqZRjCZ?style=flat)](https://discord.gg/UxcbxEYqS4)
 
-Modern AI inference workloads need capabilities that Kubernetes natively doesn't provide out-of-the-box:
-
-- **Scaling for Multi-Node/Multi-Pod Units** - Large models may be sharded across multiple nodes, meaning a single model instance spans multiple pods. In this case, the fundamental scaling unit is no longer an individual pod, but an entire group of pods that together form one model instance.
-- **Hierarchical Gang scheduling** - Multi-node model instances require pods to be scheduled together; if less than required pods are scheduled, the model is unusable, resources remain idle, and the system can deadlock waiting for the remaining pods. Disaggregated inference has similar constraints: at least one prefill instance and one decode instance must be scheduled to form a functional pipeline. Therefore, gang scheduling must occur at multiple levels, ensuring required components start together as an all-or-nothing unit.
-- **Startup ordering** - Even when components must be scheduled together (e.g., leader and worker pods in a multi-node model instance), there are cases where they must start in a specific order. For example, MPI workloads require all worker pods to be ready before the leader pod launches the application. Explicit startup ordering ensures correct initialization and avoids failures caused by components starting out-of-order.
-- **Topology-aware placement** - Components in an inference system often communicate heavily between each other. Network optimized placement, e.g. within NVLink domains, is crucial to minimize communication overheads and maximize performance.
+**One API. Any inference architecture.**
 
 Grove is a Kubernetes API that provides a single declarative interface for orchestrating any AI inference workload — from simple, single-pod deployments to complex multi-node, disaggregated systems. Grove lets you scale your multinode inference deployment from a single replica to data center scale, supporting tens of thousands of GPUs. It allows you to describe your whole inference serving system in Kubernetes - e.g. prefill, decode, routing or any other component - as a single Custom Resource (CR). From that one spec, the platform coordinates hierarchical gang scheduling, topology‑aware placement, multi-level autoscaling and explicit startup ordering. You get precise control of how the system behaves without stitching together scripts, YAML files, or custom controllers.
-
-**One API. Any inference architecture.**
 
 ## Quick Start on Local Kind Cluster
 
@@ -37,6 +30,15 @@ Follow along with this example in the
 **→ [Quickstart Doc](docs/quickstart.md)**
 For more install options including local and remote K8s clusters, see the
 **→ [Installation Docs](docs/installation.md)**
+
+## Motivation
+
+Modern AI inference workloads need capabilities that Kubernetes natively doesn't provide out-of-the-box:
+
+- **Scaling for Multi-Node/Multi-Pod Units** - Large models may be sharded across multiple nodes, meaning a single model instance spans multiple pods. In this case, the fundamental scaling unit is no longer an individual pod, but an entire group of pods that together form one model instance.
+- **Hierarchical Gang scheduling** - Multi-node model instances require pods to be scheduled together; if only a subset of the required pods are scheduled, the model is unusable, resources remain idle, and the system can deadlock waiting for the remaining pods. Disaggregated inference has similar constraints: at least one prefill instance and one decode instance must be scheduled to form a functional pipeline. Therefore, gang scheduling must occur at multiple levels, ensuring required components start together as an all-or-nothing unit.
+- **Startup ordering** - Even when components must be scheduled together (e.g., leader and worker pods in a multi-node model instance), there are cases where they must start in a specific order. For example, MPI workloads require all worker pods to be ready before the leader pod launches the application. Explicit startup ordering ensures correct initialization and avoids failures caused by components starting out-of-order.
+- **Topology-aware placement** - Components in an inference system often communicate heavily between each other. Network optimized placement, e.g. within NVLink domains, is crucial to minimize communication overheads and maximize performance.
 
 ## How It Works
 

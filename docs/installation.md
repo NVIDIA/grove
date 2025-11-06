@@ -1,8 +1,8 @@
 # Installation
 
-To install Grove:
-- You can install Grove from the published Helm charts under the [GitHub packages section](https://github.com/orgs/ai-dynamo/packages?repo_name=grove).
-- You can build and install Grove using the make targets we provide as a part of the repository.
+To install Grove, you can choose one of the following options:
+- Install Grove from the published Helm charts under the [GitHub packages section](https://github.com/orgs/ai-dynamo/packages?repo_name=grove).
+- Build from source and install Grove using the make targets we provide as a part of the repository.
 
 ## Install Grove from published packages
 
@@ -16,7 +16,7 @@ helm upgrade -i grove oci://ghcr.io/ai-dynamo/grove/grove-charts:<tag>
 
 ## Build and install Grove from source (*for developers*)
 
-You could also build and deploy Grove to your local kind cluster or remote cluster through the provided `make` targets.
+You can build and deploy Grove to your local kind cluster or remote cluster using the provided `make` targets in the repository.
 All grove operator `make` targets are located in [Operator Makefile](../operator/Makefile).
 
 ### Local Kind cluster set-up
@@ -101,6 +101,10 @@ This make target leverages Grove [Helm](https://helm.sh/) charts and [Skaffold](
   - Grove operator CRD - `podcliquesets.grove.io`, `podcliques.grove.io` and `podcliquescalinggroups.grove.io`.
   - Grove Scheduler CRDs - `podgangs.scheduler.grove.io`.
 - All Grove operator resources defined as a part of [Grove Helm chart templates](../operator/charts/templates).
+
+## Verfy Installation
+
+Follow the instructions in the [quickstart guide](quickstart.md) to deploy a PodCliqueSet and validate your installation.
 
 ## Troubleshooting
 
