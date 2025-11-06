@@ -37,4 +37,3 @@ func (h *Handler) RegisterWithManager(mgr manager.Manager) error {
 	mgr.GetWebhookServer().Register(webhookPath, webhook)
 	return nil
 }
-
