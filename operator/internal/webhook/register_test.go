@@ -143,7 +143,7 @@ func TestRegisterWebhooks_WithAuthorizerMissingNamespaceFile(t *testing.T) {
 
 	// Set env var
 	originalEnv := os.Getenv(constants.EnvVarServiceAccountName)
-	os.Setenv(constants.EnvVarServiceAccountName, "test-sa")
+	t.Setenv(constants.EnvVarServiceAccountName, "test-sa")
 	defer func() {
 		if originalEnv != "" {
 			os.Setenv(constants.EnvVarServiceAccountName, originalEnv)
