@@ -112,14 +112,8 @@ func TestRegisterWebhooks_WithAuthorizerMissingEnvVar(t *testing.T) {
 	mgr.WebhookServer = server
 
 	// Ensure env var is not set
-	originalEnv := os.Getenv(constants.EnvVarServiceAccountName)
 	err := os.Unsetenv(constants.EnvVarServiceAccountName)
 	require.NoError(t, err)
-	defer func() {
-		if originalEnv != "" {
-			os.Setenv(constants.EnvVarServiceAccountName, originalEnv)
-		}
-	}()
 
 	// Authorizer enabled
 	authorizerConfig := configv1alpha1.AuthorizerConfig{
