@@ -1,7 +1,7 @@
 # Installation
 
 To install Grove:
-- You can use the published Helm charts of Grove under the [GitHub packages section](https://github.com/orgs/ai-dynamo/packages?repo_name=grove), and install Grove in your cluster.
+- You can install Grove from the published Helm charts under the [GitHub packages section](https://github.com/orgs/ai-dynamo/packages?repo_name=grove).
 - You can build and install Grove using the make targets we provide as a part of the repository.
 
 ## Install Grove from package
@@ -16,7 +16,7 @@ helm upgrade -i grove oci://ghcr.io/ai-dynamo/grove/grove-charts:<tag>
 
 ## Build and install Grove from source (*for developers*)
 
-You could also build and deploy Grove to your [local kind cluster](#local-kind-cluster-set-up) or [remote cluster](#remote-cluster-set-up) through the provided [make targets](#installation-using-make-targets).
+You could also build and deploy Grove to your local kind cluster or remote cluster through the provided `make` targets.
 All grove operator `make` targets are located in [Operator Makefile](../operator/Makefile).
 
 ### Local Kind cluster set-up

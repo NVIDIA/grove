@@ -4,9 +4,9 @@ This tutorial provides a comprehensive overview of Grove's core concepts: **PodC
 
 ## Prerequisites
 
-Before starting this tutorial, ensure you either have:
-- [A local KIND demo cluster running](../../installation.md#local-kind-cluster-set-up) Make sure to run `make kind-up FAKE_NODES=40`, set `KUBECONFIG` env variable as directed in the instructions, and run `make deploy`
-- [A Kubernetes cluster with Grove installed](../../installation.md#deploying-grove) If you choose this path make sure to adjust the tolerations in the example to fit your cluster
+Before starting this tutorial, please go through the [installation guide](../../installation.md). Choose one of the two cluster setup procedures:
+- [A local KIND demo cluster](../../installation.md#local-kind-cluster-set-up) Make sure to run `make kind-up FAKE_NODES=40`, set `KUBECONFIG` env variable as directed in the instructions, and run `make deploy`
+- [A remote Kubernetes cluster](../../installation.md#remote-cluster-set-up) with [Grove installed from package](../../installation.md#install-grove-from-package) If you choose this path make sure to adjust the tolerations in the example to fit your cluster requirements
 
 A basic understanding of Kubernetes concepts will help, [this is a good place to start](https://kubernetes.io/docs/tutorials/kubernetes-basics/). 
 

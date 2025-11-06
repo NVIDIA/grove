@@ -36,7 +36,7 @@ kubectl get pcs,pclq,pcsg,pg,pod -owide
 Follow along with this example in the
 **→ [Quickstart Doc](docs/quickstart.md)**
  
-To install in a remote K8s cluster see the
+To install Grove in a remote K8s cluster, see the
 **→ [Installation Docs](docs/installation.md)**
 
 ## How It Works
@@ -50,9 +50,10 @@ Grove introduces four simple concepts:
 | [PodCliqueSet](operator/api/core/v1alpha1/podcliqueset.go)          | The top-level Grove object that defines a group of components managed and colocated together. Also supports autoscaling with topology aware spread of PodCliqueSet replicas for availability.            |
 | [PodGang](scheduler/api/core/v1alpha1/podgang.go)                   | The scheduler API that defines a unit of gang-scheduling. A PodGang is a collection of groups of similar pods, where each pod group defines a minimum number of replicas guaranteed for gang-scheduling. |
 
-Get a step-by-step hands-on experience developing with Grove with the
-**→ [Core Concepts Tutorial](docs/user-guide/core-concepts/overview.md)**
+Get started with a step-by-step hands-on Grove tutorial here
+**→ [Core Concepts Overview](docs/user-guide/core-concepts/overview.md)**
 
+Refer to all Grove APIs here
 **→ [API Reference](docs/api-reference/operator-api.md)**
 
 ## Example Use Cases
