@@ -4,7 +4,7 @@ To install Grove:
 - You can install Grove from the published Helm charts under the [GitHub packages section](https://github.com/orgs/ai-dynamo/packages?repo_name=grove).
 - You can build and install Grove using the make targets we provide as a part of the repository.
 
-## Install Grove from package
+## Install Grove from published packages
 
 You can directly install Grove in your cluster using the published [`grove-charts`](https://github.com/ai-dynamo/grove/pkgs/container/grove%2Fgrove-charts) Helm packages.
 Locate the [release tag](https://github.com/ai-dynamo/grove/releases) to install.
@@ -21,7 +21,7 @@ All grove operator `make` targets are located in [Operator Makefile](../operator
 
 ### Local Kind cluster set-up
 
-In case you wish to develop Grove using a local [kind](https://kind.sigs.k8s.io/) cluster, please do the following:
+In case you wish to develop Grove using a local [kind](https://kind.sigs.k8s.io/) cluster or are following along with our tutorials on your local machine, please do the following:
 
 - **Navigate to the operator directory:**
 
@@ -61,7 +61,7 @@ In case you wish to develop Grove using a local [kind](https://kind.sigs.k8s.io/
 
 ### Remote cluster set-up
 
-If you wish to use your own Kubernetes cluster instead of the KIND cluster, follow these steps:
+If you wish to use your own Kubernetes cluster instead of the local KIND cluster, follow these steps:
 
 - **Set the KUBECONFIG environment variable** to point to your Kubernetes cluster configuration:
 

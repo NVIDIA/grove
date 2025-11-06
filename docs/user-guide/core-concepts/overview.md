@@ -8,7 +8,7 @@ Before starting this tutorial, please go through the [installation guide](../../
 - [A local KIND demo cluster](../../installation.md#local-kind-cluster-set-up) Make sure to run `make kind-up FAKE_NODES=40`, set `KUBECONFIG` env variable as directed in the instructions, and run `make deploy`
 - [A remote Kubernetes cluster](../../installation.md#remote-cluster-set-up) with [Grove installed from package](../../installation.md#install-grove-from-package) If you choose this path make sure to adjust the tolerations in the example to fit your cluster requirements
 
-A basic understanding of Kubernetes concepts will help, [this is a good place to start](https://kubernetes.io/docs/tutorials/kubernetes-basics/). 
+A basic understanding of Kubernetes concepts will help, [this is a good place to start](https://kubernetes.io/docs/tutorials/kubernetes-basics/).
 
 
 ## Core Concepts Overview
