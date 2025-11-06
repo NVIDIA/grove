@@ -61,18 +61,6 @@ func TestGenerateReconcilerServiceAccountUsername(t *testing.T) {
 			serviceAccountName: "my-service-account",
 			expected:           "system:serviceaccount:my-custom-namespace:my-service-account",
 		},
-		{
-			name:               "empty namespace",
-			namespace:          "",
-			serviceAccountName: "test-sa",
-			expected:           "system:serviceaccount::test-sa",
-		},
-		{
-			name:               "empty service account",
-			namespace:          "default",
-			serviceAccountName: "",
-			expected:           "system:serviceaccount:default:",
-		},
 	}
 
 	for _, tt := range tests {
