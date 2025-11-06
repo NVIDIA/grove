@@ -35,7 +35,6 @@ kubectl get pcs,pclq,pcsg,pg,pod -o wide
 
 Follow along with this example in the
 **→ [Quickstart Doc](docs/quickstart.md)**
- 
 For more install options including local and remote K8s clusters, see the
 **→ [Installation Docs](docs/installation.md)**
 
