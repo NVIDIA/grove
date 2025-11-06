@@ -18,6 +18,7 @@ package setup
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"path/filepath"
 	"strings"
@@ -26,6 +27,7 @@ import (
 
 	"github.com/ai-dynamo/grove/operator/e2e/utils"
 	"github.com/docker/docker/api/types/container"
+	"github.com/docker/docker/api/types/filters"
 	dockerclient "github.com/docker/docker/client"
 	"github.com/k3d-io/k3d/v5/pkg/client"
 	"github.com/k3d-io/k3d/v5/pkg/config"
@@ -66,32 +68,90 @@ type NodeLabel struct {
 
 // ClusterConfig holds configuration for creating a k3d cluster
 type ClusterConfig struct {
-	Name             string      // Name of the k3d cluster
-	ServerNodes      int         // Number of server (non-worker) nodes
-	WorkerNodes      int         // Number of worker nodes (called agents in k3s terminology)
-	Image            string      // Docker image to use for k3d cluster (e.g., "rancher/k3s:v1.28.8-k3s1")
-	HostPort         string      // Port on host to expose Kubernetes API (e.g., "6550")
-	LoadBalancerPort string      // Load balancer port mapping in format "hostPort:containerPort" (e.g., "8080:80")
-	NodeLabels       []NodeLabel // Kubernetes labels to apply with specific node filters
-	WorkerNodeTaints []NodeTaint // Taints to apply to worker nodes
-	WorkerMemory     string      // Memory allocation for worker/agent nodes (e.g., "150m")
-	EnableRegistry   bool        // Enable built-in Docker registry
-	RegistryPort     string      // Port for the Docker registry (e.g., "5001")
+	Name              string      // Name of the k3d cluster
+	ControlPlaneNodes int         // Number of Control Plane Nodes (k3s calls these server nodes)
+	WorkerNodes       int         // Number of worker nodes (called agents in k3s terminology)
+	Image             string      // Docker image to use for k3d cluster (e.g., "rancher/k3s:v1.28.8-k3s1")
+	HostPort          string      // Port on host to expose Kubernetes API (e.g., "6550")
+	LoadBalancerPort  string      // Load balancer port mapping in format "hostPort:containerPort" (e.g., "8080:80")
+	NodeLabels        []NodeLabel // Kubernetes labels to apply with specific node filters
+	WorkerNodeTaints  []NodeTaint // Taints to apply to worker nodes
+	WorkerMemory      string      // Memory allocation for worker/agent nodes (e.g., "150m")
+	EnableRegistry    bool        // Enable built-in Docker registry
+	RegistryPort      string      // Port for the Docker registry (e.g., "5001")
 }
 
 // DefaultClusterConfig returns a sensible default cluster configuration
 func DefaultClusterConfig() ClusterConfig {
 	return ClusterConfig{
-		Name:             "test-k3d-cluster",
-		ServerNodes:      1,
-		WorkerNodes:      2,
-		Image:            "rancher/k3s:v1.28.8-k3s1",
-		HostPort:         "6550",
-		LoadBalancerPort: "8080:80",
-		WorkerMemory:     "150m",
-		EnableRegistry:   false,
-		RegistryPort:     "5001",
+		Name:              "test-k3d-cluster",
+		ControlPlaneNodes: 1,
+		WorkerNodes:       2,
+		Image:             "rancher/k3s:v1.28.8-k3s1",
+		HostPort:          "6550",
+		LoadBalancerPort:  "8080:80",
+		WorkerMemory:      "150m",
+		EnableRegistry:    false,
+		RegistryPort:      "5001",
 	}
+}
+
+// ensureClusterDoesNotExist removes any stale k3d cluster with the same name from previous runs.
+func ensureClusterDoesNotExist(ctx context.Context, clusterName string, logger *utils.Logger) error {
+	cluster := &k3d.Cluster{Name: clusterName}
+
+	existingCluster, err := client.ClusterGet(ctx, runtimes.Docker, cluster)
+	if err != nil {
+		if errors.Is(err, client.ClusterGetNoNodesFoundError) {
+			return nil
+		}
+		return fmt.Errorf("failed to inspect existing k3d cluster %s: %w", clusterName, err)
+	}
+
+	logger.Warnf("🧹 Removing stale k3d cluster '%s' before setup", clusterName)
+	if err := client.ClusterDelete(ctx, runtimes.Docker, existingCluster, k3d.ClusterDeleteOpts{}); err != nil {
+		return fmt.Errorf("failed to delete existing k3d cluster %s: %w", clusterName, err)
+	}
+
+	return nil
+}
+
+// ensureRegistryDoesNotExist removes any stale k3d registry container from previous runs.
+func ensureRegistryDoesNotExist(ctx context.Context, clusterName string, logger *utils.Logger) error {
+	registryContainerName := fmt.Sprintf("k3d-%s-registry", clusterName)
+
+	dockerClient, err := dockerclient.NewClientWithOpts(dockerclient.FromEnv, dockerclient.WithAPIVersionNegotiation())
+	if err != nil {
+		return fmt.Errorf("failed to create Docker client: %w", err)
+	}
+	defer dockerClient.Close()
+
+	filterArgs := filters.NewArgs()
+	filterArgs.Add("name", registryContainerName)
+
+	containers, err := dockerClient.ContainerList(ctx, container.ListOptions{All: true, Filters: filterArgs})
+	if err != nil {
+		return fmt.Errorf("failed to list Docker containers: %w", err)
+	}
+
+	if len(containers) == 0 {
+		return nil
+	}
+
+	for _, c := range containers {
+		displayName := registryContainerName
+		if len(c.Names) > 0 {
+			displayName = strings.TrimPrefix(c.Names[0], "/")
+		}
+
+		logger.Warnf("🧹 Removing stale k3d registry container %s (%s) before cluster setup", displayName, c.ID[:12])
+
+		if err := dockerClient.ContainerRemove(ctx, c.ID, container.RemoveOptions{Force: true, RemoveVolumes: true}); err != nil {
+			return fmt.Errorf("failed to remove existing registry container %s: %w", displayName, err)
+		}
+	}
+
+	return nil
 }
 
 // SetupCompleteK3DCluster creates a complete k3d cluster with Grove, Kai Scheduler, and NVIDIA GPU Operator
@@ -230,7 +290,7 @@ func SetupK3DCluster(ctx context.Context, cfg ClusterConfig, logger *utils.Logge
 		ObjectMeta: types.ObjectMeta{
 			Name: cfg.Name,
 		},
-		Servers: cfg.ServerNodes,
+		Servers: cfg.ControlPlaneNodes,
 		// k3s calls these agents, but we call them worker nodes
 		Agents: cfg.WorkerNodes,
 		Image:  cfg.Image,
@@ -292,6 +352,16 @@ func SetupK3DCluster(ctx context.Context, cfg ClusterConfig, logger *utils.Logge
 		return nil, nil, fmt.Errorf("failed to transform config: %w", err)
 	}
 
+	if err := ensureClusterDoesNotExist(ctx, k3dConfig.Name, logger); err != nil {
+		return nil, nil, err
+	}
+
+	if cfg.EnableRegistry {
+		if err := ensureRegistryDoesNotExist(ctx, cfg.Name, logger); err != nil {
+			return nil, nil, err
+		}
+	}
+
 	// this is the cleanup function, we always return it now so the caller can decide to use it or not
 	cleanup := func() {
 		logger.Debug("🗑️ Deleting cluster...")
@@ -304,7 +374,7 @@ func SetupK3DCluster(ctx context.Context, cfg ClusterConfig, logger *utils.Logge
 
 	// Create cluster
 	logger.Debugf("🚀 Creating cluster '%s' with %d server(s) and %d worker node(s)...",
-		k3dConfig.Name, cfg.ServerNodes, cfg.WorkerNodes)
+		k3dConfig.Name, cfg.ControlPlaneNodes, cfg.WorkerNodes)
 
 	if err := client.ClusterRun(ctx, runtimes.Docker, k3dConfig); err != nil {
 		return nil, cleanup, fmt.Errorf("failed to create cluster: %w", err)

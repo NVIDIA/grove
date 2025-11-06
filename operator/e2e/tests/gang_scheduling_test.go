@@ -37,8 +37,8 @@ func Test_GS1_GangSchedulingWithFullReplicas(t *testing.T) {
 	ctx := context.Background()
 
 	logger.Info("1. Initialize a 10-node Grove cluster, then cordon 1 node")
-	// Setup cluster (shared or individual based on test run mode)
-	clientset, restConfig, _, cleanup, _ := setupTestCluster(ctx, t, 10)
+	// Setup test cluster with 10 worker nodes
+	clientset, restConfig, _, cleanup := prepareTestCluster(ctx, t, 10)
 	defer cleanup()
 
 	// Get worker nodes for cordoning

@@ -23,6 +23,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/ai-dynamo/grove/operator/api/common"
 	"github.com/ai-dynamo/grove/operator/e2e/utils"
 	"github.com/docker/docker/api/types/image"
 	dockerclient "github.com/docker/docker/client"
@@ -40,6 +41,33 @@ const (
 
 	defaulPollInterval = 1 * time.Second
 )
+
+// resourceType represents a Kubernetes resource type for cleanup operations
+type resourceType struct {
+	group    string
+	version  string
+	resource string
+	name     string
+}
+
+// groveManagedResourceTypes defines all resource types managed by Grove operator that need to be tracked for cleanup
+var groveManagedResourceTypes = []resourceType{
+	// Grove CRDs
+	{"grove.io", "v1alpha1", "podcliquesets", "PodCliqueSets"},
+	{"grove.io", "v1alpha1", "podcliquescalinggroups", "PodCliqueScalingGroups"},
+	{"grove.io", "v1alpha1", "podgangsets", "PodGangSets"},
+	{"scheduler.grove.io", "v1alpha1", "podgangs", "PodGangs"},
+	{"grove.io", "v1alpha1", "podcliques", "PodCliques"},
+	// Kubernetes core resources
+	{"", "v1", "services", "Services"},
+	{"", "v1", "serviceaccounts", "ServiceAccounts"},
+	{"", "v1", "secrets", "Secrets"},
+	// RBAC resources
+	{"rbac.authorization.k8s.io", "v1", "roles", "Roles"},
+	{"rbac.authorization.k8s.io", "v1", "rolebindings", "RoleBindings"},
+	// Autoscaling resources
+	{"autoscaling", "v2", "horizontalpodautoscalers", "HorizontalPodAutoscalers"},
+}
 
 // SharedClusterManager manages a shared (singleton) k3d cluster for E2E tests
 type SharedClusterManager struct {
@@ -74,17 +102,20 @@ func (scm *SharedClusterManager) Setup(ctx context.Context, testImages []string)
 		return nil
 	}
 
+	// Track whether setup completed successfully
+	var setupSuccessful bool
+
 	// Configuration for maximum cluster size needed (28 worker nodes + 3 server nodes)
 	customCfg := ClusterConfig{
-		Name:             "shared-e2e-test-cluster",
-		ServerNodes:      3,
-		WorkerNodes:      28,     // Maximum needed across all tests
-		WorkerMemory:     "150m", // 150m memory per agent node to fit one workload pod
-		Image:            "rancher/k3s:v1.33.5-k3s1",
-		HostPort:         "6560", // Use a different port to avoid conflicts
-		LoadBalancerPort: "8090:80",
-		EnableRegistry:   true,
-		RegistryPort:     "5001",
+		Name:              "shared-e2e-test-cluster",
+		ControlPlaneNodes: 3,
+		WorkerNodes:       28,     // Maximum needed across all tests
+		WorkerMemory:      "150m", // 150m memory per agent node to fit one workload pod
+		Image:             "rancher/k3s:v1.33.5-k3s1",
+		HostPort:          "6560", // Use a different port to avoid conflicts
+		LoadBalancerPort:  "8090:80",
+		EnableRegistry:    true,
+		RegistryPort:      "5001",
 		NodeLabels: []NodeLabel{
 			{
 				Key: "node_role.e2e.grove.nvidia.com",
@@ -115,6 +146,12 @@ func (scm *SharedClusterManager) Setup(ctx context.Context, testImages []string)
 	scm.logger.Info("🚀 Setting up shared k3d cluster for all e2e tests...")
 
 	restConfig, cleanup, err := SetupCompleteK3DCluster(ctx, customCfg, relativeSkaffoldYAMLPath, scm.logger)
+	// Defer cleanup on error - only call if setup was not successful and we have a cleanup function
+	defer func() {
+		if !setupSuccessful && cleanup != nil {
+			cleanup()
+		}
+	}()
 	if err != nil {
 		return fmt.Errorf("failed to setup shared k3d cluster: %w", err)
 	}
@@ -125,7 +162,6 @@ func (scm *SharedClusterManager) Setup(ctx context.Context, testImages []string)
 	// Create clientset from restConfig
 	clientset, err := kubernetes.NewForConfig(restConfig)
 	if err != nil {
-		cleanup()
 		return fmt.Errorf("failed to create clientset: %w", err)
 	}
 	scm.clientset = clientset
@@ -133,21 +169,18 @@ func (scm *SharedClusterManager) Setup(ctx context.Context, testImages []string)
 	// Create dynamic client from restConfig
 	dynamicClient, err := dynamic.NewForConfig(restConfig)
 	if err != nil {
-		cleanup()
 		return fmt.Errorf("failed to create dynamic client: %w", err)
 	}
 	scm.dynamicClient = dynamicClient
 
 	// Setup test images in registry
 	if err := setupRegistryTestImages(scm.registryPort, testImages); err != nil {
-		cleanup()
 		return fmt.Errorf("failed to setup registry test images: %w", err)
 	}
 
 	// Get list of worker nodes for cordoning management
 	nodes, err := clientset.CoreV1().Nodes().List(ctx, metav1.ListOptions{})
 	if err != nil {
-		cleanup()
 		return fmt.Errorf("failed to list nodes: %w", err)
 	}
 
@@ -160,6 +193,7 @@ func (scm *SharedClusterManager) Setup(ctx context.Context, testImages []string)
 
 	scm.logger.Infof("✅ Shared cluster setup complete with %d worker nodes", len(scm.workerNodes))
 	scm.isSetup = true
+	setupSuccessful = true
 	return nil
 }
 
@@ -169,15 +203,10 @@ func (scm *SharedClusterManager) PrepareForTest(ctx context.Context, requiredWor
 		return fmt.Errorf("shared cluster not setup")
 	}
 
-	// First, uncordon all nodes to reset state
-	for _, nodeName := range scm.workerNodes {
-		if err := utils.CordonNode(ctx, scm.clientset, nodeName, false); err != nil {
-			return fmt.Errorf("failed to uncordon node %s: %w", nodeName, err)
-		}
-	}
-
-	// Cordon nodes that are not needed for this test
-	if requiredWorkerNodes < len(scm.workerNodes) {
+	if requiredWorkerNodes > len(scm.workerNodes) {
+		return fmt.Errorf("required worker nodes (%d) is greater than the number of worker nodes in the cluster (%d)", requiredWorkerNodes, len(scm.workerNodes))
+	} else if requiredWorkerNodes < len(scm.workerNodes) {
+		// Cordon nodes that are not needed for this test
 		nodesToCordon := scm.workerNodes[requiredWorkerNodes:]
 		for _, nodeName := range nodesToCordon {
 			if err := utils.CordonNode(ctx, scm.clientset, nodeName, true); err != nil {
@@ -203,10 +232,10 @@ func (scm *SharedClusterManager) CleanupWorkloads(ctx context.Context) error {
 	}
 
 	// Step 2: Poll for all resources and pods to be cleaned up
-	if err := scm.waitForAllResourcesAndPodsDeleted(ctx, defaulPollInterval); err != nil {
+	if err := scm.waitForAllGroveManagedResourcesAndPodsDeleted(ctx, defaulPollInterval); err != nil {
 		scm.logger.Warnf("timeout waiting for resources and pods to be deleted: %v", err)
 		// List remaining resources and pods for debugging
-		scm.listRemainingResources(ctx)
+		scm.listRemainingGroveManagedResources(ctx)
 		scm.listRemainingPods(ctx, "default")
 	}
 
@@ -294,34 +323,26 @@ func (scm *SharedClusterManager) resetNodeStates(ctx context.Context) error {
 	return nil
 }
 
-// waitForAllResourcesAndPodsDeleted waits for all Grove resources and pods to be deleted
-func (scm *SharedClusterManager) waitForAllResourcesAndPodsDeleted(ctx context.Context, timeout time.Duration) error {
-	// Define all resource types to check
-	resourceTypes := []struct {
-		group    string
-		version  string
-		resource string
-		name     string
-	}{
-		{"grove.io", "v1alpha1", "podcliquesets", "PodCliqueSets"},
-		{"grove.io", "v1alpha1", "podcliquescalinggroups", "PodCliqueScalingGroups"},
-		{"grove.io", "v1alpha1", "podgangsets", "PodGangSets"},
-		{"scheduler.grove.io", "v1alpha1", "podgangs", "PodGangs"},
-	}
-
+// waitForAllGroveManagedResourcesAndPodsDeleted waits for all Grove resources and pods to be deleted
+func (scm *SharedClusterManager) waitForAllGroveManagedResourcesAndPodsDeleted(ctx context.Context, timeout time.Duration) error {
 	return utils.PollForCondition(ctx, timeout, defaulPollInterval, func() (bool, error) {
 		allResourcesDeleted := true
 		totalResources := 0
 
+		// Create label selector for Grove-managed resources
+		labelSelector := fmt.Sprintf("%s=%s", common.LabelManagedByKey, common.LabelManagedByValue)
+
 		// Check Grove resources
-		for _, rt := range resourceTypes {
+		for _, rt := range groveManagedResourceTypes {
 			gvr := schema.GroupVersionResource{
 				Group:    rt.group,
 				Version:  rt.version,
 				Resource: rt.resource,
 			}
 
-			resourceList, err := scm.dynamicClient.Resource(gvr).List(ctx, metav1.ListOptions{})
+			resourceList, err := scm.dynamicClient.Resource(gvr).List(ctx, metav1.ListOptions{
+				LabelSelector: labelSelector,
+			})
 			if err != nil {
 				// If we can't list the resource type, assume it doesn't exist or is being deleted
 				continue
@@ -358,27 +379,21 @@ func (scm *SharedClusterManager) waitForAllResourcesAndPodsDeleted(ctx context.C
 	})
 }
 
-// listRemainingResources lists remaining Grove resources for debugging
-func (scm *SharedClusterManager) listRemainingResources(ctx context.Context) {
-	resourceTypes := []struct {
-		group    string
-		version  string
-		resource string
-		name     string
-	}{
-		{"grove.io", "v1alpha1", "podcliquesets", "PodCliqueSets"},
-		{"grove.io", "v1alpha1", "podcliquescalinggroups", "PodCliqueScalingGroups"},
-		{"scheduler.grove.io", "v1alpha1", "podgangs", "PodGangs"},
-	}
+// listRemainingGroveManagedResources lists remaining Grove resources for debugging
+func (scm *SharedClusterManager) listRemainingGroveManagedResources(ctx context.Context) {
+	// Create label selector for Grove-managed resources
+	labelSelector := fmt.Sprintf("%s=%s", common.LabelManagedByKey, common.LabelManagedByValue)
 
-	for _, rt := range resourceTypes {
+	for _, rt := range groveManagedResourceTypes {
 		gvr := schema.GroupVersionResource{
 			Group:    rt.group,
 			Version:  rt.version,
 			Resource: rt.resource,
 		}
 
-		resourceList, err := scm.dynamicClient.Resource(gvr).List(ctx, metav1.ListOptions{})
+		resourceList, err := scm.dynamicClient.Resource(gvr).List(ctx, metav1.ListOptions{
+			LabelSelector: labelSelector,
+		})
 		if err != nil {
 			scm.logger.Warnf("Failed to list %s: %v", rt.name, err)
 			continue
