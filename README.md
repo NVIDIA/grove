@@ -10,7 +10,7 @@ Grove is a Kubernetes API that provides a single declarative interface for orche
 
 ## Quick Start on Local Kind Cluster
 
-Get Grove running in 5 minutes on a [kind](https://kind.sigs.k8s.io/) cluster on your local machine:
+Get Grove running in 5 minutes on a local [kind](https://kind.sigs.k8s.io/) cluster.
 
 ```bash
 # 1. Create a local kind cluster
