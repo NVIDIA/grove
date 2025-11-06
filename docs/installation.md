@@ -2,7 +2,7 @@
 
 To install Grove, you can choose one of the following options:
 - Install Grove from the published Helm charts under the [GitHub packages section](https://github.com/orgs/ai-dynamo/packages?repo_name=grove).
-- Build from source and install Grove using the make targets we provide as a part of the repository.
+- Build from source and install Grove using the `make` targets we provide as a part of the repository.
 
 ## Install Grove from published packages
 
@@ -102,7 +102,7 @@ This make target leverages Grove [Helm](https://helm.sh/) charts and [Skaffold](
   - Grove Scheduler CRDs - `podgangs.scheduler.grove.io`.
 - All Grove operator resources defined as a part of [Grove Helm chart templates](../operator/charts/templates).
 
-## Verfy Installation
+## Verify Installation
 
 Follow the instructions in the [quickstart guide](quickstart.md) to deploy a PodCliqueSet and validate your installation.
 
