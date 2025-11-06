@@ -1,23 +1,23 @@
 # Grove
+[![Go Report Card](https://goreportcard.com/badge/github.com/ai-dynamo/grove/operator)](https://goreportcard.com/report/github.com/NVIDIA/grove/operator)
+[![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
+[![GitHub Release](https://img.shields.io/github/v/release/ai-dynamo/grove)](https://github.com/ai-dynamo/grove/releases/latest)
+[![Discord](https://dcbadge.limes.pink/api/server/D92uqZRjCZ?style=flat)](https://discord.gg/GF45xZAX)
 
 Modern AI inference workloads need capabilities that Kubernetes natively doesn't provide out-of-the-box:
 
-- **Gang scheduling** - Disaggregated inference requires all-or-nothing semantics for prefill and decode component pods
-- **Scaling groups** - Multiple tightly-coupled component groups that need to scale as individual units
-- **Startup ordering** - Different components in a workload which must be scheduled together but start in an explicit ordering
-- **Topology-aware placement** - Network optimized placement, e.g. NVLink domains, will minimize communication costs and maximize inference performance
+- **Scaling for Multi-Node/Multi-Pod Units** - Large models may be sharded across multiple nodes, meaning a single model instance spans multiple pods. In this case, the fundamental scaling unit is no longer an individual pod, but an entire group of pods that together form one model instance.
+- **Hierarchical Gang scheduling** - Multi-node model instances require pods to be scheduled together; if only some of the required pods are placed, the model is unusable, resources remain idle, and the system can deadlock waiting for the remaining pods. Disaggregated inference has similar constraints: at least one prefill instance and one decode instance must be scheduled to form a functional pipeline. Therefore, gang scheduling must occur at multiple levels,ensuring required components start together as an all-or-nothing unit.
+- **Startup ordering** - Even when components must be scheduled together (e.g., leader and worker pods in a multi-node model instance), there are cases where they must start in a specific order. For example, MPI workloads require all worker pods to be ready before the leader pod launches the application. Explicit startup ordering ensures correct initialization and avoids failures caused by components starting out-of-order.
+- **Topology-aware placement** - Components in an inference system often communicate heavily between each other. Network optimized placement, e.g. within NVLink domains, is crucial to minimize communication overheads and maximize performance.
 
 Grove is a Kubernetes API that provides a single declarative interface for orchestrating any AI inference workload — from simple, single-pod deployments to complex multi-node, disaggregated systems. Grove lets you scale your multinode inference deployment from a single replica to data center scale, supporting tens of thousands of GPUs. It allows you to describe your whole inference serving system in Kubernetes - e.g. prefill, decode, routing or any other component - as a single Custom Resource (CR). From that one spec, the platform coordinates hierarchical gang scheduling, topology‑aware placement, multi-level autoscaling and explicit startup ordering. You get precise control of how the system behaves without stitching together scripts, YAML files, or custom controllers.
 
 **One API. Any inference architecture.**
 
-## Quick Start
+## Quick Start on Local Kind Cluster
 
 Get Grove running in 5 minutes:
-[![Go Report Card](https://goreportcard.com/badge/github.com/ai-dynamo/grove/operator)](https://goreportcard.com/report/github.com/NVIDIA/grove/operator)
-[![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
-[![GitHub Release](https://img.shields.io/github/v/release/ai-dynamo/grove)](https://github.com/ai-dynamo/grove/releases/latest)
-[![Discord](https://dcbadge.limes.pink/api/server/D92uqZRjCZ?style=flat)](https://discord.gg/GF45xZAX)
 
 ```bash
 # 1. Create a local kind cluster
@@ -32,50 +32,51 @@ kubectl apply -f samples/simple/simple1.yaml
 # 4. Fetch the resources created by grove
 kubectl get pcs,pclq,pcsg,pg,pod -owide
 ```
+For a hands-on tour of Grove concepts that you can run entirely on your local machine see
+**→ [Core Concepts Overview](docs/user-guide/core-concepts/overview.md)**
 
+To install in a remote K8s cluster see
 **→ [Installation Docs](docs/installation.md)**
-
-## What Grove Solves
-
-Grove handles the complexities of modern AI inference deployments:
-
-| Your Setup | What Grove Does |
-|------------|-----------------|
-| **Disaggregated inference** (prefill + decode) | Gang schedules all components together, scales them independently and as a unit |
-| **Multi-model pipelines** | Enforces startup order (router → workers), auto-scales each stage |
-| **Multi-node inference** (DeepSeek-R1, Llama 405B) | Packs pods onto NVLink-connected GPUs for optimal network performance |
-| **Simple single-pod serving** | Works for this too! One API for any architecture |
-
-**Use Cases:** [Multi-node disaggregated](docs/assets/multinode-disaggregated.excalidraw.png) · [Single-node disaggregated](docs/assets/singlenode-disaggregated.excalidraw.png) · [Agentic pipelines](docs/assets/agentic-pipeline.excalidraw.png) · [Standard serving](docs/assets/singlenode-aggregated.excalidraw.png)
 
 ## How It Works
 
 Grove introduces four simple concepts:
 
-| Concept | What It Does |
-|---------|--------------|
-| **PodCliqueSet** | Your entire workload (e.g., "my-inference-stack") |
-| **PodClique** | A component role (e.g., "prefill", "decode", "router") |
-| **PodCliqueScalingGroup** | Components that must scale together (e.g., prefill + decode) |
-| **PodGang** | Internal scheduler primitive for gang scheduling (you don't touch this) |
+| Concept                                                             | Description                                                                                                                                                                                              |
+|---------------------------------------------------------------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| [PodClique](operator/api/core/v1alpha1/podclique.go)                | A group of pods representing a specific role (e.g., leader, worker, frontend). Each clique has an independent configuration and supports custom scaling logic.                                           |
+| [PodCliqueScalingGroup](operator/api/core/v1alpha1/scalinggroup.go) | A set of PodCliques that scale and are scheduled together as a gang. Ideal for tightly coupled roles like prefill leader and worker.                                                                     |
+| [PodCliqueSet](operator/api/core/v1alpha1/podcliqueset.go)          | The top-level Grove object that defines a group of components managed and colocated together. Also supports autoscaling with topology aware spread of PodCliqueSet replicas for availability.            |
+| [PodGang](scheduler/api/core/v1alpha1/podgang.go)                   | The scheduler API that defines a unit of gang-scheduling. A PodGang is a collection of groups of similar pods, where each pod group defines a minimum number of replicas guaranteed for gang-scheduling. |
+
+
+**→ [Hands On Intro to Core Concepts](docs/user-guide/core-concepts/overview.md)**
 
 **→ [API Reference](docs/api-reference/operator-api.md)**
+
+## Example Use Cases
+
+- **Multi-Node, Disaggregated Inference for large models** ***(DeepSeek-R1, Llama-4-Maverick)*** : [Visualization](docs/assets/multinode-disaggregated.excalidraw.png)
+- **Single-Node, Disaggregated Inference** : [Visualization](docs/assets/singlenode-disaggregated.excalidraw.png)
+- **Agentic Pipeline of Models** : [Visualization](docs/assets/agentic-pipeline.excalidraw.png)
+- **Standard Aggregated Single Node or Single GPU Inference** : [Visualization](docs/assets/singlenode-aggregated.excalidraw.png)
 
 ## Roadmap
 
 ### 2025 Priorities
 
-> **Note:** We are aligning our release schedule with [NVIDIA Dynamo](https://github.com/ai-dynamo/dynamo) to ensure seamless integration. Release dates will be updated once our cadence (e.g., weekly, monthly) is finalized.
-
 **Q4 2025**
 - Topology-Aware Scheduling
-- Multi-Level Horizontal Auto-Scaling
-- Startup Ordering
-- Rolling Updates
+- Multi-Level Horizontal Auto-Scaling ✅
+- Hierarchical Gang Scheduling ✅
+- Startup Ordering ✅
+- Rolling Updates ✅
 
 **Q1 2026**
 - Resource-Optimized Rolling Updates
-- Multi-Node NVLink Auto-Scaling Support
+- Topology Spread Constraints
+- Automatic Topology Detection
+- And More!
 
 ## Contributions
 
