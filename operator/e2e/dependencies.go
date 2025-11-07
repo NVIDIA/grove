@@ -21,7 +21,7 @@ import (
 	"fmt"
 	"sync"
 
-	"gopkg.in/yaml.v3"
+	"sigs.k8s.io/yaml"
 )
 
 //go:embed dependencies.yaml
