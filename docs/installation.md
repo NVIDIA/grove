@@ -185,7 +185,15 @@ Then use the exact name from the output.
    ```bash
    kubectl get deployment metrics-server -n kube-system
    ```
-3. For kind clusters, you may need to install metrics-server separately.
+3. For kind clusters, you may need to install metrics-server separately (*choose one of following methods*):
+    - Use `operator/Makefile` target
+  ```bash
+  make deploy-addons
+  ```
+    - Manual setup
+  ```bash
+  kubectl apply -f https://github.com/kubernetes-sigs/metrics-server/releases/latest/download/components.yaml
+  ```
 
 ### Getting Help
 
