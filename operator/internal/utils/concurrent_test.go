@@ -225,8 +225,8 @@ func TestRunResult_GetAggregatedError(t *testing.T) {
 	result = RunResult{Errors: []error{err1, err2}}
 	aggregatedErr = result.GetAggregatedError()
 	assert.NotNil(t, aggregatedErr)
-	assert.Contains(t, aggregatedErr.Error(), "task failed")
-	assert.Contains(t, aggregatedErr.Error(), "another failure")
+	assert.True(t, errors.Is(aggregatedErr, err1))
+	assert.True(t, errors.Is(aggregatedErr, err2))
 }
 
 // TestRunResult_GetSummary tests generating a summary string of task execution results.
