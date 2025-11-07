@@ -25,6 +25,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/utils/ptr"
 )
 
 const (
@@ -261,7 +262,7 @@ func TestHasAnyStartedButNotReadyContainer(t *testing.T) {
 			containerStatuses: []corev1.ContainerStatus{
 				{
 					Name:    "container-1",
-					Started: boolPtr(true),
+					Started: ptr.To(true),
 					Ready:   false,
 				},
 			},
@@ -273,7 +274,7 @@ func TestHasAnyStartedButNotReadyContainer(t *testing.T) {
 			containerStatuses: []corev1.ContainerStatus{
 				{
 					Name:    "container-1",
-					Started: boolPtr(true),
+					Started: ptr.To(true),
 					Ready:   true,
 				},
 			},
@@ -285,7 +286,7 @@ func TestHasAnyStartedButNotReadyContainer(t *testing.T) {
 			containerStatuses: []corev1.ContainerStatus{
 				{
 					Name:    "container-1",
-					Started: boolPtr(false),
+					Started: ptr.To(false),
 					Ready:   false,
 				},
 			},
@@ -309,12 +310,12 @@ func TestHasAnyStartedButNotReadyContainer(t *testing.T) {
 			containerStatuses: []corev1.ContainerStatus{
 				{
 					Name:    "container-1",
-					Started: boolPtr(true),
+					Started: ptr.To(true),
 					Ready:   true,
 				},
 				{
 					Name:    "container-2",
-					Started: boolPtr(true),
+					Started: ptr.To(true),
 					Ready:   false,
 				},
 			},
@@ -626,7 +627,7 @@ func TestCategorizePodsByConditionType(t *testing.T) {
 			ContainerStatuses: []corev1.ContainerStatus{
 				{
 					Name:    "container-1",
-					Started: boolPtr(true),
+					Started: ptr.To(true),
 					Ready:   false,
 				},
 			},
@@ -658,9 +659,4 @@ func TestCategorizePodsByConditionType(t *testing.T) {
 	// Check started but not ready pods
 	assert.Len(t, categories[PodStartedButNotReady], 1)
 	assert.Equal(t, "started-not-ready-pod", categories[PodStartedButNotReady][0].Name)
-}
-
-// Helper function to create a bool pointer
-func boolPtr(b bool) *bool {
-	return &b
 }
