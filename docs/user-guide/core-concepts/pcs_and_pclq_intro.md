@@ -45,13 +45,14 @@ spec:
 - Tolerations allow scheduling on fake nodes for demo, remove if you are trying to deploy on a real cluster
 
 ### **Deploy:**
+
+In this example, we will deploy the file: [single-node-aggregated.yaml](../../../operator/samples/user-guide/concept-overview/single-node-aggregated.yaml)
 ```bash
 # NOTE: Run the following commands from the `/path/to/grove/operator` directory,
 # where `/path/to/grove` is the root of your cloned Grove repository.
 kubectl apply -f samples/user-guide/concept-overview/single-node-aggregated.yaml
 kubectl get pods -l app.kubernetes.io/part-of=single-node-aggregated -o wide
 ```
-File `single-node-aggregated.yaml`: [link](../../operator/samples/user-guide/concept-overview/single-node-aggregated.yaml)
 
 If you are using the demo-cluster you should observe output similar to
 ```bash
@@ -167,13 +168,13 @@ spec:
 
 ### **Deploy**
 
+In this example, we will deploy the file: [single-node-disaggregated.yaml](../../../operator/samples/user-guide/concept-overview/single-node-disaggregated.yaml)
 ```bash
 # NOTE: Run the following commands from the `/path/to/grove/operator` directory,
 # where `/path/to/grove` is the root of your cloned Grove repository.
 kubectl apply -f samples/user-guide/concept-overview/single-node-disaggregated.yaml
 kubectl get pods -l app.kubernetes.io/part-of=single-node-disaggregated -o wide
 ```
-File `single-node-disaggregated.yaml`: [link](../../operator/samples/user-guide/concept-overview/single-node-disaggregated.yaml)
 
 After running you will observe:
 ```bash

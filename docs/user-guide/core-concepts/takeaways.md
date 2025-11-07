@@ -148,13 +148,14 @@ spec:
 - **Total**: 11 pods providing a complete inference pipeline
 
 **Deploy and explore:**
+
+In this example, we will deploy the file: [complete-inference-pipeline.yaml](../../../operator/samples/user-guide/concept-overview/complete-inference-pipeline.yaml)
 ```bash
 # NOTE: Run the following commands from the `/path/to/grove/operator` directory,
 # where `/path/to/grove` is the root of your cloned Grove repository.
 kubectl apply -f samples/user-guide/concept-overview/complete-inference-pipeline.yaml
 kubectl get pods -l app.kubernetes.io/part-of=comp-inf-ppln -o wide
 ```
-File `complete-inference-pipeline.yaml`: [link](../../operator/samples/user-guide/concept-overview/complete-inference-pipeline.yaml)
 
 After running you will observe
 ```bash

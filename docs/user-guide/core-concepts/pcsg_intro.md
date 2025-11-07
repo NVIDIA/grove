@@ -73,13 +73,14 @@ spec:
 - Scaling the group preserves the 1:3 leader-to-worker ratio
 
 ### **Deploy:**
+
+In this example, we will deploy the file: [multi-node-aggregated.yaml](../../../operator/samples/user-guide/concept-overview/multi-node-aggregated.yaml)
 ```bash
 # NOTE: Run the following commands from the `/path/to/grove/operator` directory,
 # where `/path/to/grove` is the root of your cloned Grove repository.
 kubectl apply -f samples/user-guide/concept-overview/multi-node-aggregated.yaml
 kubectl get pods -l app.kubernetes.io/part-of=multinode-aggregated -o wide
 ```
-File `multi-node-aggregated.yaml`: [link](../../operator/samples/user-guide/concept-overview/multi-node-aggregated.yaml)
 
 After running you should observe
 ```bash
@@ -286,13 +287,14 @@ spec:
 - Each PCSG can have different resource allocations
 
 ### **Deploy**
+
+In this example, we will deploy the file: [multi-node-disaggregated.yaml](../../../operator/samples/user-guide/concept-overview/multi-node-disaggregated.yaml)
 ```bash
 # NOTE: Run the following commands from the `/path/to/grove/operator` directory,
 # where `/path/to/grove` is the root of your cloned Grove repository.
 kubectl apply -f samples/user-guide/concept-overview/multi-node-disaggregated.yaml
 kubectl get pods -l app.kubernetes.io/part-of=multinode-disaggregated -o wide
 ```
-File `multi-node-disaggregated.yaml`: [link](../../operator/samples/user-guide/concept-overview/multi-node-disaggregated.yaml)
 
 After running you will observe
 ```bash
