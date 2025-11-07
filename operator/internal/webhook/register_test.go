@@ -142,16 +142,7 @@ func TestRegisterWebhooks_WithAuthorizerMissingNamespaceFile(t *testing.T) {
 	mgr.WebhookServer = server
 
 	// Set env var
-	originalEnv := os.Getenv(constants.EnvVarServiceAccountName)
 	t.Setenv(constants.EnvVarServiceAccountName, "test-sa")
-	defer func() {
-		if originalEnv != "" {
-			os.Setenv(constants.EnvVarServiceAccountName, originalEnv)
-		} else {
-			err := os.Unsetenv(constants.EnvVarServiceAccountName)
-			require.NoError(t, err)
-		}
-	}()
 
 	// Authorizer enabled - will fail on reading non-existent namespace file
 	authorizerConfig := configv1alpha1.AuthorizerConfig{
@@ -180,16 +171,7 @@ func TestRegisterWebhooks_WithAuthorizerSuccess(t *testing.T) {
 	mgr.WebhookServer = server
 
 	// Set env var
-	originalEnv := os.Getenv(constants.EnvVarServiceAccountName)
-	os.Setenv(constants.EnvVarServiceAccountName, "test-sa")
-	defer func() {
-		if originalEnv != "" {
-			os.Setenv(constants.EnvVarServiceAccountName, originalEnv)
-		} else {
-			err := os.Unsetenv(constants.EnvVarServiceAccountName)
-			require.NoError(t, err)
-		}
-	}()
+	t.Setenv(constants.EnvVarServiceAccountName, "test-sa")
 
 	// Create a temporary namespace file
 	tmpFile, err := os.CreateTemp("", "namespace")

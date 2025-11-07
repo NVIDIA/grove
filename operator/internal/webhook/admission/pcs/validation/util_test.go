@@ -22,6 +22,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/apimachinery/pkg/util/validation/field"
+	"k8s.io/utils/ptr"
 )
 
 // TestValidateEnumType tests validation of enum values against allowed sets.
@@ -49,26 +50,26 @@ func TestValidateEnumType(t *testing.T) {
 		},
 		{
 			name:          "valid value passes validation",
-			value:         stringPtr("option1"),
+			value:         ptr.To("option1"),
 			allowedValues: sets.New("option1", "option2"),
 			expectError:   false,
 		},
 		{
 			name:          "invalid value returns Invalid error",
-			value:         stringPtr("option3"),
+			value:         ptr.To("option3"),
 			allowedValues: sets.New("option1", "option2"),
 			expectError:   true,
 			errorType:     field.ErrorTypeInvalid,
 		},
 		{
 			name:          "empty string value in allowed set passes",
-			value:         stringPtr(""),
+			value:         ptr.To(""),
 			allowedValues: sets.New("", "option1"),
 			expectError:   false,
 		},
 		{
 			name:          "empty string value not in allowed set fails",
-			value:         stringPtr(""),
+			value:         ptr.To(""),
 			allowedValues: sets.New("option1", "option2"),
 			expectError:   true,
 			errorType:     field.ErrorTypeInvalid,
@@ -113,13 +114,13 @@ func TestValidateEnumTypeInt(t *testing.T) {
 		},
 		{
 			name:          "valid integer value passes validation",
-			value:         intPtr(2),
+			value:         ptr.To(2),
 			allowedValues: sets.New(1, 2, 3),
 			expectError:   false,
 		},
 		{
 			name:          "invalid integer value returns Invalid error",
-			value:         intPtr(5),
+			value:         ptr.To(5),
 			allowedValues: sets.New(1, 2, 3),
 			expectError:   true,
 			errorType:     field.ErrorTypeInvalid,
@@ -158,12 +159,12 @@ func TestValidateNonNilField(t *testing.T) {
 		},
 		{
 			name:        "non-nil pointer passes validation",
-			value:       stringPtr("value"),
+			value:       ptr.To("value"),
 			expectError: false,
 		},
 		{
 			name:        "non-nil pointer with empty string passes validation",
-			value:       stringPtr(""),
+			value:       ptr.To(""),
 			expectError: false,
 		},
 	}
@@ -304,13 +305,4 @@ func TestSliceMustHaveUniqueElements(t *testing.T) {
 			}
 		})
 	}
-}
-
-// Helper functions
-func stringPtr(s string) *string {
-	return &s
-}
-
-func intPtr(i int) *int {
-	return &i
 }
