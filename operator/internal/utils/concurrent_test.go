@@ -245,9 +245,7 @@ func TestRunResult_GetSummary(t *testing.T) {
 		SkippedTasks:    []string{"task4", "task5"},
 	}
 	summary = result.GetSummary()
-	assert.Contains(t, summary, "task1")
-	assert.Contains(t, summary, "task2")
-	assert.Contains(t, summary, "task3")
-	assert.Contains(t, summary, "task4")
-	assert.Contains(t, summary, "task5")
+	assert.Contains(t, summary, "SuccessfulTasks: [task1 task2]")
+	assert.Contains(t, summary, "FailedTasks: [task3]")
+	assert.Contains(t, summary, "SkippedTasks: [task4 task5]")
 }
