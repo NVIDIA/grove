@@ -73,14 +73,15 @@ spec:
 - Scaling the group preserves the 1:3 leader-to-worker ratio
 
 ### **Deploy:**
-# **Note:** The following commands assume you are in the `/grove/operator` directory, where `/grove` is the root of your cloned Grove repository.
-
-kubectl apply -f [/samples/user-guide/concept-overview/multi-node-aggregated.yaml](../../operator/samples/user-guide/concept-overview/multi-node-aggregated.yaml)
-
+```bash
+# NOTE: Run the following commands from the `/path/to/grove/operator` directory,
+# where `/path/to/grove` is the root of your cloned Grove repository.
+kubectl apply -f samples/user-guide/concept-overview/multi-node-aggregated.yaml
 kubectl get pods -l app.kubernetes.io/part-of=multinode-aggregated -o wide
+```
+File `multi-node-aggregated.yaml`: [link](../../operator/samples/user-guide/concept-overview/multi-node-aggregated.yaml)
 
 After running you should observe
-
 ```bash
 rohanv@rohanv-mlt operator % kubectl get pods -l app.kubernetes.io/part-of=multinode-aggregated -o wide
 NAME                                                   READY   STATUS    RESTARTS   AGE   IP            NODE            NOMINATED NODE   READINESS GATES
@@ -286,11 +287,15 @@ spec:
 
 ### **Deploy**
 ```bash
-# **Note:** The following commands assume you are in the `/grove/operator` directory, where `/grove` is the root of your cloned Grove repository.
-kubectl apply -f [/samples/user-guide/concept-overview/multi-node-disaggregated.yaml](../../operator/samples/user-guide/concept-overview/multi-node-disaggregated.yaml)
+# NOTE: Run the following commands from the `/path/to/grove/operator` directory,
+# where `/path/to/grove` is the root of your cloned Grove repository.
+kubectl apply -f samples/user-guide/concept-overview/multi-node-disaggregated.yaml
 kubectl get pods -l app.kubernetes.io/part-of=multinode-disaggregated -o wide
-After running you will observe
 ```
+File `multi-node-disaggregated.yaml`: [link](../../operator/samples/user-guide/concept-overview/multi-node-disaggregated.yaml)
+
+After running you will observe
+```bash
 rohanv@rohanv-mlt operator % kubectl get pods -l app.kubernetes.io/part-of=multinode-disaggregated -o wide
 NAME                                                READY   STATUS    RESTARTS   AGE   IP            NODE            NOMINATED NODE   READINESS GATES
 multinode-disaggregated-0-decode-0-dleader-khqxf    1/1     Running   0          35s   10.244.19.0   fake-node-019   <none>           <none>

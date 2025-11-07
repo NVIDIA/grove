@@ -46,13 +46,15 @@ spec:
 
 ### **Deploy:**
 ```bash
-# **Note:** The following commands assume you are in the `/grove/operator` directory, where `/grove` is the root of your cloned Grove repository.
-kubectl apply -f [/samples/user-guide/concept-overview/single-node-aggregated.yaml](../../operator/samples/user-guide/concept-overview/single-node-aggregated.yaml)
+# NOTE: Run the following commands from the `/path/to/grove/operator` directory,
+# where `/path/to/grove` is the root of your cloned Grove repository.
+kubectl apply -f samples/user-guide/concept-overview/single-node-aggregated.yaml
 kubectl get pods -l app.kubernetes.io/part-of=single-node-aggregated -o wide
 ```
+File `single-node-aggregated.yaml`: [link](../../operator/samples/user-guide/concept-overview/single-node-aggregated.yaml)
 
 If you are using the demo-cluster you should observe output similar to
-```
+```bash
 rohanv@rohanv-mlt operator % kubectl get pods -l app.kubernetes.io/part-of=single-node-aggregated -o wide
 NAME                                          READY   STATUS    RESTARTS   AGE   IP            NODE            NOMINATED NODE   READINESS GATES
 single-node-aggregated-0-model-worker-n9gcq   1/1     Running   0          18m   10.244.7.0    fake-node-007   <none>           <none>
@@ -164,14 +166,16 @@ spec:
 - Different resource requirements for each component are supported (in the example prefill requests 2 cpu and decode only 1)
 
 ### **Deploy**
-# **Note:** The following commands assume you are in the `/grove/operator` directory, where `/grove` is the root of your cloned Grove repository.
 
-kubectl apply -f [/samples/user-guide/concept-overview/single-node-disaggregated.yaml](../../operator/samples/user-guide/concept-overview/single-node-disaggregated.yaml)
-
+```bash
+# NOTE: Run the following commands from the `/path/to/grove/operator` directory,
+# where `/path/to/grove` is the root of your cloned Grove repository.
+kubectl apply -f samples/user-guide/concept-overview/single-node-disaggregated.yaml
 kubectl get pods -l app.kubernetes.io/part-of=single-node-disaggregated -o wide
+```
+File `single-node-disaggregated.yaml`: [link](../../operator/samples/user-guide/concept-overview/single-node-disaggregated.yaml)
 
-After running you will observe
-
+After running you will observe:
 ```bash
 rohanv@rohanv-mlt operator % kubectl get pods -l app.kubernetes.io/part-of=single-node-disaggregated -o wide
 NAME                                        READY   STATUS    RESTARTS   AGE   IP            NODE            NOMINATED NODE   READINESS GATES
@@ -187,12 +191,10 @@ Note how within the `single-node-disaggregated-0` PodCliqueSet replica there are
 You can scale the `prefill` and `decode` PodCliques the same way the [`model-worker` PodClique was scaled](#scaling) in the previous example. 
 
 Additionally, the `single-node-disaggregated` PodCliqueSet can be scaled the same way the `single-node-aggregated` PodCliqueSet was scaled in the previous example. We show an example to demonstrate how when PodCliqueSets are scaled, all constituent PodCliques are replicated, underscoring why scaling PodCliqueSets should be treated as scaling the entire system (useful for canary deployments, A/B testing, or high availability across zones).
-
 ```bash
 kubectl scale pcs single-node-aggregated --replicas=2
 ```
 After running this you will observe
-
 ```bash
 rohanv@rohanv-mlt operator % kubectl get pods -l app.kubernetes.io/part-of=single-node-disaggregated -o wide
 NAME                                        READY   STATUS    RESTARTS   AGE   IP            NODE            NOMINATED NODE   READINESS GATES
