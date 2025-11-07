@@ -148,12 +148,15 @@ spec:
 - **Total**: 11 pods providing a complete inference pipeline
 
 **Deploy and explore:**
-```bash
 # **Note:** The following commands assume you are in the `/grove/operator` directory, where `/grove` is the root of your cloned Grove repository.
+
 kubectl apply -f [/samples/user-guide/concept-overview/complete-inference-pipeline.yaml](../../operator/samples/user-guide/concept-overview/complete-inference-pipeline.yaml)
+
 kubectl get pods -l app.kubernetes.io/part-of=comp-inf-ppln -o wide
+
 After running you will observe
-```
+
+```bash
 rohanv@rohanv-mlt operator % kubectl get pods -l app.kubernetes.io/part-of=comp-inf-ppln -o wide
 NAME                                             READY   STATUS    RESTARTS   AGE   IP            NODE            NOMINATED NODE   READINESS GATES
 comp-inf-ppln-0-decode-cluster-0-dleader-wr7r2   1/1     Running   0          51s   10.244.8.0    fake-node-008   <none>           <none>

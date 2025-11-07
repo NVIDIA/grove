@@ -164,14 +164,15 @@ spec:
 - Different resource requirements for each component are supported (in the example prefill requests 2 cpu and decode only 1)
 
 ### **Deploy**
-```bash
 # **Note:** The following commands assume you are in the `/grove/operator` directory, where `/grove` is the root of your cloned Grove repository.
+
 kubectl apply -f [/samples/user-guide/concept-overview/single-node-disaggregated.yaml](../../operator/samples/user-guide/concept-overview/single-node-disaggregated.yaml)
+
 kubectl get pods -l app.kubernetes.io/part-of=single-node-disaggregated -o wide
-```
+
 After running you will observe
 
-```
+```bash
 rohanv@rohanv-mlt operator % kubectl get pods -l app.kubernetes.io/part-of=single-node-disaggregated -o wide
 NAME                                        READY   STATUS    RESTARTS   AGE   IP            NODE            NOMINATED NODE   READINESS GATES
 single-node-disaggregated-0-decode-bvl94    1/1     Running   0          29s   10.244.6.0    fake-node-006   <none>           <none>
@@ -191,7 +192,8 @@ Additionally, the `single-node-disaggregated` PodCliqueSet can be scaled the sam
 kubectl scale pcs single-node-aggregated --replicas=2
 ```
 After running this you will observe
-```
+
+```bash
 rohanv@rohanv-mlt operator % kubectl get pods -l app.kubernetes.io/part-of=single-node-disaggregated -o wide
 NAME                                        READY   STATUS    RESTARTS   AGE   IP            NODE            NOMINATED NODE   READINESS GATES
 single-node-disaggregated-0-decode-9fvsj    1/1     Running   0          77s   10.244.13.0   fake-node-013   <none>           <none>
