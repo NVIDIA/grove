@@ -56,7 +56,7 @@ func (h *Handler) ValidateCreate(ctx context.Context, obj runtime.Object) (admis
 	if err != nil {
 		return nil, errors.WrapError(err, ErrValidateCreateClusterTopology, string(admissionv1.Create), "failed to cast object to ClusterTopology")
 	}
-	return newCTValidator(ct, admissionv1.Create).validate()
+	return nil, newCTValidator(ct, admissionv1.Create).validate()
 }
 
 // ValidateUpdate validates a ClusterTopology update request.
@@ -71,11 +71,10 @@ func (h *Handler) ValidateUpdate(ctx context.Context, newObj, oldObj runtime.Obj
 		return nil, errors.WrapError(err, ErrValidateUpdateClusterTopology, string(admissionv1.Update), "failed to cast old object to ClusterTopology")
 	}
 	validator := newCTValidator(newCT, admissionv1.Update)
-	warnings, err := validator.validate()
-	if err != nil {
-		return warnings, err
+	if err := validator.validate(); err != nil {
+		return nil, err
 	}
-	return warnings, validator.validateUpdate(oldCT)
+	return nil, validator.validateUpdate(oldCT)
 }
 
 // ValidateDelete validates a ClusterTopology delete request.

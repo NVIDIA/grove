@@ -20,6 +20,7 @@ import (
 	"testing"
 
 	grovecorev1alpha1 "github.com/ai-dynamo/grove/operator/api/core/v1alpha1"
+
 	"github.com/stretchr/testify/assert"
 	admissionv1 "k8s.io/api/admission/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -107,7 +108,29 @@ func TestValidateCreate(t *testing.T) {
 				},
 			},
 			expectedErr:    true,
-			expectedErrMsg: "topology levels must be in hierarchical order",
+			expectedErrMsg: "Duplicate value",
+		},
+		{
+			name: "invalid - duplicate key",
+			ct: &grovecorev1alpha1.ClusterTopology{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "test-topology",
+				},
+				Spec: grovecorev1alpha1.ClusterTopologySpec{
+					Levels: []grovecorev1alpha1.TopologyLevel{
+						{
+							Domain: grovecorev1alpha1.TopologyDomainRegion,
+							Key:    "topology.kubernetes.io/zone",
+						},
+						{
+							Domain: grovecorev1alpha1.TopologyDomainZone,
+							Key:    "topology.kubernetes.io/zone",
+						},
+					},
+				},
+			},
+			expectedErr:    true,
+			expectedErrMsg: "duplicate key",
 		},
 		{
 			name: "invalid - empty key",
@@ -318,7 +341,7 @@ func TestValidateCreate(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			validator := newCTValidator(tt.ct, admissionv1.Create)
-			_, err := validator.validate()
+			err := validator.validate()
 
 			if tt.expectedErr {
 				assert.Error(t, err)
@@ -522,7 +545,7 @@ func TestValidateUpdate(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			validator := newCTValidator(tt.newCT, admissionv1.Update)
-			_, err := validator.validate()
+			err := validator.validate()
 			if err != nil {
 				t.Fatalf("validate() failed: %v", err)
 			}

@@ -56,31 +56,30 @@ func newCTValidator(ct *grovecorev1alpha1.ClusterTopology, operation admissionv1
 // ---------------------------- validate create of ClusterTopology -----------------------------------------------
 
 // validate validates the ClusterTopology object.
-func (v *ctValidator) validate() ([]string, error) {
+func (v *ctValidator) validate() error {
 	allErrs := field.ErrorList{}
 
 	allErrs = append(allErrs, apivalidation.ValidateObjectMeta(&v.ct.ObjectMeta, false,
 		apivalidation.NameIsDNSSubdomain, field.NewPath("metadata"))...)
 	fldPath := field.NewPath("spec")
-	warnings, errs := v.validateClusterTopologySpec(fldPath)
+	errs := v.validateClusterTopologySpec(fldPath)
 	if len(errs) != 0 {
 		allErrs = append(allErrs, errs...)
 	}
 
-	return warnings, allErrs.ToAggregate()
+	return allErrs.ToAggregate()
 }
 
 // validateClusterTopologySpec validates the specification of a ClusterTopology object.
-func (v *ctValidator) validateClusterTopologySpec(fldPath *field.Path) ([]string, field.ErrorList) {
+func (v *ctValidator) validateClusterTopologySpec(fldPath *field.Path) field.ErrorList {
 	allErrs := field.ErrorList{}
-	var warnings []string
 
 	levelsPath := fldPath.Child("levels")
 
 	// Validate that at least one level is defined
 	if len(v.ct.Spec.Levels) == 0 {
 		allErrs = append(allErrs, field.Required(levelsPath, "at least one topology level must be defined"))
-		return warnings, allErrs
+		return allErrs
 	}
 
 	// Validate max items (should be enforced by kubebuilder validation, but check here too)
@@ -98,7 +97,10 @@ func (v *ctValidator) validateClusterTopologySpec(fldPath *field.Path) ([]string
 	// This also ensures domain uniqueness
 	allErrs = append(allErrs, validateTopologyLevelOrder(v.ct.Spec.Levels, levelsPath)...)
 
-	return warnings, allErrs
+	// Validate that all keys are unique
+	allErrs = append(allErrs, validateTopologyLevelKeyUniqueness(v.ct.Spec.Levels, levelsPath)...)
+
+	return allErrs
 }
 
 // validateTopologyLevel validates a single topology level in isolation.
@@ -143,10 +145,29 @@ func validateTopologyLevelOrder(levels []grovecorev1alpha1.TopologyLevel, fldPat
 		currOrder := topologyDomainOrder[currDomain]
 
 		// Current level must have a higher order (narrower scope) than previous level
-		if currOrder <= prevOrder {
+		if currOrder < prevOrder {
 			allErrs = append(allErrs, field.Invalid(fldPath.Index(i).Child("domain"), currDomain,
 				fmt.Sprintf("topology levels must be in hierarchical order (broadest to narrowest). Domain '%s' at position %d cannot come after '%s' at position %d",
 					currDomain, i, prevDomain, i-1)))
+		} else if currOrder == prevOrder {
+			allErrs = append(allErrs, field.Duplicate(fldPath.Index(i).Child("domain"), currDomain))
+		}
+	}
+
+	return allErrs
+}
+
+// validateTopologyLevelKeyUniqueness validates that all keys in the topology levels are unique.
+func validateTopologyLevelKeyUniqueness(levels []grovecorev1alpha1.TopologyLevel, fldPath *field.Path) field.ErrorList {
+	allErrs := field.ErrorList{}
+	seenKeys := make(map[string]int) // map key to first index where it appears
+
+	for i, level := range levels {
+		if firstIndex, exists := seenKeys[level.Key]; exists {
+			allErrs = append(allErrs, field.Invalid(fldPath.Index(i).Child("key"), level.Key,
+				fmt.Sprintf("duplicate key: already used at levels[%d]", firstIndex)))
+		} else {
+			seenKeys[level.Key] = i
 		}
 	}
 
@@ -187,8 +208,7 @@ func (v *ctValidator) validateClusterTopologySpecUpdate(newSpec, oldSpec *grovec
 				fmt.Sprintf("domain is immutable, cannot change from '%s' to '%s'", oldLevel.Domain, newLevel.Domain)))
 		}
 
-		// Note: Key is allowed to change (not in the requirements), but we validate it's still a valid label key
-		// The validate() function already checked this during the general validation
+		// Note: Key is allowed to change (not in the requirements), but validation has already occurred in validate()
 	}
 
 	return allErrs
