@@ -52,29 +52,29 @@ func NewHandler(mgr manager.Manager) *Handler {
 // ValidateCreate validates a ClusterTopology create request.
 func (h *Handler) ValidateCreate(ctx context.Context, obj runtime.Object) (admission.Warnings, error) {
 	h.logValidatorFunctionInvocation(ctx)
-	ct, err := castToClusterTopology(obj)
+	clusterTopology, err := castToClusterTopology(obj)
 	if err != nil {
 		return nil, errors.WrapError(err, ErrValidateCreateClusterTopology, string(admissionv1.Create), "failed to cast object to ClusterTopology")
 	}
-	return nil, newCTValidator(ct, admissionv1.Create).validate()
+	return nil, newClusterTopologyValidator(clusterTopology, admissionv1.Create).validate()
 }
 
 // ValidateUpdate validates a ClusterTopology update request.
 func (h *Handler) ValidateUpdate(ctx context.Context, newObj, oldObj runtime.Object) (admission.Warnings, error) {
 	h.logValidatorFunctionInvocation(ctx)
-	newCT, err := castToClusterTopology(newObj)
+	newClusterTopology, err := castToClusterTopology(newObj)
 	if err != nil {
 		return nil, errors.WrapError(err, ErrValidateUpdateClusterTopology, string(admissionv1.Update), "failed to cast new object to ClusterTopology")
 	}
-	oldCT, err := castToClusterTopology(oldObj)
+	oldClusterTopology, err := castToClusterTopology(oldObj)
 	if err != nil {
 		return nil, errors.WrapError(err, ErrValidateUpdateClusterTopology, string(admissionv1.Update), "failed to cast old object to ClusterTopology")
 	}
-	validator := newCTValidator(newCT, admissionv1.Update)
+	validator := newClusterTopologyValidator(newClusterTopology, admissionv1.Update)
 	if err := validator.validate(); err != nil {
 		return nil, err
 	}
-	return nil, validator.validateUpdate(oldCT)
+	return nil, validator.validateUpdate(oldClusterTopology)
 }
 
 // ValidateDelete validates a ClusterTopology delete request.
@@ -84,11 +84,11 @@ func (h *Handler) ValidateDelete(_ context.Context, _ runtime.Object) (admission
 
 // castToClusterTopology attempts to cast a runtime.Object to a ClusterTopology.
 func castToClusterTopology(obj runtime.Object) (*v1alpha1.ClusterTopology, error) {
-	ct, ok := obj.(*v1alpha1.ClusterTopology)
+	clusterTopology, ok := obj.(*v1alpha1.ClusterTopology)
 	if !ok {
 		return nil, fmt.Errorf("expected a ClusterTopology object but got %T", obj)
 	}
-	return ct, nil
+	return clusterTopology, nil
 }
 
 // logValidatorFunctionInvocation logs details about the validation request including user and operation information.

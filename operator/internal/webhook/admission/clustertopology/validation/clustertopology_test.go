@@ -17,25 +17,26 @@
 package validation
 
 import (
+	"context"
 	"testing"
 
 	grovecorev1alpha1 "github.com/ai-dynamo/grove/operator/api/core/v1alpha1"
 
+	"github.com/go-logr/logr"
 	"github.com/stretchr/testify/assert"
-	admissionv1 "k8s.io/api/admission/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 func TestValidateCreate(t *testing.T) {
 	tests := []struct {
-		name           string
-		ct             *grovecorev1alpha1.ClusterTopology
-		expectedErr    bool
-		expectedErrMsg string
+		name            string
+		clusterTopology *grovecorev1alpha1.ClusterTopology
+		expectedErr     bool
+		expectedErrMsg  string
 	}{
 		{
 			name: "valid cluster topology with single level",
-			ct: &grovecorev1alpha1.ClusterTopology{
+			clusterTopology: &grovecorev1alpha1.ClusterTopology{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "test-topology",
 				},
@@ -52,7 +53,7 @@ func TestValidateCreate(t *testing.T) {
 		},
 		{
 			name: "valid cluster topology with multiple levels",
-			ct: &grovecorev1alpha1.ClusterTopology{
+			clusterTopology: &grovecorev1alpha1.ClusterTopology{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "test-topology",
 				},
@@ -76,21 +77,8 @@ func TestValidateCreate(t *testing.T) {
 			expectedErr: false,
 		},
 		{
-			name: "invalid - no levels defined",
-			ct: &grovecorev1alpha1.ClusterTopology{
-				ObjectMeta: metav1.ObjectMeta{
-					Name: "test-topology",
-				},
-				Spec: grovecorev1alpha1.ClusterTopologySpec{
-					Levels: []grovecorev1alpha1.TopologyLevel{},
-				},
-			},
-			expectedErr:    true,
-			expectedErrMsg: "at least one topology level must be defined",
-		},
-		{
 			name: "invalid - duplicate domain (caught by order validation)",
-			ct: &grovecorev1alpha1.ClusterTopology{
+			clusterTopology: &grovecorev1alpha1.ClusterTopology{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "test-topology",
 				},
@@ -112,7 +100,7 @@ func TestValidateCreate(t *testing.T) {
 		},
 		{
 			name: "invalid - duplicate key",
-			ct: &grovecorev1alpha1.ClusterTopology{
+			clusterTopology: &grovecorev1alpha1.ClusterTopology{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "test-topology",
 				},
@@ -133,26 +121,8 @@ func TestValidateCreate(t *testing.T) {
 			expectedErrMsg: "duplicate key",
 		},
 		{
-			name: "invalid - empty key",
-			ct: &grovecorev1alpha1.ClusterTopology{
-				ObjectMeta: metav1.ObjectMeta{
-					Name: "test-topology",
-				},
-				Spec: grovecorev1alpha1.ClusterTopologySpec{
-					Levels: []grovecorev1alpha1.TopologyLevel{
-						{
-							Domain: grovecorev1alpha1.TopologyDomainZone,
-							Key:    "",
-						},
-					},
-				},
-			},
-			expectedErr:    true,
-			expectedErrMsg: "key is required",
-		},
-		{
 			name: "invalid - key not a valid label (has space)",
-			ct: &grovecorev1alpha1.ClusterTopology{
+			clusterTopology: &grovecorev1alpha1.ClusterTopology{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "test-topology",
 				},
@@ -170,7 +140,7 @@ func TestValidateCreate(t *testing.T) {
 		},
 		{
 			name: "invalid - key prefix has invalid characters (double dots)",
-			ct: &grovecorev1alpha1.ClusterTopology{
+			clusterTopology: &grovecorev1alpha1.ClusterTopology{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "test-topology",
 				},
@@ -188,7 +158,7 @@ func TestValidateCreate(t *testing.T) {
 		},
 		{
 			name: "invalid - key name part too long",
-			ct: &grovecorev1alpha1.ClusterTopology{
+			clusterTopology: &grovecorev1alpha1.ClusterTopology{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "test-topology",
 				},
@@ -206,7 +176,7 @@ func TestValidateCreate(t *testing.T) {
 		},
 		{
 			name: "invalid - levels out of order (zone before region)",
-			ct: &grovecorev1alpha1.ClusterTopology{
+			clusterTopology: &grovecorev1alpha1.ClusterTopology{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "test-topology",
 				},
@@ -219,54 +189,6 @@ func TestValidateCreate(t *testing.T) {
 						{
 							Domain: grovecorev1alpha1.TopologyDomainRegion,
 							Key:    "topology.kubernetes.io/region",
-						},
-					},
-				},
-			},
-			expectedErr:    true,
-			expectedErrMsg: "topology levels must be in hierarchical order",
-		},
-		{
-			name: "invalid - levels out of order (host before rack)",
-			ct: &grovecorev1alpha1.ClusterTopology{
-				ObjectMeta: metav1.ObjectMeta{
-					Name: "test-topology",
-				},
-				Spec: grovecorev1alpha1.ClusterTopologySpec{
-					Levels: []grovecorev1alpha1.TopologyLevel{
-						{
-							Domain: grovecorev1alpha1.TopologyDomainHost,
-							Key:    "kubernetes.io/hostname",
-						},
-						{
-							Domain: grovecorev1alpha1.TopologyDomainRack,
-							Key:    "topology.kubernetes.io/rack",
-						},
-					},
-				},
-			},
-			expectedErr:    true,
-			expectedErrMsg: "topology levels must be in hierarchical order",
-		},
-		{
-			name: "invalid - levels out of order (rack before datacenter)",
-			ct: &grovecorev1alpha1.ClusterTopology{
-				ObjectMeta: metav1.ObjectMeta{
-					Name: "test-topology",
-				},
-				Spec: grovecorev1alpha1.ClusterTopologySpec{
-					Levels: []grovecorev1alpha1.TopologyLevel{
-						{
-							Domain: grovecorev1alpha1.TopologyDomainRegion,
-							Key:    "topology.kubernetes.io/region",
-						},
-						{
-							Domain: grovecorev1alpha1.TopologyDomainRack,
-							Key:    "topology.kubernetes.io/rack",
-						},
-						{
-							Domain: grovecorev1alpha1.TopologyDomainDataCenter,
-							Key:    "topology.kubernetes.io/datacenter",
 						},
 					},
 				},
@@ -276,7 +198,7 @@ func TestValidateCreate(t *testing.T) {
 		},
 		{
 			name: "valid - correct hierarchical order (region > zone > datacenter > rack > host > numa)",
-			ct: &grovecorev1alpha1.ClusterTopology{
+			clusterTopology: &grovecorev1alpha1.ClusterTopology{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "test-topology",
 				},
@@ -301,31 +223,6 @@ func TestValidateCreate(t *testing.T) {
 						{
 							Domain: grovecorev1alpha1.TopologyDomainHost,
 							Key:    "kubernetes.io/hostname",
-						},
-						{
-							Domain: grovecorev1alpha1.TopologyDomainNuma,
-							Key:    "topology.kubernetes.io/numa",
-						},
-					},
-				},
-			},
-			expectedErr: false,
-		},
-		{
-			name: "valid - correct hierarchical order with gaps (region > rack > numa)",
-			ct: &grovecorev1alpha1.ClusterTopology{
-				ObjectMeta: metav1.ObjectMeta{
-					Name: "test-topology",
-				},
-				Spec: grovecorev1alpha1.ClusterTopologySpec{
-					Levels: []grovecorev1alpha1.TopologyLevel{
-						{
-							Domain: grovecorev1alpha1.TopologyDomainRegion,
-							Key:    "topology.kubernetes.io/region",
-						},
-						{
-							Domain: grovecorev1alpha1.TopologyDomainRack,
-							Key:    "topology.kubernetes.io/rack",
 						},
 						{
 							Domain: grovecorev1alpha1.TopologyDomainNuma,
@@ -338,10 +235,12 @@ func TestValidateCreate(t *testing.T) {
 		},
 	}
 
+	handler := &Handler{logger: logr.Discard()}
+	ctx := context.Background()
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			validator := newCTValidator(tt.ct, admissionv1.Create)
-			err := validator.validate()
+			_, err := handler.ValidateCreate(ctx, tt.clusterTopology)
 
 			if tt.expectedErr {
 				assert.Error(t, err)
@@ -357,15 +256,15 @@ func TestValidateCreate(t *testing.T) {
 
 func TestValidateUpdate(t *testing.T) {
 	tests := []struct {
-		name           string
-		oldCT          *grovecorev1alpha1.ClusterTopology
-		newCT          *grovecorev1alpha1.ClusterTopology
-		expectedErr    bool
-		expectedErrMsg string
+		name               string
+		oldClusterTopology *grovecorev1alpha1.ClusterTopology
+		newClusterTopology *grovecorev1alpha1.ClusterTopology
+		expectedErr        bool
+		expectedErrMsg     string
 	}{
 		{
 			name: "valid update - key changed",
-			oldCT: &grovecorev1alpha1.ClusterTopology{
+			oldClusterTopology: &grovecorev1alpha1.ClusterTopology{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "test-topology",
 				},
@@ -378,7 +277,7 @@ func TestValidateUpdate(t *testing.T) {
 					},
 				},
 			},
-			newCT: &grovecorev1alpha1.ClusterTopology{
+			newClusterTopology: &grovecorev1alpha1.ClusterTopology{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "test-topology",
 				},
@@ -395,7 +294,7 @@ func TestValidateUpdate(t *testing.T) {
 		},
 		{
 			name: "invalid - domain changed",
-			oldCT: &grovecorev1alpha1.ClusterTopology{
+			oldClusterTopology: &grovecorev1alpha1.ClusterTopology{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "test-topology",
 				},
@@ -408,7 +307,7 @@ func TestValidateUpdate(t *testing.T) {
 					},
 				},
 			},
-			newCT: &grovecorev1alpha1.ClusterTopology{
+			newClusterTopology: &grovecorev1alpha1.ClusterTopology{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "test-topology",
 				},
@@ -426,7 +325,7 @@ func TestValidateUpdate(t *testing.T) {
 		},
 		{
 			name: "invalid - level added",
-			oldCT: &grovecorev1alpha1.ClusterTopology{
+			oldClusterTopology: &grovecorev1alpha1.ClusterTopology{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "test-topology",
 				},
@@ -439,7 +338,7 @@ func TestValidateUpdate(t *testing.T) {
 					},
 				},
 			},
-			newCT: &grovecorev1alpha1.ClusterTopology{
+			newClusterTopology: &grovecorev1alpha1.ClusterTopology{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "test-topology",
 				},
@@ -461,7 +360,7 @@ func TestValidateUpdate(t *testing.T) {
 		},
 		{
 			name: "invalid - level removed",
-			oldCT: &grovecorev1alpha1.ClusterTopology{
+			oldClusterTopology: &grovecorev1alpha1.ClusterTopology{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "test-topology",
 				},
@@ -478,7 +377,7 @@ func TestValidateUpdate(t *testing.T) {
 					},
 				},
 			},
-			newCT: &grovecorev1alpha1.ClusterTopology{
+			newClusterTopology: &grovecorev1alpha1.ClusterTopology{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "test-topology",
 				},
@@ -495,8 +394,47 @@ func TestValidateUpdate(t *testing.T) {
 			expectedErrMsg: "not allowed to add or remove topology levels",
 		},
 		{
+			name: "invalid - update creates duplicate key",
+			oldClusterTopology: &grovecorev1alpha1.ClusterTopology{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "test-topology",
+				},
+				Spec: grovecorev1alpha1.ClusterTopologySpec{
+					Levels: []grovecorev1alpha1.TopologyLevel{
+						{
+							Domain: grovecorev1alpha1.TopologyDomainRegion,
+							Key:    "topology.kubernetes.io/region",
+						},
+						{
+							Domain: grovecorev1alpha1.TopologyDomainZone,
+							Key:    "topology.kubernetes.io/zone",
+						},
+					},
+				},
+			},
+			newClusterTopology: &grovecorev1alpha1.ClusterTopology{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "test-topology",
+				},
+				Spec: grovecorev1alpha1.ClusterTopologySpec{
+					Levels: []grovecorev1alpha1.TopologyLevel{
+						{
+							Domain: grovecorev1alpha1.TopologyDomainRegion,
+							Key:    "topology.kubernetes.io/zone",
+						},
+						{
+							Domain: grovecorev1alpha1.TopologyDomainZone,
+							Key:    "topology.kubernetes.io/zone",
+						},
+					},
+				},
+			},
+			expectedErr:    true,
+			expectedErrMsg: "duplicate key",
+		},
+		{
 			name: "valid update - multiple levels, keys changed",
-			oldCT: &grovecorev1alpha1.ClusterTopology{
+			oldClusterTopology: &grovecorev1alpha1.ClusterTopology{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "test-topology",
 				},
@@ -517,7 +455,7 @@ func TestValidateUpdate(t *testing.T) {
 					},
 				},
 			},
-			newCT: &grovecorev1alpha1.ClusterTopology{
+			newClusterTopology: &grovecorev1alpha1.ClusterTopology{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "test-topology",
 				},
@@ -542,15 +480,13 @@ func TestValidateUpdate(t *testing.T) {
 		},
 	}
 
+	handler := &Handler{logger: logr.Discard()}
+	ctx := context.Background()
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			validator := newCTValidator(tt.newCT, admissionv1.Update)
-			err := validator.validate()
-			if err != nil {
-				t.Fatalf("validate() failed: %v", err)
-			}
+			_, err := handler.ValidateUpdate(ctx, tt.newClusterTopology, tt.oldClusterTopology)
 
-			err = validator.validateUpdate(tt.oldCT)
 			if tt.expectedErr {
 				assert.Error(t, err)
 				if tt.expectedErrMsg != "" {

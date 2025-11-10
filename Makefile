@@ -90,3 +90,14 @@ test-cover:
 cover-html:
 	@echo "> Generating HTML coverage report for operator"
 	@make --directory=operator cover-html
+
+# Runs envtest tests for the operator
+.PHONY: test-envtest
+test-envtest:
+	@echo "> Running envtest for operator"
+	@make --directory=operator test-envtest
+
+# Runs all tests (unit + envtest)
+.PHONY: test
+test: test-unit test-envtest
+	@echo "> All tests passed"

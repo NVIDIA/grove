@@ -77,6 +77,41 @@ const (
 	TopologyDomainNuma TopologyDomain = "numa"
 )
 
+// topologyDomainOrder defines the hierarchical order of topology domains from broadest to narrowest.
+// Lower value = broader scope (e.g., Region is broader than Zone).
+var topologyDomainOrder = map[TopologyDomain]int{
+	TopologyDomainRegion:     0,
+	TopologyDomainZone:       1,
+	TopologyDomainDataCenter: 2,
+	TopologyDomainBlock:      3,
+	TopologyDomainRack:       4,
+	TopologyDomainHost:       5,
+	TopologyDomainNuma:       6,
+}
+
+// Compare compares this domain with another domain.
+// Returns:
+//   - negative value if this domain is broader than other
+//   - zero if domains are equal
+//   - positive value if this domain is narrower than other
+//
+// This method assumes both domains are valid (enforced by kubebuilder validation).
+func (d TopologyDomain) Compare(other TopologyDomain) int {
+	return topologyDomainOrder[d] - topologyDomainOrder[other]
+}
+
+// BroaderThan returns true if this domain represents a broader scope than the other domain.
+// For example, Region.BroaderThan(Zone) returns true.
+func (d TopologyDomain) BroaderThan(other TopologyDomain) bool {
+	return d.Compare(other) < 0
+}
+
+// NarrowerThan returns true if this domain represents a narrower scope than the other domain.
+// For example, Zone.NarrowerThan(Region) returns true.
+func (d TopologyDomain) NarrowerThan(other TopologyDomain) bool {
+	return d.Compare(other) > 0
+}
+
 // TopologyLevel defines a single level in the topology hierarchy.
 type TopologyLevel struct {
 	// Domain is the predefined level identifier used in TopologyConstraint references.
@@ -92,4 +127,25 @@ type TopologyLevel struct {
 	// +kubebuilder:validation:MinLength=1
 	// +kubebuilder:validation:MaxLength=63
 	Key string `json:"key"`
+}
+
+// Compare compares this topology level with another level based on their domains.
+// Returns:
+//   - negative value if this level is broader than other
+//   - zero if levels have equal domain scope
+//   - positive value if this level is narrower than other
+func (l TopologyLevel) Compare(other TopologyLevel) int {
+	return l.Domain.Compare(other.Domain)
+}
+
+// BroaderThan returns true if this level represents a broader scope than the other level.
+// For example, a Region level is broader than a Zone level.
+func (l TopologyLevel) BroaderThan(other TopologyLevel) bool {
+	return l.Domain.BroaderThan(other.Domain)
+}
+
+// NarrowerThan returns true if this level represents a narrower scope than the other level.
+// For example, a Zone level is narrower than a Region level.
+func (l TopologyLevel) NarrowerThan(other TopologyLevel) bool {
+	return l.Domain.NarrowerThan(other.Domain)
 }
