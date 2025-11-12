@@ -23,6 +23,7 @@ import (
 
 	configv1alpha1 "github.com/ai-dynamo/grove/operator/api/config/v1alpha1"
 	"github.com/ai-dynamo/grove/operator/internal/constants"
+	clustertopologydefaulting "github.com/ai-dynamo/grove/operator/internal/webhook/admission/clustertopology/defaulting"
 	ctvalidation "github.com/ai-dynamo/grove/operator/internal/webhook/admission/clustertopology/validation"
 	"github.com/ai-dynamo/grove/operator/internal/webhook/admission/pcs/authorization"
 	"github.com/ai-dynamo/grove/operator/internal/webhook/admission/pcs/defaulting"
@@ -33,6 +34,11 @@ import (
 
 // RegisterWebhooks registers the webhooks with the controller manager.
 func RegisterWebhooks(mgr manager.Manager, authorizerConfig configv1alpha1.AuthorizerConfig) error {
+	clusterTopologyDefaultingWebhook := clustertopologydefaulting.NewHandler(mgr)
+	slog.Info("Registering webhook with manager", "handler", clustertopologydefaulting.Name)
+	if err := clusterTopologyDefaultingWebhook.RegisterWithManager(mgr); err != nil {
+		return fmt.Errorf("failed adding %s webhook handler: %v", clustertopologydefaulting.Name, err)
+	}
 	defaultingWebhook := defaulting.NewHandler(mgr)
 	slog.Info("Registering webhook with manager", "handler", defaulting.Name)
 	if err := defaultingWebhook.RegisterWithManager(mgr); err != nil {

@@ -22,6 +22,7 @@ import (
 	"strings"
 
 	"github.com/ai-dynamo/grove/operator/internal/constants"
+	clustertopologydefaultingwebhook "github.com/ai-dynamo/grove/operator/internal/webhook/admission/clustertopology/defaulting"
 	clustertopologyvalidation "github.com/ai-dynamo/grove/operator/internal/webhook/admission/clustertopology/validation"
 	authorizationwebhook "github.com/ai-dynamo/grove/operator/internal/webhook/admission/pcs/authorization"
 	defaultingwebhook "github.com/ai-dynamo/grove/operator/internal/webhook/admission/pcs/defaulting"
@@ -80,6 +81,10 @@ func WaitTillWebhookCertsReady(logger logr.Logger, certsReady chan struct{}) {
 func getWebhooks(authorizerEnabled bool) []cert.WebhookInfo {
 	// defaulting and validating webhooks are always enabled, and are therefore registered by default.
 	webhooks := []cert.WebhookInfo{
+		{
+			Type: cert.Mutating,
+			Name: clustertopologydefaultingwebhook.Name,
+		},
 		{
 			Type: cert.Mutating,
 			Name: defaultingwebhook.Name,
