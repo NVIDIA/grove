@@ -6,6 +6,27 @@ This document proposes additional configuration options for the update strategy 
 
 ## Motivation
 
+Currently, Grove implements a single, non-configurable default update strategy across all resource levels:
+
+**PodCliqueSet (PCS) Replica Updates:**
+
+- Updates one replica at a time (sequential)
+- Replica selection priority: unscheduled → unhealthy (minAvailableBreached) → ascending ordinal
+
+**Within PCS Replica - PodCliqueScalingGroup (PCSG) Updates:**
+
+- Updates one PCSG replica at a time (sequential)
+- Replica selection: ascending ordinal (lowest index first)
+- Entire PCSG replica is deleted and recreated (all member PodCliques together)
+
+**Within PCS Replica - Standalone PodClique (PC) Updates:**
+
+- Updates one pod at a time (sequential)
+- Pod selection: oldest pod first (by creation timestamp)
+- Individual pods are deleted and recreated
+
+This default behavior provides safe, conservative updates but lacks user configurability. At the PCSG and standalone PC levels, the update corresponds to maxUnavailable 1 and maxSurge 0 where a singular old replica is deleted and new one is created.
+
 ## Goals
 
 ## Non-Goals
