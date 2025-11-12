@@ -172,15 +172,8 @@ func validateTopologyLevelImmutableFields(newLevels, oldLevels []grovecorev1alph
 
 	for i := range newLevels {
 		levelPath := fldPath.Index(i)
-		newLevel := newLevels[i]
-		oldLevel := oldLevels[i]
 
-		// Validate that domain is immutable
-		if newLevel.Domain != oldLevel.Domain {
-			allErrs = append(allErrs, field.Invalid(levelPath.Child("domain"), newLevel.Domain,
-				fmt.Sprintf("domain is immutable, cannot change from '%s' to '%s'", oldLevel.Domain, newLevel.Domain)))
-		}
-
+		allErrs = append(allErrs, apivalidation.ValidateImmutableField(newLevels[i].Domain, oldLevels[i].Domain, levelPath.Child("domain"))...)
 		// Note: Key is allowed to change (not in the requirements), but validation has already occurred in validate()
 	}
 
