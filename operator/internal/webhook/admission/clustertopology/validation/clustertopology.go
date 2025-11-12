@@ -149,7 +149,7 @@ func (v *clusterTopologyValidator) validateUpdate(oldClusterTopology *grovecorev
 }
 
 // validateClusterTopologySpecUpdate validates updates to the ClusterTopology specification.
-func (v *clusterTopologyValidator) validateClusterTopologySpecUpdate(newSpec, oldSpec *grovecorev1alpha1.ClusterTopologySpec, fldPath *field.Path) field.ErrorList {
+func (v *clusterTopologyValidator) validateClusterTopologySpecUpdate(oldSpec, newSpec *grovecorev1alpha1.ClusterTopologySpec, fldPath *field.Path) field.ErrorList {
 	allErrs := field.ErrorList{}
 
 	levelsPath := fldPath.Child("levels")
