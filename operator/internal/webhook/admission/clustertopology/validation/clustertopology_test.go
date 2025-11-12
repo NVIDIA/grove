@@ -321,7 +321,7 @@ func TestValidateUpdate(t *testing.T) {
 				},
 			},
 			expectedErr:    true,
-			expectedErrMsg: "domain is immutable",
+			expectedErrMsg: "field is immutable",
 		},
 		{
 			name: "invalid - level added",
@@ -485,7 +485,7 @@ func TestValidateUpdate(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			_, err := handler.ValidateUpdate(ctx, tt.newClusterTopology, tt.oldClusterTopology)
+			_, err := handler.ValidateUpdate(ctx, tt.oldClusterTopology, tt.newClusterTopology)
 
 			if tt.expectedErr {
 				assert.Error(t, err)

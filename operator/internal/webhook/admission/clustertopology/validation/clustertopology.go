@@ -23,6 +23,7 @@ import (
 
 	"github.com/samber/lo"
 	admissionv1 "k8s.io/api/admission/v1"
+	apivalidation "k8s.io/apimachinery/pkg/api/validation"
 	metav1validation "k8s.io/apimachinery/pkg/apis/meta/v1/validation"
 	"k8s.io/apimachinery/pkg/util/validation/field"
 )
