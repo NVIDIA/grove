@@ -151,8 +151,8 @@ const (
 )
 
 type PodCliqueSetRollingUpdateStrategy struct {
-    MaxUnavailable *int32  // How many PCS replicas can be down
-    MaxSurge       *int32  // How many extra PCS replicas to create
+    MaxUnavailable *intstr.IntOrString  // How many PCS replicas can be down (absolute number or percentage)
+    MaxSurge       *intstr.IntOrString  // How many extra PCS replicas to create (absolute number or percentage)
 }
 ```
 
@@ -164,8 +164,8 @@ Controls **how pods update within a standalone PodClique**.
 
 ```go
 type ComponentUpdateStrategy struct {
-    MaxUnavailable *int32  // How many pods can be down
-    MaxSurge       *int32  // How many extra pods to create
+    MaxUnavailable *intstr.IntOrString  // How many pods can be down (absolute number or percentage)
+    MaxSurge       *intstr.IntOrString  // How many extra pods to create (absolute number or percentage)
 }
 ```
 
@@ -178,8 +178,8 @@ Controls **how PCSG replicas update within a scaling group**.
 
 ```go
 type ComponentUpdateStrategy struct {
-    MaxUnavailable *int32  // How many PCSG replicas can be down
-    MaxSurge       *int32  // How many extra PCSG replicas to create
+    MaxUnavailable *intstr.IntOrString  // How many PCSG replicas can be down (absolute number or percentage)
+    MaxSurge       *intstr.IntOrString  // How many extra PCSG replicas to create (absolute number or percentage)
 }
 ```
 
@@ -190,7 +190,7 @@ type ComponentUpdateStrategy struct {
 
 ### RollingUpdate (Default)
 
-The default RollingUpdate behavior is described in the [Motivation](#motivation) section. When using the RollingUpdate strategy, `maxUnavailable` and `maxSurge` settings at the PodCliqueSet level have no effect - PCS replicas are always updated one at a time sequentially. However, PC and PCSG `updateStrategy` settings (maxUnavailable/maxSurge) are observed and control how pods and PCSG replicas update within each PCS replica.
+The default RollingUpdate behavior is described in the [Motivation](#motivation) section. When using the RollingUpdate strategy, `maxUnavailable` and `maxSurge` settings at the PodCliqueSet level are invalid and will be rejected by the validation webhook - PCS replicas are always updated one at a time sequentially. However, PC and PCSG `updateStrategy` settings (maxUnavailable/maxSurge) are observed and control how pods and PCSG replicas update within each PCS replica.
 
 **Use Cases:**
 
@@ -515,6 +515,59 @@ A `partition` integer field (similar to LeaderWorkerSet) would control which rep
 **Complexity:**
 
 - Requires controller revisions to maintain old spec, more complex logic to filter replica selection based on partition value, handling partition changes during active updates, and different semantics at PCS level (replica indices) vs component level (pod or PCSG replica indices)
+
+## Validation Webhook
+
+The validation webhook enforces constraints on update strategy configuration to ensure valid and safe update behavior.
+
+### Range Validation
+
+**MaxUnavailable and MaxSurge Values:**
+
+- Both `maxUnavailable` and `maxSurge` must be >= 0 (cannot be negative)
+- At least one of `maxUnavailable` or `maxSurge` must be > 0 (sum must be > 0)
+- Validation applies at all levels: PodCliqueSet, PodCliqueScalingGroup, and PodClique
+
+**MaxUnavailable Upper Bound:**
+
+- `maxUnavailable` must be <= `replicas` at the corresponding level
+  - At PodCliqueSet level: `maxUnavailable <= spec.replicas`
+  - At PodCliqueScalingGroup level: `maxUnavailable <= PCSG replicas`
+  - At PodClique level: `maxUnavailable <= PC replicas`
+
+### Percentage and Absolute Number Support
+
+Both `maxUnavailable` and `maxSurge` support either absolute numbers or percentages, similar to Kubernetes Deployments:
+
+- **Absolute number**: Integer value (e.g., `5`)
+- **Percentage**: String value with `%` suffix (e.g., `"10%"`)
+
+**Percentage Conversion Rules:**
+
+- **MaxUnavailable**: Percentage is calculated by rounding **down** to the nearest integer
+  - Example: `replicas=10`, `maxUnavailable="25%"` → `maxUnavailable=2` (10 \* 0.25 = 2.5, rounded down to 2)
+- **MaxSurge**: Percentage is calculated by rounding **up** to the nearest integer
+  - Example: `replicas=10`, `maxSurge="25%"` → `maxSurge=3` (10 \* 0.25 = 2.5, rounded up to 3)
+
+**MaxSurge Constraint:**
+
+- If `maxUnavailable=0` (or `"0%"`), then `maxSurge` cannot be 0 (or `"0%"`)
+- This ensures at least one replica can be updated when no replicas can be unavailable
+
+### Strategy Type Validation
+
+**ReplicaRecreate Strategy:**
+
+- If `updateStrategy.type = ReplicaRecreate` at PodCliqueSet level:
+  - **Error**: Any `updateStrategy` fields defined at PodClique (PC) level are invalid
+  - **Error**: Any `updateStrategy` fields defined at PodCliqueScalingGroup (PCSG) level are invalid
+  - **Reason**: ReplicaRecreate bypasses component-level update strategies, so they should not be specified
+
+**RollingUpdate Strategy:**
+
+- If `updateStrategy.type = RollingUpdate` at PodCliqueSet level:
+  - **Error**: `maxUnavailable` and `maxSurge` fields in `PodCliqueSetRollingUpdateStrategy` are invalid
+  - **Reason**: With RollingUpdate, PCS replicas are always updated one at a time sequentially, so PCS-level `maxUnavailable`/`maxSurge` have no effect and should not be specified
 
 ## Migration Path
 
