@@ -58,13 +58,21 @@ The default strategy assumes version compatibility during the update window. For
 
 ### Compatible Configuration Update
 
-Using the same multinode disaggregated deployment example, consider an update where the new versions are compatible between Frontend, Prefill, and Decode components. The update follows the same Default Update Behavior, but users may want to optimize the update process based on their capacity and SLA requirements.
+Consider a multinode aggregated inference serving deployment with 2 PCS replicas, where each replica contains:
+
+- **Aggregated Workers** PCSG: 3 replicas (each replica includes inference workers with a frontend capable of tokenization that accepts OpenAI Chat Completion requests)
+
+**Default Update Behavior:**
+
+1. PCS replica 0 is selected for update
+2. Aggregated Workers PCSG updates one replica at a time (3 replicas sequentially)
+3. PCS replica 1 repeats the same process
 
 **Scenario 1: Maintaining Full Capacity During Updates**
 
 A user with excess cluster capacity wants to maintain full service capacity during updates. They would like to:
 
-- Surge additional prefill and decode replicas before deleting old ones
+- Surge additional aggregated worker replicas before deleting old ones
 - Keep existing replicas running to meet SLAs while new replicas are created
 - Only delete old replicas after new ones are ready
 
@@ -72,7 +80,7 @@ However, the current default strategy (`maxUnavailable=1, maxSurge=0`) requires 
 
 **Scenario 2: Faster Updates with Multiple Replicas**
 
-A user with 4 replicas of prefill/decode each wants to speed up the update process. They would like to:
+A user with 4 replicas of aggregated workers wants to speed up the update process. They would like to:
 
 - Update 2 replicas simultaneously (`maxUnavailable=2`) instead of one at a time
 - Reduce overall update time while still maintaining service availability
@@ -182,7 +190,13 @@ type ComponentUpdateStrategy struct {
 
 ### RollingUpdate (Default)
 
-The default RollingUpdate behavior is described in the [Motivation](#motivation) section. When using the RollingUpdate strategy, `maxUnavailable` and `maxSurge` settings at the PodCliqueSet level have no effect - PCS replicas are always updated one at a time sequentially.
+The default RollingUpdate behavior is described in the [Motivation](#motivation) section. When using the RollingUpdate strategy, `maxUnavailable` and `maxSurge` settings at the PodCliqueSet level have no effect - PCS replicas are always updated one at a time sequentially. However, PC and PCSG `updateStrategy` settings (maxUnavailable/maxSurge) are observed and control how pods and PCSG replicas update within each PCS replica.
+
+**Use Cases:**
+
+- Compatible version updates where old and new versions can coexist during the rollout
+- Configuration updates that don't require atomic replica recreation
+- Updates where component-level control over update speed and capacity is desired
 
 ### ReplicaRecreate
 
@@ -200,10 +214,11 @@ When using the ReplicaRecreate strategy, `maxUnavailable` and `maxSurge` at the 
 - `maxUnavailable`: Maximum number of PCS replicas that can be down (deleted) at once during the update
 - `maxSurge`: Maximum number of extra PCS replicas that can be created above the desired replica count during the update
 
-For example, with `replicas=2` and `maxUnavailable=1, maxSurge=0`:
+For example, with `replicas=2` and `maxUnavailable=0, maxSurge=1`:
 
-- One PCS replica is deleted and recreated at a time
-- The other replica remains available during the update
+- A surge PCS replica is created first with the new configuration
+- Once the surge replica is available, both old replicas are sequentially deleted and recreated
+- Finally, the surge replica is deleted, maintaining full capacity throughout the update
 
 With `replicas=2` and `maxUnavailable=2, maxSurge=0`:
 
@@ -308,7 +323,6 @@ PodCliqueScalingGroup replicas use replica indices (0, 1, 2, ...). When surge re
 - **Surge replica cannot be scheduled**: Surge replica is always in a scaled PodGang. If scaled PodGang is blocked and base PodGang is updating, creates circular dependency
 - **Base PodGang update blocks surge scaled PodGang**: Surge replica in scaled PodGang is gated by base PodGang readiness. If base is updating, surge cannot proceed.
 - **Surge replica scheduled but not ready**: Update cannot proceed if `maxUnavailable=0` requires surge replica to be available before deleting old replicas.
-- **Gang scheduling amplification**: Surge replica contains multiple PodCliques (one per `CliqueName`), all must be scheduled together in the gang, increasing resource requirements.
 
 ### PCS Replica-Level MaxSurge with ReplicaRecreate
 
@@ -474,9 +488,9 @@ Similar to Deployments, set a condition (e.g., `ProgressDeadlineExceeded`) to `T
 
 Automatically rollback to the previous generation hash when timeout is reached. This requires controller revisions or some mechanism to track previous spec state, which adds complexity. Additional considerations include: what if the rollback itself fails, how to handle partial updates where some replicas succeeded and others failed, and how to actually perform the rollback (restore previous spec, trigger new update, etc.).
 
-### Pause and Partition Mechanisms
+### Paused Rollout Mechanisms
 
-Two mechanisms can enable controlled rollouts: a `paused` field to halt updates entirely, and a `partition` field (similar to LeaderWorkerSet) to control how many replicas can be updated. These can be used for canary deployments where a rollout is stopped and traffic is split between new and old versions to confirm the update works and meets SLAs.
+Two mechanisms can enable controlled rollouts: a `paused` field to halt updates entirely, or a `partition` field (similar to LeaderWorkerSet) to control how many replicas can be updated. These can be used for canary deployments where a rollout is stopped and traffic is split between new and old versions to confirm the update works and meets SLAs.
 
 **Option 1: Pause Field**
 
