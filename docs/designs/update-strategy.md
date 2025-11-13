@@ -51,14 +51,34 @@ When the new frontend and worker versions introduce breaking API changes or prot
 
 - During frontend pod updates, old and new frontend pods run concurrently, sending requests to a mix of old and new PCSG replicas
 - During PCSG updates, new frontend pods communicate with old PCSG replicas (or vice versa)
+- Communication between new prefill replicas and old decode replicas (or vice versa) can cause protocol mismatches
 - This mixed-version state causes communication failures, incorrect behavior, or crashes
 
-The default strategy assumes version compatibility during the update window. For incompatible updates, users need the ability to tear down the entire PCS replica atomically (via `ReplicaRecreate` strategy) to prevent any cross-version communication within a replica.
+The default strategy assumes version compatibility during the update window. For incompatible updates, users need the ability to tear down the entire PCS replica atomically to prevent any cross-version communication within a replica.
 
-**TODOs**:
+### Compatible Configuration Update
 
-- Don't mention ReplicaRecreate
-- Also mention that decode/prefill communication between new and old replicas can cause issues
+Using the same multinode disaggregated deployment example, consider an update where the new versions are compatible between Frontend, Prefill, and Decode components. The update follows the same Default Update Behavior, but users may want to optimize the update process based on their capacity and SLA requirements.
+
+**Scenario 1: Maintaining Full Capacity During Updates**
+
+A user with excess cluster capacity wants to maintain full service capacity during updates. They would like to:
+
+- Surge additional prefill and decode replicas before deleting old ones
+- Keep existing replicas running to meet SLAs while new replicas are created
+- Only delete old replicas after new ones are ready
+
+However, the current default strategy (`maxUnavailable=1, maxSurge=0`) requires deleting an old replica before creating a new one. While service availability is maintained (when replica count > 1), this reduces capacity during the update window. With excess capacity available, users should be able to surge replicas to maintain full capacity throughout the update.
+
+**Scenario 2: Faster Updates with Multiple Replicas**
+
+A user with 4 replicas of prefill/decode each wants to speed up the update process. They would like to:
+
+- Update 2 replicas simultaneously (`maxUnavailable=2`) instead of one at a time
+- Reduce overall update time while still maintaining service availability
+- Balance update speed with acceptable capacity reduction during the update window
+
+The current default strategy only allows `maxUnavailable=1`, forcing sequential updates even when the deployment can tolerate multiple replicas being unavailable simultaneously.
 
 ## Goals
 
