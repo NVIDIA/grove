@@ -22,6 +22,10 @@ REPO_HACK_DIR   := $(REPO_ROOT)/hack
 # Include tools targets
 include $(REPO_HACK_DIR)/tools.mk
 
+.PHONY: tidy
+tidy:
+	@go mod tidy
+
 # Generates code and CRDs.
 .PHONY: generate
 generate: $(CONTROLLER_GEN)

@@ -18,6 +18,15 @@ REPO_HACK_DIR       := $(REPO_ROOT)/hack
 
 include $(REPO_HACK_DIR)/tools.mk
 
+.PHONY: tidy
+tidy:
+	@echo "> Tidying scheduler/api"
+	@make --directory=scheduler/api tidy
+	@echo "> Tidying operator/api"
+	@make --directory=operator/api tidy
+	@echo "> Tidying operator"
+	@make --directory=operator tidy
+
 # Checks the entire codebase by linting and formatting the code base, and checking for uncommitted changes
 .PHONY: check
 check: generate add-license-headers format generate-api-docs lint

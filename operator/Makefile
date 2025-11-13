@@ -29,6 +29,10 @@ include $(REPO_HACK_DIR)/tools.mk
 
 kind-up kind-down deploy deploy-dev deploy-debug undeploy deploy-addons: export KUBECONFIG = $(KUBECONFIG_PATH)
 
+.PHONY: tidy
+tidy:
+	@go mod tidy
+
 # Builds grove-operator for the current platform.
 .PHONY: build-operator
 build-operator:

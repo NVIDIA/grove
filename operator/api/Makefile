@@ -19,6 +19,10 @@ MODULE_HACK_DIR := $(MODULE_ROOT)/hack
 REPO_ROOT       := $(shell dirname $(shell dirname "$(MODULE_ROOT)"))
 REPO_HACK_DIR   := $(REPO_ROOT)/hack
 
+.PHONY: tidy
+tidy:
+	@go mod tidy
+
 # Include tools targets
 include $(REPO_HACK_DIR)/tools.mk
 
