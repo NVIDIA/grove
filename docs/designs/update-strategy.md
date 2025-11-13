@@ -227,23 +227,44 @@ With `replicas=2` and `maxUnavailable=2, maxSurge=0`:
 - Index holes are filled naturally by index tracker
 - Example: `replicas=10`, during surge can have pod with index 11
 
-### PCS Replica-Level MaxSurge (Complex)
+### PCS Replica-Level MaxSurge with ReplicaRecreate
 
-**Challenges:**
+**Behavior:**
 
-- Creates temporary replicas with indices `[replicas, replicas+maxSurge-1]`
-- DNS names become non-sequential during updates
-- Example: `replicas=3`, surge creates replica 3, indices become [1, 2, 3] after deleting 0
-- **Index holes occur** during rolling updates
-- Applications must tolerate non-sequential replica indices
+With ReplicaRecreate, surge replicas are created at new indices above the desired replica count to avoid index holes. The update process:
 
-**Gang Scheduling:**
+1. Creates surge replicas at indices `[replicas, replicas+maxSurge-1]`
+2. Recreates original indices `[0, replicas-1]` with the updated spec
+3. Deletes surge replicas once original indices are recreated
 
-- ✅ Each PodGang is independent (no cross-replica dependencies)
-- ✅ Surge replica can be gang-scheduled if cluster has capacity
-- ❌ But naming/DNS challenges remain
+**Example:**
 
-**Recommendation:** Start with `maxUnavailable` only, add `maxSurge` support later if needed.
+With `replicas=3`, `maxSurge=1`, and `maxUnavailable=0`:
+
+1. **Initial state:** Replicas 0, 1, 2 (old spec)
+2. **Create surge replica:** Replicas 0, 1, 2 (old), 3 (surge, new spec)
+3. **Wait for surge available:** Replica 3 becomes available
+4. **Delete and recreate replica 0:** Replicas 0 (new), 1, 2 (old), 3 (surge, new)
+5. **Wait for replica 0 available:** Replica 0 becomes available
+6. **Delete and recreate replica 1:** Replicas 0, 1 (new), 2 (old), 3 (surge, new)
+7. **Wait for replica 1 available:** Replica 1 becomes available
+8. **Delete and recreate replica 2:** Replicas 0, 1, 2 (new), 3 (surge, new)
+9. **Wait for replica 2 available:** Replica 2 becomes available
+10. **Delete surge replica 3:** Replicas 0, 1, 2 (new spec) - no index holes
+
+This approach maintains sequential indices throughout the update, avoiding DNS naming issues and ensuring applications always see consistent replica indices. With `maxUnavailable=0`, a surge replica must be available before deleting any original replica to maintain full capacity.
+
+**Stuck Scenarios with ReplicaRecreate and MaxSurge:**
+
+When using ReplicaRecreate with `maxSurge > 0`, the update can get stuck if surge replicas fail to become available. This can happen in several scenarios:
+
+1. **Surge replica is unscheduled**: The surge replica's pods cannot be scheduled due to insufficient cluster resources, topology constraints that cannot be satisfied, node selectors/affinity mismatches, or resource quotas exceeded.
+
+2. **Surge replica has MinAvailable breached**: The surge replica's pods are scheduled but fail to become ready due to crash loops, health check failures, application startup failures, or dependency issues.
+
+3. **Existing replicas are unhealthy**: Even if surge replica is healthy, if existing replicas are unscheduled or have MinAvailable breached, the update may be blocked by `maxUnavailable` constraints.
+
+Users are responsible for identifying when a rolling update with `maxSurge` during ReplicaRecreate is stuck (e.g., update progress stalls, surge replica remains unscheduled or has MinAvailable breached) and manually intervening to unblock the update, such as by reducing `maxSurge` to 0 or deleting the stuck surge replica.
 
 ## Use Case Examples
 
