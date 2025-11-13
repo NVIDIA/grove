@@ -218,14 +218,97 @@ With `replicas=2` and `maxUnavailable=2, maxSurge=0`:
 
 ## MaxSurge Considerations
 
-### Pod-Level MaxSurge (Safe)
+### PodClique MaxSurge
 
-**Works well** because:
+**Indexing Strategy:**
 
-- Pod indices can exceed replica count temporarily
-- Pod names use `GenerateName` (no collisions)
-- Index holes are filled naturally by index tracker
-- Example: `replicas=10`, during surge can have pod with index 11
+PodClique uses an index tracker that extracts pod indices from hostnames and fills holes automatically. When surge pods are created:
+
+1. **Surge pods get indices above replica count**: With `replicas=3` and `maxSurge=1`, surge pod gets index 3 (or higher if holes exist)
+2. **Index tracker fills holes**: When old pods are deleted, their indices become available. The tracker fills holes from lowest to highest (starting from 0)
+3. **No holes at end of update**: As old pods are deleted and recreated, new pods fill the lowest available indices, ensuring sequential indices `[0, replicas-1]` at completion
+
+**Example with `replicas=3`, `maxSurge=1`, `maxUnavailable=0`:**
+
+1. **Initial:** Pods with indices 0, 1, 2 (old spec)
+2. **Create surge:** Pod with index 3 (surge, new spec) - now have [0, 1, 2, 3]
+3. **Delete pod 0:** Index 0 becomes available
+4. **Recreate pod 0:** New pod fills index 0 (new spec) - now have [0, 1, 2, 3]
+5. **Delete pod 1:** Index 1 becomes available
+6. **Recreate pod 1:** New pod fills index 1 (new spec) - now have [0, 1, 2, 3]
+7. **Delete pod 2:** Index 2 becomes available
+8. **Recreate pod 2:** New pod fills index 2 (new spec) - now have [0, 1, 2, 3]
+9. **Delete surge pod 3:** Final state [0, 1, 2] - no holes
+
+**Gang Scheduling Impact:**
+
+- Surge pods are added to the same PodGroup as existing pods
+- PodGroup's `PodReferences` list includes all pods (old + surge)
+- Gang scheduling requires the PodGroup to meet `MinReplicas` (from PodClique's `MinAvailable`)
+- All pods in the PodGroup (including surge) must be scheduled together as part of the gang
+- If surge pod cannot be scheduled, the entire gang is blocked
+
+**PodGang/PodGroup Construction:**
+
+- PodGroup contains pod references from the PodClique
+- During surge, PodGroup temporarily has more pod references than `replicas` count
+- PodGroup's `MinReplicas` is set to PodClique's `MinAvailable` (not affected by surge)
+- Gang scheduling ensures at least `MinReplicas` pods are scheduled together
+
+**Stuck Scenarios:**
+
+- **Surge pod cannot be scheduled**: Gang scheduling blocks until surge pod can be scheduled, update stuck
+- **Surge pod scheduled but not ready**: Update cannot proceed if `maxUnavailable=0` requires surge pod to be ready before deleting old pods
+
+### PodCliqueScalingGroup MaxSurge
+
+**Indexing Strategy:**
+
+PodCliqueScalingGroup replicas use replica indices (0, 1, 2, ...). When surge replicas are created:
+
+1. **Surge replicas get indices above replica count**: With `replicas=3` and `maxSurge=1`, surge replica gets index 3
+2. **Replica placement depends on minAvailable**:
+   - If `replicas <= minAvailable`: All replicas (including surge) go into base PodGang
+   - If `replicas > minAvailable`: Surge replica goes into scaled PodGang
+3. **No holes at end of update**: Original replica indices `[0, replicas-1]` are maintained, surge replicas at `[replicas, replicas+maxSurge-1]` are deleted after update completes
+
+**Example with `replicas=3`, `minAvailable=3`, `maxSurge=1`, `maxUnavailable=0`:**
+
+1. **Initial:** Replicas 0, 1, 2 in base PodGang (old spec)
+2. **Create surge:** Replica 3 in scaled PodGang (surge, new spec) - replicas 0, 1, 2 in base PodGang; replica 3 in scaled PodGang
+3. **Wait for surge available:** Replica 3 becomes available (scaled PodGang gated by base PodGang readiness)
+4. **Delete and recreate replica 0:** Replica 0 (new spec) in base PodGang
+5. **Wait for replica 0 available:** Replica 0 becomes available
+6. **Delete and recreate replica 1:** Replica 1 (new spec) in base PodGang
+7. **Wait for replica 1 available:** Replica 1 becomes available
+8. **Delete and recreate replica 2:** Replica 2 (new spec) in base PodGang
+9. **Wait for replica 2 available:** Replica 2 becomes available
+10. **Delete surge replica 3:** Final state replicas [0, 1, 2] - no holes
+
+**Example with `replicas=3`, `minAvailable=2`, `maxSurge=1`:**
+
+1. **Initial:** Replicas 0, 1 in base PodGang; Replica 2 in scaled PodGang (old spec)
+2. **Create surge:** Replica 3 in scaled PodGang (surge, new spec)
+3. **Update proceeds:** Replicas 0, 1, 2 updated, then surge replica 3 deleted
+
+**Gang Scheduling Impact:**
+
+- **Base PodGang (replicas 0 to minAvailable-1)**: All PodGroups in base PodGang must meet `MinReplicas` for gang scheduling to proceed.
+- **Scaled PodGangs (replicas >= minAvailable)**: Surge replicas (always at indices >= replicas, which is >= minAvailable) get their own scaled PodGang. Scaled PodGangs are gated by base PodGang readiness - gates are removed only after base PodGang is ready.
+- **Gang scheduling constraints**: Each PodGroup (one per PodClique in the PCSG replica) must meet its `MinReplicas` for the gang to be scheduled.
+
+**PodGang/PodGroup Construction:**
+
+- **Base PodGang**: Contains PodGroups for replicas 0 to `minAvailable-1`.
+- **Scaled PodGangs**: Each replica >= `minAvailable` gets its own scaled PodGang. Surge replicas (always at indices >= replicas >= minAvailable) create new scaled PodGangs.
+- **PodGroup per PodClique**: Each PodClique in a PCSG replica becomes a PodGroup. Surge replica creates PodGroups for all its PodCliques.
+
+**Stuck Scenarios:**
+
+- **Surge replica cannot be scheduled**: Surge replica is always in a scaled PodGang. If scaled PodGang is blocked and base PodGang is updating, creates circular dependency
+- **Base PodGang update blocks surge scaled PodGang**: Surge replica in scaled PodGang is gated by base PodGang readiness. If base is updating, surge cannot proceed.
+- **Surge replica scheduled but not ready**: Update cannot proceed if `maxUnavailable=0` requires surge replica to be available before deleting old replicas.
+- **Gang scheduling amplification**: Surge replica contains multiple PodCliques (one per `CliqueName`), all must be scheduled together in the gang, increasing resource requirements.
 
 ### PCS Replica-Level MaxSurge with ReplicaRecreate
 
