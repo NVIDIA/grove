@@ -351,11 +351,13 @@ Users are responsible for identifying when a rolling update with `maxSurge` duri
 
 ## Use Case Examples
 
-### High-Availability Inference Service
+### Single Node Aggregated (Version Compatibility Assumed)
+
+Single node deployment with version compatibility between components. Frontend uses default update strategy (sequential), while agg worker uses surge to maintain capacity.
 
 ```yaml
 spec:
-  replicas: 3
+  replicas: 1
   updateStrategy:
     type: RollingUpdate
     rollingUpdate:
@@ -364,25 +366,54 @@ spec:
   template:
     cliques:
       - name: frontend
+        replicas: 2
+        # Default: maxUnavailable=1, maxSurge=0 (sequential pod updates)
+      - name: agg-worker
+        replicas: 3
         updateStrategy:
           maxUnavailable: 0
-          maxSurge: 1 # Zero-downtime frontend updates
+          maxSurge: 1 # Maintain full capacity during updates
 ```
 
-### Batch Processing (Fast Updates)
+### Multi-Node Disaggregated (No Version Compatibility, Excess Capacity)
+
+Multi-node deployment with incompatible versions but excess cluster capacity. Uses ReplicaRecreate with surge to maintain availability.
 
 ```yaml
 spec:
-  replicas: 5
+  replicas: 2
   updateStrategy:
-    type: ReplicaRecreate # Tear down entire replica at once
+    type: ReplicaRecreate
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 1 # Create surge replica before deleting old ones
   template:
-    cliques:
-      - name: worker
-        # Component strategies ignored with ReplicaRecreate
+    podCliqueScalingGroups:
+      - name: prefill
+      - name: decode
 ```
 
-### Multi-Tier Service (Mixed Strategies)
+### Multi-Node Disaggregated (No Version Compatibility, No Excess Capacity)
+
+Multi-node deployment with incompatible versions and limited cluster capacity. Uses ReplicaRecreate without surge, accepting temporary capacity reduction.
+
+```yaml
+spec:
+  replicas: 2
+  updateStrategy:
+    type: ReplicaRecreate
+    rollingUpdate:
+      maxUnavailable: 1
+      maxSurge: 0 # No surge, delete before create
+  template:
+    podCliqueScalingGroups:
+      - name: prefill
+      - name: decode
+```
+
+### Multi-Node Aggregated (Version Compatibility Assumed)
+
+Multi-node deployment with version compatibility. Prefill uses sequential updates, while decode uses surge to maintain capacity.
 
 ```yaml
 spec:
@@ -391,19 +422,19 @@ spec:
     type: RollingUpdate
     rollingUpdate:
       maxUnavailable: 1
+      maxSurge: 0
   template:
-    cliques:
-      - name: api
+    podCliqueScalingGroups:
+      - name: prefill
+        replicas: 3
+        updateStrategy:
+          maxUnavailable: 1
+          maxSurge: 0 # Sequential PCSG replica updates
+      - name: decode
+        replicas: 2
         updateStrategy:
           maxUnavailable: 0
-          maxSurge: 1 # API needs zero downtime
-      - name: cache
-        updateStrategy:
-          maxUnavailable: 2 # Cache can update faster
-    podCliqueScalingGroups:
-      - name: workers
-        updateStrategy:
-          maxUnavailable: 3 # Can update multiple worker replicas
+          maxSurge: 1 # Maintain full capacity during updates
 ```
 
 ## Implementation Phases
