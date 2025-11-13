@@ -439,23 +439,20 @@ spec:
 
 ## Implementation Phases
 
-### Phase 1: PCS Replica-Level Strategies
+### Phase 1: PCS Replica-Level Recreate
 
-- Implement `RollingUpdate` and `ReplicaRecreate`
-- Support `maxUnavailable` only (no `maxSurge` yet)
-- Default behavior: one replica at a time
+- Default is `RollingUpdate` (no PC or PCSG level configurability)
+- Can specify `ReplicaRecreate` - no configurability of `maxUnavailable` or `maxSurge`, will just recreate PCS replicas one at a time
 
-### Phase 2: Component-Level Strategies
+### Phase 2: PCS Replica-Level Recreate Configurability
+
+- Can specify `maxUnavailable` and `maxSurge` for PCS replicas
+
+### Phase 3: Component-Level Strategies
 
 - Add `updateStrategy` to `PodCliqueTemplateSpec`
 - Add `updateStrategy` to `PodCliqueScalingGroupConfig`
 - Support `maxUnavailable` and `maxSurge` for components
-
-### Phase 3: Advanced Features (Optional)
-
-- PCS replica-level `maxSurge` support
-- Partition-based rolling updates
-- Canary deployments
 
 ## Migration Path
 
