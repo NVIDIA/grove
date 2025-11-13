@@ -82,7 +82,21 @@ The current default strategy only allows `maxUnavailable=1`, forcing sequential 
 
 ## Goals
 
+- **Enable application version incompatible updates** through PodCliqueSet-level replica recreation strategy, allowing entire PCS replicas to be torn down atomically to prevent cross-version communication issues
+
+- **Enable surge capability** at the PCSG level for multinode deployments and PC level for singlenode inference, allowing new replicas to be created before old ones are deleted to maintain full capacity during updates
+
+- **Enable faster rollouts** by allowing multiple replicas to be recreated simultaneously at the PCSG level for multinode deployments and PC level for singlenode inference, configurable via `maxUnavailable` settings
+
 ## Non-Goals
+
+- Partition-based rolling updates or canary deployments - These are advanced features that can be considered in future phases
+
+- Automatic strategy selection based on version compatibility detection - Users must explicitly configure update strategies
+
+- Automatic selection of surge based on capacity - Users are expected to be aware of their cluster capacity and should explicitly configure surge settings. Grove does not have visibility into available cluster capacity at update time and cannot automatically determine if surge is feasible
+
+## Proposal
 
 ## Architecture
 
