@@ -27,6 +27,39 @@ Currently, Grove implements a single, non-configurable default update strategy a
 
 This default behavior provides safe, conservative updates but lacks user configurability. At the PCSG and standalone PC levels, the update corresponds to maxUnavailable 1 and maxSurge 0 where a singular old replica is deleted and new one is created.
 
+## Use Cases
+
+### Incompatible Version Updates
+
+Consider a multinode disaggregated deployment with 2 PCS replicas, where each replica contains:
+
+- **Frontend** standalone PC: 3 replicas
+- **Prefill** PCSG: 2 replicas (prefill-leader PC: 1 replica, prefill-worker PC: 2 replicas)
+- **Decode** PCSG: 2 replicas (decode-leader PC: 1 replica, decode-worker PC: 2 replicas)
+
+**Default Update Behavior:**
+
+1. PCS replica 0 is selected for update
+2. Frontend PC updates one pod at a time (3 pods sequentially)
+3. Prefill PCSG updates one replica at a time (2 replicas sequentially)
+4. Decode PCSG updates one replica at a time (2 replicas sequentially)
+5. PCS replica 1 repeats the same process
+
+**Problem with Incompatible Versions:**
+
+When the new frontend and worker versions introduce breaking API changes or protocol incompatibilities, the incremental update strategy creates a problematic coexistence period:
+
+- During frontend pod updates, old and new frontend pods run concurrently, sending requests to a mix of old and new PCSG replicas
+- During PCSG updates, new frontend pods communicate with old PCSG replicas (or vice versa)
+- This mixed-version state causes communication failures, incorrect behavior, or crashes
+
+The default strategy assumes version compatibility during the update window. For incompatible updates, users need the ability to tear down the entire PCS replica atomically (via `ReplicaRecreate` strategy) to prevent any cross-version communication within a replica.
+
+**TODOs**:
+
+- Don't mention ReplicaRecreate
+- Also mention that decode/prefill communication between new and old replicas can cause issues
+
 ## Goals
 
 ## Non-Goals
