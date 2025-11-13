@@ -454,6 +454,54 @@ spec:
 - Add `updateStrategy` to `PodCliqueScalingGroupConfig`
 - Support `maxUnavailable` and `maxSurge` for components
 
+## Considerations
+
+The following considerations were evaluated but are out of scope for the current proposal and could be considered for future phases.
+
+### Update Timeout
+
+An update timeout mechanism (`progressDeadlineSeconds`) can be defined at the PCS level with sensible defaults. The timeout triggers when an update makes no progress within the specified window, such as:
+
+- Surge replicas/pods remaining unscheduled beyond the timeout
+- Replicas/pods stuck in an "Updating" state and not becoming Available
+- Persistent MinAvailable breaches that prevent update progress
+
+**Option 1: Update Condition**
+
+Similar to Deployments, set a condition (e.g., `ProgressDeadlineExceeded`) to `True` when the timeout is reached. This alerts higher-level orchestrators that the update has stalled, allowing them to take appropriate action (manual intervention, rollback, etc.). This approach is simple and delegates decision-making to the orchestrator.
+
+**Option 2: Automatic Rollback**
+
+Automatically rollback to the previous generation hash when timeout is reached. This requires controller revisions or some mechanism to track previous spec state, which adds complexity. Additional considerations include: what if the rollback itself fails, how to handle partial updates where some replicas succeeded and others failed, and how to actually perform the rollback (restore previous spec, trigger new update, etc.).
+
+### Pause and Partition Mechanisms
+
+Two mechanisms can enable controlled rollouts: a `paused` field to halt updates entirely, and a `partition` field (similar to LeaderWorkerSet) to control how many replicas can be updated. These can be used for canary deployments where a rollout is stopped and traffic is split between new and old versions to confirm the update works and meets SLAs.
+
+**Option 1: Pause Field**
+
+A `paused` field at the PCS level, when set to `true`, would halt the progress of an upgrade.
+
+**Benefits:**
+
+- Simple binary control enabling manual validation windows and spec modifications without triggering immediate updates
+
+**Complexity:**
+
+- Requires tracking pause state in status, handling edge cases (pause during surge creation or ReplicaRecreate), coordinating with timeout mechanism, and manual intervention for canary rollouts
+
+**Option 2: Partition Field**
+
+A `partition` integer field (similar to LeaderWorkerSet) would control which replicas can be updated, where only replicas with index >= `partition` are eligible for update, enabling declarative canary rollouts. Controller revisions or a mechanism to track previous spec state would be required to maintain the old spec for replicas below the partition.
+
+**Benefits:**
+
+- Declarative canary deployments with fine-grained control, natural progression (lower partition to expand rollout), and enables automated canary controllers
+
+**Complexity:**
+
+- Requires controller revisions to maintain old spec, more complex logic to filter replica selection based on partition value, handling partition changes during active updates, and different semantics at PCS level (replica indices) vs component level (pod or PCSG replica indices)
+
 ## Migration Path
 
 **Existing behavior (no breaking changes):**
