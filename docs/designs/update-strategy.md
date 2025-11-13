@@ -98,6 +98,8 @@ The current default strategy only allows `maxUnavailable=1`, forcing sequential 
 
 ## Proposal
 
+This proposal expands Grove's default RollingUpdate strategy to support replica recreation at the PodCliqueSet level for version incompatible upgrades, as well as `maxUnavailable` and `maxSurge` configuration at the PCS level. Additionally, it introduces `maxUnavailable` and `maxSurge` concepts at the standalone PodClique and PodCliqueScalingGroup levels to enable faster rollouts and capacity maintenance during compatible upgrades.
+
 ## Architecture
 
 ### Three-Level Update Control
@@ -106,17 +108,18 @@ The current default strategy only allows `maxUnavailable=1`, forcing sequential 
 PodCliqueSet (Top Level)
 ├─ UpdateStrategy (controls PCS replica updates)
 │  ├─ RollingUpdate: one replica at a time
-│  ├─ ReplicaRecreate: tear down entire replica
-│  └─ OnDelete: manual updates only
+│  └─ ReplicaRecreate: tear down entire replica
 │
 ├─ PCS Replica 0
 │  ├─ Standalone PodCliques (concurrent updates)
-│  │  ├─ frontend: UpdateStrategy (controls pod updates)
-│  │  └─ backend: UpdateStrategy (controls pod updates)
+│  │  └─ frontend: UpdateStrategy (controls pod updates)
+│  │     └─ maxUnavailable/maxSurge
 │  │
 │  └─ PodCliqueScalingGroups (concurrent updates)
 │     ├─ prefill: UpdateStrategy (controls PCSG replica updates)
+│     │  └─ maxUnavailable/maxSurge
 │     └─ decode: UpdateStrategy (controls PCSG replica updates)
+│        └─ maxUnavailable/maxSurge
 │
 └─ PCS Replica 1, 2, ... (sequential per PCS strategy)
 ```
@@ -137,7 +140,6 @@ type PodCliqueSetUpdateStrategyType string
 const (
     RollingUpdate    // Update replicas sequentially
     ReplicaRecreate  // Delete/recreate entire replica
-    OnDelete         // Manual updates only
 )
 
 type PodCliqueSetRollingUpdateStrategy struct {
@@ -180,57 +182,39 @@ type ComponentUpdateStrategy struct {
 
 ### RollingUpdate (Default)
 
-**PCS Replica Level:**
-
-- Updates one PCS replica at a time (by default)
-- Each replica must complete before the next starts
-- Priority: unscheduled → unhealthy → ascending ordinal
-
-**Within Each PCS Replica:**
-
-- **Standalone PodCliques**: Update concurrently (all at once)
-- **PCSGs**: Update concurrently with each other
-- Each uses its own `updateStrategy` configuration
-
-**Within Each PodClique:**
-
-- Pods update one at a time (by default)
-- Can configure `maxSurge=1` for zero-downtime updates
-
-**Within Each PCSG:**
-
-- PCSG replicas update sequentially (by default)
-- Each PCSG replica = all member PodCliques deleted/recreated together
+The default RollingUpdate behavior is described in the [Motivation](#motivation) section. When using the RollingUpdate strategy, `maxUnavailable` and `maxSurge` settings at the PodCliqueSet level have no effect - PCS replicas are always updated one at a time sequentially.
 
 ### ReplicaRecreate
 
 **Behavior:**
 
-- Deletes **entire PCS replica** (all PCSGs + standalone PCs)
+- Deletes **entire PCS replica** (all PCSGs + standalone PCs) atomically
 - All components within the replica are deleted simultaneously
-- Recreates all components together
-- **Bypasses** individual component update strategies
+- Recreates all components together with the new configuration
+- **Bypasses** individual component update strategies (PC and PCSG `maxUnavailable`/`maxSurge` settings are ignored)
+
+**MaxUnavailable and MaxSurge:**
+
+When using the ReplicaRecreate strategy, `maxUnavailable` and `maxSurge` at the PodCliqueSet level control how many PCS replicas can be recreated simultaneously:
+
+- `maxUnavailable`: Maximum number of PCS replicas that can be down (deleted) at once during the update
+- `maxSurge`: Maximum number of extra PCS replicas that can be created above the desired replica count during the update
+
+For example, with `replicas=2` and `maxUnavailable=1, maxSurge=0`:
+
+- One PCS replica is deleted and recreated at a time
+- The other replica remains available during the update
+
+With `replicas=2` and `maxUnavailable=2, maxSurge=0`:
+
+- Both PCS replicas can be deleted and recreated simultaneously
+- This provides faster updates but results in complete service unavailability during the recreation window
 
 **Use Cases:**
 
-- Need to clear all state at once
-- Faster updates when downtime is acceptable
-- Coordinated recreation of interdependent components
-
-### OnDelete
-
-**Behavior:**
-
-- No automatic updates
-- Replicas only update when manually deleted
-- Once deleted, recreates with new spec
-- Component strategies apply during recreation
-
-**Use Cases:**
-
-- Manual rollout control
-- Testing/staging environments
-- Stateful workloads requiring careful migration
+- Version incompatible updates where old and new versions cannot coexist
+- Need to clear all state at once within a replica
+- Coordinated recreation of interdependent components to prevent cross-version communication issues
 
 ## MaxSurge Considerations
 
@@ -294,21 +278,6 @@ spec:
         # Component strategies ignored with ReplicaRecreate
 ```
 
-### Database Cluster (Manual Control)
-
-```yaml
-spec:
-  replicas: 3
-  updateStrategy:
-    type: OnDelete # Only update when manually deleted
-  template:
-    cliques:
-      - name: postgres
-        updateStrategy:
-          maxUnavailable: 0
-          maxSurge: 1 # When triggered, do zero-downtime
-```
-
 ### Multi-Tier Service (Mixed Strategies)
 
 ```yaml
@@ -337,7 +306,7 @@ spec:
 
 ### Phase 1: PCS Replica-Level Strategies
 
-- Implement `RollingUpdate`, `ReplicaRecreate`, `OnDelete`
+- Implement `RollingUpdate` and `ReplicaRecreate`
 - Support `maxUnavailable` only (no `maxSurge` yet)
 - Default behavior: one replica at a time
 
