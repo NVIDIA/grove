@@ -363,6 +363,84 @@ When using ReplicaRecreate with `maxSurge > 0`, the update can get stuck if surg
 
 Users are responsible for identifying when a rolling update with `maxSurge` during ReplicaRecreate is stuck (e.g., update progress stalls, surge replica remains unscheduled or has MinAvailable breached) and manually intervening to unblock the update, such as by reducing `maxSurge` to 0 or deleting the stuck surge replica.
 
+## Status Updates
+
+The `PodCliqueSetRollingUpdateProgress` structure is extended to support the new update strategies with concurrent replica updates and surge resources.
+
+### Extended Status Fields
+
+**UpdatingReplicas:**
+
+The `CurrentlyUpdating` field (which tracks a single replica) is replaced with `UpdatingReplicas` to support multiple concurrent replica updates when `maxUnavailable > 1`:
+
+```go
+type PodCliqueSetRollingUpdateProgress struct {
+    // ... existing fields ...
+
+    // UpdatingReplicas captures the progress of all PodCliqueSet replicas currently being updated.
+    // This replaces the single CurrentlyUpdating field to support concurrent updates when maxUnavailable > 1.
+    // Each entry includes the replica index and when that replica started updating.
+    // +optional
+    UpdatingReplicas []PodCliqueSetReplicaRollingUpdateProgress `json:"updatingReplicas,omitempty"`
+
+    // ... rest of fields ...
+}
+```
+
+**Example Status with Concurrent Updates:**
+
+With `replicas=5`, `maxUnavailable=2`, `maxSurge=1`:
+
+```yaml
+status:
+  rollingUpdateProgress:
+    updateStartedAt: "2025-01-15T10:00:00Z"
+    updatingReplicas:
+      - replicaIndex: 0
+        updateStartedAt: "2025-01-15T10:00:00Z"
+      - replicaIndex: 1
+        updateStartedAt: "2025-01-15T10:05:00Z"
+    updatedReplicas: 2
+    # ... other fields ...
+```
+
+### PodClique Status Updates
+
+The `PodsSelectedToUpdate` structure is extended to support concurrent pod updates when `maxUnavailable > 1` at the PodClique level.
+
+**Updated PodsSelectedToUpdate:**
+
+The `Current` field (which tracks a single pod name) is changed to support multiple concurrent pod updates:
+
+```go
+// PodsSelectedToUpdate captures the current and previous set of pod names that have been selected for update in a rolling update.
+type PodsSelectedToUpdate struct {
+    // Current captures the pod names that are currently targets for update.
+    // Supports multiple concurrent pod updates when maxUnavailable > 1.
+    Current []string `json:"current,omitempty"`
+    // Completed captures the pod names that have already been updated.
+    Completed []string `json:"completed,omitempty"`
+}
+```
+
+**Example Status with Concurrent Pod Updates:**
+
+With `replicas=5`, `maxUnavailable=2`, `maxSurge=1`:
+
+```yaml
+status:
+  rollingUpdateProgress:
+    updateStartedAt: "2025-01-15T10:00:00Z"
+    readyPodsSelectedToUpdate:
+      current:
+        - "frontend-0-rsfk7"
+        - "frontend-1-cccj7"
+      completed:
+        - "frontend-2-rrxwz"
+    updatedReplicas: 1
+    # ... other fields ...
+```
+
 ## Use Case Examples
 
 ### Single Node Aggregated (Version Compatibility Assumed)
