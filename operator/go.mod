@@ -213,4 +213,5 @@ replace (
 	github.com/ai-dynamo/grove/operator/api => ./api
 	github.com/ai-dynamo/grove/operator/client => ./client
 	github.com/ai-dynamo/grove/scheduler/api => ../scheduler/api
+	k8s.io/kubelet => k8s.io/kubelet v0.34.2
 )

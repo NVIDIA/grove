@@ -52,6 +52,8 @@ const (
 	ClientMethodUpdate ClientMethod = "Update"
 	// ClientMethodStatus is the name of the Status method on client.Client.StatusClient.
 	ClientMethodStatus ClientMethod = "Status"
+	// ClientMethodApply is the name of the Apply method on client.Client.
+	ClientMethodApply ClientMethod = "Apply"
 )
 
 // TestClientBuilder is a builder for creating a test client.Client which is capable of recording and replaying errors.
@@ -249,6 +251,12 @@ func (c *testClient) Update(ctx context.Context, obj client.Object, opts ...clie
 		return err
 	}
 	return c.delegate.Update(ctx, obj, opts...)
+}
+
+func (c *testClient) Apply(ctx context.Context, applyConfig runtime.ApplyConfiguration, opts ...client.ApplyOption) error {
+	// For apply operations, we need to get the object key from the apply configuration
+	// Since ApplyConfiguration doesn't have an easy way to get object key, we'll delegate to the underlying client
+	return c.delegate.Apply(ctx, applyConfig, opts...)
 }
 
 func (c *testClient) Status() client.StatusWriter {
