@@ -18,6 +18,7 @@ package clustertopology
 
 import (
 	"context"
+	"fmt"
 
 	apicommon "github.com/ai-dynamo/grove/operator/api/common"
 	"github.com/ai-dynamo/grove/operator/api/common/constants"
@@ -97,11 +98,11 @@ func (r *Reconciler) removeFinalizer(ctx context.Context, logger logr.Logger, ct
 	if err := ctrlutils.RemoveAndPatchFinalizer(ctx, r.client, ct, constants.FinalizerClusterTopology); err != nil {
 		logger.Error(err, "failed to remove finalizer", "ClusterTopology", ct.Name, "finalizerName", constants.FinalizerClusterTopology)
 		r.eventRecorder.Eventf(ct, corev1.EventTypeWarning, groveconstants.ReasonClusterTopologyDeleteFailed,
-			"Cannot delete ClusterTopology %s: error removing finalizer: %s from ClusterTopology: %s: %w", constants.FinalizerClusterTopology, ct.Name, err)
-		return ctrlcommon.ReconcileWithErrors("failed to remove finalizer", err)
+			"Failed to remove finalizer %s from ClusterTopology %s: %v", constants.FinalizerClusterTopology, ct.Name, err)
+		return ctrlcommon.ReconcileWithErrors("error removing finalizer", fmt.Errorf("failed to remove finalizer %s from ClusterTopology %s: %v", constants.FinalizerClusterTopology, ct.Name, err))
 	}
 	logger.Info("Finalizer removed", "ClusterTopology", ct.Name, "finalizerName", constants.FinalizerClusterTopology)
 	r.eventRecorder.Eventf(ct, corev1.EventTypeNormal, groveconstants.ReasonClusterTopologyDeleteSuccessful,
-		"ClusterTopology %s deleted successfully", ct.Name)
+		"Successfully removed finalizer %s from ClusterTopology %s", constants.FinalizerClusterTopology, ct.Name)
 	return ctrlcommon.ContinueReconcile()
 }

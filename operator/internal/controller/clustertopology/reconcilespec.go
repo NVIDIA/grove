@@ -56,7 +56,7 @@ func (r *Reconciler) ensureFinalizer(ctx context.Context, logger logr.Logger, ct
 		if err := ctrlutils.AddAndPatchFinalizer(ctx, r.client, ct, constants.FinalizerClusterTopology); err != nil {
 			r.eventRecorder.Eventf(ct, corev1.EventTypeWarning, groveconstants.ReasonClusterTopologyCreateOrUpdateFailed,
 				"Failed to add finalizer %s to ClusterTopology %s: %v", constants.FinalizerClusterTopology, ct.Name, err)
-			return ctrlcommon.ReconcileWithErrors("error adding finalizer", fmt.Errorf("failed to add finalizer: %s to ClusterTopology: %s: %w", constants.FinalizerClusterTopology, ct.Name, err))
+			return ctrlcommon.ReconcileWithErrors("error adding finalizer", fmt.Errorf("failed to add finalizer %s to ClusterTopology %s: %v", constants.FinalizerClusterTopology, ct.Name, err))
 		}
 		r.eventRecorder.Eventf(ct, corev1.EventTypeNormal, groveconstants.ReasonClusterTopologyCreateOrUpdateSuccessful,
 			"Successfully added finalizer %s to ClusterTopology %s", constants.FinalizerClusterTopology, ct.Name)

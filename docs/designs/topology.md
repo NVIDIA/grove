@@ -280,11 +280,11 @@ topology:
 3. Admin restarts operator (see Startup Behavior section for details)
 4. Operator validates ClusterTopology CR exists
 5. For existing workloads:
-    - Workloads with topology constraints: operator uses topology from PodCliqueSet label (`grove.io/topology-name`)
+    - Workloads with topology constraints: operator uses topology from PodCliqueSet label (`grove.io/cluster-topology-name`)
     - Workloads without topology constraints: no impact (checked via label presence)
 6. For new workloads:
     - Topology constraints validated against ClusterTopology CR
-   - Mutation webhook adds `grove.io/topology-name` label to PodCliqueSet (see Mutation Webhook section)
+   - Mutation webhook adds `grove.io/cluster-topology-name` label to PodCliqueSet (see Mutation Webhook section)
 
 **Disabling Topology (clusterTopology.enabled: true → false):**
 
@@ -383,7 +383,7 @@ type PodCliqueTemplateSpec struct {
 
 The mutation webhook automatically modifies PodCliqueSet resources on CREATE operations:
 
-- **Label Addition**: Automatically adds `grove.io/topology-name` label to PodCliqueSet
+- **Label Addition**: Automatically adds `grove.io/cluster-topology-name` label to PodCliqueSet
 - **Label Value**: Set to the configured ClusterTopology name from operator config (e.g., "grove-topology")
 - **Condition**: Label only added when `clusterTopology.enabled: true` in operator configuration
 - **Purpose**: Enables workload-to-topology mapping for controller lifecycle management and deletion protection
@@ -407,7 +407,7 @@ The mutation webhook automatically modifies PodCliqueSet resources on CREATE ope
 
 **Label Immutability:**
 
-- Webhook rejects changes to `grove.io/topology-name` label on PodCliqueSet after creation
+- Webhook rejects changes to `grove.io/cluster-topology-name` label on PodCliqueSet after creation
 - Label can only be set during PodCliqueSet creation (see Mutation Webhook section above)
 - Ensures topology reference remains consistent throughout resource lifecycle
 
@@ -450,7 +450,7 @@ The operator adds topology information to PodGang metadata via annotation:
 # Annotation added to PodGang
 metadata:
   annotations:
-    grove.io/topology-name: "<user-configured-name>"
+    grove.io/cluster-topology-name: "<user-configured-name>"
 ```
 
 This annotation allows the scheduler to locate the Kueue Topology resource without requiring a spec field, providing
@@ -530,7 +530,7 @@ Fields Added:
 
 Annotations Added:
 
-- `grove.io/topology-name: "<user-configured-name>"` - Annotation on PodGang metadata referencing topology name
+- `grove.io/cluster-topology-name: "<user-configured-name>"` - Annotation on PodGang metadata referencing topology name
 
 Fields Removed:
 
@@ -544,7 +544,7 @@ The operator translates Grove operator API to Grove Scheduler API with three-lev
 
 **Topology Annotation:**
 
-- Operator adds annotation `grove.io/topology-name: "<topology-name>"` to PodGang metadata
+- Operator adds annotation `grove.io/cluster-topology-name: "<topology-name>"` to PodGang metadata
 - Annotation value matches the ClusterTopology name from operator configuration
 - KAI scheduler uses this annotation to locate the corresponding Kueue Topology CRD
 - Annotation approach provides API flexibility for future changes without breaking spec
