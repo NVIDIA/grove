@@ -20,302 +20,299 @@ import (
 	"context"
 	"testing"
 
-	apicommon "github.com/ai-dynamo/grove/operator/api/common"
 	grovecorev1alpha1 "github.com/ai-dynamo/grove/operator/api/core/v1alpha1"
 	testutils "github.com/ai-dynamo/grove/operator/test/utils"
 
 	"github.com/stretchr/testify/assert"
-	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"github.com/stretchr/testify/require"
 	"k8s.io/apimachinery/pkg/util/uuid"
+	"k8s.io/client-go/util/workqueue"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/event"
+	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
-func TestMapPodCliqueSetToClusterTopology(t *testing.T) {
+func TestGetTopologyName(t *testing.T) {
 	tests := []struct {
-		name              string
-		obj               client.Object
-		expectedRequests  int
-		expectedTopology  string
-		expectedNamespace string
+		name     string
+		pcs      *grovecorev1alpha1.PodCliqueSet
+		expected string
 	}{
 		{
-			name: "PodCliqueSet with topology label - should map to ClusterTopology",
-			obj: testutils.NewPodCliqueSetBuilder("test-pcs", "test-ns", uuid.NewUUID()).
+			name: "PodCliqueSet with topology label",
+			pcs: testutils.NewPodCliqueSetBuilder("test-pcs", "test-ns", uuid.NewUUID()).
 				WithTopologyLabel("test-topology").
 				Build(),
-			expectedRequests:  1,
-			expectedTopology:  "test-topology",
-			expectedNamespace: "", // ClusterTopology is cluster-scoped
+			expected: "test-topology",
 		},
 		{
-			name: "PodCliqueSet without topology label - should not map",
-			obj: testutils.NewPodCliqueSetBuilder("test-pcs", "test-ns", uuid.NewUUID()).
+			name: "PodCliqueSet without topology label",
+			pcs: testutils.NewPodCliqueSetBuilder("test-pcs", "test-ns", uuid.NewUUID()).
 				Build(),
-			expectedRequests: 0,
+			expected: "",
 		},
 		{
-			name: "PodCliqueSet with empty topology label - should not map",
-			obj: &grovecorev1alpha1.PodCliqueSet{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "test-pcs",
-					Namespace: "test-ns",
-					Labels: map[string]string{
-						apicommon.LabelClusterTopologyName: "",
-					},
-				},
-			},
-			expectedRequests: 0,
+			name:     "nil PodCliqueSet",
+			pcs:      nil,
+			expected: "",
 		},
 		{
-			name: "Non-PodCliqueSet object - should not map",
-			obj: &corev1.Pod{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "test-pod",
-					Namespace: "test-ns",
-					Labels: map[string]string{
-						apicommon.LabelClusterTopologyName: "test-topology",
-					},
-				},
-			},
-			expectedRequests: 0,
-		},
-		{
-			name: "PodCliqueSet with custom topology name",
-			obj: testutils.NewPodCliqueSetBuilder("my-pcs", "my-ns", uuid.NewUUID()).
-				WithTopologyLabel("custom-topology-name").
+			name: "PodCliqueSet with empty topology label",
+			pcs: testutils.NewPodCliqueSetBuilder("test-pcs", "test-ns", uuid.NewUUID()).
+				WithTopologyLabel("").
 				Build(),
-			expectedRequests:  1,
-			expectedTopology:  "custom-topology-name",
-			expectedNamespace: "",
+			expected: "",
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			mapFunc := mapPodCliqueSetToClusterTopology()
-			requests := mapFunc(context.Background(), tt.obj)
+			result := getTopologyName(tt.pcs)
+			assert.Equal(t, tt.expected, result)
+		})
+	}
+}
 
-			assert.Len(t, requests, tt.expectedRequests, "unexpected number of reconcile requests")
+func TestPodCliqueSetEventHandler_Create(t *testing.T) {
+	handler := &podCliqueSetEventHandler{}
+	queue := workqueue.NewTypedRateLimitingQueue(workqueue.DefaultTypedControllerRateLimiter[reconcile.Request]())
+	defer queue.ShutDown()
 
-			if tt.expectedRequests > 0 {
-				assert.Equal(t, tt.expectedTopology, requests[0].Name, "unexpected topology name")
-				assert.Equal(t, tt.expectedNamespace, requests[0].Namespace, "ClusterTopology should be cluster-scoped (empty namespace)")
+	tests := []struct {
+		name                string
+		obj                 client.Object
+		expectedQueueLength int
+	}{
+		{
+			name: "PodCliqueSet with topology label - should not enqueue",
+			obj: testutils.NewPodCliqueSetBuilder("test-pcs", "test-ns", uuid.NewUUID()).
+				WithTopologyLabel("test-topology").
+				Build(),
+			expectedQueueLength: 0,
+		},
+		{
+			name: "PodCliqueSet without topology label - should not enqueue",
+			obj: testutils.NewPodCliqueSetBuilder("test-pcs", "test-ns", uuid.NewUUID()).
+				Build(),
+			expectedQueueLength: 0,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Reset queue
+			for queue.Len() > 0 {
+				_, _ = queue.Get()
+			}
+
+			handler.Create(context.Background(), event.TypedCreateEvent[client.Object]{Object: tt.obj}, queue)
+			assert.Equal(t, tt.expectedQueueLength, queue.Len(), "unexpected queue length")
+		})
+	}
+}
+
+func TestPodCliqueSetEventHandler_Delete(t *testing.T) {
+	handler := &podCliqueSetEventHandler{}
+	queue := workqueue.NewTypedRateLimitingQueue(workqueue.DefaultTypedControllerRateLimiter[reconcile.Request]())
+	defer queue.ShutDown()
+
+	tests := []struct {
+		name                string
+		obj                 client.Object
+		expectedQueueLength int
+		expectedTopology    string
+	}{
+		{
+			name: "PodCliqueSet with topology label - should enqueue topology",
+			obj: testutils.NewPodCliqueSetBuilder("test-pcs", "test-ns", uuid.NewUUID()).
+				WithTopologyLabel("test-topology").
+				Build(),
+			expectedQueueLength: 1,
+			expectedTopology:    "test-topology",
+		},
+		{
+			name: "PodCliqueSet without topology label - should not enqueue",
+			obj: testutils.NewPodCliqueSetBuilder("test-pcs", "test-ns", uuid.NewUUID()).
+				Build(),
+			expectedQueueLength: 0,
+		},
+		{
+			name: "PodCliqueSet with empty topology label - should not enqueue",
+			obj: testutils.NewPodCliqueSetBuilder("test-pcs", "test-ns", uuid.NewUUID()).
+				WithTopologyLabel("").
+				Build(),
+			expectedQueueLength: 0,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Reset queue
+			for queue.Len() > 0 {
+				item, _ := queue.Get()
+				queue.Done(item)
+			}
+
+			handler.Delete(context.Background(), event.TypedDeleteEvent[client.Object]{Object: tt.obj}, queue)
+			assert.Equal(t, tt.expectedQueueLength, queue.Len(), "unexpected queue length")
+
+			if tt.expectedQueueLength > 0 {
+				item, shutdown := queue.Get()
+				require.False(t, shutdown)
+				assert.Equal(t, tt.expectedTopology, item.Name, "unexpected topology name in queue")
+				assert.Equal(t, "", item.Namespace, "ClusterTopology should be cluster-scoped")
+				queue.Done(item)
 			}
 		})
 	}
 }
 
-func TestPodCliqueSetDeletionPredicate(t *testing.T) {
-	predicate := podCliqueSetDeletionPredicate()
+func TestPodCliqueSetEventHandler_Update(t *testing.T) {
+	handler := &podCliqueSetEventHandler{}
 
-	t.Run("CreateFunc", func(t *testing.T) {
-		tests := []struct {
-			name     string
-			obj      client.Object
-			expected bool
-		}{
-			{
-				name: "PodCliqueSet with topology label - should not reconcile on create",
-				obj: testutils.NewPodCliqueSetBuilder("test-pcs", "test-ns", uuid.NewUUID()).
-					WithTopologyLabel("test-topology").
-					Build(),
-				expected: false,
-			},
-			{
-				name: "PodCliqueSet without topology label - should not reconcile on create",
-				obj: testutils.NewPodCliqueSetBuilder("test-pcs", "test-ns", uuid.NewUUID()).
-					Build(),
-				expected: false,
-			},
-		}
+	tests := []struct {
+		name                string
+		oldObj              client.Object
+		newObj              client.Object
+		expectedQueueLength int
+		expectedTopologies  []string // ordered list of expected topology names
+		expectedDescription string
+	}{
+		{
+			name: "topology label removed - should enqueue old topology",
+			oldObj: testutils.NewPodCliqueSetBuilder("test-pcs", "test-ns", uuid.NewUUID()).
+				WithTopologyLabel("old-topology").
+				Build(),
+			newObj: testutils.NewPodCliqueSetBuilder("test-pcs", "test-ns", uuid.NewUUID()).
+				Build(),
+			expectedQueueLength: 1,
+			expectedTopologies:  []string{"old-topology"},
+			expectedDescription: "old topology should be reconciled to potentially unblock deletion",
+		},
+		{
+			name: "topology label changed - should enqueue both topologies",
+			oldObj: testutils.NewPodCliqueSetBuilder("test-pcs", "test-ns", uuid.NewUUID()).
+				WithTopologyLabel("old-topology").
+				Build(),
+			newObj: testutils.NewPodCliqueSetBuilder("test-pcs", "test-ns", uuid.NewUUID()).
+				WithTopologyLabel("new-topology").
+				Build(),
+			expectedQueueLength: 2,
+			expectedTopologies:  []string{"old-topology", "new-topology"},
+			expectedDescription: "both old and new topologies should be reconciled",
+		},
+		{
+			name: "topology label unchanged - should not enqueue",
+			oldObj: testutils.NewPodCliqueSetBuilder("test-pcs", "test-ns", uuid.NewUUID()).
+				WithTopologyLabel("test-topology").
+				Build(),
+			newObj: testutils.NewPodCliqueSetBuilder("test-pcs", "test-ns", uuid.NewUUID()).
+				WithTopologyLabel("test-topology").
+				Build(),
+			expectedQueueLength: 0,
+			expectedDescription: "no change to topology label, no reconciliation needed",
+		},
+		{
+			name: "topology label added - should enqueue new topology",
+			oldObj: testutils.NewPodCliqueSetBuilder("test-pcs", "test-ns", uuid.NewUUID()).
+				Build(),
+			newObj: testutils.NewPodCliqueSetBuilder("test-pcs", "test-ns", uuid.NewUUID()).
+				WithTopologyLabel("new-topology").
+				Build(),
+			expectedQueueLength: 1,
+			expectedTopologies:  []string{"new-topology"},
+			expectedDescription: "new topology should be reconciled when added",
+		},
+		{
+			name: "no topology label on either object - should not enqueue",
+			oldObj: testutils.NewPodCliqueSetBuilder("test-pcs", "test-ns", uuid.NewUUID()).
+				Build(),
+			newObj: testutils.NewPodCliqueSetBuilder("test-pcs", "test-ns", uuid.NewUUID()).
+				Build(),
+			expectedQueueLength: 0,
+			expectedDescription: "no topology involved",
+		},
+		{
+			name: "topology label changed to empty (removed) - should enqueue old topology",
+			oldObj: testutils.NewPodCliqueSetBuilder("test-pcs", "test-ns", uuid.NewUUID()).
+				WithTopologyLabel("old-topology").
+				Build(),
+			newObj: testutils.NewPodCliqueSetBuilder("test-pcs", "test-ns", uuid.NewUUID()).
+				WithTopologyLabel("").
+				Build(),
+			expectedQueueLength: 1,
+			expectedTopologies:  []string{"old-topology"},
+			expectedDescription: "empty label treated as removal, old topology should be reconciled",
+		},
+	}
 
-		for _, tt := range tests {
-			t.Run(tt.name, func(t *testing.T) {
-				result := predicate.Create(event.CreateEvent{Object: tt.obj})
-				assert.Equal(t, tt.expected, result, "unexpected create predicate result")
-			})
-		}
-	})
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			queue := workqueue.NewTypedRateLimitingQueue(workqueue.DefaultTypedControllerRateLimiter[reconcile.Request]())
+			defer queue.ShutDown()
 
-	t.Run("DeleteFunc", func(t *testing.T) {
-		tests := []struct {
-			name     string
-			obj      client.Object
-			expected bool
-		}{
-			{
-				name: "PodCliqueSet with topology label - should reconcile on delete",
-				obj: testutils.NewPodCliqueSetBuilder("test-pcs", "test-ns", uuid.NewUUID()).
-					WithTopologyLabel("test-topology").
-					Build(),
-				expected: true,
-			},
-			{
-				name: "PodCliqueSet without topology label - should not reconcile on delete",
-				obj: testutils.NewPodCliqueSetBuilder("test-pcs", "test-ns", uuid.NewUUID()).
-					Build(),
-				expected: false,
-			},
-			{
-				name: "PodCliqueSet with empty topology label - should not reconcile on delete",
-				obj: &grovecorev1alpha1.PodCliqueSet{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:      "test-pcs",
-						Namespace: "test-ns",
-						Labels: map[string]string{
-							apicommon.LabelClusterTopologyName: "",
-						},
-					},
-				},
-				expected: false,
-			},
-			{
-				name:     "nil object - should not reconcile on delete",
-				obj:      nil,
-				expected: false,
-			},
-		}
+			handler.Update(context.Background(), event.TypedUpdateEvent[client.Object]{
+				ObjectOld: tt.oldObj,
+				ObjectNew: tt.newObj,
+			}, queue)
 
-		for _, tt := range tests {
-			t.Run(tt.name, func(t *testing.T) {
-				result := predicate.Delete(event.DeleteEvent{Object: tt.obj})
-				assert.Equal(t, tt.expected, result, "unexpected delete predicate result")
-			})
-		}
-	})
+			assert.Equal(t, tt.expectedQueueLength, queue.Len(), "unexpected queue length: %s", tt.expectedDescription)
 
-	t.Run("UpdateFunc", func(t *testing.T) {
-		tests := []struct {
-			name     string
-			oldObj   client.Object
-			newObj   client.Object
-			expected bool
-		}{
-			{
-				name: "topology label removed - should reconcile",
-				oldObj: testutils.NewPodCliqueSetBuilder("test-pcs", "test-ns", uuid.NewUUID()).
-					WithTopologyLabel("test-topology").
-					Build(),
-				newObj: testutils.NewPodCliqueSetBuilder("test-pcs", "test-ns", uuid.NewUUID()).
-					Build(),
-				expected: true,
-			},
-			{
-				name: "topology label changed - should reconcile",
-				oldObj: testutils.NewPodCliqueSetBuilder("test-pcs", "test-ns", uuid.NewUUID()).
-					WithTopologyLabel("old-topology").
-					Build(),
-				newObj: testutils.NewPodCliqueSetBuilder("test-pcs", "test-ns", uuid.NewUUID()).
-					WithTopologyLabel("new-topology").
-					Build(),
-				expected: true,
-			},
-			{
-				name: "topology label unchanged - should not reconcile",
-				oldObj: testutils.NewPodCliqueSetBuilder("test-pcs", "test-ns", uuid.NewUUID()).
-					WithTopologyLabel("test-topology").
-					Build(),
-				newObj: testutils.NewPodCliqueSetBuilder("test-pcs", "test-ns", uuid.NewUUID()).
-					WithTopologyLabel("test-topology").
-					Build(),
-				expected: false,
-			},
-			{
-				name: "topology label added - should not reconcile",
-				oldObj: testutils.NewPodCliqueSetBuilder("test-pcs", "test-ns", uuid.NewUUID()).
-					Build(),
-				newObj: testutils.NewPodCliqueSetBuilder("test-pcs", "test-ns", uuid.NewUUID()).
-					WithTopologyLabel("test-topology").
-					Build(),
-				expected: false,
-			},
-			{
-				name: "no topology label on either object - should not reconcile",
-				oldObj: testutils.NewPodCliqueSetBuilder("test-pcs", "test-ns", uuid.NewUUID()).
-					Build(),
-				newObj: testutils.NewPodCliqueSetBuilder("test-pcs", "test-ns", uuid.NewUUID()).
-					Build(),
-				expected: false,
-			},
-			{
-				name: "topology label removed (changed to empty) - should reconcile",
-				oldObj: testutils.NewPodCliqueSetBuilder("test-pcs", "test-ns", uuid.NewUUID()).
-					WithTopologyLabel("test-topology").
-					Build(),
-				newObj: &grovecorev1alpha1.PodCliqueSet{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:      "test-pcs",
-						Namespace: "test-ns",
-						Labels: map[string]string{
-							apicommon.LabelClusterTopologyName: "",
-						},
-					},
-				},
-				expected: true, // Empty label is treated as removed, so should reconcile
-			},
-			{
-				name: "both labels empty - should not reconcile",
-				oldObj: &grovecorev1alpha1.PodCliqueSet{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:      "test-pcs",
-						Namespace: "test-ns",
-						Labels: map[string]string{
-							apicommon.LabelClusterTopologyName: "",
-						},
-					},
-				},
-				newObj: &grovecorev1alpha1.PodCliqueSet{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:      "test-pcs",
-						Namespace: "test-ns",
-						Labels: map[string]string{
-							apicommon.LabelClusterTopologyName: "",
-						},
-					},
-				},
-				expected: false,
-			},
-		}
+			// Collect all enqueued topologies
+			enqueuedTopologies := make(map[string]struct{})
+			for i := 0; i < tt.expectedQueueLength; i++ {
+				item, shutdown := queue.Get()
+				require.False(t, shutdown)
+				enqueuedTopologies[item.Name] = struct{}{}
+				assert.Equal(t, "", item.Namespace, "ClusterTopology should be cluster-scoped")
+				queue.Done(item)
+			}
 
-		for _, tt := range tests {
-			t.Run(tt.name, func(t *testing.T) {
-				result := predicate.Update(event.UpdateEvent{
-					ObjectOld: tt.oldObj,
-					ObjectNew: tt.newObj,
-				})
-				assert.Equal(t, tt.expected, result, "unexpected update predicate result")
-			})
-		}
-	})
+			// Verify expected topologies are in the queue
+			for _, expectedTopology := range tt.expectedTopologies {
+				_, found := enqueuedTopologies[expectedTopology]
+				assert.True(t, found, "expected topology %s to be enqueued: %s", expectedTopology, tt.expectedDescription)
+			}
+			assert.Equal(t, len(tt.expectedTopologies), len(enqueuedTopologies), "unexpected number of unique topologies enqueued")
+		})
+	}
+}
 
-	t.Run("GenericFunc", func(t *testing.T) {
-		tests := []struct {
-			name     string
-			obj      client.Object
-			expected bool
-		}{
-			{
-				name: "PodCliqueSet with topology label - should not reconcile on generic event",
-				obj: testutils.NewPodCliqueSetBuilder("test-pcs", "test-ns", uuid.NewUUID()).
-					WithTopologyLabel("test-topology").
-					Build(),
-				expected: false,
-			},
-			{
-				name: "PodCliqueSet without topology label - should not reconcile on generic event",
-				obj: testutils.NewPodCliqueSetBuilder("test-pcs", "test-ns", uuid.NewUUID()).
-					Build(),
-				expected: false,
-			},
-		}
+func TestPodCliqueSetEventHandler_Generic(t *testing.T) {
+	handler := &podCliqueSetEventHandler{}
+	queue := workqueue.NewTypedRateLimitingQueue(workqueue.DefaultTypedControllerRateLimiter[reconcile.Request]())
+	defer queue.ShutDown()
 
-		for _, tt := range tests {
-			t.Run(tt.name, func(t *testing.T) {
-				result := predicate.Generic(event.GenericEvent{Object: tt.obj})
-				assert.Equal(t, tt.expected, result, "unexpected generic predicate result")
-			})
-		}
-	})
+	tests := []struct {
+		name                string
+		obj                 client.Object
+		expectedQueueLength int
+	}{
+		{
+			name: "PodCliqueSet with topology label - should not enqueue",
+			obj: testutils.NewPodCliqueSetBuilder("test-pcs", "test-ns", uuid.NewUUID()).
+				WithTopologyLabel("test-topology").
+				Build(),
+			expectedQueueLength: 0,
+		},
+		{
+			name: "PodCliqueSet without topology label - should not enqueue",
+			obj: testutils.NewPodCliqueSetBuilder("test-pcs", "test-ns", uuid.NewUUID()).
+				Build(),
+			expectedQueueLength: 0,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Reset queue
+			for queue.Len() > 0 {
+				item, _ := queue.Get()
+				queue.Done(item)
+			}
+
+			handler.Generic(context.Background(), event.TypedGenericEvent[client.Object]{Object: tt.obj}, queue)
+			assert.Equal(t, tt.expectedQueueLength, queue.Len(), "unexpected queue length")
+		})
+	}
 }

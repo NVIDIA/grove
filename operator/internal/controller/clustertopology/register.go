@@ -23,12 +23,11 @@ import (
 	grovecorev1alpha1 "github.com/ai-dynamo/grove/operator/api/core/v1alpha1"
 
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/util/workqueue"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/event"
-	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
-	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
@@ -43,67 +42,96 @@ func (r *Reconciler) RegisterWithManager(mgr manager.Manager) error {
 		For(&grovecorev1alpha1.ClusterTopology{}).
 		Watches(
 			&grovecorev1alpha1.PodCliqueSet{},
-			handler.EnqueueRequestsFromMapFunc(mapPodCliqueSetToClusterTopology()),
-			builder.WithPredicates(podCliqueSetDeletionPredicate()),
+			&podCliqueSetEventHandler{},
 		).
 		Complete(r)
 }
 
-// mapPodCliqueSetToClusterTopology maps PodCliqueSet events to ClusterTopology reconcile requests
-// based on the topology label.
-func mapPodCliqueSetToClusterTopology() handler.MapFunc {
-	return func(_ context.Context, obj client.Object) []reconcile.Request {
-		pcs, ok := obj.(*grovecorev1alpha1.PodCliqueSet)
-		if !ok {
-			return nil
-		}
+// podCliqueSetEventHandler is a custom event handler for PodCliqueSet events that reconciles
+// ClusterTopology resources when PodCliqueSets are deleted or their topology label changes.
+// This handler ensures that both old and new topologies are reconciled on label changes.
+// This is required in order to unblock the deletion of a PodCliqueSet when the topology label is removed.
+type podCliqueSetEventHandler struct{}
 
-		// Get the cluster topology name from the label
-		topologyName, exists := pcs.Labels[apicommon.LabelClusterTopologyName]
-		if !exists || topologyName == "" {
-			return nil
-		}
+// Create handles PodCliqueSet creation events.
+// We don't reconcile on create since topology isn't blocked when PCS is created.
+func (h *podCliqueSetEventHandler) Create(_ context.Context, _ event.TypedCreateEvent[client.Object], _ workqueue.TypedRateLimitingInterface[reconcile.Request]) {
+	// No-op: don't reconcile on create
+}
 
-		// ClusterTopology is cluster-scoped, so no namespace
-		return []reconcile.Request{{
-			NamespacedName: types.NamespacedName{Name: topologyName},
-		}}
+// Update handles PodCliqueSet update events.
+// Reconciles both old and new topologies if the topology label was changed or removed.
+func (h *podCliqueSetEventHandler) Update(_ context.Context, e event.TypedUpdateEvent[client.Object], q workqueue.TypedRateLimitingInterface[reconcile.Request]) {
+	oldPCS, oldOk := e.ObjectOld.(*grovecorev1alpha1.PodCliqueSet)
+	newPCS, newOk := e.ObjectNew.(*grovecorev1alpha1.PodCliqueSet)
+	if !oldOk || !newOk {
+		return
+	}
+
+	oldTopology := getTopologyName(oldPCS)
+	newTopology := getTopologyName(newPCS)
+
+	// Only reconcile if there was a change to the topology label
+	if oldTopology == newTopology {
+		// No change - don't enqueue anything
+		return
+	}
+
+	// Collect unique topologies to reconcile
+	topologies := make(map[string]struct{})
+
+	// Add old topology if it had one and was removed or changed
+	// (it may need unblocking now that this PCS no longer references it)
+	if oldTopology != "" {
+		topologies[oldTopology] = struct{}{}
+	}
+
+	// Add new topology if one was set (and it's different from old, which we already checked)
+	if newTopology != "" {
+		topologies[newTopology] = struct{}{}
+	}
+
+	// Enqueue reconcile requests for all affected topologies
+	for topology := range topologies {
+		q.Add(reconcile.Request{
+			NamespacedName: types.NamespacedName{Name: topology},
+		})
 	}
 }
 
-// podCliqueSetDeletionPredicate filters PodCliqueSet events to only trigger reconciliation
-// when a PCS with a topology label is deleted or its topology label changes.
-func podCliqueSetDeletionPredicate() predicate.Predicate {
-	hasTopologyLabel := func(obj client.Object) bool {
-		if obj == nil {
-			return false
-		}
-		value, exists := obj.GetLabels()[apicommon.LabelClusterTopologyName]
-		return exists && value != ""
+// Delete handles PodCliqueSet deletion events.
+// Reconciles the topology that was referenced by the deleted PCS to potentially unblock its deletion.
+func (h *podCliqueSetEventHandler) Delete(_ context.Context, e event.TypedDeleteEvent[client.Object], q workqueue.TypedRateLimitingInterface[reconcile.Request]) {
+	pcs, ok := e.Object.(*grovecorev1alpha1.PodCliqueSet)
+	if !ok {
+		return
 	}
 
-	return predicate.Funcs{
-		CreateFunc: func(_ event.CreateEvent) bool {
-			// Don't reconcile on create - topology isn't blocked when PCS is created
-			return false
-		},
-		DeleteFunc: func(e event.DeleteEvent) bool {
-			// Reconcile when a PCS with topology label is deleted
-			return hasTopologyLabel(e.Object)
-		},
-		UpdateFunc: func(e event.UpdateEvent) bool {
-			// Reconcile if topology label was removed or changed
-			// Empty values are treated as non-existent
-			oldLabel, oldExists := e.ObjectOld.GetLabels()[apicommon.LabelClusterTopologyName]
-			oldHasValue := oldExists && oldLabel != ""
-			newLabel, newExists := e.ObjectNew.GetLabels()[apicommon.LabelClusterTopologyName]
-			newHasValue := newExists && newLabel != ""
-
-			// Label removed (had value, now doesn't) or changed (both have values but different)
-			return (oldHasValue && !newHasValue) || (oldHasValue && newHasValue && oldLabel != newLabel)
-		},
-		GenericFunc: func(_ event.GenericEvent) bool {
-			return false
-		},
+	topology := getTopologyName(pcs)
+	if topology == "" {
+		return
 	}
+
+	q.Add(reconcile.Request{
+		NamespacedName: types.NamespacedName{Name: topology},
+	})
+}
+
+// Generic handles generic events for PodCliqueSet.
+// We don't reconcile on generic events.
+func (h *podCliqueSetEventHandler) Generic(_ context.Context, _ event.TypedGenericEvent[client.Object], _ workqueue.TypedRateLimitingInterface[reconcile.Request]) {
+	// No-op: don't reconcile on generic events
+}
+
+// getTopologyName extracts the topology name from a PodCliqueSet's labels.
+// Returns empty string if the label doesn't exist or is empty.
+func getTopologyName(pcs *grovecorev1alpha1.PodCliqueSet) string {
+	if pcs == nil {
+		return ""
+	}
+	topology, exists := pcs.Labels[apicommon.LabelClusterTopologyName]
+	if !exists || topology == "" {
+		return ""
+	}
+	return topology
 }
