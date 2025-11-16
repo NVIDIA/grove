@@ -29,23 +29,43 @@ import (
 
 // TestRegisterWithManager tests webhook registration with the controller manager.
 func TestRegisterWithManager(t *testing.T) {
-	cl := testutils.NewTestClientBuilder().Build()
-	mgr := &testutils.FakeManager{
-		Client: cl,
-		Scheme: cl.Scheme(),
-		Logger: logr.Discard(),
+	tests := []struct {
+		name           string
+		topologyConfig configv1alpha1.ClusterTopologyConfiguration
+	}{
+		{
+			name: "topology disabled",
+			topologyConfig: configv1alpha1.ClusterTopologyConfiguration{
+				Enabled: false,
+			},
+		},
+		{
+			name: "topology enabled",
+			topologyConfig: configv1alpha1.ClusterTopologyConfiguration{
+				Enabled: true,
+				Name:    testTopologyName,
+			},
+		},
 	}
 
-	// Create a real webhook server
-	server := webhook.NewServer(webhook.Options{
-		Port: 9443,
-	})
-	mgr.WebhookServer = server
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cl := testutils.NewTestClientBuilder().Build()
+			mgr := &testutils.FakeManager{
+				Client: cl,
+				Scheme: cl.Scheme(),
+				Logger: logr.Discard(),
+			}
 
-	topologyConfig := configv1alpha1.ClusterTopologyConfiguration{
-		Enabled: false,
+			// Create a real webhook server
+			server := webhook.NewServer(webhook.Options{
+				Port: 9443,
+			})
+			mgr.WebhookServer = server
+
+			handler := NewHandler(mgr, tt.topologyConfig)
+			err := handler.RegisterWithManager(mgr)
+			require.NoError(t, err)
+		})
 	}
-	handler := NewHandler(mgr, topologyConfig)
-	err := handler.RegisterWithManager(mgr)
-	require.NoError(t, err)
 }

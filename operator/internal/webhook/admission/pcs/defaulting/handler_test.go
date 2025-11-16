@@ -39,6 +39,10 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 )
 
+const (
+	testTopologyName = "test-topology"
+)
+
 // TestNewHandler tests the creation of a new defaulting handler.
 func TestNewHandler(t *testing.T) {
 	cl := testutils.NewTestClientBuilder().Build()
@@ -237,7 +241,7 @@ func TestDefault(t *testing.T) {
 			},
 			topologyConfig: configv1alpha1.ClusterTopologyConfiguration{
 				Enabled: true,
-				Name:    "test-topology",
+				Name:    testTopologyName,
 			},
 			setupContext: func(ctx context.Context) context.Context {
 				return admission.NewContextWithRequest(ctx, admission.Request{
@@ -257,7 +261,7 @@ func TestDefault(t *testing.T) {
 				require.True(t, ok)
 				// Verify that topology label is set with correct value
 				require.NotNil(t, pcs.Labels)
-				assert.Equal(t, "test-topology", pcs.Labels[apicommon.LabelClusterTopologyName])
+				assert.Equal(t, testTopologyName, pcs.Labels[apicommon.LabelClusterTopologyName])
 				// Verify other defaults are also applied
 				assert.NotNil(t, pcs.Spec.Template.TerminationDelay)
 			},

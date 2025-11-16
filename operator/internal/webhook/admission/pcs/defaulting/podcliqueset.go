@@ -45,12 +45,20 @@ func defaultPodCliqueSet(pcs *grovecorev1alpha1.PodCliqueSet, topologyConfig con
 
 // defaultPodCliqueSetMetadata adds default metadata (labels, annotations) to a PodCliqueSet.
 func defaultPodCliqueSetMetadata(pcs *grovecorev1alpha1.PodCliqueSet, topologyConfig configv1alpha1.ClusterTopologyConfiguration) {
-	// Add topology label if topology is enabled
+	defaultPodCliqueSetLabels(pcs, topologyConfig)
+}
+
+// defaultPodCliqueSetLabels adds default labels to a PodCliqueSet.
+func defaultPodCliqueSetLabels(pcs *grovecorev1alpha1.PodCliqueSet, topologyConfig configv1alpha1.ClusterTopologyConfiguration) {
+	// Add topology label if topology is enabled and label is not already set
 	if topologyConfig.Enabled {
 		if pcs.Labels == nil {
 			pcs.Labels = make(map[string]string)
 		}
-		pcs.Labels[apicommon.LabelClusterTopologyName] = topologyConfig.Name
+		// Only set the label if it doesn't exist - don't override user-provided values
+		if _, exists := pcs.Labels[apicommon.LabelClusterTopologyName]; !exists {
+			pcs.Labels[apicommon.LabelClusterTopologyName] = topologyConfig.Name
+		}
 	}
 }
 
