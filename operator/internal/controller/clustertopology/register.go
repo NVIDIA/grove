@@ -19,8 +19,8 @@ package clustertopology
 import (
 	"context"
 
-	apicommon "github.com/ai-dynamo/grove/operator/api/common"
 	grovecorev1alpha1 "github.com/ai-dynamo/grove/operator/api/core/v1alpha1"
+	componentutils "github.com/ai-dynamo/grove/operator/internal/controller/common/component/utils"
 
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/util/workqueue"
@@ -68,8 +68,8 @@ func (h *podCliqueSetEventHandler) Update(_ context.Context, e event.TypedUpdate
 		return
 	}
 
-	oldTopology := getTopologyName(oldPCS)
-	newTopology := getTopologyName(newPCS)
+	oldTopology := componentutils.GetTopologyName(oldPCS)
+	newTopology := componentutils.GetTopologyName(newPCS)
 
 	// Only reconcile if there was a change to the topology label
 	if oldTopology == newTopology {
@@ -107,7 +107,7 @@ func (h *podCliqueSetEventHandler) Delete(_ context.Context, e event.TypedDelete
 		return
 	}
 
-	topology := getTopologyName(pcs)
+	topology := componentutils.GetTopologyName(pcs)
 	if topology == "" {
 		return
 	}
@@ -121,17 +121,4 @@ func (h *podCliqueSetEventHandler) Delete(_ context.Context, e event.TypedDelete
 // We don't reconcile on generic events.
 func (h *podCliqueSetEventHandler) Generic(_ context.Context, _ event.TypedGenericEvent[client.Object], _ workqueue.TypedRateLimitingInterface[reconcile.Request]) {
 	// No-op: don't reconcile on generic events
-}
-
-// getTopologyName extracts the topology name from a PodCliqueSet's labels.
-// Returns empty string if the label doesn't exist or is empty.
-func getTopologyName(pcs *grovecorev1alpha1.PodCliqueSet) string {
-	if pcs == nil {
-		return ""
-	}
-	topology, exists := pcs.Labels[apicommon.LabelClusterTopologyName]
-	if !exists || topology == "" {
-		return ""
-	}
-	return topology
 }

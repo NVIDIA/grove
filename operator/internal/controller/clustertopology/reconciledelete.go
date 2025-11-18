@@ -56,7 +56,18 @@ func (r *Reconciler) triggerDeletionFlow(ctx context.Context, logger logr.Logger
 // 2. Topology is enabled AND this specific topology is configured
 func (r *Reconciler) checkDeletionConditions(ctx context.Context, logger logr.Logger, ct *grovecorev1alpha1.ClusterTopology) ctrlcommon.ReconcileStepResult {
 	logger.Info("Checking deletion conditions", "ClusterTopology", ct.Name)
-	// Condition 1: Check for PodCliqueSet references
+
+	// Condition 1: Check if topology is enabled and configured to use this ClusterTopology
+	if r.config.Enabled && r.config.Name == ct.Name {
+		logger.Info("Cannot delete ClusterTopology: topology feature is enabled and configured to use this topology",
+			"topologyName", r.config.Name)
+		r.eventRecorder.Eventf(ct, corev1.EventTypeWarning, groveconstants.ReasonClusterTopologyDeleteBlocked,
+			"Cannot delete ClusterTopology %s: topology feature is enabled and configured to use this ClusterTopology", ct.Name)
+		// Don't requeue - this condition requires manual intervention (config change + operator restart)
+		return ctrlcommon.DoNotRequeue()
+	}
+
+	// Condition 2: Check for PodCliqueSet references
 	pcsList := &grovecorev1alpha1.PodCliqueSetList{}
 	labelSelector := client.MatchingLabels{
 		apicommon.LabelClusterTopologyName: ct.Name,
@@ -71,16 +82,6 @@ func (r *Reconciler) checkDeletionConditions(ctx context.Context, logger logr.Lo
 		r.eventRecorder.Eventf(ct, corev1.EventTypeWarning, groveconstants.ReasonClusterTopologyDeleteBlocked,
 			"Cannot delete ClusterTopology %s: referenced by %d PodCliqueSet resource(s)", ct.Name, len(pcsList.Items))
 		// Don't requeue - the watch on PodCliqueSet will trigger reconciliation when PCS is deleted
-		return ctrlcommon.DoNotRequeue()
-	}
-
-	// Condition 2: Check if topology is enabled and configured to use this ClusterTopology
-	if r.config.ClusterTopology.Enabled && r.config.ClusterTopology.Name == ct.Name {
-		logger.Info("Cannot delete ClusterTopology: topology feature is enabled and configured to use this topology",
-			"topologyName", r.config.ClusterTopology.Name)
-		r.eventRecorder.Eventf(ct, corev1.EventTypeWarning, groveconstants.ReasonClusterTopologyDeleteBlocked,
-			"Cannot delete ClusterTopology %s: topology feature is enabled and configured to use this ClusterTopology", ct.Name)
-		// Don't requeue - this condition requires manual intervention (config change + operator restart)
 		return ctrlcommon.DoNotRequeue()
 	}
 

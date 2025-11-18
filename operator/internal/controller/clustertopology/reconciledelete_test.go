@@ -168,9 +168,7 @@ func TestCheckDeletionConditions(t *testing.T) {
 			reconciler := &Reconciler{
 				client:        fakeClient,
 				eventRecorder: record.NewFakeRecorder(10),
-				config: configv1alpha1.OperatorConfiguration{
-					ClusterTopology: tt.topologyConfig,
-				},
+				config:        tt.topologyConfig,
 			}
 
 			// Run checkDeletionConditions
@@ -318,9 +316,7 @@ func TestTriggerDeletionFlow(t *testing.T) {
 			reconciler := &Reconciler{
 				client:        fakeClient,
 				eventRecorder: record.NewFakeRecorder(10),
-				config: configv1alpha1.OperatorConfiguration{
-					ClusterTopology: tt.topologyConfig,
-				},
+				config:        tt.topologyConfig,
 			}
 
 			// Run triggerDeletionFlow

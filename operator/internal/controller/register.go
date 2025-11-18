@@ -27,7 +27,7 @@ import (
 )
 
 // RegisterControllers registers all controllers with the manager.
-func RegisterControllers(mgr ctrl.Manager, controllerConfig configv1alpha1.ControllerConfiguration, topologyConfig configv1alpha1.OperatorConfiguration) error {
+func RegisterControllers(mgr ctrl.Manager, controllerConfig configv1alpha1.ControllerConfiguration, operatorConfig configv1alpha1.OperatorConfiguration) error {
 	pcsReconciler := podcliqueset.NewReconciler(mgr, controllerConfig.PodCliqueSet)
 	if err := pcsReconciler.RegisterWithManager(mgr); err != nil {
 		return err
@@ -40,7 +40,7 @@ func RegisterControllers(mgr ctrl.Manager, controllerConfig configv1alpha1.Contr
 	if err := pcsgReconciler.RegisterWithManager(mgr); err != nil {
 		return err
 	}
-	ctReconciler := clustertopology.NewReconciler(mgr, topologyConfig)
+	ctReconciler := clustertopology.NewReconciler(mgr, operatorConfig.ClusterTopology)
 	if err := ctReconciler.RegisterWithManager(mgr); err != nil {
 		return err
 	}

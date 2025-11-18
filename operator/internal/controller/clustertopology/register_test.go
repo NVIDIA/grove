@@ -20,7 +20,6 @@ import (
 	"context"
 	"testing"
 
-	grovecorev1alpha1 "github.com/ai-dynamo/grove/operator/api/core/v1alpha1"
 	testutils "github.com/ai-dynamo/grove/operator/test/utils"
 
 	"github.com/stretchr/testify/assert"
@@ -31,47 +30,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
-
-func TestGetTopologyName(t *testing.T) {
-	tests := []struct {
-		name     string
-		pcs      *grovecorev1alpha1.PodCliqueSet
-		expected string
-	}{
-		{
-			name: "PodCliqueSet with topology label",
-			pcs: testutils.NewPodCliqueSetBuilder("test-pcs", "test-ns", uuid.NewUUID()).
-				WithTopologyLabel("test-topology").
-				Build(),
-			expected: "test-topology",
-		},
-		{
-			name: "PodCliqueSet without topology label",
-			pcs: testutils.NewPodCliqueSetBuilder("test-pcs", "test-ns", uuid.NewUUID()).
-				Build(),
-			expected: "",
-		},
-		{
-			name:     "nil PodCliqueSet",
-			pcs:      nil,
-			expected: "",
-		},
-		{
-			name: "PodCliqueSet with empty topology label",
-			pcs: testutils.NewPodCliqueSetBuilder("test-pcs", "test-ns", uuid.NewUUID()).
-				WithTopologyLabel("").
-				Build(),
-			expected: "",
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			result := getTopologyName(tt.pcs)
-			assert.Equal(t, tt.expected, result)
-		})
-	}
-}
 
 func TestPodCliqueSetEventHandler_Create(t *testing.T) {
 	handler := &podCliqueSetEventHandler{}

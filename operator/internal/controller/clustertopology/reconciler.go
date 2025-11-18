@@ -33,14 +33,14 @@ import (
 
 // Reconciler reconciles ClusterTopology resources.
 type Reconciler struct {
-	config                  configv1alpha1.OperatorConfiguration
+	config                  configv1alpha1.ClusterTopologyConfiguration
 	client                  ctrlclient.Client
 	eventRecorder           record.EventRecorder
 	reconcileStatusRecorder ctrlcommon.ReconcileErrorRecorder
 }
 
 // NewReconciler creates a new reconciler for ClusterTopology.
-func NewReconciler(mgr ctrl.Manager, topologyCfg configv1alpha1.OperatorConfiguration) *Reconciler {
+func NewReconciler(mgr ctrl.Manager, topologyCfg configv1alpha1.ClusterTopologyConfiguration) *Reconciler {
 	return &Reconciler{
 		config:                  topologyCfg,
 		client:                  mgr.GetClient(),
