@@ -229,7 +229,7 @@ Deletion Workflow:
 2. Kubernetes blocks deletion (finalizer `grove.io/clustertopology` present)
 3. Controller reconciles:
    - Detects deletion request (deletion timestamp set)
-   - Checks if any PodCliqueSet (in any namespace) references this ClusterTopology (via `grove.io/topology-name` label)
+   - Checks if any PodCliqueSet (in any namespace) references this ClusterTopology (via `grove.io/cluster-topology-name` label)
    - Checks if topology is enabled in operator config (`clusterTopology.enabled: true`) and this specific topology is configured (considering both the default topology name and the `clusterTopology.name` setting)
    - If ANY PodCliqueSet references this topology OR topology is enabled and set to this topology: Keeps finalizer, deletion blocked
    - If NO PodCliqueSet references this topology AND topology is disabled or not set to this topology: Removes finalizer, deletion proceeds
@@ -238,7 +238,7 @@ Deletion Workflow:
 Key Points:
 
 - Admin must satisfy BOTH conditions before deletion:
-    - Delete all PodCliqueSet resources that reference this ClusterTopology (check `grove.io/topology-name` label)
+    - Delete all PodCliqueSet resources that reference this ClusterTopology (check `grove.io/cluster-topology-name` label)
     - Disable TAS in operator config (`clusterTopology.enabled: false`) and restart operator
 - Controller checks both conditions before allowing deletion
 - Controller continuously reconciles deletion requests
