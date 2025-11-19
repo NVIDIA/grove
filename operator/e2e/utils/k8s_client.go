@@ -322,19 +322,23 @@ func isPodReady(pod *v1.Pod) bool {
 	return false
 }
 
-// CordonNode cordons or uncordons a Kubernetes node
-func CordonNode(ctx context.Context, clientset kubernetes.Interface, nodeName string, cordon bool) error {
+// SetNodeSchedulable a Kubernetes node to be unschedulable or schedulable
+func SetNodeSchedulable(ctx context.Context, clientset kubernetes.Interface, nodeName string, schedulable bool) error {
 	node, err := clientset.CoreV1().Nodes().Get(ctx, nodeName, metav1.GetOptions{})
 	if err != nil {
 		return fmt.Errorf("failed to get node %s: %w", nodeName, err)
 	}
 
-	if node.Spec.Unschedulable == cordon {
+	// NOTE: schedulable is the opposite of unschedulable in the node spec
+	// so we invert it to make it more intuitive in the function parameters
+	if node.Spec.Unschedulable == !schedulable {
 		// Already in desired state
 		return nil
 	}
 
-	node.Spec.Unschedulable = cordon
+	// NOTE: schedulable is the opposite of unschedulable in the node spec
+	// so we invert it to make it more intuitive in the function parameters
+	node.Spec.Unschedulable = !schedulable
 	_, err = clientset.CoreV1().Nodes().Update(ctx, node, metav1.UpdateOptions{})
 	if err != nil {
 		return fmt.Errorf("failed to update node %s: %w", nodeName, err)

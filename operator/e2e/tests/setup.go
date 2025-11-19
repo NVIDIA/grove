@@ -97,9 +97,14 @@ func waitForPods(tc TestContext, expectedCount int) error {
 	return utils.WaitForPods(tc.Ctx, tc.RestConfig, []string{tc.Namespace}, tc.getLabelSelector(), expectedCount, tc.Timeout, tc.Interval, logger)
 }
 
-// cordonNode is a wrapper around utils.CordonNode that accepts TestContext
-func cordonNode(tc TestContext, nodeName string, cordon bool) error {
-	return utils.CordonNode(tc.Ctx, tc.Clientset, nodeName, cordon)
+// cordonNode is a wrapper around utils.SetNodeSchedulable that accepts TestContext
+func cordonNode(tc TestContext, nodeName string) error {
+	return utils.SetNodeSchedulable(tc.Ctx, tc.Clientset, nodeName, false)
+}
+
+// uncordonNode is a wrapper around utils.SetNodeSchedulable that accepts TestContext
+func uncordonNode(tc TestContext, nodeName string) error {
+	return utils.SetNodeSchedulable(tc.Ctx, tc.Clientset, nodeName, true)
 }
 
 // scalePodCliqueScalingGroup is a wrapper around utils.ScalePodCliqueScalingGroupWithClient that accepts TestContext
@@ -349,17 +354,24 @@ func scalePCSAndWait(tc TestContext, pcsName string, replicas int32, expectedTot
 	}
 }
 
-// cordonNodes cordons or uncordons multiple nodes.
-// This helper reduces repetition of the cordon/uncordon loop pattern found throughout tests.
-func cordonNodes(tc TestContext, nodes []string, cordon bool) {
+// cordonNodes cordons multiple nodes.
+// This helper reduces repetition of the cordon loop pattern found throughout tests.
+func cordonNodes(tc TestContext, nodes []string) {
 	tc.T.Helper()
-	action := "cordon"
-	if !cordon {
-		action = "uncordon"
-	}
 	for _, nodeName := range nodes {
-		if err := cordonNode(tc, nodeName, cordon); err != nil {
-			tc.T.Fatalf("Failed to %s node %s: %v", action, nodeName, err)
+		if err := cordonNode(tc, nodeName); err != nil {
+			tc.T.Fatalf("Failed to cordon node %s: %v", nodeName, err)
+		}
+	}
+}
+
+// uncordonNodes uncordons multiple nodes.
+// This helper reduces repetition of the uncordon loop pattern found throughout tests.
+func uncordonNodes(tc TestContext, nodes []string) {
+	tc.T.Helper()
+	for _, nodeName := range nodes {
+		if err := uncordonNode(tc, nodeName); err != nil {
+			tc.T.Fatalf("Failed to uncordon node %s: %v", nodeName, err)
 		}
 	}
 }
@@ -409,7 +421,7 @@ func setupAndCordonNodes(tc TestContext, numToCordon int) []string {
 	}
 
 	nodesToCordon := workerNodes[:numToCordon]
-	cordonNodes(tc, nodesToCordon, true)
+	cordonNodes(tc, nodesToCordon)
 
 	return nodesToCordon
 }
@@ -475,7 +487,7 @@ func verifyAllPodsArePendingWithSleep(tc TestContext) {
 func uncordonNodesAndWaitForPods(tc TestContext, nodes []string, expectedPods int) {
 	tc.T.Helper()
 
-	cordonNodes(tc, nodes, false)
+	uncordonNodes(tc, nodes)
 
 	if err := waitForPods(tc, expectedPods); err != nil {
 		tc.T.Fatalf("Failed to wait for pods to be ready: %v", err)

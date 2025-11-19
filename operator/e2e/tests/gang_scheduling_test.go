@@ -42,14 +42,14 @@ func Test_GS1_GangSchedulingWithFullReplicas(t *testing.T) {
 	// Create test context with workload configuration
 	expectedPods := 10 // pc-a: 2 replicas, pc-b: 1*2 (scaling group), pc-c: 3*2 (scaling group) = 2+2+6=10
 	tc := TestContext{
-		T:          t,
-		Ctx:        ctx,
-		Clientset:  clientset,
-		RestConfig: restConfig,
+		T:             t,
+		Ctx:           ctx,
+		Clientset:     clientset,
+		RestConfig:    restConfig,
 		DynamicClient: dynamicClient,
-		Namespace:  "default",
-		Timeout:    defaultPollTimeout,
-		Interval:   defaultPollInterval,
+		Namespace:     "default",
+		Timeout:       defaultPollTimeout,
+		Interval:      defaultPollInterval,
 		Workload: &WorkloadConfig{
 			Name:         "workload1",
 			YAMLPath:     "../yaml/workload1.yaml",
@@ -104,14 +104,14 @@ func Test_GS2_GangSchedulingWithScalingFullReplicas(t *testing.T) {
 
 	// Create test context
 	tc := TestContext{
-		T:          t,
-		Ctx:        ctx,
-		Clientset:  clientset,
-		RestConfig: restConfig,
+		T:             t,
+		Ctx:           ctx,
+		Clientset:     clientset,
+		RestConfig:    restConfig,
 		DynamicClient: dynamicClient,
-		Namespace:  "default",
-		Timeout:    defaultPollTimeout,
-		Interval:   defaultPollInterval,
+		Namespace:     "default",
+		Timeout:       defaultPollTimeout,
+		Interval:      defaultPollInterval,
 		Workload: &WorkloadConfig{
 			Name:         "workload1",
 			YAMLPath:     "../yaml/workload1.yaml",
@@ -336,14 +336,14 @@ func Test_GS5_GangSchedulingWithMinReplicas(t *testing.T) {
 
 	// Create test context
 	tc := TestContext{
-		T:          t,
-		Ctx:        ctx,
-		Clientset:  clientset,
-		RestConfig: restConfig,
+		T:             t,
+		Ctx:           ctx,
+		Clientset:     clientset,
+		RestConfig:    restConfig,
 		DynamicClient: dynamicClient,
-		Namespace:  "default",
-		Timeout:    defaultPollTimeout,
-		Interval:   defaultPollInterval,
+		Namespace:     "default",
+		Timeout:       defaultPollTimeout,
+		Interval:      defaultPollInterval,
 		Workload: &WorkloadConfig{
 			Name:         "workload2",
 			YAMLPath:     "../yaml/workload2.yaml",
@@ -365,7 +365,7 @@ func Test_GS5_GangSchedulingWithMinReplicas(t *testing.T) {
 	logger.Info("3. Verify all workload pods are pending due to insufficient resources")
 	verifyAllPodsArePendingWithSleep(tc)
 
-	cordonNodes(tc, nodesToCordon[:1], false)
+	uncordonNodes(tc, nodesToCordon[:1])
 
 	// Wait for exactly 3 pods to be scheduled (min-replicas)
 	if err := waitForPodPhases(tc, 3, 7); err != nil {
@@ -378,7 +378,7 @@ func Test_GS5_GangSchedulingWithMinReplicas(t *testing.T) {
 	}
 
 	logger.Info("6. Uncordon 7 nodes and verify all remaining workload pods get scheduled")
-	cordonNodes(tc, nodesToCordon[1:], false)
+	uncordonNodes(tc, nodesToCordon[1:])
 
 	// Wait for all remaining pods to be scheduled and ready
 	if err := waitForPods(tc, 10); err != nil {
@@ -451,7 +451,7 @@ func Test_GS6_GangSchedulingWithPCSGScalingMinReplicas(t *testing.T) {
 
 	logger.Info("4. Uncordon 1 node and verify a total of 3 pods get scheduled (pcs-0-{pc-a=1, sg-x-0-pc-b=1, sg-x-0-pc-c=1})")
 	// Based on workload2 min-replicas: pcs-0-{pc-a=1, sg-x-0-pc-b=1, sg-x-0-pc-c=1}
-	cordonNodes(tc, nodesToCordon[:1], false)
+	uncordonNodes(tc, nodesToCordon[:1])
 
 	// Wait for exactly 3 pods to be scheduled (min-replicas)
 	if err := waitForPodPhases(tc, 3, 7); err != nil {
@@ -465,7 +465,7 @@ func Test_GS6_GangSchedulingWithPCSGScalingMinReplicas(t *testing.T) {
 
 	logger.Info("6. Uncordon 7 nodes and verify the remaining workload pods get scheduled")
 	sevenNodesToUncordon := nodesToCordon[1:8]
-	cordonNodes(tc, sevenNodesToUncordon, false)
+	uncordonNodes(tc, sevenNodesToUncordon)
 
 	// Wait for all remaining pods to be scheduled and ready
 	if err := waitForPods(tc, 10); err != nil {
@@ -490,7 +490,7 @@ func Test_GS6_GangSchedulingWithPCSGScalingMinReplicas(t *testing.T) {
 	// Uncordon 2 nodes and verify exactly 2 more pods get scheduled
 	// pcs-0-{sg-x-2-pc-b = 1, sg-x-2-pc-c = 1} (min-replicas for the new PCSG replica)
 	twoNodesToUncordon := nodesToCordon[8:10]
-	cordonNodes(tc, twoNodesToUncordon, false)
+	uncordonNodes(tc, twoNodesToUncordon)
 
 	// Wait for exactly 2 more pods to be scheduled (min-replicas for new PCSG replica)
 	if err := waitForPodPhases(tc, 12, 2); err != nil {
@@ -505,7 +505,7 @@ func Test_GS6_GangSchedulingWithPCSGScalingMinReplicas(t *testing.T) {
 	logger.Info("12. Uncordon 2 nodes and verify remaining workload pods get scheduled")
 	// Uncordon remaining 2 nodes and verify all remaining workload pods get scheduled
 	remainingNodesToUncordon := nodesToCordon[10:12]
-	cordonNodes(tc, remainingNodesToUncordon, false)
+	uncordonNodes(tc, remainingNodesToUncordon)
 
 	// Wait for all remaining pods to be scheduled and ready
 	if err := waitForPods(tc, 14); err != nil {
@@ -580,7 +580,7 @@ func Test_GS7_GangSchedulingWithPCSGScalingMinReplicasAdvanced1(t *testing.T) {
 
 	logger.Info("4. Uncordon 1 node and verify a total of 3 pods get scheduled (pcs-0-{pc-a=1, sg-x-0-pc-b=1, sg-x-0-pc-c=1})")
 	firstNodeToUncordon := nodesToCordon[0]
-	if err := cordonNode(tc, firstNodeToUncordon, false); err != nil {
+	if err := uncordonNode(tc, firstNodeToUncordon); err != nil {
 		t.Fatalf("Failed to uncordon node %s: %v", firstNodeToUncordon, err)
 	}
 
@@ -596,7 +596,7 @@ func Test_GS7_GangSchedulingWithPCSGScalingMinReplicasAdvanced1(t *testing.T) {
 
 	logger.Info("6. Uncordon 2 nodes and verify 2 more pods get scheduled (pcs-0-{sg-x-1-pc-b=1, sg-x-1-pc-c=1})")
 	twoNodesToUncordon := nodesToCordon[1:3]
-	cordonNodes(tc, twoNodesToUncordon, false)
+	uncordonNodes(tc, twoNodesToUncordon)
 
 	// Wait for exactly 2 more pods to be scheduled (sg-x-1 min-replicas)
 	if err := waitForPodPhases(tc, 5, len(pods.Items)-5); err != nil {
@@ -610,7 +610,7 @@ func Test_GS7_GangSchedulingWithPCSGScalingMinReplicasAdvanced1(t *testing.T) {
 
 	logger.Info("8. Uncordon 5 nodes and verify the remaining workload pods get scheduled")
 	fiveNodesToUncordon := nodesToCordon[3:8]
-	cordonNodes(tc, fiveNodesToUncordon, false)
+	uncordonNodes(tc, fiveNodesToUncordon)
 
 	// Wait for all remaining pods to be scheduled and ready
 	if err := waitForPods(tc, 10); err != nil {
@@ -634,7 +634,7 @@ func Test_GS7_GangSchedulingWithPCSGScalingMinReplicasAdvanced1(t *testing.T) {
 
 	logger.Info("12. Uncordon 2 nodes and verify 2 more pods get scheduled (pcs-0-{sg-x-2-pc-b=1, sg-x-2-pc-c=1})")
 	twoMoreNodesToUncordon := nodesToCordon[8:10]
-	cordonNodes(tc, twoMoreNodesToUncordon, false)
+	uncordonNodes(tc, twoMoreNodesToUncordon)
 
 	// Wait for exactly 2 more pods to be scheduled (min-replicas for new PCSG replica)
 	if err := waitForPodPhases(tc, 12, 2); err != nil {
@@ -648,7 +648,7 @@ func Test_GS7_GangSchedulingWithPCSGScalingMinReplicasAdvanced1(t *testing.T) {
 
 	logger.Info("14. Uncordon 2 nodes and verify remaining workload pods get scheduled")
 	remainingNodesToUncordon := nodesToCordon[10:12]
-	cordonNodes(tc, remainingNodesToUncordon, false)
+	uncordonNodes(tc, remainingNodesToUncordon)
 
 	// Wait for all remaining pods to be scheduled and ready
 	if err := waitForPods(tc, 14); err != nil {
@@ -727,7 +727,7 @@ func Test_GS8_GangSchedulingWithPCSGScalingMinReplicasAdvanced2(t *testing.T) {
 
 	logger.Info("6. Uncordon 1 node and verify a total of 3 pods get scheduled (pcs-0-{pc-a=1, sg-x-0-pc-b=1, sg-x-0-pc-c=1})")
 	firstNodeToUncordon := nodesToCordon[0]
-	if err := cordonNode(tc, firstNodeToUncordon, false); err != nil {
+	if err := uncordonNode(tc, firstNodeToUncordon); err != nil {
 		t.Fatalf("Failed to uncordon node %s: %v", firstNodeToUncordon, err)
 	}
 
@@ -744,7 +744,7 @@ func Test_GS8_GangSchedulingWithPCSGScalingMinReplicasAdvanced2(t *testing.T) {
 
 	logger.Info("8. Uncordon 4 nodes and verify 4 more pods get scheduled")
 	fourNodesToUncordon := nodesToCordon[1:5]
-	cordonNodes(tc, fourNodesToUncordon, false)
+	uncordonNodes(tc, fourNodesToUncordon)
 
 	// Wait for exactly 4 more pods to be scheduled (sg-x-1 and sg-x-2 min-replicas)
 	// Total is 14, so 14-7 = 7 pending
@@ -759,7 +759,7 @@ func Test_GS8_GangSchedulingWithPCSGScalingMinReplicasAdvanced2(t *testing.T) {
 
 	logger.Info("10. Uncordon 7 nodes and verify the remaining workload pods get scheduled")
 	remainingNodesToUncordon := nodesToCordon[5:]
-	cordonNodes(tc, remainingNodesToUncordon, false)
+	uncordonNodes(tc, remainingNodesToUncordon)
 
 	// Wait for all remaining pods to be scheduled and ready
 	if err := waitForPods(tc, 14); err != nil {
@@ -831,7 +831,7 @@ func Test_GS9_GangSchedulingWithPCSScalingMinReplicas(t *testing.T) {
 
 	logger.Info("4. Uncordon 1 node and verify a total of 3 pods get scheduled (pcs-0-{pc-a=1, sg-x-0-pc-b=1, sg-x-0-pc-c=1})")
 	firstNodeToUncordon := nodesToCordon[0]
-	if err := cordonNode(tc, firstNodeToUncordon, false); err != nil {
+	if err := uncordonNode(tc, firstNodeToUncordon); err != nil {
 		t.Fatalf("Failed to uncordon node %s: %v", firstNodeToUncordon, err)
 	}
 
@@ -848,7 +848,7 @@ func Test_GS9_GangSchedulingWithPCSScalingMinReplicas(t *testing.T) {
 	logger.Info("6. Uncordon 7 nodes and verify the remaining workload pods get scheduled")
 	logger.Info("7. Wait for scheduled pods to become ready")
 	sevenNodesToUncordon := nodesToCordon[1:8]
-	cordonNodes(tc, sevenNodesToUncordon, false)
+	uncordonNodes(tc, sevenNodesToUncordon)
 
 	// Wait for all remaining pods to be scheduled and ready
 	if err := waitForPods(tc, 10); err != nil {
@@ -866,7 +866,7 @@ func Test_GS9_GangSchedulingWithPCSScalingMinReplicas(t *testing.T) {
 
 	logger.Info("9. Uncordon 3 nodes and verify another 3 pods get scheduled (pcs-1-{pc-a=1, sg-x-0-pc-b=1, sg-x-0-pc-c=1})")
 	threeNodesToUncordon := nodesToCordon[8:11]
-	cordonNodes(tc, threeNodesToUncordon, false)
+	uncordonNodes(tc, threeNodesToUncordon)
 
 	// Wait for exactly 3 more pods to be scheduled (min-replicas for new PCS replica)
 	if err := waitForPodPhases(tc, 13, 7); err != nil {
@@ -880,7 +880,7 @@ func Test_GS9_GangSchedulingWithPCSScalingMinReplicas(t *testing.T) {
 
 	logger.Info("11. Uncordon 7 nodes and verify the remaining workload pods get scheduled")
 	remainingNodesToUncordon := nodesToCordon[11:18]
-	cordonNodes(tc, remainingNodesToUncordon, false)
+	uncordonNodes(tc, remainingNodesToUncordon)
 
 	// Wait for all remaining pods to be scheduled and ready
 	if err := waitForPods(tc, 20); err != nil {
@@ -961,7 +961,7 @@ func Test_GS10_GangSchedulingWithPCSScalingMinReplicasAdvanced(t *testing.T) {
 
 	logger.Info("6. Uncordon 4 nodes and verify a total of 6 pods get scheduled")
 	fourNodesToUncordon := nodesToCordon[0:4]
-	cordonNodes(tc, fourNodesToUncordon, false)
+	uncordonNodes(tc, fourNodesToUncordon)
 
 	// Wait for exactly 6 pods to be scheduled (min-replicas for both PCS replicas)
 	// expectedPodsAfterScaling is 20, so 20-6 = 14 pending
@@ -976,7 +976,7 @@ func Test_GS10_GangSchedulingWithPCSScalingMinReplicasAdvanced(t *testing.T) {
 
 	logger.Info("8. Uncordon 4 nodes and verify 4 more pods get scheduled")
 	fourMoreNodesToUncordon := nodesToCordon[4:8]
-	cordonNodes(tc, fourMoreNodesToUncordon, false)
+	uncordonNodes(tc, fourMoreNodesToUncordon)
 
 	// Wait for exactly 4 more pods to be scheduled (sg-x-1 for both PCS replicas)
 	// Total is 20, so 20-10 = 10 pending
@@ -991,7 +991,7 @@ func Test_GS10_GangSchedulingWithPCSScalingMinReplicasAdvanced(t *testing.T) {
 
 	logger.Info("10. Uncordon 10 nodes and verify the remaining workload pods get scheduled")
 	remainingNodesToUncordon := nodesToCordon[8:18]
-	cordonNodes(tc, remainingNodesToUncordon, false)
+	uncordonNodes(tc, remainingNodesToUncordon)
 
 	// Wait for all remaining pods to be scheduled and ready
 	if err := waitForPods(tc, 20); err != nil {
@@ -1072,7 +1072,7 @@ func Test_GS11_GangSchedulingWithPCSAndPCSGScalingMinReplicas(t *testing.T) {
 
 	logger.Info("4. Uncordon 1 node")
 	firstNodeToUncordon := nodesToCordon[0]
-	if err := cordonNode(tc, firstNodeToUncordon, false); err != nil {
+	if err := uncordonNode(tc, firstNodeToUncordon); err != nil {
 		t.Fatalf("Failed to uncordon node %s: %v", firstNodeToUncordon, err)
 	}
 
@@ -1083,7 +1083,7 @@ func Test_GS11_GangSchedulingWithPCSAndPCSGScalingMinReplicas(t *testing.T) {
 
 	logger.Info("6. Uncordon 7 nodes and verify the remaining workload pods get scheduled")
 	remainingNodesFirstWave := nodesToCordon[1:8]
-	cordonNodes(tc, remainingNodesFirstWave, false)
+	uncordonNodes(tc, remainingNodesFirstWave)
 
 	if err := waitForPods(tc, 10); err != nil {
 		t.Fatalf("Failed to wait for first wave pods to be ready: %v", err)
@@ -1102,7 +1102,7 @@ func Test_GS11_GangSchedulingWithPCSAndPCSGScalingMinReplicas(t *testing.T) {
 
 	logger.Info("9. Uncordon 2 nodes")
 	remainingNodesSecondWave := nodesToCordon[8:10]
-	cordonNodes(tc, remainingNodesSecondWave, false)
+	uncordonNodes(tc, remainingNodesSecondWave)
 
 	logger.Info("10. Wait for 2 more pods to be scheduled and ready (min-available for sg-x-2)")
 	if err := waitForRunningPods(tc, 12); err != nil {
@@ -1111,7 +1111,7 @@ func Test_GS11_GangSchedulingWithPCSAndPCSGScalingMinReplicas(t *testing.T) {
 
 	logger.Info("11. Uncordon 2 nodes and verify remaining workload pods get scheduled")
 	remainingNodesThirdWave := nodesToCordon[10:12]
-	cordonNodes(tc, remainingNodesThirdWave, false)
+	uncordonNodes(tc, remainingNodesThirdWave)
 
 	if err := waitForPods(tc, 14); err != nil {
 		t.Fatalf("Failed to wait for PCSG completion pods to be ready: %v", err)
@@ -1122,7 +1122,7 @@ func Test_GS11_GangSchedulingWithPCSAndPCSGScalingMinReplicas(t *testing.T) {
 
 	logger.Info("13. Uncordon 3 nodes")
 	remainingNodesFourthWave := nodesToCordon[12:15]
-	cordonNodes(tc, remainingNodesFourthWave, false)
+	uncordonNodes(tc, remainingNodesFourthWave)
 
 	logger.Info("14. Wait for 3 more pods to be scheduled (min-available for pcs-1)")
 	if err := waitForRunningPods(tc, 17); err != nil {
@@ -1131,7 +1131,7 @@ func Test_GS11_GangSchedulingWithPCSAndPCSGScalingMinReplicas(t *testing.T) {
 
 	logger.Info("15. Uncordon 7 nodes and verify the remaining workload pods get scheduled")
 	remainingNodesFifthWave := nodesToCordon[15:22]
-	cordonNodes(tc, remainingNodesFifthWave, false)
+	uncordonNodes(tc, remainingNodesFifthWave)
 
 	if err := waitForPods(tc, 24); err != nil {
 		t.Fatalf("Failed to wait for PCS completion pods to be ready: %v", err)
@@ -1150,7 +1150,7 @@ func Test_GS11_GangSchedulingWithPCSAndPCSGScalingMinReplicas(t *testing.T) {
 
 	logger.Info("18. Uncordon 2 nodes")
 	remainingNodesSixthWave := nodesToCordon[22:24]
-	cordonNodes(tc, remainingNodesSixthWave, false)
+	uncordonNodes(tc, remainingNodesSixthWave)
 
 	logger.Info("19. Wait for 2 more pods to be scheduled (min-available for pcs-1-sg-x-2)")
 	if err := waitForRunningPods(tc, 26); err != nil {
@@ -1159,7 +1159,7 @@ func Test_GS11_GangSchedulingWithPCSAndPCSGScalingMinReplicas(t *testing.T) {
 
 	logger.Info("20. Uncordon 2 nodes and verify remaining workload pods get scheduled")
 	finalNodes := nodesToCordon[24:26]
-	cordonNodes(tc, finalNodes, false)
+	uncordonNodes(tc, finalNodes)
 
 	if err := waitForPods(tc, 28); err != nil {
 		t.Fatalf("Failed to wait for all final pods to be ready: %v", err)
@@ -1252,7 +1252,7 @@ func Test_GS12_GangSchedulingWithComplexPCSGScaling(t *testing.T) {
 
 	logger.Info("8. Uncordon 4 nodes and verify a total of 6 pods get scheduled (pcs-0 and pcs-1 min-available)")
 	firstWaveNodes := nodesToCordon[:4]
-	cordonNodes(tc, firstWaveNodes, false)
+	uncordonNodes(tc, firstWaveNodes)
 
 	if err := waitForRunningPods(tc, 6); err != nil {
 		t.Fatalf("Failed to wait for 6 pods to be scheduled: %v", err)
@@ -1265,7 +1265,7 @@ func Test_GS12_GangSchedulingWithComplexPCSGScaling(t *testing.T) {
 
 	logger.Info("10. Uncordon 8 nodes and verify 8 more pods get scheduled (remaining PCSG pods)")
 	secondWaveNodes := nodesToCordon[4:12]
-	cordonNodes(tc, secondWaveNodes, false)
+	uncordonNodes(tc, secondWaveNodes)
 
 	if err := waitForRunningPods(tc, 14); err != nil {
 		t.Fatalf("Failed to wait for 8 more pods to be scheduled: %v", err)
@@ -1278,7 +1278,7 @@ func Test_GS12_GangSchedulingWithComplexPCSGScaling(t *testing.T) {
 
 	logger.Info("12. Uncordon 14 nodes and verify the remaining workload pods get scheduled")
 	finalWaveNodes := nodesToCordon[12:26]
-	cordonNodes(tc, finalWaveNodes, false)
+	uncordonNodes(tc, finalWaveNodes)
 
 	if err := waitForPods(tc, 28); err != nil {
 		t.Fatalf("Failed to wait for all final pods to be ready: %v", err)

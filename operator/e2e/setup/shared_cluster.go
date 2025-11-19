@@ -207,7 +207,7 @@ func (scm *SharedClusterManager) PrepareForTest(ctx context.Context, requiredWor
 		// Cordon nodes that are not needed for this test
 		nodesToCordon := scm.workerNodes[requiredWorkerNodes:]
 		for _, nodeName := range nodesToCordon {
-			if err := utils.CordonNode(ctx, scm.clientset, nodeName, true); err != nil {
+			if err := utils.SetNodeSchedulable(ctx, scm.clientset, nodeName, false); err != nil {
 				return fmt.Errorf("failed to cordon node %s: %w", nodeName, err)
 			}
 		}
@@ -313,7 +313,7 @@ func (scm *SharedClusterManager) listRemainingPods(ctx context.Context, namespac
 // resetNodeStates uncordons all worker nodes to reset cluster state
 func (scm *SharedClusterManager) resetNodeStates(ctx context.Context) error {
 	for _, nodeName := range scm.workerNodes {
-		if err := utils.CordonNode(ctx, scm.clientset, nodeName, false); err != nil {
+		if err := utils.SetNodeSchedulable(ctx, scm.clientset, nodeName, true); err != nil {
 			scm.logger.Warnf("failed to uncordon node %s: %v", nodeName, err)
 			return fmt.Errorf("failed to uncordon node %s: %w", nodeName, err)
 		}
