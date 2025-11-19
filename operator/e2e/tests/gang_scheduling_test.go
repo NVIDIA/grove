@@ -158,7 +158,7 @@ func Test_GS2_GangSchedulingWithScalingFullReplicas(t *testing.T) {
 	logger.Info("7. Uncordon remaining nodes and verify all pods get scheduled")
 	uncordonNodesAndWaitForPods(tc, nodesToCordon[1:], expectedScaledPods)
 
-	// Verify that each pod is scheduled on a unique nodede
+	// Verify that each pod is scheduled on a unique node
 	listPodsAndAssertDistinctNodes(tc)
 
 	logger.Info("🎉 Gang-scheduling PCSG scaling test completed successfully!")
