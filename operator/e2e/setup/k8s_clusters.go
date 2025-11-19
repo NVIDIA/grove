@@ -308,7 +308,7 @@ func SetupCompleteK3DCluster(ctx context.Context, cfg ClusterConfig, skaffoldYAM
 
 	// Nvidia Operator seems to take the longest to be ready, so we wait for it last
 	// to get the most done while waiting. (0 = skip count validation)
-	if err := utils.WaitForPodsInNamespace(ctx, nvidiaConfig.Namespace, nvidiaConfig.RestConfig, 0, defaultPollTimeout, defaultPollInterval, nvidiaConfig.Logger); err != nil {
+	if err := utils.WaitForPodsInNamespace(ctx, gpuOperatorConfig.Namespace, gpuOperatorConfig.RestConfig, 0, defaultPollTimeout, defaultPollInterval, gpuOperatorConfig.Logger); err != nil {
 		cleanup()
 		return nil, nil, fmt.Errorf("NVIDIA GPU Operator not ready: %w", err)
 	}
