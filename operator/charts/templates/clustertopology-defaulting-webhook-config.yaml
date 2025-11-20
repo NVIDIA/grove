@@ -1,0 +1,33 @@
+---
+apiVersion: admissionregistration.k8s.io/v1
+kind: MutatingWebhookConfiguration
+metadata:
+  name: clustertopology-defaulting-webhook
+  labels:
+{{- include "operator.clustertopology.defaulting.webhook.labels" . | nindent 4 }}
+webhooks:
+  - admissionReviewVersions:
+      - v1
+    clientConfig:
+      service:
+        name: {{ required ".Values.service.name is required" .Values.service.name }}
+        namespace: {{ .Release.Namespace }}
+        path: /webhooks/default-clustertopology
+        port: {{ required ".Values.config.server.webhooks.port" .Values.config.server.webhooks.port }}
+    failurePolicy: Fail
+    matchPolicy: Exact
+    name: clustertopology.defaulting.webhooks.grove.io
+    namespaceSelector: { }
+    rules:
+      - apiGroups:
+          - "grove.io"
+        apiVersions:
+          - "v1alpha1"
+        operations:
+          - CREATE
+        resources:
+          - clustertopologies
+        scope: 'Cluster'
+    sideEffects: None
+    timeoutSeconds: 10
+
