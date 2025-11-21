@@ -45,10 +45,11 @@ jobs:
       - name: Extract package version from branch commit
         if: startsWith(github.ref, 'refs/heads/')
         run: |
-          PACKAGE_VERSION=v0.0.0-$(git rev-parse --short HEAD)
+          # We add a 'g' prefix to the hash.
+          # This prevents "all-number" hashes starting with 0 from breaking Helm (invalid semver)
+          PACKAGE_VERSION=v0.0.0-g$(git rev-parse --short HEAD)
           echo "PACKAGE_VERSION=$PACKAGE_VERSION" >> $GITHUB_ENV
           echo $PACKAGE_VERSION
-
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
